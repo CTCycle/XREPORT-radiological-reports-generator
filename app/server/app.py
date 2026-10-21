@@ -3,11 +3,13 @@ from __future__ import annotations
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 import asyncio
+import hmac
+import os
 from pathlib import Path
 import re
 from time import perf_counter
 
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Header, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse, RedirectResponse
 from sqlalchemy.exc import SQLAlchemyError
@@ -48,8 +50,8 @@ from server.services.startup_validation import run_startup_validations
 from server.common.utils.logger import logger
 
 ###############################################################################
-def redirect_root_to_docs() -> RedirectResponse | FileResponse:
-    if PACKAGED_MODE:
+def redirect_root_to_docs(*, serve_source_client: bool = False) -> RedirectResponse | FileResponse:
+    if PACKAGED_MODE or serve_source_client:
         return FileResponse(CLIENT_DIST_DIR / "index.html")
     return RedirectResponse(FASTAPI_DOCS_ENDPOINT)
 
@@ -98,6 +100,90 @@ def serve_packaged_frontend(path: str) -> FileResponse:
     if not candidate.is_file():
         candidate = CLIENT_DIST_DIR / "index.html"
     return FileResponse(candidate)
+
+
+###############################################################################
+def serve_source_frontend(path: str) -> FileResponse | JSONResponse:
+    """Serve built Angular assets, with SPA fallback for extensionless routes."""
+    normalized_path = path.replace("\\", "/")
+    if normalized_path == "api" or normalized_path.startswith("api/"):
+        return JSONResponse({"detail": "Not Found"}, status_code=404)
+    relative = Path(normalized_path)
+    candidate = (CLIENT_DIST_DIR / relative).resolve()
+    try:
+        candidate.relative_to(CLIENT_DIST_DIR.resolve())
+    except ValueError:
+        return JSONResponse({"detail": "Static file not found."}, status_code=404)
+
+    if candidate.is_file():
+        return FileResponse(candidate)
+    if relative.suffix:
+        return JSONResponse({"detail": "Static file not found."}, status_code=404)
+    return FileResponse(CLIENT_DIST_DIR / "index.html")
+
+
+###############################################################################
+def source_shutdown(
+    request: Request,
+    launch_token: str | None = Header(
+        default=None, alias="X-XREPORT-Launch-Token"
+    ),
+) -> ShutdownResponse:
+    expected_token = getattr(request.app.state, "source_launch_token", "")
+    if not launch_token or not hmac.compare_digest(launch_token, expected_token):
+        raise HTTPException(status_code=403, detail="Invalid launcher token")
+    return request_shutdown(request)
+
+
+###############################################################################
+def install_runtime_shutdown(application: FastAPI, source_launch_token: str) -> None:
+    if PACKAGED_MODE:
+        desktop_token()
+        application.add_middleware(DesktopSecurityMiddleware)
+        install_shutdown_event(application)
+    elif source_launch_token:
+        application.state.source_launch_token = source_launch_token
+        install_shutdown_event(application)
+
+
+###############################################################################
+def install_runtime_routes(
+    application: FastAPI,
+    source_launch_token: str,
+    serve_source_client: bool,
+) -> None:
+    if PACKAGED_MODE:
+        application.add_api_route(
+            SHUTDOWN_PATH,
+            request_shutdown,
+            methods=["POST"],
+            include_in_schema=False,
+            response_model=ShutdownResponse,
+        )
+        application.add_api_route(
+            "/{path:path}",
+            serve_packaged_frontend,
+            methods=["GET"],
+            include_in_schema=False,
+            response_model=None,
+        )
+        return
+    if source_launch_token:
+        application.add_api_route(
+            SHUTDOWN_PATH,
+            source_shutdown,
+            methods=["POST"],
+            include_in_schema=False,
+            response_model=ShutdownResponse,
+        )
+    if serve_source_client:
+        application.add_api_route(
+            "/{path:path}",
+            serve_source_frontend,
+            methods=["GET"],
+            include_in_schema=False,
+            response_model=None,
+        )
 
 ###############################################################################
 @asynccontextmanager
@@ -167,6 +253,16 @@ async def app_lifespan(application: FastAPI) -> AsyncIterator[None]:
 ###############################################################################
 def create_app() -> FastAPI:
     runtime_environment = get_runtime_environment_settings()
+    serve_source_client = (
+        not PACKAGED_MODE
+        and os.getenv("XREPORT_SERVE_CLIENT", "").strip().lower()
+        in {"1", "true", "yes"}
+    )
+    source_launch_token = "" if PACKAGED_MODE else os.getenv("XREPORT_LAUNCH_TOKEN", "")
+    if serve_source_client and not (CLIENT_DIST_DIR / "index.html").is_file():
+        raise FileNotFoundError(
+            f"Built Angular frontend was not found at {CLIENT_DIST_DIR / 'index.html'}"
+        )
     application = FastAPI(
         title=FASTAPI_TITLE,
         version=FASTAPI_VERSION,
@@ -198,10 +294,7 @@ def create_app() -> FastAPI:
         gate = request.app.state.database_request_gate
         return await gate.run_request(lambda: call_next(request))
 
-    if PACKAGED_MODE:
-        desktop_token()
-        application.add_middleware(DesktopSecurityMiddleware)
-        install_shutdown_event(application)
+    install_runtime_shutdown(application, source_launch_token)
     register_service_error_handlers(application)
 
     for router in (
@@ -223,28 +316,17 @@ def create_app() -> FastAPI:
         include_in_schema=False,
     )
 
+    def root_response() -> RedirectResponse | FileResponse:
+        return redirect_root_to_docs(serve_source_client=serve_source_client)
+
     application.add_api_route(
         FASTAPI_ROOT_ENDPOINT,
-        redirect_root_to_docs,
+        root_response,
         methods=["GET"],
         include_in_schema=False,
         response_model=None,
     )
-    if PACKAGED_MODE:
-        application.add_api_route(
-            SHUTDOWN_PATH,
-            request_shutdown,
-            methods=["POST"],
-            include_in_schema=False,
-            response_model=ShutdownResponse,
-        )
-        application.add_api_route(
-            "/{path:path}",
-            serve_packaged_frontend,
-            methods=["GET"],
-            include_in_schema=False,
-            response_model=None,
-        )
+    install_runtime_routes(application, source_launch_token, serve_source_client)
 
     if runtime_environment.cors.allowed_origins:
         application.add_middleware(

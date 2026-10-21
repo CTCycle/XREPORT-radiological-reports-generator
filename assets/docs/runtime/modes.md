@@ -1,16 +1,19 @@
 # Runtime Modes
 
-Last updated: 2026-09-22
+Last updated: 2026-10-21
 
 ## Supported Modes
 
 ### Local Web Mode
 
 - Backend: FastAPI in `app/server/app.py`.
-- Frontend: Angular development server for `start`/`dev`, or the lightweight
-  built-bundle static/proxy server for `preview` and normal Windows Launch.
-- The Windows operator flow uses `start_on_windows.ps1`.
-- macOS and Linux use the documented manual backend and frontend commands.
+- Normal Windows Launch: FastAPI serves the built Angular SPA and `/api` from
+  one origin; the launcher owns backend readiness and shutdown.
+- Development: Angular CLI `start`/`dev` proxies `/api` to FastAPI. The
+  lightweight `preview` server validates a built bundle and supports Tauri
+  development; it does not host normal production Launch.
+- The Windows operator flow uses `start_on_windows.ps1`. macOS and Linux use
+  the documented manual development backend and frontend commands.
 
 ### Packaged Windows Desktop Mode
 
@@ -28,6 +31,8 @@ Last updated: 2026-09-22
 - The portable executable uses the system WebView2 runtime. The default MSI
   embeds the WebView2 bootstrapper; an offline installer is an explicit build
   option.
+- Tauri release serves its bundled `ui/` assets. Rust owns the packaged backend
+  sidecar lifecycle; source-mode FastAPI static hosting is not added for Tauri.
 
 ### Containerized Runtime
 

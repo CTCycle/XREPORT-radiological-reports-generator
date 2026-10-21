@@ -6,13 +6,15 @@ Last updated: 2026-10-21
 
 - XREPORT is a local client/server application.
 - Windows users run the application through `start_on_windows.ps1`.
-- macOS and Linux users start the backend and frontend manually.
+- macOS and Linux source instructions use a manually started development
+  backend and Angular development server.
 
 ## Windows Runtime Preparation
 
 1. Run `start_on_windows.ps1`.
 2. Select **Install / update dependencies** to prepare Python, uv, Node.js, and the frontend build.
-3. Select **Launch application** to start the backend and frontend locally.
+3. Select **Launch application** to start FastAPI, which serves the built
+   frontend and API from one origin. The launcher stays open as lifecycle owner.
 
 ## Runtime Prerequisites
 
@@ -43,6 +45,10 @@ Last updated: 2026-10-21
   the database remains in the user data root.
 
 ## Desktop release layout
+
+Tauri release packages continue to use `frontendDist: "ui"` and the existing
+Rust-managed backend sidecar. The release frontend is served by Tauri's bundled
+assets; `npm preview` is not used as a production web server.
 
 The Windows release command always synchronizes the locked desktop Python and
 Node environments, freezes the backend with the pinned desktop PyInstaller
