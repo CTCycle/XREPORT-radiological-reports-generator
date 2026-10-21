@@ -6,6 +6,8 @@ from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from .runtime_environment import get_runtime_environment_settings
+
 ###############################################################################
 @dataclass(frozen=True)
 class DatabaseSettings:
@@ -55,7 +57,7 @@ class ServerSettings:
 
 ###############################################################################
 class ApplicationSettingsValues(BaseModel):
-    """Strict persisted application settings, including private runtime policy."""
+    """Strict settings that users can change through the application UI."""
 
     model_config = ConfigDict(extra="forbid", strict=True)
 
@@ -66,8 +68,6 @@ class ApplicationSettingsValues(BaseModel):
         le=60.0,
         allow_inf_nan=False,
     )
-    inference_hf_local_only: bool
-    inference_device: Literal["auto", "cpu", "cuda"]
     inference_model_timeout: int = Field(ge=1)
     theme_preference: Literal["light", "dark", "system"] | None = None
 
@@ -76,8 +76,6 @@ DEFAULT_APPLICATION_SETTINGS = ApplicationSettingsValues(
     global_seed=42,
     allow_local_filesystem_access=True,
     job_polling_interval=1.0,
-    inference_hf_local_only=True,
-    inference_device="auto",
     inference_model_timeout=600,
     theme_preference=None,
 )
@@ -87,6 +85,7 @@ def application_settings_to_server_settings(
     values: ApplicationSettingsValues,
     database: DatabaseSettings,
 ) -> ServerSettings:
+    runtime = get_runtime_environment_settings()
     return ServerSettings(
         database=database,
         global_settings=GlobalSettings(seed=values.global_seed),
@@ -95,8 +94,8 @@ def application_settings_to_server_settings(
         ),
         jobs=JobsSettings(polling_interval=values.job_polling_interval),
         inference=InferenceSettings(
-            hf_local_only=values.inference_hf_local_only,
-            device=values.inference_device,
+            hf_local_only=runtime.inference_hf_local_only,
+            device=runtime.inference_device,
             model_timeout=values.inference_model_timeout,
         ),
     )

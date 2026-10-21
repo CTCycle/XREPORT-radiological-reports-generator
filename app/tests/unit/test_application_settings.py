@@ -42,8 +42,6 @@ def _database(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Database:
                 "global_seed": 123,
                 "allow_local_filesystem_access": False,
                 "job_polling_interval": 2.5,
-                "inference_hf_local_only": False,
-                "inference_device": "cpu",
                 "inference_model_timeout": 120,
             }
         )
@@ -64,14 +62,12 @@ def test_fresh_upgrade_uses_typed_defaults(
         "global_seed": 42,
         "allow_local_filesystem_access": True,
         "job_polling_interval": 1.0,
-        "inference_hf_local_only": True,
-        "inference_device": "auto",
         "inference_model_timeout": 600,
         "theme_preference": None,
     }
 
 ###############################################################################
-def test_public_projection_excludes_private_inference_policy(tmp_path, monkeypatch) -> None:
+def test_public_projection_contains_only_application_settings(tmp_path, monkeypatch) -> None:
     database = _database(tmp_path, monkeypatch)
     response = SettingsService(ApplicationSettingsRepository(database)).get_settings()
 
@@ -92,7 +88,7 @@ def test_public_projection_excludes_private_inference_policy(tmp_path, monkeypat
     }
 
 ###############################################################################
-def test_update_and_reset_preserve_private_inference_policy(tmp_path, monkeypatch) -> None:
+def test_update_and_reset_change_application_settings(tmp_path, monkeypatch) -> None:
     database = _database(tmp_path, monkeypatch)
     repository = ApplicationSettingsRepository(database)
     service = SettingsService(repository)
@@ -109,8 +105,6 @@ def test_update_and_reset_preserve_private_inference_policy(tmp_path, monkeypatc
     assert reset.values.global_settings.seed == 42
     assert reset.values.inference.model_timeout == 600
     persisted = repository.get_settings()
-    assert persisted.inference_device == "cpu"
-    assert persisted.inference_hf_local_only is False
     assert persisted.theme_preference is None
 
 ###############################################################################

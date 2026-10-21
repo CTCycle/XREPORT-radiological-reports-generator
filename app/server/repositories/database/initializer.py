@@ -34,7 +34,7 @@ from server.repositories.schemas import Base
 
 # Kept as the current repository head for diagnostics and integration tests;
 # the coordinator discovers the active head from ScriptDirectory at runtime.
-HEAD_REVISION = "b1e7a2c4d908"
+HEAD_REVISION = "42c8e1f7b0d3"
 ALEMBIC_VERSION_TABLE = "alembic_version"
 MIGRATIONS_DIR = Path(__file__).resolve().parents[2] / "migrations"
 

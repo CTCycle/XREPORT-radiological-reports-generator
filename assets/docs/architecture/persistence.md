@@ -6,14 +6,15 @@ Last updated: 2026-10-21
 
 The sources of truth are deliberately separated:
 
-- `settings/.env` owns deployment values such as runtime host, ports, and
-  resource root. It contains no database configuration.
+- `settings/.env` owns deployment values such as runtime host, ports, API proxy,
+  CORS, inference process policy, and resource root. It contains no database
+  configuration.
 - `<resource root>/database-config.json` owns only the selected database
   backend and its connection parameters. It is independent of the database;
   PostgreSQL passwords are DPAPI-protected for the current Windows account.
-- The singleton `application_settings` database row owns mutable application
-  behavior such as the global seed, filesystem-access flag, job polling
-  interval, inference timeout, and hidden inference process policy.
+- The singleton `application_settings` database row owns only mutable
+  user-facing application behavior such as the global seed, filesystem-access
+  flag, job polling interval, inference timeout, and theme preference.
 - `app/server/configurations/inference_models.py` owns the immutable, reviewed
   inference catalogue and its safety/runtime contract.
 
@@ -50,10 +51,10 @@ process-level launch settings such as the resource root requires a restart;
 database switching does not.
 
 Alembic is the authoritative schema history. The checked-in migration stream
-has one head (`b1e7a2c4d908`) — a squashed baseline that creates the current
-schema and the seeded `application_settings` singleton row — and stores the
-applied revision in `alembic_version`. The baseline no longer imports former
-JSON or `.env` configuration sources and does not scan the checkpoint
+has one head (`42c8e1f7b0d3`): the `b1e7a2c4d908` baseline creates the schema and
+seeds the `application_settings` singleton row, then the head migration removes
+inference process-policy columns from that row. The baseline no longer imports
+former JSON or `.env` configuration sources and does not scan the checkpoint
 directory; re-creating the database starts with typed default settings and an
 empty checkpoint registry.
 
@@ -163,9 +164,8 @@ erDiagram
         bigint global_seed
         boolean allow_local_filesystem_access
         float job_polling_interval
-        boolean inference_hf_local_only
-        string inference_device
         bigint inference_model_timeout
+        string theme_preference
         datetime updated_at
     }
 
