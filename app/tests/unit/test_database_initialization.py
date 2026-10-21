@@ -118,6 +118,57 @@ def test_database_at_head_preserves_settings_and_records(tmp_path) -> None:
     finally:
         engine.dispose()
 
+
+###############################################################################
+def test_policy_migration_from_baseline_preserves_user_settings_and_records(
+    tmp_path,
+) -> None:
+    database_path = tmp_path / "database.db"
+    config = _alembic_config(database_path)
+    command.upgrade(config, "b1e7a2c4d908")
+    engine = sqlalchemy.create_engine(f"sqlite:///{database_path}")
+    try:
+        with engine.begin() as connection:
+            connection.exec_driver_sql(
+                "UPDATE application_settings SET global_seed = 909, "
+                "allow_local_filesystem_access = 0, job_polling_interval = 2.5, "
+                "inference_hf_local_only = 0, inference_device = 'cpu', "
+                "inference_model_timeout = 901, theme_preference = 'dark' "
+                "WHERE settings_id = 1"
+            )
+            connection.exec_driver_sql(
+                "INSERT INTO datasets (name, name_key, created_at) "
+                "VALUES ('Retained dataset', 'retained-dataset', '2026-10-20 12:00:00')"
+            )
+    finally:
+        engine.dispose()
+
+    initializer.initialize_database(_sqlite_settings(database_path))
+    initializer.prepare_database_for_startup(_sqlite_settings(database_path))
+
+    engine = sqlalchemy.create_engine(f"sqlite:///{database_path}")
+    try:
+        columns = {
+            column["name"]
+            for column in sqlalchemy.inspect(engine).get_columns("application_settings")
+        }
+        assert "inference_hf_local_only" not in columns
+        assert "inference_device" not in columns
+        with engine.connect() as connection:
+            assert connection.exec_driver_sql(
+                "SELECT global_seed, allow_local_filesystem_access, "
+                "job_polling_interval, inference_model_timeout, theme_preference "
+                "FROM application_settings WHERE settings_id = 1"
+            ).one() == (909, 0, 2.5, 901, "dark")
+            assert connection.exec_driver_sql(
+                "SELECT name FROM datasets WHERE name_key = 'retained-dataset'"
+            ).scalar_one() == "Retained dataset"
+            assert connection.exec_driver_sql(
+                "SELECT version_num FROM alembic_version"
+            ).scalar_one() == initializer.HEAD_REVISION == "42c8e1f7b0d3"
+    finally:
+        engine.dispose()
+
 ###############################################################################
 def test_nonempty_unversioned_schema_is_rejected_without_implicit_adoption(
     tmp_path, monkeypatch
@@ -308,6 +359,10 @@ def test_postgres_startup_failure_does_not_leak_credentials(monkeypatch) -> None
         (
             "global_seed >= 0 AND global_seed <= 4294967295",
             "global_seed >= 0 AND global_seed <= '4294967295'::numeric",
+        ),
+        (
+            "theme_preference IS NULL OR theme_preference IN ('light', 'dark', 'system')",
+            "theme_preference IS NULL OR (theme_preference IN ('light', 'dark', 'system'))",
         ),
     ],
 )
