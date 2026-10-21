@@ -1,6 +1,6 @@
 # XREPORT Validation Campaign Ledger
 
-Last updated: 2026-10-20
+Last updated: 2026-10-21
 
 This ledger summarizes current validation gates, release evidence, and known
 scope limits. The [project status ledger](project_status_ledger.md) owns
@@ -16,7 +16,7 @@ or suitability for patient care.
 | Tier | Scope | Current result | Boundary |
 | ---: | --- | --- | --- |
 | 0 | CI baseline, source readiness, deterministic quality gates, rendered [startup](runtime/startup.md) | `PARTIAL` (`S00`, `S01`, `S03`, and rendered `S02` checks pass; standard-port launcher start remains open) | GitHub Actions and current Windows S01/S02/S03 checks passed. The official launcher completed a full start on isolated ports, but successful startup on the standard UI port remains untested because a pre-existing repository server owns port 8003. A non-interactive launch correctly failed closed and preserved that process. SonarCloud is excluded from the gates because the available plan does not support this repository's over-50k LOC analysis. |
-| 1 | UI state, settings, jobs, [persistence](architecture/persistence.md), filesystem controls | `PASS` (`S10`–`S15`) | Scope is the exercised local SQLite and PostgreSQL 16 contracts. |
+| 1 | UI state, settings, jobs, [persistence](architecture/persistence.md), filesystem controls | `PARTIAL` (`S10`–`S15`; database runtime switch partial) | Non-database settings autosave, apply immediately where feasible, and restore after reload; database edits remain drafts until the current candidate passes a connection test and the user confirms. Existing SQLite and PostgreSQL 16 persistence contracts pass. The Database UI was exercised across two SQLite files, including per-database settings reload, restart persistence, unavailable-PostgreSQL handling, and rollback. A successful PostgreSQL connection and UI switch remain unverified because the local service requires credentials unavailable for this run. |
 | 2 | [Dataset, training, and evaluation workflows](operations/workflows.md) | `PASS` (`S20`–`S28`) | Technical workflows use synthetic or small datasets; this is not representative-data or clinical-quality evidence. |
 | 3 | Catalogue, installation, browser inference, custom and public [models](runtime/local_inference_models.md) | Complete (`S30`–`S37`; `S35` retired) | `CXRMate-ED` was retired after collapsing distinct fixtures; MedGemma's gated behavior passed, but model access remains blocked. Model quality remains unvalidated. |
 | 4 | Heavy providers and Windows desktop [deployment](runtime/deployment.md) | `PARTIAL` (`S40`–`S43`) | `S43` remains partial for broader packaged/live-service ownership; GPU-less CUDA fallback and cross-variant performance remain untested. The v3.2.0 release package scope is recorded below. |
@@ -44,7 +44,7 @@ see [testing and quality rules](coding/testing_and_quality.md).
   repository's over-50k LOC, so no Sonar result is required for S00.
 - `S01` passed on the current Windows candidate using a disposable
   `XREPORT_RESOURCES_DIR`: fresh SQLite startup returned health `200`, reached
-  Alembic head `e91a4f6c2d73`, created the required resource directories, and
+  Alembic head `a83cdb64e721`, created the required resource directories, and
   passed SQLite integrity. A restart reused the same 12-table schema. A
   non-empty database without `alembic_version` exited nonzero and was not
   stamped.
@@ -57,6 +57,31 @@ see [testing and quality rules](coding/testing_and_quality.md).
   the shell showed progress and unavailable/retry states, retry recovered to
   the workspace, and a later catalogue error remained in-app. Captures are
   stored under ignored `assets/QA/validation_campaign/tier-0/`.
+- The Database Settings UI passed an in-app browser workflow on isolated
+  resources: connection tests and switches succeeded between two SQLite
+  databases; each restored its own default seed (`777` and `42`); a backend
+  restart retained the selected file and settings; and an unreachable
+  PostgreSQL target produced an error while keeping SQLite active. The local
+  PostgreSQL service required a password, so a successful PostgreSQL UI switch
+  remains unverified. The theme selector also saved Dark in one SQLite file,
+  restored System in a second, and restored Dark after switching back and after
+  a backend restart.
+- The settings autosave recheck passed 19 focused client unit tests and four
+  Chromium E2E cases. It covered the General, Data access, Advanced, and
+  Database tabs; debounced seed persistence across an immediate page reload;
+  checkbox, polling, timeout, theme, and all database connection-field edits;
+  reset; and an unconfirmed
+  database draft whose failed PostgreSQL probe left SQLite active and kept
+  Apply disabled. Client tests also covered serialized rapid writes, the
+  current-draft validation gate, and recovery from a failed write.
+  After a backend process restart on isolated resources, seed `321`, disabled
+  filesystem access, polling interval `2.25`, timeout `777`, and Dark theme all
+  restored from the active database. The application-settings repository
+  reopen test passed 11 cases; database configuration validation and rollback
+  passed 8 cases. A working PostgreSQL service was unavailable, so successful
+  PostgreSQL activation remains open. The separate request-drain gate test did
+  not reach its test body because Windows asyncio loop initialization stalled;
+  that gate remains unverified in this run.
 - The official launcher then completed a full start on isolated ports
   `51873`/`41873` with a disposable `XREPORT_RESOURCES_DIR`. It detected the
   missing frontend build manifest, rebuilt the production bundle, and returned

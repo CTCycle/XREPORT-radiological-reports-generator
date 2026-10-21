@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from .environment import load_environment
+from .database_config import DatabaseConfigurationError
 from .startup import (
     get_database_settings,
     get_server_settings,
@@ -19,6 +20,7 @@ from .settings import (
 
 __all__ = [
     "load_environment",
+    "DatabaseConfigurationError",
     "get_database_settings",
     "ApplicationSettingsValues",
     "DEFAULT_APPLICATION_SETTINGS",

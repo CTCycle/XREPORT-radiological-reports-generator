@@ -10,6 +10,10 @@ export class StorageService {
     try { localStorage.setItem(key, value); } catch { /* private mode/quota */ }
   }
 
+  removeString(key: string): void {
+    try { localStorage.removeItem(key); } catch { /* private mode/quota */ }
+  }
+
   readRecord<T>(key: string): Record<string, T> {
     try {
       const raw = this.readString(key);

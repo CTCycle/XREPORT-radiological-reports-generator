@@ -26,7 +26,7 @@ from sqlalchemy.engine import Connection, Engine
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.sql.elements import TextClause
 
-from server.common.path import DATABASE_FILE_PATH, RUNTIME_LAYOUT
+from server.common.path import RUNTIME_LAYOUT
 from server.common.runtime_layout import remove_legacy_configuration_file
 from server.common.utils.logger import logger
 from server.configurations import DatabaseSettings, get_database_settings
@@ -36,7 +36,7 @@ from server.repositories.schemas import Base
 
 # Kept as the current repository head for diagnostics and integration tests;
 # the coordinator discovers the active head from ScriptDirectory at runtime.
-HEAD_REVISION = "e91a4f6c2d73"
+HEAD_REVISION = "a83cdb64e721"
 ALEMBIC_VERSION_TABLE = "alembic_version"
 MIGRATIONS_DIR = Path(__file__).resolve().parents[2] / "migrations"
 
@@ -110,7 +110,7 @@ def build_postgres_create_database_sql(database_name: str) -> TextClause:
 ###############################################################################
 def _database_label(settings: DatabaseSettings) -> str:
     if settings.backend == "sqlite":
-        return str(DATABASE_FILE_PATH)
+        return str(settings.sqlite_path or "<unconfigured SQLite path>")
     return settings.database_name or "<unnamed PostgreSQL database>"
 
 ###############################################################################

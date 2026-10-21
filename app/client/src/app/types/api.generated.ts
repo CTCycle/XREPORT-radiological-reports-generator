@@ -552,6 +552,57 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/settings/database": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Status */
+        get: operations["get_status_api_settings_database_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/settings/database/test": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Test Connection */
+        post: operations["test_connection_api_settings_database_test_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/settings/database/switch": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Switch Database */
+        post: operations["switch_database_api_settings_database_switch_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -562,6 +613,8 @@ export interface components {
             features?: components["schemas"]["FeatureSettingsPatch"] | null;
             jobs?: components["schemas"]["JobSettingsPatch"] | null;
             inference?: components["schemas"]["InferenceSettingsPatch"] | null;
+            /** Theme Preference */
+            theme_preference?: ("light" | "dark" | "system") | null;
         };
         /** ApplicationSettingsResponse */
         ApplicationSettingsResponse: {
@@ -694,6 +747,120 @@ export interface components {
         CheckpointsResponse: {
             /** Checkpoints */
             checkpoints: components["schemas"]["CheckpointInfo"][];
+        };
+        /**
+         * DatabaseConfiguration
+         * @description Validated in-memory connection configuration; secrets are never serialized directly.
+         */
+        DatabaseConfiguration: {
+            /**
+             * Backend
+             * @enum {string}
+             */
+            backend: "sqlite" | "postgresql";
+            /** Sqlite Path */
+            sqlite_path?: string | null;
+            /** Engine */
+            engine?: string | null;
+            /** Host */
+            host?: string | null;
+            /**
+             * Port
+             * @default 5432
+             */
+            port: number;
+            /** Database Name */
+            database_name?: string | null;
+            /** Username */
+            username?: string | null;
+            /** Password */
+            password?: string | null;
+            /**
+             * Ssl
+             * @default false
+             */
+            ssl: boolean;
+            /** Ssl Ca */
+            ssl_ca?: string | null;
+            /**
+             * Connect Timeout
+             * @default 30
+             */
+            connect_timeout: number;
+            /**
+             * Insert Batch Size
+             * @default 1000
+             */
+            insert_batch_size: number;
+        };
+        /** DatabaseConfigurationStatusResponse */
+        DatabaseConfigurationStatusResponse: {
+            /**
+             * State
+             * @enum {string}
+             */
+            state: "ready" | "recovery" | "unavailable";
+            active?: components["schemas"]["DatabaseConfigurationSummary"] | null;
+            suggested: components["schemas"]["DatabaseConfigurationSummary"];
+            /** Connected */
+            connected: boolean;
+            /** Schema Ready */
+            schema_ready: boolean;
+            /** Jobs Running */
+            jobs_running: boolean;
+            /** Error */
+            error?: string | null;
+        };
+        /** DatabaseConfigurationSummary */
+        DatabaseConfigurationSummary: {
+            /**
+             * Backend
+             * @enum {string}
+             */
+            backend: "sqlite" | "postgresql";
+            /** Sqlite Path */
+            sqlite_path?: string | null;
+            /** Engine */
+            engine?: string | null;
+            /** Host */
+            host?: string | null;
+            /** Port */
+            port?: number | null;
+            /** Database Name */
+            database_name?: string | null;
+            /** Username */
+            username?: string | null;
+            /** Password Configured */
+            password_configured: boolean;
+            /** Ssl */
+            ssl: boolean;
+            /** Ssl Ca */
+            ssl_ca?: string | null;
+            /** Connect Timeout */
+            connect_timeout: number;
+            /** Insert Batch Size */
+            insert_batch_size: number;
+        };
+        /** DatabaseConnectionTestResponse */
+        DatabaseConnectionTestResponse: {
+            /** Success */
+            success: boolean;
+            /**
+             * Backend
+             * @enum {string}
+             */
+            backend: "sqlite" | "postgresql";
+            /** Connected */
+            connected: boolean;
+            /** Schema Ready */
+            schema_ready: boolean;
+            /** Detail */
+            detail: string;
+        };
+        /** DatabaseSwitchResponse */
+        DatabaseSwitchResponse: {
+            active: components["schemas"]["DatabaseConfigurationSummary"];
+            settings: components["schemas"]["ApplicationSettingsResponse"];
         };
         /** DatasetInfo */
         DatasetInfo: {
@@ -901,11 +1068,8 @@ export interface components {
             edited: boolean;
             /** Edited At */
             edited_at?: string | null;
-            /**
-             * Sections
-             * @default {}
-             */
-            sections: {
+            /** Sections */
+            sections?: {
                 [key: string]: string;
             };
         };
@@ -1463,6 +1627,8 @@ export interface components {
             features: components["schemas"]["RuntimeFeatureSettings"];
             jobs: components["schemas"]["RuntimeJobSettings"];
             inference: components["schemas"]["RuntimeInferenceSettings"];
+            /** Theme Preference */
+            theme_preference: ("light" | "dark" | "system") | null;
         };
         /** RuntimeFeatureSettings */
         RuntimeFeatureSettings: {
@@ -2766,6 +2932,92 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ApplicationSettingsResponse"];
+                };
+            };
+        };
+    };
+    get_status_api_settings_database_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DatabaseConfigurationStatusResponse"];
+                };
+            };
+        };
+    };
+    test_connection_api_settings_database_test_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DatabaseConfiguration"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DatabaseConnectionTestResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    switch_database_api_settings_database_switch_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DatabaseConfiguration"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DatabaseSwitchResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };

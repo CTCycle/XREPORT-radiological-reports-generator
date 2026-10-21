@@ -1,13 +1,16 @@
 # XREPORT Persistence
 
-Last updated: 2026-09-28
+Last updated: 2026-10-20
 
 ## Database Backend Selection
 
 The sources of truth are deliberately separated:
 
-- `settings/.env` owns deployment and infrastructure values such as the
-  runtime host, ports, resource root, database mode, and database connection.
+- `settings/.env` owns deployment values such as runtime host, ports, and
+  resource root. It contains no database configuration.
+- `<resource root>/database-config.json` owns only the selected database
+  backend and its connection parameters. It is independent of the database;
+  PostgreSQL passwords are DPAPI-protected for the current Windows account.
 - The singleton `application_settings` database row owns mutable application
   behavior such as the global seed, filesystem-access flag, job polling
   interval, inference timeout, and hidden inference process policy.
@@ -17,15 +20,35 @@ The sources of truth are deliberately separated:
 From `settings/.env`:
 
 - `XREPORT_RESOURCES_DIR` optionally changes the resource root. It defaults to `data`; relative values are resolved from the repository root.
-- `EMBEDDED_DATABASE=true`: SQLite using `<resource root>/database.db`.
-- `EMBEDDED_DATABASE=false`: PostgreSQL using the configured engine, host, port, database name, user, password, and SSL settings.
+
+The Settings → Database section supports SQLite and PostgreSQL (psycopg 3).
+SQLite paths, PostgreSQL connection/authentication fields, SSL options, timeout,
+and insert batch size are stored in `database-config.json`. All application
+settings and records remain in the currently selected database.
 
 ## Initialization And Compatibility
 
 Backend startup calls the startup service, which coordinates database preparation and resource validation before serving requests.
 
+Runtime switching pauses and drains API requests and refuses to switch while a
+background job is active. The target connection and schema are prepared before
+activation; a failed activation restores the previous connection and leaves the
+previous configuration in effect. Existing repository objects keep the shared
+database facade, whose connection pool is replaced in place. The UI receives
+application settings read from the newly active database. No records or
+settings are copied between databases. Missing or invalid startup configuration
+opens restricted Database recovery UI while normal application routes remain
+unavailable.
+
+When a dedicated configuration file is absent, one-time migration imports the
+supported legacy database keys from `.env` or process environment, then removes
+them. `DATABASE_URL` is not supported. A corrupt dedicated file is preserved
+for recovery rather than replaced from an old environment source. Changing
+process-level launch settings such as the resource root requires a restart;
+database switching does not.
+
 Alembic is the authoritative schema history. The checked-in migration stream has
-one head (`e91a4f6c2d73`) and stores the applied revision in `alembic_version`.
+one head (`a83cdb64e721`) and stores the applied revision in `alembic_version`.
 The `f48a7c2e91b6` upgrade creates `application_settings` and, when upgrading
 an installation that still has the legacy JSON file, imports its validated
 values exactly once. The migration is the only compatibility reader; it does
@@ -38,6 +61,10 @@ immutable model output; an edited value is stored separately and the effective
 draft is resolved at read time. Saving text equal to the generated output
 clears the edit override, and deleting an inference run cascades to its report
 rows.
+
+The current `a83cdb64e721` upgrade adds a nullable database-backed theme
+preference to the application settings row. A `NULL` value means `system`, and
+allows a previous browser preference to be migrated once into the active database.
 
 ### SQLite
 

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from contextlib import contextmanager
+from dataclasses import dataclass
 from pathlib import Path
 import sqlite3
 import time
@@ -13,7 +14,6 @@ from sqlalchemy.dialects.postgresql import insert as postgres_insert
 from sqlalchemy.dialects.sqlite import insert as sqlite_insert
 from sqlalchemy.orm import Session, sessionmaker
 
-from server.common.path import DATABASE_FILE_PATH
 from server.common.utils.logger import logger
 from server.configurations import DatabaseSettings
 from server.repositories.database.utils import (
@@ -26,15 +26,27 @@ from server.repositories.database.utils import (
 from server.repositories.schemas import Base
 
 ###############################################################################
+@dataclass(frozen=True)
+class DatabaseConnectionSnapshot:
+    engine: sqlalchemy.Engine
+    session: sessionmaker[Session]
+    db_path: Path | None
+    insert_batch_size: int
+    settings: DatabaseSettings
+
+###############################################################################
 class Database:
     """Shared SQLAlchemy database implementation for SQLite and PostgreSQL."""
 
     # -------------------------------------------------------------------------
     def __init__(self, settings: DatabaseSettings) -> None:
         self.db_path: Path | None = None
+        self.settings = settings
         self.insert_batch_size = settings.insert_batch_size
         if settings.backend == "sqlite":
-            self.db_path = DATABASE_FILE_PATH
+            if settings.sqlite_path is None:
+                raise ValueError("SQLite database path is required")
+            self.db_path = settings.sqlite_path
             self.db_path.parent.mkdir(parents=True, exist_ok=True)
             self.engine = sqlalchemy.create_engine(
                 f"sqlite:///{self.db_path}", future=True, pool_pre_ping=True
@@ -63,6 +75,38 @@ class Database:
         self.session = sessionmaker(
             bind=self.engine, future=True, expire_on_commit=False
         )
+
+    # -------------------------------------------------------------------------
+    def replace_connection(self, candidate: Database) -> DatabaseConnectionSnapshot:
+        """Adopt a validated connection while preserving this shared facade."""
+        previous = DatabaseConnectionSnapshot(
+            engine=self.engine,
+            session=self.session,
+            db_path=self.db_path,
+            insert_batch_size=self.insert_batch_size,
+            settings=self.settings,
+        )
+        self.engine = candidate.engine
+        self.session = candidate.session
+        self.db_path = candidate.db_path
+        self.insert_batch_size = candidate.insert_batch_size
+        self.settings = candidate.settings
+        return previous
+
+    # -------------------------------------------------------------------------
+    def restore_connection(self, previous: DatabaseConnectionSnapshot) -> None:
+        candidate_engine = self.engine
+        self.engine = previous.engine
+        self.session = previous.session
+        self.db_path = previous.db_path
+        self.insert_batch_size = previous.insert_batch_size
+        self.settings = previous.settings
+        candidate_engine.dispose()
+
+    # -------------------------------------------------------------------------
+    @staticmethod
+    def dispose_snapshot(snapshot: DatabaseConnectionSnapshot) -> None:
+        snapshot.engine.dispose()
 
     # -------------------------------------------------------------------------
     @staticmethod

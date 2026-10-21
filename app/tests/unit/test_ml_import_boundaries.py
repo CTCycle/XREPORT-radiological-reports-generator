@@ -16,9 +16,7 @@ def test_concurrent_service_initialization_keeps_ml_imports_lazy(
     environment["KERAS_BACKEND"] = "torch"
     environment["MPLBACKEND"] = "Agg"
     environment["PYTHONDONTWRITEBYTECODE"] = "1"
-    environment["EMBEDDED_DATABASE"] = "true"
     environment["XREPORT_RESOURCES_DIR"] = str(tmp_path / "data")
-    environment.pop("DATABASE_URL", None)
     environment.pop("XREPORT_DESKTOP", None)
     code = """
 import importlib
