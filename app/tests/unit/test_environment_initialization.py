@@ -3,9 +3,11 @@ from __future__ import annotations
 import os
 
 import pytest
+from fastapi.testclient import TestClient
 
 import server.configurations.database_config as database_config
 import server.configurations.environment as environment
+from server.configurations.runtime_environment import get_runtime_environment_settings
 
 ###############################################################################
 @pytest.fixture(autouse=True)
@@ -91,3 +93,52 @@ def test_stray_database_keys_are_ignored_and_purged(tmp_path, monkeypatch) -> No
     assert "EMBEDDED_DATABASE" not in os.environ
     assert os.environ["XREPORT_TEST_ENV"] == "kept"
     assert "DATABASE_INSERT_BATCH_SIZE" in env_path.read_text(encoding="utf-8")
+
+
+###############################################################################
+def test_supported_runtime_settings_are_loaded_from_dotenv(tmp_path, monkeypatch) -> None:
+    env_path, _ = _configure_environment_paths(tmp_path, monkeypatch)
+    env_path.write_text(
+        "\n".join(
+            (
+                "INFERENCE_HF_LOCAL_ONLY=false",
+                "INFERENCE_DEVICE=cpu",
+                "CORS_ALLOWED_ORIGINS=https://ui.example,https://desktop.example",
+                "CORS_ALLOW_CREDENTIALS=true",
+                "CORS_ALLOW_METHODS=GET,OPTIONS",
+                "CORS_ALLOW_HEADERS=Authorization,X-XREPORT-Desktop-Token",
+                "",
+            )
+        ),
+        encoding="utf-8",
+    )
+
+    environment.load_environment(force=True)
+    settings = get_runtime_environment_settings()
+
+    assert settings.inference_hf_local_only is False
+    assert settings.inference_device == "cpu"
+    assert settings.cors.allowed_origins == (
+        "https://ui.example",
+        "https://desktop.example",
+    )
+    assert settings.cors.allow_credentials is True
+    assert settings.cors.allow_methods == ("GET", "OPTIONS")
+    assert settings.cors.allow_headers == (
+        "Authorization",
+        "X-XREPORT-Desktop-Token",
+    )
+
+    from server.app import create_app
+
+    response = TestClient(create_app()).options(
+        "/api/health",
+        headers={
+            "Origin": "https://ui.example",
+            "Access-Control-Request-Method": "GET",
+            "Access-Control-Request-Headers": "X-XREPORT-Desktop-Token",
+        },
+    )
+
+    assert response.status_code == 200
+    assert response.headers["access-control-allow-origin"] == "https://ui.example"
