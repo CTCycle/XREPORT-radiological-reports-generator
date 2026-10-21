@@ -609,6 +609,7 @@ export class SettingsPage implements OnInit, OnDestroy {
     this.statusMessage.set(null);
     const response = await this.api.resetSettings();
     if (response.result) {
+      this.theme.clearLegacyPreference();
       this.theme.applyDatabasePreference(response.result.values.theme_preference);
       this.applyResponse(response.result);
       this.statusMessage.set('Settings reset to defaults.');
