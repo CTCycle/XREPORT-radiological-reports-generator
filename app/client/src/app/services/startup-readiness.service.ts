@@ -3,7 +3,7 @@ import { Injectable, inject, signal } from '@angular/core';
 import { firstValueFrom, timeout } from 'rxjs';
 import { markStartupPhase } from './startup-timing';
 
-export type StartupPhase = 'starting' | 'slow' | 'unavailable' | 'ready';
+export type StartupPhase = 'starting' | 'slow' | 'unavailable' | 'recovery' | 'ready';
 
 export interface HealthResponse {
   status?: string;
@@ -12,6 +12,7 @@ export interface HealthResponse {
 
 export const STARTUP_POLL_INTERVAL_MS = 1_000;
 export const STARTUP_UNAVAILABLE_POLL_INTERVAL_MS = 3_000;
+export const STARTUP_RECOVERY_POLL_INTERVAL_MS = 3_000;
 export const STARTUP_REQUEST_TIMEOUT_MS = 2_000;
 export const STARTUP_SLOW_THRESHOLD_MS = 15_000;
 export const STARTUP_UNAVAILABLE_THRESHOLD_MS = 60_000;
@@ -70,6 +71,10 @@ export class StartupReadinessService {
         this.complete();
         return;
       }
+      if (response?.status === 'database_recovery') {
+        this.phase.set('recovery');
+        markStartupPhase('database_recovery');
+      }
     } catch {
       // Connection refusal and request timeouts are expected while the local service starts.
     } finally {
@@ -92,6 +97,7 @@ export class StartupReadinessService {
   }
 
   private updatePhaseFromElapsedTime(): void {
+    if (this.phase() === 'recovery') return;
     const startedAt = this.startedAt();
     if (startedAt === null) return;
 
@@ -112,9 +118,12 @@ export class StartupReadinessService {
 
   private scheduleNextProbe(): void {
     this.clearPollTimer();
-    const interval = this.phase() === 'unavailable'
-      ? STARTUP_UNAVAILABLE_POLL_INTERVAL_MS
-      : STARTUP_POLL_INTERVAL_MS;
+    const phase = this.phase();
+    const interval = phase === 'recovery'
+      ? STARTUP_RECOVERY_POLL_INTERVAL_MS
+      : phase === 'unavailable'
+        ? STARTUP_UNAVAILABLE_POLL_INTERVAL_MS
+        : STARTUP_POLL_INTERVAL_MS;
     this.pollTimer = setTimeout(() => {
       this.pollTimer = null;
       void this.probe();

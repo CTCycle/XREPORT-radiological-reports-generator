@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from typing import Literal
+
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 ###############################################################################
@@ -28,6 +30,7 @@ class RuntimeApplicationSettings(_StrictSettingsModel):
     features: RuntimeFeatureSettings
     jobs: RuntimeJobSettings
     inference: RuntimeInferenceSettings
+    theme_preference: Literal["light", "dark", "system"] | None
 
     model_config = ConfigDict(
         extra="forbid",
@@ -80,6 +83,7 @@ class ApplicationSettingsPatch(_StrictSettingsModel):
     features: FeatureSettingsPatch | None = None
     jobs: JobSettingsPatch | None = None
     inference: InferenceSettingsPatch | None = None
+    theme_preference: Literal["light", "dark", "system"] | None = None
 
     model_config = ConfigDict(
         extra="forbid",

@@ -1,6 +1,6 @@
 # XREPORT Project Status Ledger
 
-Last updated: 2026-10-20
+Last updated: 2026-10-21
 
 This is the canonical current-status summary for XREPORT. It records scoped
 component confidence, active issues, and known limits; it is not a development
@@ -8,13 +8,45 @@ diary, detailed test report, release approval, or clinical-quality statement.
 
 The published v3.2.0 release was validated at source
 `a8d75a0c0d5f02a29c85e9ac58f4837fc3081449`. The most recent application-source
-Tier 0 validation targeted `b98a9b60492b63fb41a904e3cff4815325b8d075`; these
-ledger updates change documentation only. The overall Tier 0 result remains
-`PARTIAL` because the official launcher start path was not rerun while its UI
-port was already owned. SonarCloud is excluded from project gates because the
-available plan does not support analysis for this repository's over-50k LOC.
-Current Windows SQLite readiness, rendered startup/recovery, and deterministic
-quality gates passed. The
+Tier 0 validation targeted `b98a9b60492b63fb41a904e3cff4815325b8d075`. On
+2026-10-21 the application source dropped legacy compatibility layers: the
+Alembic stream was squashed to the current-schema baseline `b1e7a2c4d908`,
+database-configuration bootstrap now creates a default SQLite configuration
+instead of importing legacy `.env`/`DATABASE_*` values, the former
+settings-JSON cleanup was removed, and the client no longer migrates a
+browser-stored theme preference into the database. A later working-tree change
+adds migration `42c8e1f7b0d3` to move inference process policy to `.env` and
+adds environment-driven CORS configuration. The scoped follow-up was validated
+on `ef1ae34ad8e9dc073415e5ec1a0eaec588f81999`: rendered settings UI and
+isolated SQLite persistence, supported environment parsing/CORS, and migration
+from `b1e7a2c4d908` to `42c8e1f7b0d3` passed. Post-change Windows reruns
+passed the backend suite (excluding live-server E2E), all client unit tests,
+both lint gates, and the browser/API E2E suites except the `S23` case that
+requires the still-absent `s27` fixture pack. On 2026-10-21, the current
+working-tree launcher started on standard ports `5003`/`8003` with isolated
+resources; Inference, Reports, Dataset, Training, and Settings loaded. Settings
+seed `317` survived navigation and launcher restart; backend health reported
+version `3.2.1`. SQLite integrity passed, and Alembic reached `42c8e1f7b0d3`.
+The v3.2.1 candidate restores migration compatibility from published revisions
+`f48a7c2e91b6` and `e91a4f6c2d73`, including the prior browser theme
+preference. Sixteen focused database-initialization tests, four version/OpenAPI
+tests, 65 client unit tests, and both lint gates passed. Candidate commit
+`1a15d24cb07fecbf66601940752a164c47972fc7` passed hosted CI run
+[39667709442](https://github.com/CTCycle/XREPORT-radiological-reports-generator/actions/runs/39667709442),
+including backend unit tests, Ruff, Pyright, PostgreSQL persistence, retained API
+E2E, client build/server, lint, and unit tests. Official packages remain open;
+Tier 0 remains `PARTIAL` until that gate finishes. Follow-on cleanup removed the neutral validation
+hash field, historical cache-directory sweep, and npm peer-dependency bypass,
+and replaced the API type generator. A clean `npm ci`, dependency-tree check,
+API type generation, client build/lint, 64 client unit tests, 18 dedicated
+browser E2E tests, backend Ruff, and backend Pyright passed. The standard runner
+reported 245 passed, 3 skipped, and 4 failed; the S23 failure lacks its fixture
+pack, the upload-size case passed on retry, the S10 retry could not connect to
+the runner listener, and the request-gate test failed before its body due to
+Windows asyncio loop initialization. These end-to-end scopes remain `PARTIAL`.
+SonarCloud is excluded from project gates
+because the available plan does not support analysis for this repository's
+over-50k LOC. The
 [validation campaign ledger](validation_campaign_ledger.md) records the exact
 evidence and remaining boundaries.
 
@@ -58,10 +90,11 @@ where to revalidate after a change.
 
 | Component | Status | Current scope or limit | Authority |
 | --- | --- | --- | --- |
-| `runtime.source.startup` | `PARTIAL` | The isolated launcher manifest evaluator passed current, stale-source, stale-dependency, missing, invalid, and missing-output cases; occupied-port fail-closed and decline paths preserved the unrelated listener. Current-candidate S01 fresh SQLite readiness, Alembic head, restart reuse, and unversioned-database rejection passed. S02 rendered startup, slow/unavailable, retry/recovery, and post-ready feature-error states passed against the rebuilt bundle and isolated backend. The official launcher completed a full start on disposable resources and temporary ports `51873`/`41873`, rebuilding the missing frontend manifest; UI and backend health both returned HTTP 200. The configured UI port `8003` remains owned by the pre-existing repository `serve-built.cjs` PID `37384`; default-port launch correctly failed closed and preserved it, so successful startup on the standard ports and process-ownership races remain open. | [Startup](runtime/startup.md), [campaign](validation_campaign_ledger.md) |
+| `runtime.source.startup` | `PARTIAL` | The isolated launcher manifest evaluator passed current, stale-source, stale-dependency, missing, invalid, and missing-output cases; occupied-port fail-closed and decline paths preserved the unrelated listener. Current-source startup rendered Inference, Reports, Dataset, Training, and Settings; seed `317` survived navigation and restart with isolated resources. Backend health reported version `3.2.1`; SQLite integrity and Alembic head `42c8e1f7b0d3` passed. Focused migration, version/OpenAPI, client-unit, and lint checks passed. Candidate commit `1a15d24` passed hosted CI run `39667709442`; package validation remains open. Earlier S02 state-transition coverage and the disposable-port launcher smoke remain valid for their stated scopes. | [Startup](runtime/startup.md), [campaign](validation_campaign_ledger.md) |
 | `runtime.desktop.packaged` | `PARTIAL` | Published v3.2.0 CPU/CUDA portable and MSI packages passed the scoped acceptance described in the campaign ledger. CUDA fallback without an NVIDIA GPU and cross-variant performance remain untested. | [Campaign](validation_campaign_ledger.md), [deployment](runtime/deployment.md) |
 | `runtime.containerized` | `NOT_IMPLEMENTED` | No supported container image or deployment contract exists. | [Runtime modes](runtime/modes.md) |
-| `configuration.runtime_settings` | `VALIDATED` | Public database-backed settings, limits, save/reload/reset, and hidden-field protection are covered. Infrastructure and static model-policy values are not user settings. | [Configuration](runtime/configuration.md) |
+| `configuration.runtime_settings` | `VALIDATED` | On `ef1ae34ad8e9dc073415e5ec1a0eaec588f81999`, rendered settings tabs passed autosave, bounds, reset, reload/restart persistence, per-database isolation, failed-connection draft handling, and the Settings API policy boundary. Supported `.env` parsing and CORS behavior passed isolated fixtures. The ignored local `settings/.env` was not changed during the settings checks. | [Configuration](runtime/configuration.md), [campaign](validation_campaign_ledger.md), [environment tests](../../app/tests/unit/test_runtime_environment.py), [settings E2E](../../app/tests/e2e/test_angular_ui.py) |
+| `configuration.database_runtime` | `PARTIAL` | Database values remain uncommitted drafts until the current candidate passes a connection test and receives explicit confirmation; SQLite settings isolation, restart persistence, failed PostgreSQL handling, and rollback passed. The request-drain gate test did not reach its test body because Windows asyncio loop initialization stalled. A successful authenticated PostgreSQL connection and live switch remain unverified; the user explicitly deferred PostgreSQL testing on 2026-10-21, so no connection or switch was attempted in this run. | [Configuration](runtime/configuration.md), [Database configuration tests](../../app/tests/unit/test_database_configuration.py) |
 | `security.authentication` | `NOT_IMPLEMENTED` | The current boundary is trusted local use; external exposure is not covered. | [Execution and data flow](architecture/execution_and_data_flow.md) |
 
 ### Backend and persistence
@@ -69,7 +102,7 @@ where to revalidate after a change.
 | Component | Status | Current scope or limit | Authority |
 | --- | --- | --- | --- |
 | `backend.api.contracts`, `backend.jobs.lifecycle`, `backend.ml_import_boundaries` | `VALIDATED` | Covered API contracts, generic job lifecycle, and lightweight-import boundaries are validated; this does not cover every endpoint or heavy workflow. | [Backend API](architecture/backend_api.md), [API tests](../../app/tests/e2e/test_inference_api.py), [job tests](../../app/tests/integration/test_job_lifecycle_api.py), [import test](../../app/tests/unit/test_ml_import_boundaries.py) |
-| `persistence.sqlite_migrations`, `persistence.inference_history`, `persistence.postgresql`, `persistence.checkpoint_registry` | `VALIDATED` | SQLite migrations/restart, PostgreSQL 16 contract, inference history, and checkpoint registry behavior are covered for the exercised schemas and fixtures. Crash recovery and every production configuration are outside this scope. | [Persistence](architecture/persistence.md), [SQLite tests](../../app/tests/unit/test_database_initialization.py), [PostgreSQL contract test](../../app/tests/integration/test_persistence_contract.py) |
+| `persistence.sqlite_migrations`, `persistence.inference_history`, `persistence.postgresql`, `persistence.checkpoint_registry` | `PARTIAL` | The v3.2.1 candidate passes 16 focused database-initialization tests, including upgrades from published revisions `f48a7c2e91b6` and `e91a4f6c2d73`, preserved settings/dataset rows, theme-column restoration, and repeat initialization. The migration from `b1e7a2c4d908` to `42c8e1f7b0d3` remains covered. Hosted run `39667709442` passed the PostgreSQL persistence contract, but live migration/application and authenticated switching remain unverified; live PostgreSQL testing was deferred. Crash recovery and every production configuration remain outside scope. | [Persistence](architecture/persistence.md), [SQLite tests](../../app/tests/unit/test_database_initialization.py), [PostgreSQL contract test](../../app/tests/integration/test_persistence_contract.py) |
 
 ### User workflows
 
@@ -85,7 +118,7 @@ where to revalidate after a change.
 | Component | Status | Current scope or limit | Authority |
 | --- | --- | --- | --- |
 | `inference.catalogue` | `VALIDATED` | Public/custom separation, pinned entries, readiness, access, and declared output sections are covered. Catalogue size is not a product invariant. | [Local inference models](runtime/local_inference_models.md) |
-| `inference.model.cxrmate-multi` | `PARTIAL` | Pinned technical inference and packaged CPU/CUDA inference are covered; model `validation_status` remains `pending`, with no quality or clinical claim. | [Local inference models](runtime/local_inference_models.md), [campaign](validation_campaign_ledger.md) |
+| `inference.model.cxrmate-multi` | `PARTIAL` | On 2026-10-21, one live local image-to-report run completed on the pinned revision `330721b9aa5bba201a3eb88eba4dd9a6607f3e7a` using a public CC0 chest radiograph ([source](https://commons.wikimedia.org/wiki/File:Normal_posteroanterior_(PA)_chest_radiograph_(X-ray).jpg)); runtime provenance resolved to `cuda:0` with CUDA used. The catalogue reports `ready`, while `validation_status` remains `pending` and the validation receipt is missing. This proves technical execution only, with no model-quality or clinical claim. Screenshot: [live inference](../QA/codex-live-inference-20261021.png). | [Local inference models](runtime/local_inference_models.md), [campaign](validation_campaign_ledger.md) |
 | `inference.model.cxrmate-ed` | `DEPRECATED` | Retired after three distinct fixtures collapsed to the same full report. Historical user data and model files remain preserved. | [Local inference models](runtime/local_inference_models.md) |
 | `inference.model.chexone`, `inference.model.cxrmate-2` | `VALIDATED` | Pinned technical generation and conservative output review passed for bounded fixtures; diagnostic accuracy is not established. | [Local inference models](runtime/local_inference_models.md) |
 | `inference.model.medgemma` | `BLOCKED` | Gated-provider behavior is validated, but real installation and inference require authorized access. | [Gated access](runtime/local_inference_models.md); `ISSUE-002` below |
@@ -94,17 +127,16 @@ where to revalidate after a change.
 
 | Component | Status | Current scope or limit | Authority |
 | --- | --- | --- | --- |
-| `ui.settings`, `ui.inference.catalogue_and_sections`, `ui.reports.history`, `ui.startup_gate`, `ui.shell.routing_theme_guidance`, `ui.validation.report_review` | `VALIDATED` | The named routes, states, persistence, and report review are covered by focused client/API tests and browser checks using technical fixtures. This is not full product accessibility certification. | [UI experience](ui/experience.md), [browser E2E](../../app/tests/e2e/test_angular_ui.py) |
+| `ui.settings`, `ui.inference.catalogue_and_sections`, `ui.reports.history`, `ui.startup_gate`, `ui.shell.routing_theme_guidance`, `ui.validation.report_review` | `VALIDATED` | Settings tabs and controls are covered by focused client/API tests and browser checks using technical fixtures: non-database changes autosave and restore after reload, while database edits remain drafts until a successful current-candidate connection test and explicit confirmation; failed probes leave the active backend unchanged. This is not full product accessibility certification. | [UI experience](ui/experience.md), [browser E2E](../../app/tests/e2e/test_angular_ui.py) |
 | `ui.inference.workflow` | `PARTIAL` | Generate/review is observed for one provider and limited inputs. Other provider contracts and browser download-event observation remain open. | [Local inference models](runtime/local_inference_models.md), [browser E2E](../../app/tests/e2e/test_angular_ui.py) |
 | `ui.dataset_and_training_surfaces` | `PARTIAL` | The routes and selected technical flows are exercised; representative data, full packaged workflows, and spoken assistive-technology output remain outside. | [UI experience](ui/experience.md), [dataset workflow E2E](../../app/tests/e2e/test_dataset_workflow_ui.py) |
-| `test.infrastructure.windows_cache` | `PARTIAL` | Configured runner caches and `app/client/.angular/cache/` remain ignored, source/QA allowlists are preserved, and `app/tests/run_tests.bat` uses canonical `runtimes/cache` paths. Direct pytest instructions now resolve the canonical cache root before invoking pytest. Recheck found pre-existing protected trees under `app/server/runtimes/cache` that deny access; they remain untouched and may still warn. | [Testing and quality](coding/testing_and_quality.md), [startup](runtime/startup.md), [campaign](validation_campaign_ledger.md) |
+| `test.infrastructure.windows_cache` | `PARTIAL` | Runner and direct pytest instructions use canonical `runtimes/cache` paths. Launcher cache clear and uninstall now target only current runtime/build locations; PowerShell parsing passed, but these two actions were not exercised in this run. Historical cache locations are no longer enumerated or removed. | [Testing and quality](coding/testing_and_quality.md), [startup](runtime/startup.md), [campaign](validation_campaign_ledger.md) |
 
 ## Active issues
 
 | ID | Component | Severity | State | Current impact and next evidence |
 | --- | --- | --- | --- | --- |
 | `ISSUE-002` | `inference.model.medgemma` | `MEDIUM` | `BLOCKED` | The gated model cannot be installed without authorized provider access. After access is configured, install the exact pinned revision and capture real inference before changing status. |
-| `ISSUE-004` | `test.infrastructure.windows_cache` | `LOW` | `OPEN` | `app/server/runtimes/cache/pytest-xreport-current-validation` and `app/server/runtimes/cache/s23-20260924/pytest-cache` still deny enumeration. Both were left untouched. Continue using the absolute canonical cache root and inspect access before any cleanup. |
 
 ## Evidence ownership
 

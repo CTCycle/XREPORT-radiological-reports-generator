@@ -1,15 +1,19 @@
-import { Component, inject, signal } from '@angular/core';
+import { Component, effect, inject, signal } from '@angular/core';
 import { RouterOutlet } from '@angular/router';
 import { StartupScreenComponent } from './components/startup-screen.component';
+import { SettingsPage } from './pages/settings.page';
 import { StartupReadinessService } from './services/startup-readiness.service';
+import { ThemeService } from './services/theme.service';
 import { markStartupPhase } from './services/startup-timing';
 
 @Component({
   selector: 'app-root',
-  imports: [RouterOutlet, StartupScreenComponent],
+  imports: [RouterOutlet, SettingsPage, StartupScreenComponent],
   template: `
     @if (showApplication()) {
       <router-outlet (activate)="onRouteActivated()" />
+    } @else if (readiness.phase() === 'recovery') {
+      <app-settings-page [databaseOnly]="true" (databaseActivated)="readiness.retry()" />
     } @else {
       <app-startup-screen
         [phase]="readiness.phase()"
@@ -22,11 +26,15 @@ import { markStartupPhase } from './services/startup-timing';
 })
 export class App {
   readonly readiness = inject(StartupReadinessService);
+  private readonly theme = inject(ThemeService);
   readonly showApplication = signal(false);
   private routeActivated = false;
 
   constructor() {
     this.readiness.start();
+    effect(() => {
+      if (this.readiness.phase() === 'ready') void this.theme.loadFromDatabase();
+    });
   }
 
   onStartupTransitionComplete(): void {

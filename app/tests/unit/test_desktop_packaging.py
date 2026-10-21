@@ -122,7 +122,7 @@ def test_packaged_layout_seeds_data_without_overwriting_user_edits(
     (runtime / "settings").mkdir(parents=True)
     (runtime / "client").mkdir()
     (runtime / "settings" / ".env.example").write_text(
-        "EMBEDDED_DATABASE=true\n", encoding="utf-8"
+        "XREPORT_TEST_VALUE=true\n", encoding="utf-8"
     )
     monkeypatch.setenv("XREPORT_DESKTOP", "true")
     monkeypatch.setenv("XREPORT_RUNTIME_ROOT", str(runtime))
@@ -134,7 +134,7 @@ def test_packaged_layout_seeds_data_without_overwriting_user_edits(
     layout = RuntimeLayout.from_environment()
     ensure_packaged_data(layout)
     env_path = data / ".env"
-    assert env_path.read_text(encoding="utf-8") == "EMBEDDED_DATABASE=true\n"
+    assert env_path.read_text(encoding="utf-8") == "XREPORT_TEST_VALUE=true\n"
     assert not (data / "settings").exists()
     assert layout.cache_root == data / "runtimes" / "cache"
     assert layout.cache_root.is_dir()

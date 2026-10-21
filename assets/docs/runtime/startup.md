@@ -1,6 +1,6 @@
 # Runtime Startup
 
-Last updated: 2026-10-19
+Last updated: 2026-10-21
 
 ## Windows Local Launcher
 
@@ -137,7 +137,7 @@ not replaced by the desktop action.
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\start_on_windows.ps1 `
-  -Action BuildDesktopRelease -DesktopRuntime All -DesktopTarget All -Version 3.2.0
+  -Action BuildDesktopRelease -DesktopRuntime All -DesktopTarget All -Version 3.2.1
 ```
 
 Use `-DesktopRuntime Cpu|Cuda`, `-DesktopTarget Portable|Msi`, `-Force`, and
@@ -146,7 +146,7 @@ Use `-DesktopRuntime Cpu|Cuda`, `-DesktopTarget Portable|Msi`, `-Force`, and
 under `release/`; generated Cargo/PyInstaller/runtime staging is under
 `app/desktop/build` and is ignored. To remove every desktop release and its
 generated build state, choose **All versions and artifacts** from the
-launcher’s **Remove release artifacts** menu or run:
+launcherâ€™s **Remove release artifacts** menu or run:
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\start_on_windows.ps1 -Action RemoveDesktopRelease -AllDesktopReleases
@@ -176,7 +176,7 @@ or the all-releases switch:
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\start_on_windows.ps1 `
-  -Action RemoveDesktopRelease -Version 3.2.0 -DesktopRuntime Cpu -DesktopTarget All
+  -Action RemoveDesktopRelease -Version 3.2.1 -DesktopRuntime Cpu -DesktopTarget All
 powershell -ExecutionPolicy Bypass -File .\start_on_windows.ps1 `
   -Action RemoveDesktopRelease -AllDesktopReleases
 ```
@@ -228,13 +228,13 @@ On backend startup, the shared Alembic coordinator creates the SQLite file or
 PostgreSQL database when necessary and upgrades to the checked-in head before
 the readiness callback runs. An existing database with application tables but
 without migration state is rejected; startup never infers or stamps an
-unversioned schema. The launcher’s explicit database option uses the same
-coordinator. The `application_settings` singleton is created or migrated from
-the one-time legacy import before readiness; after that, settings are read only
-from the database. Startup creates required resource directories for logs,
-models, tokenizers, checkpoints, and templates. The migration stream removes
-obsolete report-job state and registers complete checkpoint artifacts in the
-canonical database registry.
+unversioned schema. The launcherâ€™s explicit database option uses the same
+coordinator. The `application_settings` singleton is created with typed
+defaults on first initialization; after that, settings are read only from the
+database. Startup creates required resource directories for logs, models,
+tokenizers, checkpoints, and templates. A database re-creation starts with an
+empty checkpoint registry; folders already on disk stay unregistered until new
+training runs register them again.
 
 ## Development Cache Locations
 
@@ -246,10 +246,9 @@ under the single canonical `runtimes/cache` root. Its subdirectories include
 `<data-root>/runtimes/cache` path; persistent models and application data stay
 outside it.
 
-The cleanup action also performs a narrowly scoped, cleanup-only sweep for
-legacy root pytest/Ruff/uv directories, the former `app/tests/cache` trees,
-client-local cache directories, and old transient model-cache paths. Those
-legacy paths are never active configuration and are not recreated.
+The **Clear cache** action cleans only the canonical `runtimes/cache` directory
+(or `<data-root>/runtimes/cache` for packaged launches). It does not search or
+remove historical cache locations.
 
 Select **Clear cache** in the maintenance menu, or run:
 

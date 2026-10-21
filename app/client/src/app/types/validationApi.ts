@@ -1,12 +1,16 @@
-import type { components } from './api.generated';
+import type {
+  ImageStatistics as ApiImageStatistics,
+  PixelDistribution as ApiPixelDistribution,
+  TextStatistics as ApiTextStatistics,
+  ValidationReportResponse as ApiValidationReportResponse,
+  ValidationRequest as ApiValidationRequest,
+} from './generated/types.gen';
 
-type Schemas = components['schemas'];
-
-export type PixelDistribution = Schemas['PixelDistribution'];
-export type ImageStatistics = Schemas['ImageStatistics'];
-export type TextStatistics = Schemas['TextStatistics'];
-export type ValidationRequest = Schemas['ValidationRequest'];
-export type ValidationReport = Schemas['ValidationReportResponse'];
+export type PixelDistribution = ApiPixelDistribution;
+export type ImageStatistics = ApiImageStatistics;
+export type TextStatistics = ApiTextStatistics;
+export type ValidationRequest = ApiValidationRequest;
+export type ValidationReport = ApiValidationReportResponse;
 
 /** View model extracted from a completed dataset-validation job result. */
 export interface ValidationResponse {

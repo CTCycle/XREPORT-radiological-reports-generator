@@ -7,6 +7,8 @@ import pytest
 import sqlalchemy
 from alembic import command
 from alembic.config import Config
+from alembic.migration import MigrationContext
+from alembic.operations import Operations
 
 import server.repositories.database.engine as database_engine
 import server.repositories.database.initializer as initializer
@@ -15,7 +17,7 @@ from server.repositories.schemas import Base
 from server.repositories.schemas.models import InferenceReport, InferenceRun
 
 ###############################################################################
-def _sqlite_settings() -> DatabaseSettings:
+def _sqlite_settings(path: Path) -> DatabaseSettings:
     return DatabaseSettings(
         backend="sqlite",
         engine=None,
@@ -28,6 +30,7 @@ def _sqlite_settings() -> DatabaseSettings:
         ssl_ca=None,
         connect_timeout=3,
         insert_batch_size=1000,
+        sqlite_path=path,
     )
 
 ###############################################################################
@@ -45,11 +48,6 @@ def _postgres_settings() -> DatabaseSettings:
         connect_timeout=1,
         insert_batch_size=1000,
     )
-
-###############################################################################
-def _patch_sqlite_path(monkeypatch: pytest.MonkeyPatch, path: Path) -> None:
-    monkeypatch.setattr(initializer, "DATABASE_FILE_PATH", path)
-    monkeypatch.setattr(database_engine, "DATABASE_FILE_PATH", path)
 
 ###############################################################################
 def _alembic_config(path: Path) -> Config:
@@ -70,10 +68,8 @@ def test_sqlite_startup_migrates_to_head_and_is_repeatable(
     tmp_path, monkeypatch
 ) -> None:
     database_path = tmp_path / "database.db"
-    _patch_sqlite_path(monkeypatch, database_path)
-
-    initializer.initialize_database(_sqlite_settings())
-    initializer.prepare_database_for_startup(_sqlite_settings())
+    initializer.initialize_database(_sqlite_settings(database_path))
+    initializer.prepare_database_for_startup(_sqlite_settings(database_path))
 
     engine = sqlalchemy.create_engine(f"sqlite:///{database_path}")
     try:
@@ -90,12 +86,164 @@ def test_sqlite_startup_migrates_to_head_and_is_repeatable(
         engine.dispose()
 
 ###############################################################################
+def test_database_at_head_preserves_settings_and_records(tmp_path) -> None:
+    database_path = tmp_path / "database.db"
+    command.upgrade(_alembic_config(database_path), "heads")
+    engine = sqlalchemy.create_engine(f"sqlite:///{database_path}")
+    try:
+        with engine.begin() as connection:
+            connection.exec_driver_sql(
+                "UPDATE application_settings SET global_seed = 909 WHERE settings_id = 1"
+            )
+            connection.exec_driver_sql(
+                "INSERT INTO datasets (name, name_key, created_at) "
+                "VALUES ('Retained dataset', 'retained-dataset', '2026-10-20 12:00:00')"
+            )
+    finally:
+        engine.dispose()
+
+    initializer.initialize_database(_sqlite_settings(database_path))
+
+    engine = sqlalchemy.create_engine(f"sqlite:///{database_path}")
+    try:
+        with engine.connect() as connection:
+            assert connection.exec_driver_sql(
+                "SELECT global_seed, theme_preference FROM application_settings "
+                "WHERE settings_id = 1"
+            ).one() == (909, None)
+            assert connection.exec_driver_sql(
+                "SELECT name FROM datasets WHERE name_key = 'retained-dataset'"
+            ).scalar_one() == "Retained dataset"
+            assert connection.exec_driver_sql(
+                "SELECT version_num FROM alembic_version"
+            ).scalar_one() == initializer.HEAD_REVISION
+    finally:
+        engine.dispose()
+
+
+###############################################################################
+def test_policy_migration_from_baseline_preserves_user_settings_and_records(
+    tmp_path,
+) -> None:
+    database_path = tmp_path / "database.db"
+    config = _alembic_config(database_path)
+    command.upgrade(config, "b1e7a2c4d908")
+    engine = sqlalchemy.create_engine(f"sqlite:///{database_path}")
+    try:
+        with engine.begin() as connection:
+            connection.exec_driver_sql(
+                "UPDATE application_settings SET global_seed = 909, "
+                "allow_local_filesystem_access = 0, job_polling_interval = 2.5, "
+                "inference_hf_local_only = 0, inference_device = 'cpu', "
+                "inference_model_timeout = 901, theme_preference = 'dark' "
+                "WHERE settings_id = 1"
+            )
+            connection.exec_driver_sql(
+                "INSERT INTO datasets (name, name_key, created_at) "
+                "VALUES ('Retained dataset', 'retained-dataset', '2026-10-20 12:00:00')"
+            )
+    finally:
+        engine.dispose()
+
+    initializer.initialize_database(_sqlite_settings(database_path))
+    initializer.prepare_database_for_startup(_sqlite_settings(database_path))
+
+    engine = sqlalchemy.create_engine(f"sqlite:///{database_path}")
+    try:
+        columns = {
+            column["name"]
+            for column in sqlalchemy.inspect(engine).get_columns("application_settings")
+        }
+        assert "inference_hf_local_only" not in columns
+        assert "inference_device" not in columns
+        with engine.connect() as connection:
+            assert connection.exec_driver_sql(
+                "SELECT global_seed, allow_local_filesystem_access, "
+                "job_polling_interval, inference_model_timeout, theme_preference "
+                "FROM application_settings WHERE settings_id = 1"
+            ).one() == (909, 0, 2.5, 901, "dark")
+            assert connection.exec_driver_sql(
+                "SELECT name FROM datasets WHERE name_key = 'retained-dataset'"
+            ).scalar_one() == "Retained dataset"
+            assert connection.exec_driver_sql(
+                "SELECT version_num FROM alembic_version"
+            ).scalar_one() == initializer.HEAD_REVISION == "42c8e1f7b0d3"
+    finally:
+        engine.dispose()
+
+###############################################################################
+@pytest.mark.parametrize("legacy_revision", ["f48a7c2e91b6", "e91a4f6c2d73"])
+def test_published_v3_2_database_migrates_from_legacy_revision(
+    tmp_path, legacy_revision: str
+) -> None:
+    database_path = tmp_path / "database.db"
+    config = _alembic_config(database_path)
+    command.upgrade(config, "b1e7a2c4d908")
+    engine = sqlalchemy.create_engine(f"sqlite:///{database_path}")
+    try:
+        with engine.begin() as connection:
+            operations = Operations(MigrationContext.configure(connection))
+            with operations.batch_alter_table("application_settings") as batch_op:
+                batch_op.drop_constraint(
+                    "ck_application_settings_theme_preference", type_="check"
+                )
+                batch_op.drop_column("theme_preference")
+            if legacy_revision == "f48a7c2e91b6":
+                with operations.batch_alter_table("inference_reports") as batch_op:
+                    batch_op.drop_column("edited_at")
+                    batch_op.drop_column("edited_report")
+            connection.exec_driver_sql(
+                "UPDATE application_settings SET global_seed = 909, "
+                "allow_local_filesystem_access = 0, job_polling_interval = 2.5, "
+                "inference_model_timeout = 901 WHERE settings_id = 1"
+            )
+            connection.exec_driver_sql(
+                "INSERT INTO datasets (name, name_key, created_at) "
+                "VALUES ('Retained v3.2 dataset', 'retained-v3-2', "
+                "'2026-10-20 12:00:00')"
+            )
+            connection.exec_driver_sql(
+                "UPDATE alembic_version SET version_num = ?", (legacy_revision,)
+            )
+    finally:
+        engine.dispose()
+
+    initializer.initialize_database(_sqlite_settings(database_path))
+
+    engine = sqlalchemy.create_engine(f"sqlite:///{database_path}")
+    try:
+        columns = {
+            column["name"]
+            for column in sqlalchemy.inspect(engine).get_columns("application_settings")
+        }
+        report_columns = {
+            column["name"]
+            for column in sqlalchemy.inspect(engine).get_columns("inference_reports")
+        }
+        assert "inference_hf_local_only" not in columns
+        assert "inference_device" not in columns
+        assert {"edited_report", "edited_at"}.issubset(report_columns)
+        with engine.connect() as connection:
+            assert connection.exec_driver_sql(
+                "SELECT global_seed, allow_local_filesystem_access, "
+                "job_polling_interval, inference_model_timeout, theme_preference "
+                "FROM application_settings WHERE settings_id = 1"
+            ).one() == (909, 0, 2.5, 901, None)
+            assert connection.exec_driver_sql(
+                "SELECT name FROM datasets WHERE name_key = 'retained-v3-2'"
+            ).scalar_one() == "Retained v3.2 dataset"
+            assert connection.exec_driver_sql(
+                "SELECT version_num FROM alembic_version"
+            ).scalar_one() == initializer.HEAD_REVISION
+    finally:
+        engine.dispose()
+
+###############################################################################
 def test_nonempty_unversioned_schema_is_rejected_without_implicit_adoption(
     tmp_path, monkeypatch
 ) -> None:
     database_path = tmp_path / "database.db"
-    _patch_sqlite_path(monkeypatch, database_path)
-    command.upgrade(_alembic_config(database_path), "c1e4f1a7b2d9")
+    command.upgrade(_alembic_config(database_path), "heads")
     engine = sqlalchemy.create_engine(f"sqlite:///{database_path}")
     try:
         with engine.begin() as connection:
@@ -108,7 +256,7 @@ def test_nonempty_unversioned_schema_is_rejected_without_implicit_adoption(
         engine.dispose()
 
     with pytest.raises(RuntimeError, match="implicit schema adoption"):
-        initializer.initialize_database(_sqlite_settings())
+        initializer.initialize_database(_sqlite_settings(database_path))
 
     assert "alembic_version" not in _database_tables(database_path)
 
@@ -117,7 +265,6 @@ def test_unknown_partial_schema_is_rejected_without_stamping(
     tmp_path, monkeypatch
 ) -> None:
     database_path = tmp_path / "database.db"
-    _patch_sqlite_path(monkeypatch, database_path)
     engine = sqlalchemy.create_engine(f"sqlite:///{database_path}")
     try:
         with engine.begin() as connection:
@@ -128,14 +275,13 @@ def test_unknown_partial_schema_is_rejected_without_stamping(
         engine.dispose()
 
     with pytest.raises(RuntimeError, match="implicit schema adoption"):
-        initializer.prepare_database_for_startup(_sqlite_settings())
+        initializer.prepare_database_for_startup(_sqlite_settings(database_path))
 
     assert "alembic_version" not in _database_tables(database_path)
 
 ###############################################################################
 def test_failed_migration_rolls_back_database_changes(tmp_path, monkeypatch) -> None:
     database_path = tmp_path / "database.db"
-    _patch_sqlite_path(monkeypatch, database_path)
 
     def fail_upgrade(config: Config, _revision: str) -> None:
         connection = config.attributes["connection"]
@@ -144,7 +290,7 @@ def test_failed_migration_rolls_back_database_changes(tmp_path, monkeypatch) -> 
 
     monkeypatch.setattr(initializer.command, "upgrade", fail_upgrade)
     with pytest.raises(RuntimeError, match="Unexpected error"):
-        initializer.initialize_database(_sqlite_settings())
+        initializer.initialize_database(_sqlite_settings(database_path))
 
     assert "transient_failure" not in _database_tables(database_path)
     assert "alembic_version" not in _database_tables(database_path)
@@ -152,8 +298,7 @@ def test_failed_migration_rolls_back_database_changes(tmp_path, monkeypatch) -> 
 ###############################################################################
 def test_head_schema_drift_blocks_startup(tmp_path, monkeypatch) -> None:
     database_path = tmp_path / "database.db"
-    _patch_sqlite_path(monkeypatch, database_path)
-    initializer.initialize_database(_sqlite_settings())
+    initializer.initialize_database(_sqlite_settings(database_path))
     engine = sqlalchemy.create_engine(f"sqlite:///{database_path}")
     try:
         with engine.begin() as connection:
@@ -164,16 +309,15 @@ def test_head_schema_drift_blocks_startup(tmp_path, monkeypatch) -> None:
         engine.dispose()
 
     with pytest.raises(RuntimeError, match="differs from the current ORM schema"):
-        initializer.prepare_database_for_startup(_sqlite_settings())
+        initializer.prepare_database_for_startup(_sqlite_settings(database_path))
 
 ###############################################################################
 def test_sqlite_enforces_foreign_keys_and_cascades_report_deletion(
     tmp_path, monkeypatch
 ) -> None:
     database_path = tmp_path / "database.db"
-    _patch_sqlite_path(monkeypatch, database_path)
-    initializer.initialize_database(_sqlite_settings())
-    database = database_engine.Database(_sqlite_settings())
+    initializer.initialize_database(_sqlite_settings(database_path))
+    database = database_engine.Database(_sqlite_settings(database_path))
 
     try:
         with database.engine.connect() as connection:
@@ -231,8 +375,7 @@ def test_sqlite_enforces_foreign_keys_and_cascades_report_deletion(
 ###############################################################################
 def test_concurrent_sqlite_initialization_is_safe(tmp_path, monkeypatch) -> None:
     database_path = tmp_path / "database.db"
-    _patch_sqlite_path(monkeypatch, database_path)
-    settings = _sqlite_settings()
+    settings = _sqlite_settings(database_path)
 
     with ThreadPoolExecutor(max_workers=2) as executor:
         futures = [
@@ -283,13 +426,12 @@ def test_postgres_startup_failure_does_not_leak_credentials(monkeypatch) -> None
             "job_polling_interval <= 60::double precision",
         ),
         (
-            "inference_device IN ('auto', 'cpu', 'cuda')",
-            "inference_device = ANY (ARRAY['auto'::character varying, "
-            "'cpu'::character varying, 'cuda'::character varying]::character varying[])",
-        ),
-        (
             "global_seed >= 0 AND global_seed <= 4294967295",
             "global_seed >= 0 AND global_seed <= '4294967295'::numeric",
+        ),
+        (
+            "theme_preference IS NULL OR theme_preference IN ('light', 'dark', 'system')",
+            "theme_preference IS NULL OR (theme_preference IN ('light', 'dark', 'system'))",
         ),
     ],
 )

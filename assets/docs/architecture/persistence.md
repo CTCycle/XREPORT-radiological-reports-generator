@@ -1,43 +1,72 @@
 # XREPORT Persistence
 
-Last updated: 2026-09-28
+Last updated: 2026-10-21
 
 ## Database Backend Selection
 
 The sources of truth are deliberately separated:
 
-- `settings/.env` owns deployment and infrastructure values such as the
-  runtime host, ports, resource root, database mode, and database connection.
-- The singleton `application_settings` database row owns mutable application
-  behavior such as the global seed, filesystem-access flag, job polling
-  interval, inference timeout, and hidden inference process policy.
+- `settings/.env` owns deployment values such as runtime host, ports, API proxy,
+  CORS, inference process policy, and resource root. It contains no database
+  configuration.
+- `<resource root>/database-config.json` owns only the selected database
+  backend and its connection parameters. It is independent of the database;
+  PostgreSQL passwords are DPAPI-protected for the current Windows account.
+- The singleton `application_settings` database row owns only mutable
+  user-facing application behavior such as the global seed, filesystem-access
+  flag, job polling interval, inference timeout, and theme preference.
 - `app/server/configurations/inference_models.py` owns the immutable, reviewed
   inference catalogue and its safety/runtime contract.
 
 From `settings/.env`:
 
 - `XREPORT_RESOURCES_DIR` optionally changes the resource root. It defaults to `data`; relative values are resolved from the repository root.
-- `EMBEDDED_DATABASE=true`: SQLite using `<resource root>/database.db`.
-- `EMBEDDED_DATABASE=false`: PostgreSQL using the configured engine, host, port, database name, user, password, and SSL settings.
+
+The Settings → Database section supports SQLite and PostgreSQL (psycopg 3).
+SQLite paths, PostgreSQL connection/authentication fields, SSL options, timeout,
+and insert batch size are stored in `database-config.json`. All application
+settings and records remain in the currently selected database.
 
 ## Initialization And Compatibility
 
 Backend startup calls the startup service, which coordinates database preparation and resource validation before serving requests.
 
-Alembic is the authoritative schema history. The checked-in migration stream has
-one head (`e91a4f6c2d73`) and stores the applied revision in `alembic_version`.
-The `f48a7c2e91b6` upgrade creates `application_settings` and, when upgrading
-an installation that still has the legacy JSON file, imports its validated
-values exactly once. The migration is the only compatibility reader; it does
-not import environment values. After the upgrade commits, startup removes the
-legacy file and never recreates or consults it.
+Runtime switching pauses and drains API requests and refuses to switch while a
+background job is active. The target connection and schema are prepared before
+activation; a failed activation restores the previous connection and leaves the
+previous configuration in effect. Existing repository objects keep the shared
+database facade, whose connection pool is replaced in place. The UI receives
+application settings read from the newly active database. No records or
+settings are copied between databases. Missing or invalid startup configuration
+opens restricted Database recovery UI while normal application routes remain
+unavailable.
 
-The `e91a4f6c2d73` upgrade adds nullable `edited_report` and `edited_at`
-columns to `inference_reports`. The generated `generated_report` column remains the
-immutable model output; an edited value is stored separately and the effective
-draft is resolved at read time. Saving text equal to the generated output
-clears the edit override, and deleting an inference run cascades to its report
-rows.
+When the dedicated database configuration file is absent, startup creates a
+default SQLite configuration pointing at the resource root's database file.
+Stray `EMBEDDED_DATABASE`/`DATABASE_*` values in `.env` or the process
+environment are neither read into configuration nor loaded into `os.environ`.
+`DATABASE_URL` is not supported. A corrupt dedicated file is preserved for
+recovery rather than replaced from an old environment source. Changing
+process-level launch settings such as the resource root requires a restart;
+database switching does not.
+
+Alembic is the authoritative schema history. The checked-in migration stream
+has one head (`42c8e1f7b0d3`): the `b1e7a2c4d908` baseline creates the schema and
+seeds the `application_settings` singleton row, then the head migration removes
+inference process-policy columns from that row. The baseline no longer imports
+former JSON or `.env` configuration sources and does not scan the checkpoint
+directory; re-creating the database starts with typed default settings and an
+empty checkpoint registry.
+
+The `generated_report` column of `inference_reports` remains the immutable
+model output; a nullable `edited_report`/`edited_at` pair stores a user draft
+separately and the effective draft is resolved at read time. Saving text equal
+to the generated output clears the edit override, and deleting an inference
+run cascades to its report rows.
+
+The `application_settings` row owns a nullable database-backed theme
+preference. A `NULL` value means `system`; the Settings API and theme selector
+read and write it directly.
 
 ### SQLite
 
@@ -47,12 +76,13 @@ rows.
   never silently stamped, rewritten, or inferred as a compatible legacy schema;
   use the explicit migration/initialization workflow after reviewing the
   database state.
-- The migration stream creates the singleton application-settings row, removes
-  obsolete validation and checkpoint-evaluation job-state columns, then
-  registers each complete checkpoint artifact found in the configured
-  checkpoint directory exactly once. Name and normalized path collisions fail
-  the migration.
-- Partial, modified, or unexpected schemas fail without repair or stamping. Migration failures roll back the shared transaction.
+- The migration stream seeds the singleton application-settings row with typed
+  defaults. A database re-creation starts with an empty checkpoint registry;
+  new checkpoint folders are registered when training completes, not by
+  scanning the artifact directory.
+- Partial, modified, unexpected, or older-revision schemas fail without repair
+  or stamping; re-initialization requires deleting or replacing the database
+  file. Migration failures roll back the shared transaction.
 
 ### PostgreSQL
 
@@ -134,9 +164,8 @@ erDiagram
         bigint global_seed
         boolean allow_local_filesystem_access
         float job_polling_interval
-        boolean inference_hf_local_only
-        string inference_device
         bigint inference_model_timeout
+        string theme_preference
         datetime updated_at
     }
 

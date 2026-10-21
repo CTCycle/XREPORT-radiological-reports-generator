@@ -1,6 +1,6 @@
 # Commands And Locations
 
-Last updated: 2026-10-20
+Last updated: 2026-10-21
 
 ## Primary Commands
 
@@ -9,7 +9,7 @@ Last updated: 2026-10-20
 ```powershell
 .\start_on_windows.ps1 -Action LaunchDesktopDev
 .\start_on_windows.ps1 -Action KillProcesses
-.\start_on_windows.ps1 -Action BuildDesktopRelease -DesktopRuntime All -DesktopTarget All -Version 3.2.0
+.\start_on_windows.ps1 -Action BuildDesktopRelease -DesktopRuntime All -DesktopTarget All -Version 3.2.1
 .\start_on_windows.ps1 -Action RemoveDesktopRelease
 .\start_on_windows.ps1 -Action RemoveCheckpoints
 .\start_on_windows.ps1 -Action RemoveAllData
@@ -162,7 +162,7 @@ requires one linear head and never performs downgrades automatically.
 - end-to-end dataset preparation to training to inference to validation workflow
 - long-running operations with start, poll, and cancel behavior
 - local web runtime with a consolidated Windows launcher and maintenance menu
-- SQLite by default with optional PostgreSQL mode selected by `EMBEDDED_DATABASE`
+- SQLite and PostgreSQL backends, selected from Settings → Database
 
 ## Data And Output Locations
 

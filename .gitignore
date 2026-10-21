@@ -2,6 +2,7 @@
 data/models/**
 data/checkpoints/**
 data/database/**
+database-config.json
 data/logs/**
 app/client/node_modules/
 app/client/dist/

@@ -1,6 +1,6 @@
 # UI Experience Standards
 
-Last updated: 2026-09-22
+Last updated: 2026-10-21
 
 ## Core UX Journeys
 
@@ -57,17 +57,21 @@ Last updated: 2026-09-22
 - Desktop navigation uses equal icon targets with native tooltips; mobile navigation keeps the text labels visible.
 - The selected preference is shown with a selected state and `aria-pressed`; the control remains keyboard accessible on desktop and mobile.
 - System follows the browser or operating-system `prefers-color-scheme` setting while selected. Manual preferences are not overridden by OS changes.
-- Theme changes apply immediately without a page refresh and remain functional when the backend is unavailable.
+- Theme changes apply immediately without a page refresh and are persisted to the active database. A failed write restores the last persisted preference and shows an inline error.
 
 ## Runtime settings
 
 - Settings is available from the existing navigation footer gear and remains
   keyboard accessible on desktop and mobile.
-- The page uses explicit loading, load-error, dirty, validation, saving,
-  resetting, success, and failure states.
-- Save is disabled until a valid change exists and sends only changed fields.
+- Valid non-database settings persist automatically: checkboxes save immediately and numeric inputs debounce while typing, then flush on blur, tab change, or page exit. The page shows compact success feedback and reverts attempted values when persistence fails.
+- Invalid values remain visible with field-level guidance and are not sent to the backend. Other valid changed settings can still persist independently.
 - Reset asks the backend for authoritative defaults rather than calculating a
   second frontend copy of them.
+- Database connection fields remain draft values. The user must test the
+  current candidate before the Apply action becomes available; changing any
+  candidate value clears the test result, and a failed test leaves the active
+  database unchanged.
+- Database settings stay as a draft until the user activates the connection. The backend prepares and validates the target before activation, and a failed switch restores the previous connection.
 - Help text explains that seed, polling interval, and inference timeout changes
   apply to new work; active jobs and generations retain their starting values.
 

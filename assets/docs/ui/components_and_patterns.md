@@ -1,6 +1,6 @@
 # UI Components And Patterns
 
-Last updated: 2026-09-25
+Last updated: 2026-10-21
 
 ## Reusable Patterns
 
@@ -74,9 +74,10 @@ shell-level lifecycle component, not a feature-page loading state.
 - Reports page: filterable persisted inference sessions, explicit loading/empty/error states, paginated summaries, and links to detail views
 - Report detail page: session metadata, reusable section-aware draft editor, original-output disclosure, atomic save, and destructive session deletion
 - Dataset validation page: validation orchestration and report review
-- Settings page: one-column runtime configuration form with General, Data
-  access, and Advanced sections; save sends only changed fields and reset is
-  delegated to the backend.
+- Settings page: one-column runtime settings screen with General, Data access,
+  Advanced, and Database sections. Non-database settings persist automatically
+  with debounced numeric inputs; database settings remain drafts until the
+  current candidate passes a connection test and the user confirms the switch.
 
 ## Layout Composition
 
@@ -90,4 +91,6 @@ session is not in a successful editable state.
 
 The Settings route reuses the existing footer gear navigation control and
 `app-nav-button` active styling. It does not duplicate the theme selector or
-expose deployment, database, secret, or static inference policy values.
+expose deployment, secret, or static inference policy values. Database
+connection settings live in the dedicated Database section and are stored
+outside the active database.
