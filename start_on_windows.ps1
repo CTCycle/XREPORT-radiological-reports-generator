@@ -1355,11 +1355,16 @@ function Stop-XReportProcesses {
         $null = & taskkill.exe /PID $rootProcessId /T /F 2>$null
     }
 
-    $remainingProcessIds = @(
-        $treeProcessIds | Where-Object {
-            $null -ne (Get-Process -Id ([int]$_) -ErrorAction SilentlyContinue)
-        }
-    )
+    $remainingProcessIds = @()
+    for ($attempt = 0; $attempt -lt 20; $attempt++) {
+        $remainingProcessIds = @(
+            $treeProcessIds | Where-Object {
+                $null -ne (Get-Process -Id ([int]$_) -ErrorAction SilentlyContinue)
+            }
+        )
+        if ($remainingProcessIds.Count -eq 0) { break }
+        Start-Sleep -Milliseconds 250
+    }
     if ($remainingProcessIds.Count -gt 0) {
         throw "Unable to stop identified XREPORT process(es): $($remainingProcessIds -join ', ')."
     }
