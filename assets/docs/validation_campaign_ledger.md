@@ -39,6 +39,12 @@ unresolved checks were retained.
 - Environment finding: training loads the pinned BEiT encoder (`microsoft/beit-base-patch16-224`, `f02e8f77`) with `local_files_only`; on a machine without `models/XRAYEncoder` the job fails with a generic "couldn't connect to huggingface.co" message. This was an environment prerequisite, not a code defect; the encoder was downloaded with user approval for this run and removed afterward. Not changed in code; a clearer offline-encoder message is a possible improvement.
 - Not re-run: live PostgreSQL switching, packaged-artifact smoke before publication, GPU-less CUDA fallback, MedGemma (`BLOCKED`, gated access). Existing limits in the gate map still apply.
 
+## Release 3.3.1 patch (2026-10-22)
+
+- Scope: patch over 3.3.0 containing the `KillProcesses` exit-wait fix and the request-gate test fix; no application, API, or UI changes. Backend unit suite (232) and Ruff passed locally; the 3.3.0 live E2E and launcher lifecycle evidence above covers the same source apart from the version bump (`PASSED`).
+- Packages: tag `v3.3.1` at `7402615` built CPU and CUDA MSI and portable artifacts in workflow run 39810518968 (in-workflow runtime/MSI audit and packaged portable smoke passed). The artifacts were downloaded and re-verified locally with `verify_desktop_artifacts.ps1` and the packaged portable startup smoke for both variants (backend ready, frontend index served, clean process/listener shutdown; `PASSED`). Runtime audits were recovered from the portable payload manifests.
+- Not run: MSI install, upgrade from 3.3.0, and uninstall (needs an elevated per-machine install; manual check required), packaged CPU/CUDA inference, GPU-less CUDA fallback, live PostgreSQL switching (`NOT RUN`). README screenshots were audited and left unchanged.
+
 ## Gate map
 
 | Tier | Scope | Current result | Boundary |
