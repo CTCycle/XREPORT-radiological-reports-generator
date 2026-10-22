@@ -1,10 +1,12 @@
-<p align="center"><img src="app/client/public/favicon.png" alt="XREPORT logo" width="112"></p>
+<p align="center"><img src="app/client/public/favicon.png" alt="XREPORT logo" width="96"></p>
 
 # XREPORT Radiological Reports Generator
 
 **A local-first research app for preparing imaging datasets, training and evaluating models, and reviewing draft radiology reports.**
 
-[![License](https://img.shields.io/github/license/CTCycle/XREPORT-radiological-reports-generator.svg?style=flat-square)](LICENSE) [![Release](https://img.shields.io/github/v/release/CTCycle/XREPORT-radiological-reports-generator?display_name=tag&style=flat-square)](https://github.com/CTCycle/XREPORT-radiological-reports-generator/releases) [![CI](https://img.shields.io/github/actions/workflow/status/CTCycle/XREPORT-radiological-reports-generator/ci.yml?branch=develop&style=flat-square)](https://github.com/CTCycle/XREPORT-radiological-reports-generator/actions/workflows/ci.yml?query=branch%3Adevelop) [![Python](https://img.shields.io/badge/Python-3.14%2B-3776AB?style=flat-square&logo=python&logoColor=white)](https://www.python.org/) [![Node.js](https://img.shields.io/badge/Node.js-22.22.3-339933?style=flat-square&logo=node.js&logoColor=white)](https://nodejs.org/) [![Angular](https://img.shields.io/badge/Angular-22-DD0031?style=flat-square&logo=angular&logoColor=white)](https://angular.dev)
+[![GitHub stars](https://img.shields.io/github/stars/CTCycle/XREPORT-radiological-reports-generator?style=flat-square)](https://github.com/CTCycle/XREPORT-radiological-reports-generator/stargazers) [![Last commit](https://img.shields.io/github/last-commit/CTCycle/XREPORT-radiological-reports-generator?style=flat-square)](https://github.com/CTCycle/XREPORT-radiological-reports-generator/commits) [![Release](https://img.shields.io/github/v/release/CTCycle/XREPORT-radiological-reports-generator?display_name=tag&style=flat-square)](https://github.com/CTCycle/XREPORT-radiological-reports-generator/releases) [![License](https://img.shields.io/github/license/CTCycle/XREPORT-radiological-reports-generator?style=flat-square)](LICENSE)
+
+[![Python](https://img.shields.io/badge/Python-3.14%2B-3776AB?logo=python&logoColor=white&style=flat-square)](https://www.python.org/) [![Angular](https://img.shields.io/badge/Angular-22-DD0031?logo=angular&logoColor=white&style=flat-square)](https://angular.dev) [![Platform](https://img.shields.io/badge/Platform-Windows-0078D4?logo=windows&logoColor=white&style=flat-square)](https://www.microsoft.com/windows)
 
 ## Overview
 
@@ -25,17 +27,33 @@ Public models may need an internet connection and additional storage for their f
 
 These images show representative interface workflows. They are not clinical or model-quality evidence.
 
-![Dataset image viewer](assets/figures/readme-dataset.png)
+<p align="center">
+  <kbd><img src="assets/figures/readme-dataset.png" alt="Dataset image viewer" width="420"></kbd>
+  <kbd><img src="assets/figures/readme-training.png" alt="Checkpoint evaluation report" width="420"></kbd>
+</p>
+<p align="center"><sub>Dataset image viewer (left) and checkpoint evaluation report (right).</sub></p>
 
-![Checkpoint evaluation report](assets/figures/readme-training.png)
+<p align="center">
+  <kbd><img src="assets/figures/readme-inference-report.png" alt="Inference draft review" width="420"></kbd>
+  <kbd><img src="assets/figures/readme-inference.png" alt="Inference view" width="420"></kbd>
+</p>
+<p align="center"><sub>Inference draft review (left) and inference view (right).</sub></p>
 
-![Inference draft review](assets/figures/readme-inference-report.png)
+<p align="center">
+  <kbd><img src="assets/figures/readme-inference-workflow.png" alt="Inference workflow" width="420"></kbd>
+  <kbd><img src="assets/figures/readme-help-and-tips.png" alt="Help and tips" width="420"></kbd>
+</p>
+<p align="center"><sub>Inference workflow (left) and help and tips (right).</sub></p>
 
 ## Technology Stack
 
-- Python 3.14 or later with FastAPI for the local backend.
-- Node.js 22.22.3 and Angular 22 for the frontend.
-- Tauri 2 supports optional Windows CPU and CUDA desktop packages.
+| Layer | Technology | Version |
+|---|---|---|
+| Backend | Python, FastAPI | 3.14+ |
+| Frontend | Angular | 22 |
+| Frontend tooling | Node.js | 22.22.3 |
+| Desktop shell | Tauri | 2 |
+| Database | SQLite (embedded) | - |
 
 ## Installation and Usage
 
@@ -55,11 +73,30 @@ Source-mode settings live in `settings/.env`, which the launcher creates from `s
 
 Use only data you are authorized to process, and de-identify images and reports before import. Back up important datasets and checkpoints before resetting or removing application data. Treat every generated report as an unverified draft: compare it with the source images and relevant context, then correct or discard unsupported statements under the appropriate review process.
 
+| Variable | Purpose | Default |
+|---|---|---|
+| `XREPORT_RESOURCES_DIR` | Source-mode resource root | `data` |
+| `HF_TOKEN` | Credentials for gated Hugging Face models | (none) |
+| `UI_HOST` | Angular and Tauri development host | - |
+| `UI_PORT` | Angular and Tauri development port | - |
+
 ## Documentation
 
-- [Core workflows](assets/docs/operations/workflows.md) — dataset, training, inference, and validation journeys.
-- [Troubleshooting](assets/docs/operations/troubleshooting.md) — startup, database, and common runtime issues.
+- [Core workflows](assets/docs/operations/workflows.md) - dataset, training, inference, and validation journeys.
+- [Troubleshooting](assets/docs/operations/troubleshooting.md) - startup, database, and common runtime issues.
 - [Runtime configuration](assets/docs/runtime/configuration.md) and [local inference models](assets/docs/runtime/local_inference_models.md).
+
+## Limitations
+
+- Research use only. XREPORT is not a diagnostic device or a clinically approved reporting system.
+- Models may omit findings or generate plausible but incorrect text. Model metrics and technical checks do not establish clinical accuracy or safety.
+- Public models may need an internet connection and additional storage for their first download. Gated models can require provider access and credentials.
+- Generated reports are unverified drafts and must be reviewed against the source images and relevant context.
+- Only data you are authorized to process should be imported, and images and reports must be de-identified before import.
+
+## Contributing
+
+Contributions are welcome. Open an issue or pull request with a clear description of the change and its motivation. Keep changes focused and consistent with the existing code style.
 
 ## License
 
