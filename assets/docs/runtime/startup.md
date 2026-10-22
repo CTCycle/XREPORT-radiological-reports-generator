@@ -145,7 +145,7 @@ not replaced by the desktop action.
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\start_on_windows.ps1 `
-  -Action BuildDesktopRelease -DesktopRuntime All -DesktopTarget All -Version 3.2.1
+  -Action BuildDesktopRelease -DesktopRuntime All -DesktopTarget All -Version 3.3.0
 ```
 
 Use `-DesktopRuntime Cpu|Cuda`, `-DesktopTarget Portable|Msi`, `-Force`, and
@@ -184,7 +184,7 @@ or the all-releases switch:
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\start_on_windows.ps1 `
-  -Action RemoveDesktopRelease -Version 3.2.1 -DesktopRuntime Cpu -DesktopTarget All
+  -Action RemoveDesktopRelease -Version 3.3.0 -DesktopRuntime Cpu -DesktopTarget All
 powershell -ExecutionPolicy Bypass -File .\start_on_windows.ps1 `
   -Action RemoveDesktopRelease -AllDesktopReleases
 ```
