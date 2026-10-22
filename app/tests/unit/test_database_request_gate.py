@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+from concurrent.futures import ThreadPoolExecutor
 
 from server.common.database_switch import DatabaseRequestGate
 
@@ -26,4 +27,7 @@ def test_database_switch_gate_drains_active_requests_and_holds_new_requests() ->
         await waiting_request
         await gate.leave()
 
-    asyncio.run(scenario())
+    # Playwright's sync API in earlier tests can leave a loop running on this
+    # thread, so the scenario runs on a clean thread.
+    with ThreadPoolExecutor(max_workers=1) as executor:
+        executor.submit(asyncio.run, scenario()).result()
