@@ -954,6 +954,11 @@ function Ensure-FrontendBuild {
     }
 
     Write-Info "Frontend production bundle requires work: $($status.Reason)"
+    # A stale or missing bundle must be recoverable after runtimes/ is cleared.
+    # Restore the pinned Node.js toolchain before invoking npm or Angular.
+    if (-not (Test-PortableNodeRuntimeReady)) {
+        Ensure-PortableNodeRuntime
+    }
     if ($status.Reason -eq 'DependencyManifestChanged' -or -not (Test-FrontendDependenciesReady)) {
         Install-FrontendDependencies -Locked
     }
