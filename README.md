@@ -10,16 +10,20 @@
 
 ## Overview
 
-XREPORT is a local-first research application for importing image and report datasets, running local model training or evaluation, and generating editable draft reports from X-ray images.
+XREPORT is a local-first research application for importing image and report datasets, training and evaluating models, and generating editable draft radiology reports from X-ray images. It guides users from dataset preparation through model training, checkpoint evaluation, and report generation in a single workflow. Generated reports are unverified drafts with model and output metadata, intended for review against source images rather than clinical use. The application runs a FastAPI backend with an Angular frontend, persists state in SQLite, and supports optional Windows desktop packages. Public models may need network access and storage on first download, while gated models require provider access and credentials. It is research use only and is not a diagnostic device or a clinically approved reporting system.
 
 > **Research use only.** XREPORT is not a diagnostic device or a clinically approved reporting system. Models may omit findings or generate plausible but incorrect text. Review every draft against the source images and relevant context before use.
 
 ## Key Features
 
-- Import images and report tables, review record matches, and prepare datasets.
-- Train local models, resume checkpoints, and evaluate saved models.
-- Select a ready model, generate a draft from de-identified images, and review editable sections with model and output metadata.
+- Import images and report tables, review matched and unmatched records, and prepare datasets.
+- Run local training, resume checkpoints, and evaluate saved models with quality metrics.
+- Select a model, generate a draft from de-identified images within model-specific image limits, and review editable report sections.
 - Inspect model anatomy, image limits, readiness, resource needs, access requirements, and output contracts in the model catalogue.
+- Track long-running jobs with progress, cancellation, and typed failure handling.
+- Use only authorized, de-identified data and back up datasets and checkpoints before changes.
+- Generate reports with provenance and metadata for qualified review.
+- Use optional Windows CPU and CUDA desktop packages with a Tauri shell.
 
 Public models may need an internet connection and additional storage for their first download. Gated models can require provider access and credentials. Model metrics and technical checks do not establish clinical accuracy or safety.
 
