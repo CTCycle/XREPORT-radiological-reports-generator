@@ -1,10 +1,12 @@
 # XREPORT Project Status Ledger
 
-Last updated: 2026-10-21
+Last updated: 2026-10-22
 
 This is the canonical current-status summary for XREPORT. It records scoped
 component confidence, active issues, and known limits; it is not a development
 diary, detailed test report, release approval, or clinical-quality statement.
+
+Release 3.3.0 (2026-10-22) supersedes the unpublished 3.2.1 candidate; it adds the legacy-compatibility cleanup, the self-hosted FastAPI SPA launcher lifecycle, and the portable-Node recovery fix. Its source smoke is recorded in the [validation campaign ledger](validation_campaign_ledger.md); the published-package scope is recorded there after publication.
 
 The published v3.2.0 release was validated at source
 `a8d75a0c0d5f02a29c85e9ac58f4837fc3081449`. The most recent application-source

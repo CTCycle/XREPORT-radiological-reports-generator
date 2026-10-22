@@ -1,6 +1,6 @@
 # XREPORT Validation Campaign Ledger
 
-Last updated: 2026-10-21
+Last updated: 2026-10-22
 
 This ledger summarizes current validation gates, release evidence, and known
 scope limits. The [project status ledger](project_status_ledger.md) owns
@@ -27,6 +27,13 @@ Removed the ignored `.scratch-db-config-tests`, `.scratch-db-switch`, and
 `.scratch-openapi` QA directories after consolidating their durable outcomes in
 the existing ledgers. Referenced validation captures and the logs supporting
 unresolved checks were retained.
+
+## Release 3.3.0 smoke (2026-10-22)
+
+- Scope: source launcher on develop plus the portable-Node recovery fix from draft PR 8 (cherry-picked; hosted CI on the PR passed). Backend unit suite (232), integration/backend suites (4 passed, 3 skipped), Ruff, client lint, 65 client unit tests, production client build, and PowerShell parse check passed locally.
+- Official `Launch` with isolated resources served `/api/health` (version 3.3.0 after bump, SQLite, Alembic head `42c8e1f7b0d3`), `/`, `/dataset`, `/training`, `/settings`, and `/api/inference/models` with HTTP 200 and the port closed afterward.
+- Superseded shim-removal suite logs (full suite PASS) were consolidated here and deleted.
+- Not re-run: live PostgreSQL switching, S23 (`s27` fixture pack absent), packaged-artifact smoke before publication, GPU/CUDA runs. Existing limits in the gate map still apply.
 
 ## Gate map
 
