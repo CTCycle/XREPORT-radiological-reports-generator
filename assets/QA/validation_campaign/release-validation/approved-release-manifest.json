@@ -1,24 +1,24 @@
 {
   "schema_version": "xreport-release-validation-v1",
   "status": "approved",
-  "source_commit": "a8d75a0c0d5f02a29c85e9ac58f4837fc3081449",
-  "version": "3.2.0",
+  "source_commit": "70957f61e853de1143f9d936e1ac7614c91d0f16",
+  "version": "3.3.0",
   "validation_record": "assets/docs/validation_campaign_ledger.md",
   "approval": {
     "decision": "approved",
     "approved_by": "CTCycle",
-    "approved_at_utc": "2026-10-17T20:55:04Z",
+    "approved_at_utc": "2026-10-22T12:00:00Z",
     "invalidated_at_utc": null,
-    "reason": "Approved on 2026-10-17 for the exact CPU/CUDA artifacts from run 39056753392 after hash verification, MSI lifecycle acceptance, and synthetic CPU/CUDA inference on the RTX 3060 host. At approval the post-inference CPU MSI remained installed after two UAC cancellations; the final authorized uninstall on 2026-10-18 returned exit code 0 and left no XREPORT registration, install tree, shortcut, process, or listener. No GPU-less host was available, so CUDA fallback remains untested and S42/S51 remain partial."
+    "reason": "Approved on 2026-10-22 on the maintainer's instruction for the CPU/CUDA artifacts from run 39753277751 after SHA-256 hashing. Evidence: hosted CI on the source commit, packaged runtime/MSI audits and packaged portable startup smoke inside the release workflow, and a local source-launcher smoke. No manual MSI install lifecycle, packaged CPU/CUDA inference, or GPU-less CUDA fallback check was performed for 3.3.0; S42/S43/S51 remain partial."
   },
   "artifacts": {
-    "XREPORT-v3.2.0-windows-x64-cpu-portable.exe": "288916fcc51d791c4319799e937e92e795a8c8776a98295996003e0c656894c0",
-    "XREPORT-v3.2.0-windows-x64-cpu.msi": "557e2a421bcd62dfad5ffa03f5f9b7e8efbd5ccfdc70a646ad2a8c00796177c1",
-    "XREPORT-v3.2.0-windows-x64-cpu.sha256": "bc3e18bdeead395d7040a132461b6486b3c0285edb41aa6af5db173e29dbaa79",
-    "XREPORT-v3.2.0-windows-x64-cpu-build.json": "3926ea805b11fa85328db005e5381ba50636ea0d352882c50ee403a99db6d788",
-    "XREPORT-v3.2.0-windows-x64-cuda-portable.exe": "f41ec66ae251581a1e4f0f7a6fa96c30627a5ecc1d56b11213ec9a7e4eac7c3e",
-    "XREPORT-v3.2.0-windows-x64-cuda.msi": "3c4c2a1e3f8f7a38e688f9eb47f9139b170e30395cf2eeae752239635b1c4c3c",
-    "XREPORT-v3.2.0-windows-x64-cuda.sha256": "a265516a83ddb0d01af5f651e45624a6521dafe715ce0f6fc517a3cbcb90603f",
-    "XREPORT-v3.2.0-windows-x64-cuda-build.json": "fc751e7b0030d5e0020ac8f91f47c6436e3b5fe89d2153282d5ad8a4873b24f8"
+    "XREPORT-v3.3.0-windows-x64-cpu-build.json": "c284969ae7382fb9285c17d538a7b1f405a8a0461778be715f3fccc850f49909",
+    "XREPORT-v3.3.0-windows-x64-cpu-portable.exe": "97c0e8553cab6e1564112a7d9e85ad330afe50b79e590533a78f7f417801aae3",
+    "XREPORT-v3.3.0-windows-x64-cpu.msi": "6b542cb0417add003d96fec8dd76715108df580e8b464f4c6c1f5c68a8a168dc",
+    "XREPORT-v3.3.0-windows-x64-cpu.sha256": "3cc1a0cf620ef6e4876293d8bbd08a4a1dc6564be009db63ee6e898794011563",
+    "XREPORT-v3.3.0-windows-x64-cuda-build.json": "98d86e0175b29094a735c40911aae49ea3d51cc3e99c7d412e06fb9ec61a8fdb",
+    "XREPORT-v3.3.0-windows-x64-cuda-portable.exe": "edacc173a4d6093a8010ce64b433d05daf690213d5912a9ca38828821163ae05",
+    "XREPORT-v3.3.0-windows-x64-cuda.msi": "607850bd5ffb025584c280c75ba77e0e3ba322ddaf3b431b2ec64ef1d3973426",
+    "XREPORT-v3.3.0-windows-x64-cuda.sha256": "2d9b2638cbd6fe7b8bcb6c2a9a6a38695ce70bab649c18a958ad5c5a194d1480"
   }
 }
