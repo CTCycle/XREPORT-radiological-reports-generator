@@ -25,6 +25,8 @@ def test_launch_actions_keep_the_launch_alias_and_add_studio() -> None:
     assert "'--app', 'studio'" in launch
     assert "STUDIO_FASTAPI_PORT" in launch
     assert "studio-angular" in launch
+    assert "$env:XREPORT_APP" in launch
+    assert "$env:XREPORT_APP" in launch
 
 
 ###############################################################################
