@@ -1,6 +1,6 @@
 # XREPORT Execution And Data Flow
 
-Last updated: 2026-09-30
+Last updated: 2026-10-23
 
 ## Layer Responsibilities
 
@@ -152,11 +152,15 @@ sequenceDiagram
         SVC-->>UI: failed job with persistence_failed
     else persistence succeeds
         DB-->>SVC: saved history
-        SVC-->>UI: completed job with reports
+        SVC-->>UI: completed job with request_id and reports
+        UI->>API: GET /api/inference/history/{request_id}
+        API-->>UI: canonical persisted report rows
+        UI->>API: PATCH /api/inference/history/{request_id} with changed rows
+        API-->>UI: updated report history
     end
 ```
 
-Inference history persistence failures are terminal job failures. They are logged and raised as typed job errors; they are not swallowed after a successful-looking generation result.
+Inference history persistence failures are terminal job failures. They are logged and raised as typed job errors; they are not swallowed after a successful-looking generation result. The completed job returns its request ID only after the generated reports have been persisted. Inference-page edits then reuse the existing history read and update endpoints.
 
 ## Dataset Preparation Flow
 

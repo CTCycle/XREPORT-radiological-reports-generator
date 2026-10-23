@@ -1,6 +1,6 @@
 # Operations Workflows
 
-Last updated: 2026-10-18
+Last updated: 2026-10-23
 
 ## Prepare A Dataset
 
@@ -52,11 +52,13 @@ Expected result:
 2. Select one of the current Public Models or a locally trained Custom XReport Model. Read the anatomy scope, demand, approximate size, licence/access badge, exact revision, adapter, loader, and declared output sections. A public model can be Downloaded explicitly or submitted while `not_downloaded`; Generate will prepare it in the background.
 3. Add no more than the model-specific image limit and enter clinical context only when the selected contract supports it.
 4. Choose a generation profile, submit the images, and poll the background job until completion or cancellation. Use Cancel generation when an active request should stop.
-5. Edit the declared raw report, Findings, and/or Impression fields only; inspect returned provenance before copying or exporting. Changing model, images, or profile clears the existing draft.
+5. After completion, wait for the saved-report status, then edit the declared raw report, Findings, and/or Impression fields. Select **Save edits** to persist changes, or **View in Reports** to review the saved session. Copy or export remains available for qualified review. Changing the model or study, starting another generation, or leaving the route asks before discarding unsaved edits; browser reload/close prompts where supported.
 
 Expected result:
 
 - research-use-only draft reports are generated for qualified review; models and outputs are not clinically approved
+- completed generated reports are already available in Reports; inference-page edits remain unsaved until **Save edits** succeeds, and the original model output remains available in report history
+- failed edit saves retain the editable draft and show an error so the user can retry; study-level reports displayed across multiple images update their single persisted history row
 - only currently declared pinned public report-generating models are visible in their own section; degraded public entries cannot generate, and catalogue cardinality is not a product invariant. Complete custom XREPORT checkpoints are shown separately and are never public downloads
 - first-use installation reports cloud assessment, download, verification, loading, generation, and activation without blocking the UI
 
