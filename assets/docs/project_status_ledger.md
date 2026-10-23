@@ -1,6 +1,6 @@
 # XREPORT Project Status Ledger
 
-Last updated: 2026-10-22
+Last updated: 2026-10-23
 
 This is the canonical current-status summary for XREPORT. It records scoped
 component confidence, active issues, and known limits; it is not a development
@@ -98,6 +98,17 @@ where to revalidate after a change.
 | `configuration.runtime_settings` | `VALIDATED` | On `ef1ae34ad8e9dc073415e5ec1a0eaec588f81999`, rendered settings tabs passed autosave, bounds, reset, reload/restart persistence, per-database isolation, failed-connection draft handling, and the Settings API policy boundary. Supported `.env` parsing and CORS behavior passed isolated fixtures. The ignored local `settings/.env` was not changed during the settings checks. | [Configuration](runtime/configuration.md), [campaign](validation_campaign_ledger.md), [environment tests](../../app/tests/unit/test_runtime_startup.py), [settings E2E](../../app/tests/e2e/test_angular_ui.py) |
 | `configuration.database_runtime` | `PARTIAL` | Database values remain uncommitted drafts until the current candidate passes a connection test and receives explicit confirmation; SQLite settings isolation, restart persistence, failed PostgreSQL handling, rollback, and the request-drain gate all passed. A successful authenticated PostgreSQL connection and live switch remain unverified; the user explicitly deferred PostgreSQL testing on 2026-10-21, so no connection or switch was attempted in this run. | [Configuration](runtime/configuration.md), [Database configuration tests](../../app/tests/unit/test_settings_persistence.py) |
 | `security.authentication` | `NOT_IMPLEMENTED` | The current boundary is trusted local use; external exposure is not covered. | [Execution and data flow](architecture/execution_and_data_flow.md) |
+
+### Application split and checkpoint exchange
+
+| Component | Status | Current scope or limit | Authority |
+| --- | --- | --- | --- |
+| `app.profiles` | `WORKING` | Branch `feature/split-studio`: `create_app(profile)` mounts only profile routers; route sets verified on live servers (XREPORT: inference, jobs, settings, exchange; Studio: upload, preparation, training, validation, jobs, settings, exchange) and by subprocess tests; the XREPORT static import closure is free of Studio modules. Both applications ran side by side on ports 5003/5013 with isolated data. | [Applications](architecture/applications_and_checkpoint_exchange.md) |
+| `app.studio.frontend` | `WORKING` | `studio-angular` builds separately; the XREPORT bundle contains no dataset/training chunks or `/api/training|preparation|upload|validation` strings (grep of the production output). Rendered in the Browser pane: Studio navigation, dataset and training pages. 66 client unit tests and lint pass. | [Applications](architecture/applications_and_checkpoint_exchange.md) |
+| `checkpoint.exchange` | `PARTIAL` | Safe archive handling, manifest verification, staged publish, rollback of installed shared resources, conflict/duplicate/legacy/cancel paths and hostile-archive rejection are covered by 17 unit tests and exercised live against the XREPORT server (lone `.keras`, traversal archive, legacy archive without encoder, crafted archive with a broken model: each rejected with an explicit error and no leftover files). **Not verified:** a real round trip with a trained model, because the pinned BEiT encoder and a tokenizer are not installed on the validation machine; the smoke test (load + forward pass) therefore ran only against stubs in unit tests. | [Applications](architecture/applications_and_checkpoint_exchange.md) |
+| `data.studio.migration` | `PARTIAL` | `migrate_to_studio.py` is covered by 3 unit tests (dry run, copy with path rewrite and idempotent rerun, refusal when Studio has data); a dry run against the repository data folder reported zero rows. A migration of real datasets/checkpoints was not run. | [Applications](architecture/applications_and_checkpoint_exchange.md) |
+| `runtime.studio.launcher` | `PARTIAL` | `LaunchStudio`, per-project build freshness (only the needed project rebuilt after input changes), app-scoped kill (Studio stopped while XREPORT stayed healthy) and port release were exercised on Windows. Cleanup scoping and desktop-build isolation are covered by static launcher tests only; destructive actions were not run. | [Startup](runtime/startup.md) |
+| `desktop.packaging.inference_only` | `UNVALIDATED` | PyInstaller spec and bundle audit exclude Studio modules/assets; no CPU/CUDA package was built, so package contents and import into a packaged build were not observed. | [Deployment](runtime/deployment.md) |
 
 ### Backend and persistence
 

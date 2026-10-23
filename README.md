@@ -16,8 +16,8 @@ XREPORT is a local-first research application for importing image and report dat
 
 ## Key Features
 
-- Import images and report tables, review matched and unmatched records, and prepare datasets.
-- Run local training, resume checkpoints, and evaluate saved models with quality metrics.
+- In XREPORT Studio: import images and report tables, review matched and unmatched records, prepare datasets, run local training, resume checkpoints, and evaluate saved models with quality metrics.
+- Move trained checkpoints from Studio to XREPORT through a portable, verified archive.
 - Select a model, generate a draft from de-identified images within model-specific image limits, and review editable report sections.
 - Inspect model anatomy, image limits, readiness, resource needs, access requirements, and output contracts in the model catalogue.
 - Track long-running jobs with progress, cancellation, and typed failure handling.
@@ -68,6 +68,14 @@ powershell -ExecutionPolicy Bypass -File .\start_on_windows.ps1 -Action Launch
 ```
 
 The launcher prepares local runtimes and dependencies as needed, initializes the database, builds the frontend when its output is missing or stale, and opens the local application when ready. FastAPI serves the built frontend and API from the same origin; the launcher stays open until you press Ctrl+C to stop the backend cleanly. First launch can take several minutes. For manual macOS/Linux development setup, see [Getting started](assets/docs/operations/getting_started.md).
+
+XREPORT is split into two local applications. **XREPORT** (inference, report review, model import) is the application above and the only one shipped as a package. **XREPORT Studio** (dataset preparation, validation, training, evaluation, checkpoint export) runs from source on its own port and data folder:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\start_on_windows.ps1 -Action LaunchStudio
+```
+
+Export a trained model from Studio with *Export for XREPORT* on the Training page, then use *Import checkpoint* in XREPORT's model catalogue. The archive (`.xreportckpt`) works across computers and with the packaged builds. Existing datasets and checkpoints can be copied into Studio with `-Action MigrateToStudio` (use `-DryRun` first); nothing is deleted. See [applications and checkpoint exchange](assets/docs/architecture/applications_and_checkpoint_exchange.md).
 
 Windows CPU and CUDA portable or MSI packages are listed on [GitHub Releases](https://github.com/CTCycle/XREPORT-radiological-reports-generator/releases) when available. CUDA requires supported NVIDIA hardware and drivers. Portable packages require Microsoft WebView2.
 

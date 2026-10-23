@@ -23,8 +23,13 @@ Last updated: 2026-10-22
 - Run `cargo check` from `app/desktop/src-tauri` for the Rust desktop shell;
   `build.rs` must always invoke `tauri_build` so the checked-in capability
   files are available to `tauri::generate_context!()` during debug builds.
-- Keep `app/shared/openapi.json` synchronized with `app.server.app:app` and
+- Keep `app/shared/openapi.xreport.json` and `openapi.studio.json` synchronized with
+  `create_app("xreport")` / `create_app("studio")` (`app/scripts/export_openapi.py`) and
   regenerate Angular types with `npm run generate:api` after contract changes.
+- Studio end-to-end modules (`test_training_api`, `test_upload_api`, `test_dataset_workflow`,
+  `test_preparation_filesystem`, `test_studio_ui`) run in their own pytest process with
+  `XREPORT_APP=studio` against the Studio backend (`APP_TEST_STUDIO_BACKEND_URL`,
+  `APP_TEST_STUDIO_FRONTEND_URL`); `run_tests.bat` and CI start both backends.
 - Verify the generic `/api/jobs` resource and explicit upload/checkpoint
   identity behavior when changing long-running workflows.
 

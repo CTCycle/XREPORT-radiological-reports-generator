@@ -9,8 +9,10 @@ XREPORT is a local-first client/server system for radiological report generation
 - Frontend: standalone Angular 22 + TypeScript in `app/client`.
 - Backend: FastAPI in `app/server`.
 - API contracts: transport-neutral Pydantic models in `app/server/domain`,
-  mirrored in the checked-in `app/shared/openapi.json` and generated Angular
-  types.
+  mirrored in the checked-in per-application snapshots
+  `app/shared/openapi.xreport.json` and `openapi.studio.json` and generated
+  Angular types. See [applications and checkpoint exchange](applications_and_checkpoint_exchange.md)
+  for the XREPORT / XREPORT Studio split.
 - Backend orchestration: services in `app/server/services`.
 - Persistence: SQLAlchemy repositories and schemas in `app/server/repositories`, with SQLite by default and PostgreSQL optional.
 - Learning runtime: model, provider, and inference implementation details in `app/server/models`.
@@ -133,9 +135,9 @@ This keeps page dependencies aligned with the feature they operate on and avoids
 ## Entry Points
 
 - Backend API entrypoint: `app/server/app.py`.
-- Frontend web entrypoint: `app/client/src/main.ts`.
-- Frontend route composition: `app/client/src/app/app.routes.ts`.
-- OpenAPI source snapshot and generated client types: `app/shared/openapi.json` and `app/client/src/app/types/generated/types.gen.ts`.
+- Frontend web entrypoints: `app/client/src/main.ts` (XREPORT) and `app/client/src/studio/main.ts` (Studio).
+- Frontend route composition: `app/client/src/app/app.routes.ts` (XREPORT) and `app/client/src/studio/studio.routes.ts` (Studio).
+- OpenAPI source snapshot and generated client types: `app/shared/openapi.{xreport,studio}.json` and `app/client/src/app/types/generated/{xreport,studio}/types.gen.ts`.
 - Release version authority: `app/server/pyproject.toml`; client, desktop,
   Tauri, backend metadata, and OpenAPI copies are validated against it.
 - Local launcher and maintenance menu on Windows: `start_on_windows.ps1`.

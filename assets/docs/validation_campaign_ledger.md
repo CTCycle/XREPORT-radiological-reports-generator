@@ -1,6 +1,6 @@
 # XREPORT Validation Campaign Ledger
 
-Last updated: 2026-10-22
+Last updated: 2026-10-23
 
 This ledger summarizes current validation gates, release evidence, and known
 scope limits. The [project status ledger](project_status_ledger.md) owns
@@ -27,6 +27,14 @@ Removed the ignored `.scratch-db-config-tests`, `.scratch-db-switch`, and
 `.scratch-openapi` QA directories after consolidating their durable outcomes in
 the existing ledgers. Referenced validation captures and the logs supporting
 unresolved checks were retained.
+
+## Application split (2026-10-23, branch `feature/split-studio`)
+
+- Scope: XREPORT / XREPORT Studio separation, `.xreportckpt` exchange, Studio launcher, migration script.
+- PASSED (Windows, source mode): backend unit + integration suite (including new profile, exchange, lock, migration, packaging-boundary and launcher tests); Ruff and Pyright on `app/server`; client build for both Angular projects, lint, and 66 unit tests; XREPORT inference/settings API e2e and `test_angular_ui` (23 tests) against a live XREPORT; Studio upload/training/dataset/preparation API and UI e2e (19 tests) plus `test_studio_ui` (7 tests) against a live Studio; both servers running together with isolated data folders; app-scoped kill; stale-build rebuild of only the changed project.
+- PASSED (live, negative paths): import of a lone `.keras`, a traversal archive, a legacy archive without the encoder installed, and a crafted archive with a broken model were all rejected with explicit errors, with no checkpoint registered and the staging folder removed.
+- NOT RUN: Studio journey with real training (needs the pinned BEiT encoder and a tokenizer, not installed here); real export/import round trip and report generation from an imported model; import into a packaged CPU or CUDA build; package contents audit; migration of real data; hosted CI on this branch; `run_tests.bat` end to end with the two-server setup.
+- Facts versus claims: the XREPORT bundle isolation and the import-closure result are observed; the claim that packaged builds exclude Studio code follows from the spec and is untested until a package is built.
 
 ## Release 3.3.0 smoke (2026-10-22)
 
