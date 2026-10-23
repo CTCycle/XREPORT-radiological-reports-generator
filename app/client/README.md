@@ -48,20 +48,23 @@ npm run test:unit
 
 ## Running end-to-end tests
 
-For end-to-end (E2E) testing against the local FastAPI and Angular services, run:
+For the focused browser E2E suite against the local FastAPI and Angular services, run:
 
 ```bash
 npm run test:e2e
 ```
 
-The repository test launcher starts the required local services automatically:
+This command routes through the repository test launcher, which starts the
+required local services and runs only the selected browser suite. To run the
+full test suite, use the launcher from the repository root:
 
 ```cmd
 app\tests\run_tests.bat
 ```
 
-The E2E checks use the Playwright tests under `app/tests/e2e/` and the local
-service URLs configured by the launcher.
+The full runner executes pytest and Angular unit tests once. The built-server
+check remains available separately through `npm run test:built-server`. Browser
+tests under `app/tests/e2e/` use the local service URLs configured by the launcher.
 
 ## Additional Resources
 

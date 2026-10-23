@@ -12,7 +12,7 @@
     "test": "ng test --watch=false",
     "test:unit": "ng test --watch=false",
     "test:built-server": "node --test scripts/serve-built.test.cjs",
-    "test:e2e": "powershell -NoProfile -ExecutionPolicy Bypass -File ../scripts/run_angular_e2e.ps1",
+    "test:e2e": "set \"STANDARD_TEST_PYTEST_TARGET=..\\tests\\e2e\\test_angular_ui.py\" && set \"STANDARD_TEST_SKIP_CLIENT_TESTS=true\" && ..\\tests\\run_tests.bat",
     "lint": "ng lint"
   },
   "private": true,
