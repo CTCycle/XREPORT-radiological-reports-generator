@@ -3,6 +3,7 @@ from __future__ import annotations
 import importlib.util
 import json
 from pathlib import Path
+import shutil
 import sqlite3
 
 import pytest
@@ -97,3 +98,36 @@ def test_refuses_to_merge_into_a_studio_that_already_has_data(tmp_path: Path) ->
 
     assert not (studio / "migration-manifest.json").exists()
     assert not (studio / "checkpoints" / "run1").exists()
+
+
+@pytest.mark.parametrize("dry_run", [False, True])
+def test_postgresql_source_refuses_stale_sqlite_before_target_initialization(
+    tmp_path: Path, dry_run: bool,
+) -> None:
+    base = tmp_path / "data"
+    _legacy(base)
+    (base / "database-config.json").write_text(json.dumps({
+        "schema_version": 1, "backend": "postgresql", "host": "localhost",
+        "database_name": "xreport", "username": "user",
+    }))
+    with pytest.raises(migration.MigrationError, match="Only the embedded SQLite"):
+        migration.migrate(
+            base, base / "studio", lambda: pytest.fail("must not initialize"),
+            dry_run=dry_run,
+        )
+    assert not (base / "studio").exists()
+
+
+def test_migration_uses_configured_sqlite_source(tmp_path: Path) -> None:
+    base = tmp_path / "data"
+    _legacy(base)
+    database = base / "custom.db"
+    shutil.copyfile(base / "database.db", database)
+    with sqlite3.connect(base / "database.db") as connection:
+        connection.execute("DELETE FROM checkpoints")
+    (base / "database-config.json").write_text(json.dumps({
+        "schema_version": 1, "backend": "sqlite", "sqlite_path": str(database),
+    }))
+    studio = base / "studio"
+    result = migration.migrate(base, studio, lambda: _create_schema(studio / "database.db"))
+    assert result["rows"]["checkpoints"] == 1

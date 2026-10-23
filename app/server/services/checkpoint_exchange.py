@@ -56,7 +56,7 @@ from server.repositories.checkpoints import (
     CheckpointRepository,
 )
 from server.services.errors import BadRequestError, ConflictError, NotFoundError
-from server.services.jobs import JobExecutionError, JobManager, get_job_manager
+from server.services.jobs import JobAlreadyRunningError, JobExecutionError, JobManager, get_job_manager
 
 EXPORT_JOB_TYPE = "checkpoint_export"
 IMPORT_JOB_TYPE = "checkpoint_import"
@@ -160,12 +160,15 @@ class CheckpointExchangeService:
             raise BadRequestError(
                 "The pinned BEiT encoder is not installed locally, so it cannot be bundled"
             )
-        job_id = self.jobs.start_job(
-            EXPORT_JOB_TYPE,
-            self.run_export,
-            kwargs={"name": name, "include_encoder": include_encoder},
-            require_idle=True,
-        )
+        try:
+            job_id = self.jobs.start_job(
+                EXPORT_JOB_TYPE,
+                self.run_export,
+                kwargs={"name": name, "include_encoder": include_encoder},
+                require_idle=True,
+            )
+        except JobAlreadyRunningError as exc:
+            raise ConflictError(str(exc)) from exc
         return JobStartResponse(
             job_id=job_id,
             job_type=EXPORT_JOB_TYPE,
@@ -792,7 +795,9 @@ class CheckpointExchangeService:
             sequence[0, 0] = tokenizer.convert_tokens_to_ids(tokenizer.cls_token)
             image = np.zeros((1, 224, 224, 3), dtype=np.float32)
             # Keras conversion handles CUDA tensors, unlike np.asarray.
-            output = ops.convert_to_numpy(model([image, sequence], training=False))
+            output = np.asarray(
+                ops.convert_to_numpy(model([image, sequence], training=False))
+            )
             if output.shape[-1] != handler.vocabulary_size or not np.isfinite(output).all():
                 raise ValueError("model output does not match the tokenizer vocabulary")
         except Exception as exc:  # noqa: BLE001

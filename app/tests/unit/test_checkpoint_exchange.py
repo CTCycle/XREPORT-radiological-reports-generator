@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+from threading import Event
 from pathlib import Path
 from types import SimpleNamespace
 import zipfile
@@ -17,8 +18,36 @@ from server.repositories.checkpoint_archive import (
 from server.services import checkpoint_exchange as exchange
 from server.services.errors import BadRequestError, ConflictError
 from server.services.jobs import JobExecutionError
+from server.services.jobs import JobAlreadyRunningError, JobManager
+from server.services.training import TrainingRuntime, TrainingService
 
 REVISION = "a" * 40
+
+
+@pytest.mark.parametrize("first,second", [
+    ("training", "checkpoint_export"), ("checkpoint_export", "training"),
+])
+def test_export_training_and_deletion_are_serialized(first: str, second: str) -> None:
+    manager = JobManager()
+    release = Event()
+
+    def runner() -> dict:
+        release.wait(timeout=5)
+        return {}
+
+    job_id = manager.start_job(first, runner, require_idle=True)
+    try:
+        with pytest.raises(JobAlreadyRunningError):
+            manager.start_job(second, runner, require_idle=True)
+        service = TrainingService(manager, TrainingRuntime(), FakeCheckpoints())  # type: ignore[arg-type]
+        with pytest.raises(ConflictError, match="training or export"):
+            service.delete_checkpoint("run1")
+    finally:
+        release.set()
+        manager.threads[job_id].join(timeout=5)
+    accepted = manager.start_job(second, runner, require_idle=True)
+    manager.threads[accepted].join(timeout=5)
+    assert manager.get_job_status(accepted)["status"] == "completed"
 
 
 ###############################################################################
