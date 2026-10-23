@@ -1,8 +1,11 @@
 [CmdletBinding()]
 param(
-    [ValidateSet('Launch', 'LaunchDesktopDev', 'BuildDesktopRelease', 'RemoveDesktopRelease', 'Install', 'RebuildFrontend', 'InitializeDatabase', 'Test', 'RemoveLogs', 'ClearCache', 'RemoveCheckpoints', 'RemoveAllData', 'Uninstall', 'KillProcesses', 'Update')]
+    [ValidateSet('Launch', 'LaunchDesktopDev', 'BuildDesktopRelease', 'RemoveDesktopRelease', 'Install', 'RebuildFrontend', 'InitializeDatabase', 'Test', 'RemoveLogs', 'ClearCache', 'RemoveCheckpoints', 'RemoveAllData', 'Uninstall', 'KillProcesses', 'Update', 'LaunchStudio', 'MigrateToStudio')]
     [string]$Action,
     [switch]$Launch,
+    [ValidateSet('Xreport', 'Studio')]
+    [string]$App = 'Xreport',
+    [switch]$DryRun,
     [ValidateSet('Cpu', 'Cuda', 'All')]
     [string]$DesktopRuntime = 'All',
     [ValidateSet('Portable', 'Msi', 'All')]
@@ -15,6 +18,7 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
+$AppExplicit = $PSBoundParameters.ContainsKey('App')
 $RepoRoot = Split-Path -Parent $MyInvocation.MyCommand.Path
 $RuntimesDir = Join-Path $RepoRoot 'runtimes'
 $PythonDir = Join-Path $RuntimesDir 'python'
@@ -603,6 +607,7 @@ function Import-XReportEnvironment {
     $values = @{
         FASTAPI_HOST = '127.0.0.1'
         FASTAPI_PORT = '5003'
+        STUDIO_FASTAPI_PORT = '5013'
         UI_HOST = '127.0.0.1'
         UI_PORT = '8003'
         UI_API_BASE_URL = '/api'
@@ -757,21 +762,29 @@ function Install-DesktopDependencies {
     Invoke-Checked -FilePath $NpmCmd -ArgumentList @('ci') -WorkingDirectory $DesktopDir
 }
 
+function Get-FrontendBuildScript {
+    param([string]$Project = 'client-angular')
+    if ($Project -eq 'studio-angular') { return 'build:studio' }
+    return 'build'
+}
+
 function Invoke-FrontendBuild {
-    $beforeFingerprint = Get-FrontendBuildFingerprint
+    param([string]$Project = 'client-angular')
+
+    $beforeFingerprint = Get-FrontendBuildFingerprint -Project $Project
     $beforeDependencyFingerprint = Get-FrontendDependencyFingerprint
-    Write-Step 'Building frontend'
-    Invoke-Checked -FilePath $NpmCmd -ArgumentList @('run', 'build') -WorkingDirectory $ClientDir
-    $frontendOutput = Join-Path $ClientDir 'dist\client-angular\browser\index.html'
+    Write-Step "Building frontend ($Project)"
+    Invoke-Checked -FilePath $NpmCmd -ArgumentList @('run', (Get-FrontendBuildScript -Project $Project)) -WorkingDirectory $ClientDir
+    $frontendOutput = Join-Path $ClientDir "dist\$Project\browser\index.html"
     if (-not (Test-Path -LiteralPath $frontendOutput)) {
         throw "Angular production output was not created: $frontendOutput"
     }
-    $afterFingerprint = Get-FrontendBuildFingerprint
+    $afterFingerprint = Get-FrontendBuildFingerprint -Project $Project
     $afterDependencyFingerprint = Get-FrontendDependencyFingerprint
     if ($beforeFingerprint -ne $afterFingerprint -or $beforeDependencyFingerprint -ne $afterDependencyFingerprint) {
         throw 'Frontend inputs changed while the build was running. The build-state manifest was not written; rerun the frontend build.'
     }
-    Write-FrontendBuildState -BuildFingerprint $afterFingerprint -DependencyFingerprint $afterDependencyFingerprint
+    Write-FrontendBuildState -BuildFingerprint $afterFingerprint -DependencyFingerprint $afterDependencyFingerprint -Project $Project
 }
 
 function Get-FrontendProductionInputRelativePaths {
@@ -856,10 +869,12 @@ function Get-FrontendFingerprint {
 }
 
 function Get-FrontendBuildFingerprint {
-    return Get-FrontendFingerprint -RelativePaths (Get-FrontendProductionInputRelativePaths) -Context @(
-        "schema=$FrontendBuildStateSchemaVersion",
-        "node=$NodeVersion"
-    )
+    param([string]$Project = 'client-angular')
+
+    $context = @("schema=$FrontendBuildStateSchemaVersion", "node=$NodeVersion")
+    # The XREPORT project keeps its original fingerprint; Studio adds its own context.
+    if ($Project -ne 'client-angular') { $context += "project=$Project" }
+    return Get-FrontendFingerprint -RelativePaths (Get-FrontendProductionInputRelativePaths) -Context $context
 }
 
 function Get-FrontendDependencyFingerprint {
@@ -872,10 +887,11 @@ function Get-FrontendDependencyFingerprint {
 function Write-FrontendBuildState {
     param(
         [Parameter(Mandatory = $true)][string]$BuildFingerprint,
-        [Parameter(Mandatory = $true)][string]$DependencyFingerprint
+        [Parameter(Mandatory = $true)][string]$DependencyFingerprint,
+        [string]$Project = 'client-angular'
     )
 
-    $stateDirectory = Join-Path $ClientDir 'dist\client-angular'
+    $stateDirectory = Join-Path $ClientDir "dist\$Project"
     $statePath = Join-Path $stateDirectory '.xreport-build-state.json'
     New-Item -ItemType Directory -Path $stateDirectory -Force | Out-Null
     $temporaryPath = "$statePath.$PID.tmp"
@@ -893,8 +909,10 @@ function Write-FrontendBuildState {
 }
 
 function Get-FrontendBuildStatus {
-    $frontendOutput = Join-Path $ClientDir 'dist\client-angular\browser\index.html'
-    $statePath = Join-Path $ClientDir 'dist\client-angular\.xreport-build-state.json'
+    param([string]$Project = 'client-angular')
+
+    $frontendOutput = Join-Path $ClientDir "dist\$Project\browser\index.html"
+    $statePath = Join-Path $ClientDir "dist\$Project\.xreport-build-state.json"
     $buildFingerprint = $null
     $dependencyFingerprint = $null
     $state = $null
@@ -902,7 +920,7 @@ function Get-FrontendBuildStatus {
     $reason = 'OutputMissing'
 
     if (Test-Path -LiteralPath $frontendOutput -PathType Leaf) {
-        $buildFingerprint = Get-FrontendBuildFingerprint
+        $buildFingerprint = Get-FrontendBuildFingerprint -Project $Project
         $dependencyFingerprint = Get-FrontendDependencyFingerprint
         if (-not (Test-Path -LiteralPath $statePath -PathType Leaf)) {
             $reason = 'ManifestMissing'
@@ -945,9 +963,12 @@ function Get-FrontendBuildStatus {
 }
 
 function Ensure-FrontendBuild {
-    param([psobject]$Status)
+    param(
+        [psobject]$Status,
+        [string]$Project = 'client-angular'
+    )
 
-    $status = if ($null -eq $Status) { Get-FrontendBuildStatus } else { $Status }
+    $status = if ($null -eq $Status) { Get-FrontendBuildStatus -Project $Project } else { $Status }
     if ($status.IsCurrent) {
         Write-Ok 'Frontend production bundle is current; skipped Angular build.'
         return $status
@@ -962,8 +983,8 @@ function Ensure-FrontendBuild {
     if ($status.Reason -eq 'DependencyManifestChanged' -or -not (Test-FrontendDependenciesReady)) {
         Install-FrontendDependencies -Locked
     }
-    Invoke-FrontendBuild
-    $finalStatus = Get-FrontendBuildStatus
+    Invoke-FrontendBuild -Project $Project
+    $finalStatus = Get-FrontendBuildStatus -Project $Project
     if (-not $finalStatus.IsCurrent) {
         throw "Frontend build completed without a current build-state manifest: $($finalStatus.Reason)"
     }
@@ -1243,7 +1264,10 @@ function Get-XReportProcessTable {
 }
 
 function Get-XReportApplicationProcessIds {
-    param([Parameter(Mandatory = $true)][object[]]$ProcessTable)
+    param(
+        [Parameter(Mandatory = $true)][object[]]$ProcessTable,
+        [ValidateSet('All', 'Xreport', 'Studio')][string]$Scope = 'All'
+    )
 
     $repoPattern = [regex]::Escape(([IO.Path]::GetFullPath($RepoRoot)).TrimEnd('\'))
     $processIds = foreach ($process in $ProcessTable) {
@@ -1252,12 +1276,18 @@ function Get-XReportApplicationProcessIds {
         $processName = [IO.Path]::GetFileNameWithoutExtension([string]$process.Name)
         $repoScoped = ($commandLine -match $repoPattern) -or ($executablePath -match $repoPattern)
         $isBackend = $repoScoped -and ($commandLine -match '(?i)(?:server\.app:app|server\.source_entry|\buvicorn\b)')
+        $isStudioBackend = $isBackend -and ($commandLine -match '(?i)server\.source_entry\s+--app\s+studio')
         $isFrontend = $repoScoped -and ($commandLine -match '(?i)(?:\bnpm\b|\bnode(?:\.exe)?\b|\bvite\b).*(?:\bpreview\b|serve-built\.cjs)')
         $isDesktopDevelopment = $repoScoped -and ($commandLine -match '(?i)\b(?:tauri|cargo)\b')
         $isPortableRelease = $processName -match '(?i)^xreport-v\d+\.\d+\.\d+-windows-x64-(?:cpu|cuda)-portable$'
         $isPackagedApplication = $processName -in @('xreport-backend', 'xreport-desktop') -or $isPortableRelease
 
-        if ($isBackend -or $isFrontend -or $isDesktopDevelopment -or $isPackagedApplication) {
+        $inScope = switch ($Scope) {
+            'Studio' { $isStudioBackend }
+            'Xreport' { ($isBackend -and -not $isStudioBackend) -or $isFrontend -or $isDesktopDevelopment -or $isPackagedApplication }
+            default { $isBackend -or $isFrontend -or $isDesktopDevelopment -or $isPackagedApplication }
+        }
+        if ($inScope) {
             [int]$process.ProcessId
         }
     }
@@ -1319,12 +1349,18 @@ function Stop-XReportListenersOnPorts {
 }
 
 function Stop-XReportProcesses {
+    param([ValidateSet('All', 'Xreport', 'Studio')][string]$Scope = 'All')
+
     $settings = Import-XReportEnvironment
     $processTable = Get-XReportProcessTable
     $protectedProcessIds = @(Get-ProtectedLauncherProcessIds -ProcessTable $processTable)
-    $configuredPorts = @([int]$settings.FASTAPI_PORT, [int]$settings.UI_PORT) | Sort-Object -Unique
+    $configuredPorts = switch ($Scope) {
+        'Studio' { @([int]$settings.STUDIO_FASTAPI_PORT) }
+        'Xreport' { @([int]$settings.FASTAPI_PORT, [int]$settings.UI_PORT) | Sort-Object -Unique }
+        default { @([int]$settings.FASTAPI_PORT, [int]$settings.UI_PORT, [int]$settings.STUDIO_FASTAPI_PORT) | Sort-Object -Unique }
+    }
     $portConflicts = @(Get-PortConflicts -Ports $configuredPorts -ProcessTable $processTable)
-    $identifiedPids = @(Get-XReportApplicationProcessIds -ProcessTable $processTable)
+    $identifiedPids = @(Get-XReportApplicationProcessIds -ProcessTable $processTable -Scope $Scope)
     $unknownConflicts = @($portConflicts | Where-Object { $identifiedPids -notcontains [int]$_.ProcessId })
     foreach ($conflict in $unknownConflicts) {
         Write-Warn "Leaving unknown port owner running: $(Format-PortConflict -Conflict $conflict)"
@@ -1376,7 +1412,17 @@ function Stop-XReportProcesses {
 }
 
 function Invoke-Launch {
+    param([ValidateSet('Xreport', 'Studio')][string]$Application = 'Xreport')
+
+    $studio = $Application -eq 'Studio'
+    $displayName = if ($studio) { 'XREPORT Studio' } else { 'XREPORT' }
+    $frontendProject = if ($studio) { 'studio-angular' } else { 'client-angular' }
     $settings = Import-XReportEnvironment
+    if ($studio) {
+        # Studio owns a separate port, database, and process identity.
+        $settings = $settings.Clone()
+        $settings.FASTAPI_PORT = $settings.STUDIO_FASTAPI_PORT
+    }
     $launchStopwatch = [Diagnostics.Stopwatch]::StartNew()
     $portPreflightStarted = $launchStopwatch.ElapsedMilliseconds
     Resolve-LaunchPortConflicts -Settings $settings
@@ -1395,17 +1441,18 @@ function Invoke-Launch {
     Write-Info "Launch timing phase=dependency_readiness elapsed_ms=$($launchStopwatch.ElapsedMilliseconds - $dependencyStarted)"
 
     $buildCheckStarted = $launchStopwatch.ElapsedMilliseconds
-    $buildStatus = Get-FrontendBuildStatus
-    Write-Info "Frontend build status: $($buildStatus.Reason)"
+    $buildStatus = Get-FrontendBuildStatus -Project $frontendProject
+    Write-Info "Frontend build status ($frontendProject): $($buildStatus.Reason)"
     Write-Info "Launch timing phase=build_freshness_check elapsed_ms=$($launchStopwatch.ElapsedMilliseconds - $buildCheckStarted)"
     $rebuildStarted = $launchStopwatch.ElapsedMilliseconds
-    Ensure-FrontendBuild -Status $buildStatus | Out-Null
+    Ensure-FrontendBuild -Status $buildStatus -Project $frontendProject | Out-Null
     Write-Info "Launch timing phase=stale_rebuild elapsed_ms=$($launchStopwatch.ElapsedMilliseconds - $rebuildStarted)"
 
     if (-not (Test-Path -LiteralPath $VenvPython)) {
         throw "Virtual-environment Python was not found at $VenvPython."
     }
     $backendAppPath = Join-Path $RepoRoot 'app'
+    $entryArguments = if ($studio) { @('-m', 'server.source_entry', '--app', 'studio') } else { @('-m', 'server.source_entry') }
     $appUrl = Get-LocalServiceUrl -HostName ([string]$settings.FASTAPI_HOST) -Port ([int]$settings.FASTAPI_PORT)
     $healthUrl = "$appUrl/api/health"
     $launchToken = New-LauncherToken
@@ -1418,7 +1465,7 @@ function Invoke-Launch {
         $env:XREPORT_LAUNCH_TOKEN = $launchToken
         Write-Step 'Starting the FastAPI server with the built Angular frontend'
         $backendProcess = Start-Process -FilePath $VenvPython `
-            -ArgumentList @('-m', 'server.source_entry') `
+            -ArgumentList $entryArguments `
             -WorkingDirectory $backendAppPath -NoNewWindow -PassThru
         Write-Info "Launch timing phase=backend_process_start elapsed_ms=$($launchStopwatch.ElapsedMilliseconds - $backendStartStarted)"
 
@@ -1434,10 +1481,10 @@ function Invoke-Launch {
             Write-Warn "Automatic browser launch failed. Open the interface manually at $appUrl. $($_.Exception.Message)"
         }
 
-        Write-Ok 'XREPORT is running from FastAPI. The application can show Database recovery if startup health reports database_recovery.'
+        Write-Ok "$displayName is running from FastAPI. The application can show Database recovery if startup health reports database_recovery."
         Write-Host "Application: $appUrl"
         Write-Host "API health: $healthUrl"
-        Write-Host 'This launcher owns the backend lifecycle. Press Ctrl+C to stop XREPORT.'
+        Write-Host "This launcher owns the backend lifecycle. Press Ctrl+C to stop $displayName."
         while (-not $backendProcess.HasExited) {
             Start-Sleep -Milliseconds 500
         }
@@ -1479,7 +1526,8 @@ function Invoke-RebuildFrontend {
         Install-FrontendDependencies
     }
     Stop-XReportListenersOnPorts -Ports @([int]$settings.UI_PORT)
-    Invoke-FrontendBuild
+    $projects = if (-not $AppExplicit) { @('client-angular', 'studio-angular') } elseif ($App -eq 'Studio') { @('studio-angular') } else { @('client-angular') }
+    foreach ($project in $projects) { Invoke-FrontendBuild -Project $project }
     Write-Ok 'Frontend rebuilt successfully'
 }
 
@@ -2315,6 +2363,23 @@ function Invoke-InitializeDatabase {
     Write-Ok 'Database initialization completed'
 }
 
+function Invoke-MigrateToStudio {
+    Ensure-PortableRuntimes
+    Initialize-Environment
+    $migrationScript = Join-Path $RepoRoot 'app\scripts\migrate_to_studio.py'
+    if (-not (Test-Path -LiteralPath $migrationScript)) { throw "Missing migration script: $migrationScript" }
+    $arguments = @('run', '--project', 'app/server', '--python', $PythonExe, 'python', 'app/scripts/migrate_to_studio.py')
+    if ($DryRun) { $arguments += '--dry-run' }
+    $previousPythonPath = $env:PYTHONPATH
+    $env:PYTHONPATH = Join-Path $RepoRoot 'app'
+    try {
+        Invoke-Checked -FilePath $UvExe -ArgumentList $arguments -WorkingDirectory $RepoRoot
+    } finally {
+        if ($null -eq $previousPythonPath) { Remove-Item Env:PYTHONPATH -ErrorAction SilentlyContinue }
+        else { $env:PYTHONPATH = $previousPythonPath }
+    }
+}
+
 function Invoke-TestSuite {
     if (-not (Test-Path -LiteralPath $TestsBat)) { throw "Missing test script: $TestsBat" }
     Write-Step "Executing test suite: $TestsBat"
@@ -2354,6 +2419,21 @@ function Get-XReportUserDataTargets {
     param([switch]$CheckpointsOnly)
 
     $resourceRoot = Get-ConfiguredResourceRoot
+    if ($App -eq 'Studio') {
+        # Studio data lives in its own folder; the shared models directory is never a Studio target.
+        $studioRoot = Join-Path $resourceRoot 'studio'
+        if ($CheckpointsOnly) { return @((Join-Path $studioRoot 'checkpoints')) }
+        $studioDatabase = Join-Path $studioRoot 'database.db'
+        return @(
+            $studioDatabase,
+            "$studioDatabase-wal",
+            "$studioDatabase-shm",
+            "$studioDatabase-journal",
+            (Join-Path $studioRoot 'checkpoints'),
+            (Join-Path $studioRoot 'exports'),
+            (Join-Path $studioRoot 'logs')
+        ) | ForEach-Object { [IO.Path]::GetFullPath($_) } | Select-Object -Unique
+    }
     if ($CheckpointsOnly) {
         return @((Join-Path $resourceRoot 'checkpoints'))
     }
@@ -2385,8 +2465,19 @@ function Remove-XReportUserDataTargets {
     return [pscustomobject]@{ Removed = $removed; Skipped = $skipped }
 }
 
+function Get-AppLabel {
+    if ($App -eq 'Studio') { return 'XREPORT Studio' }
+    return 'XREPORT'
+}
+
+function Select-LauncherApplication {
+    if ($AppExplicit -or -not $script:LauncherInteractive) { return }
+    $answer = ([string](Read-Host 'Which application? [1] XREPORT  [2] XREPORT Studio')).Trim()
+    $script:App = if ($answer -eq '2') { 'Studio' } else { 'Xreport' }
+}
+
 function Remove-Checkpoints {
-    if (-not (Confirm-DestructiveAction 'remove all saved checkpoints')) { return }
+    if (-not (Confirm-DestructiveAction "remove all saved checkpoints of $(Get-AppLabel)")) { return }
     $result = Remove-XReportUserDataTargets -Targets @(Get-XReportUserDataTargets -CheckpointsOnly)
     if ($result.Skipped -gt 0) {
         Write-Warn "Removed $($result.Removed) checkpoint item(s); skipped $($result.Skipped) locked or protected item(s)."
@@ -2396,7 +2487,8 @@ function Remove-Checkpoints {
 }
 
 function Remove-AllData {
-    if (-not (Confirm-DestructiveAction 'remove all local user-generated data')) { return }
+    $sharedNote = if ($App -eq 'Studio') { '' } else { ' (including the shared models folder that XREPORT Studio also uses)' }
+    if (-not (Confirm-DestructiveAction "remove all local user-generated data of $(Get-AppLabel)$sharedNote")) { return }
     $result = Remove-XReportUserDataTargets -Targets @(Get-XReportUserDataTargets)
     if ($result.Skipped -gt 0) {
         Write-Warn "Removed $($result.Removed) local data item(s); skipped $($result.Skipped) locked or protected item(s). External databases were not modified."
@@ -2406,8 +2498,9 @@ function Remove-AllData {
 }
 
 function Remove-Logs {
-    if (-not (Confirm-DestructiveAction 'remove application log files')) { return }
-    $logDir = Join-Path (Get-ConfiguredResourceRoot) 'logs'
+    if (-not (Confirm-DestructiveAction "remove application log files of $(Get-AppLabel)")) { return }
+    $logRoot = if ($App -eq 'Studio') { Join-Path (Get-ConfiguredResourceRoot) 'studio' } else { Get-ConfiguredResourceRoot }
+    $logDir = Join-Path $logRoot 'logs'
     $logs = @(Get-ChildItem -LiteralPath $logDir -File -Filter '*.log' -ErrorAction SilentlyContinue |
         Sort-Object @{ Expression = { $_.FullName.ToUpperInvariant() }; Descending = $false })
     if ($logs.Count -gt 0) {
@@ -2671,8 +2764,9 @@ function Wait-ForMenu {
 
 function Get-LauncherMenuEntries {
     @(
-        [pscustomobject]@{ Section = 'APPLICATION'; Key = 'Launch'; Label = 'Launch application'; Description = 'Start local services'; Destructive = $false }
-        [pscustomobject]@{ Section = 'APPLICATION'; Key = 'KillProcesses'; Label = 'Kill app processes'; Description = 'Stop XREPORT services and desktop shells'; Destructive = $false }
+        [pscustomobject]@{ Section = 'APPLICATION'; Key = 'Launch'; Label = 'Launch XREPORT'; Description = 'Start the inference application'; Destructive = $false }
+        [pscustomobject]@{ Section = 'APPLICATION'; Key = 'LaunchStudio'; Label = 'Launch XREPORT Studio'; Description = 'Start dataset and training workspace'; Destructive = $false }
+        [pscustomobject]@{ Section = 'APPLICATION'; Key = 'KillProcesses'; Label = 'Kill app processes'; Description = 'Stop XREPORT, Studio and desktop shells'; Destructive = $false }
         [pscustomobject]@{ Section = 'SETUP & VALIDATION'; Key = 'Install'; Label = 'Install / update dependencies'; Description = 'Sync runtimes and packages'; Destructive = $false }
         [pscustomobject]@{ Section = 'SETUP & VALIDATION'; Key = 'Rebuild'; Label = 'Rebuild frontend'; Description = 'Build client without launching services'; Destructive = $false }
         [pscustomobject]@{ Section = 'SETUP & VALIDATION'; Key = 'Database'; Label = 'Initialize database'; Description = 'Prepare local data store'; Destructive = $false }
@@ -2680,10 +2774,11 @@ function Get-LauncherMenuEntries {
         [pscustomobject]@{ Section = 'SOURCE CONTROL'; Key = 'Update'; Label = 'Update application'; Description = 'Pull origin/main (clean main branch required)'; Destructive = $false }
         [pscustomobject]@{ Section = 'BUILD & DISTRIBUTION'; Key = 'CreateRelease'; Label = 'Create release artifacts'; Description = 'Build selected desktop packages'; Destructive = $false }
         [pscustomobject]@{ Section = 'BUILD & DISTRIBUTION'; Key = 'RemoveRelease'; Label = 'Remove release artifacts'; Description = 'Remove selected packages or all releases and build state'; Destructive = $true }
-        [pscustomobject]@{ Section = 'DATA & MAINTENANCE'; Key = 'Logs'; Label = 'Remove logs'; Description = 'Delete application logs'; Destructive = $true }
+        [pscustomobject]@{ Section = 'DATA & MAINTENANCE'; Key = 'MigrateStudio'; Label = 'Copy data to Studio'; Description = 'Copy datasets and checkpoints into Studio (non-destructive)'; Destructive = $false }
+        [pscustomobject]@{ Section = 'DATA & MAINTENANCE'; Key = 'Logs'; Label = 'Remove logs'; Description = 'Delete logs of one application'; Destructive = $true }
         [pscustomobject]@{ Section = 'DATA & MAINTENANCE'; Key = 'Cache'; Label = 'Clear cache'; Description = 'Remove temporary caches'; Destructive = $true }
-        [pscustomobject]@{ Section = 'DATA & MAINTENANCE'; Key = 'Checkpoints'; Label = 'Remove checkpoints'; Description = 'Delete saved model checkpoints'; Destructive = $true }
-        [pscustomobject]@{ Section = 'DATA & MAINTENANCE'; Key = 'AllData'; Label = 'Remove all data'; Description = 'Delete local database and user-generated data'; Destructive = $true }
+        [pscustomobject]@{ Section = 'DATA & MAINTENANCE'; Key = 'Checkpoints'; Label = 'Remove checkpoints'; Description = 'Delete saved checkpoints of one application'; Destructive = $true }
+        [pscustomobject]@{ Section = 'DATA & MAINTENANCE'; Key = 'AllData'; Label = 'Remove all data'; Description = 'Delete local database and data of one application'; Destructive = $true }
         [pscustomobject]@{ Section = 'DATA & MAINTENANCE'; Key = 'Uninstall'; Label = 'Uninstall application'; Description = 'Remove generated files'; Destructive = $true }
         [pscustomobject]@{ Section = 'EXIT'; Key = 'Exit'; Label = 'Exit'; Description = 'Close launcher'; Destructive = $false }
     )
@@ -2739,7 +2834,9 @@ if ($Launch) {
 if ($Action) {
     Invoke-TrackedLauncherAction -Name "action $Action" -Operation {
         switch ($Action) {
-            'Launch' { Invoke-Launch }
+            'Launch' { Invoke-Launch -Application $App }
+            'LaunchStudio' { Invoke-Launch -Application Studio }
+            'MigrateToStudio' { Invoke-MigrateToStudio }
             'LaunchDesktopDev' { Invoke-LaunchDesktopDev }
             'BuildDesktopRelease' { Invoke-BuildDesktopRelease }
             'RemoveDesktopRelease' { Invoke-RemoveDesktopRelease }
@@ -2752,7 +2849,7 @@ if ($Action) {
             'RemoveCheckpoints' { Remove-Checkpoints }
             'RemoveAllData' { Remove-AllData }
             'Uninstall' { Uninstall-Application }
-            'KillProcesses' { Stop-XReportProcesses }
+            'KillProcesses' { if ($AppExplicit) { Stop-XReportProcesses -Scope $App } else { Stop-XReportProcesses } }
             'Update' { Invoke-Update }
         }
     }
@@ -2780,7 +2877,9 @@ while ($true) {
     try {
         Invoke-TrackedLauncherAction -Name "menu option $($entry.Number)" -Operation {
             switch ($entry.Key) {
-                'Launch' { Invoke-Launch; exit 0 }
+                'Launch' { Invoke-Launch -Application Xreport; exit 0 }
+                'LaunchStudio' { Invoke-Launch -Application Studio; exit 0 }
+                'MigrateStudio' { Invoke-MigrateToStudio }
                 'KillProcesses' { Stop-XReportProcesses }
                 'Install' { Invoke-InstallOrUpdate }
                 'Rebuild' { Invoke-RebuildFrontend }
@@ -2789,10 +2888,10 @@ while ($true) {
                 'Update' { Invoke-Update }
                 'CreateRelease' { Invoke-CreateDesktopArtifactsMenu }
                 'RemoveRelease' { Invoke-RemoveDesktopArtifactsMenu }
-                'Logs' { Remove-Logs }
+                'Logs' { Select-LauncherApplication; Remove-Logs }
                 'Cache' { Clear-ApplicationCache }
-                'Checkpoints' { Remove-Checkpoints }
-                'AllData' { Remove-AllData }
+                'Checkpoints' { Select-LauncherApplication; Remove-Checkpoints }
+                'AllData' { Select-LauncherApplication; Remove-AllData }
                 'Uninstall' { Uninstall-Application }
             }
         }
