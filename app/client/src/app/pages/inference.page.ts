@@ -18,6 +18,7 @@ import { JobsApiService } from '../services/jobs-api.service';
 import { GuidanceService, INFERENCE_TOUR_ID } from '../services/guidance.service';
 import { markStartupPhase } from '../services/startup-timing';
 import type { GenerationProfile, ModelAvailability, OutputSection } from '../types/inferenceApi';
+import { CheckpointImportComponent } from '../components/checkpoint-import.component';
 import { FeatureTipComponent } from '../components/feature-tip.component';
 import { HelpPopoverComponent } from '../components/help-popover.component';
 import { ReportDraftEditorComponent } from '../components/report-draft-editor.component';
@@ -25,7 +26,7 @@ import { ReportDraftEditorComponent } from '../components/report-draft-editor.co
 @Component({
   standalone: true,
   selector: 'app-inference-page',
-  imports: [CommonModule, FormsModule, NgIcon, FeatureTipComponent, HelpPopoverComponent, ReportDraftEditorComponent],
+  imports: [CommonModule, FormsModule, NgIcon, CheckpointImportComponent, FeatureTipComponent, HelpPopoverComponent, ReportDraftEditorComponent],
   providers: [provideIcons({ lucideAlertTriangle, lucideCheck, lucideChevronLeft, lucideChevronRight, lucideCopy, lucideDownload, lucideFileImage, lucideImagePlus, lucideLoaderCircle, lucideRefreshCw, lucideSearch, lucideSparkles, lucideTrash2, lucideX })],
   template: `
     <main class="inference-workspace page-container">
@@ -36,7 +37,8 @@ import { ReportDraftEditorComponent } from '../components/report-draft-editor.co
           <div class="step-header"><div class="step-title"><span class="step-number">1</span><div><h2 id="model-step-title">Choose or prepare a model</h2><p>Only models exposed by the local catalog can be selected.</p></div></div></div>
           <div class="model-selection">
             <aside class="catalog-panel" aria-label="Model catalog" data-guidance-target="inference-model-catalog">
-              <div class="catalog-heading"><div><strong>Model catalogue</strong><span>{{ filteredModels().length }} models · {{ publicModels().length }} public · {{ customModels().length }} custom</span></div><app-help-popover label="About model cards" title="About model cards" body="Start with Ready or Download available. Each card reports the model's anatomy, image limit, context support, output sections, and local readiness." /></div>
+              <div class="catalog-heading"><div><strong>Model catalogue</strong><span>{{ filteredModels().length }} models · {{ publicModels().length }} public · {{ customModels().length }} custom</span></div><app-help-popover label="About model cards" title="About model cards" body="Start with Ready or Download available. Each card reports the model's anatomy, image limit, context support, output sections, and local readiness." /><button type="button" class="secondary-button" (click)="importOpen.set(true)">Import checkpoint</button></div>
+      <app-checkpoint-import [open]="importOpen()" (closed)="importOpen.set(false)" (imported)="onCheckpointImported()" />
               <label class="search-field"><ng-icon name="lucideSearch" aria-hidden="true"/><span class="sr-only">Filter models</span><input [(ngModel)]="modelFilterValue" placeholder="Filter by model, anatomy, or origin"/></label>
               @if (state().isLoadingModels) { <div class="catalog-state"><ng-icon name="lucideLoaderCircle" class="spin"/>Discovering local models…</div> }
               @if (catalogError()) { <div class="catalog-state error" role="alert">{{ catalogError() }}</div> }
@@ -131,6 +133,9 @@ export class InferencePage implements AfterViewInit {
   set clinicalContext(value: string) { this.appState.updateInference((state) => ({ ...state, clinicalContext: value })); }
   get generationProfile() { return this.state().generationProfile; }
   set generationProfile(value: GenerationProfile) { this.appState.updateInference((state) => ({ ...state, generationProfile: value })); }
+
+  readonly importOpen = signal(false);
+  onCheckpointImported() { void this.loadModels(); }
 
   constructor() { this.loadModels(); this.destroyRef.onDestroy(() => { const url = this.currentUrl(); if (url) URL.revokeObjectURL(url); }); }
   ngAfterViewInit() {
