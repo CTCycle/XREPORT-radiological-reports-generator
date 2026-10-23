@@ -56,25 +56,7 @@ point fails if the two disagree. `desktop_entry` supports only `xreport`.
   shared `models` folder (existing behaviour) and says so in its prompt; it
   never touches `studio/`.
 
-### Migrating existing data into Studio
-
-`app/scripts/migrate_to_studio.py` (launcher: `-Action MigrateToStudio`,
-`-DryRun`, or the menu entry) copies `datasets`, `dataset_versions`,
-`dataset_records`, `processing_runs`, `training_samples`, `validation_runs`,
-`checkpoints`, and `checkpoint_evaluations` rows plus the registered checkpoint
-folders into `studio/`. It never changes or deletes legacy data, so XREPORT
-keeps its checkpoints and report history. Safeguards: SQLite only, dry run with
-row counts and disk estimate, a backup of the legacy database in
-`<resources>/backups/`, refusal when Studio already contains rows, one
-transaction for rows, temporary folder copies renamed into place, a foreign-key
-check, and `studio/migration-manifest.json` as the completion marker (reruns
-report "already migrated"). Rollback: stop Studio and delete `studio/`.
-Dataset image paths are not rewritten because source images are not copied.
-Migration reads XREPORT's `database-config.json` before copying, refuses a
-PostgreSQL source even when a stale SQLite file remains, and uses the configured
-SQLite path for the plan, backup, and copy.
-
-## Checkpoint exchange (`.xreportckpt`, format version 1)
+## Checkpoint exchange (`.xreportckpt`, format version 2)
 
 A zip with an allow-listed layout:
 
@@ -123,9 +105,9 @@ newly installed, and never touches an existing checkpoint. Startup removes
 stale `.import-*` staging. The same content hash for the same name is
 "already imported"; a different checkpoint under an existing name is a 409 that
 suggests a free name, and the dialog lets the user retry with a new name.
-Archives without a manifest but with the four checkpoint files (older XREPORT
-versions) import as `legacy` when the pinned encoder is installed; a lone
-`.keras` file is rejected with an explanation of the required companion files.
+Imports require a version 2 manifest. Version 1 and manifestless archives are
+rejected; a lone `.keras` file is rejected with an explanation of the required
+companion files.
 
 Export (Studio) validates the registered artifact, collects the tokenizer
 through `TokenizerHandler`, hashes all members, and writes

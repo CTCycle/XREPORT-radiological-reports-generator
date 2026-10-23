@@ -64,7 +64,6 @@ STAGING_PREFIX = ".import-"
 EXCHANGE_RECORD = "exchange.json"
 ENCODER_CACHE_DIRNAME = "models--microsoft--beit-base-patch16-224"
 _TOKENIZER_NAME = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]*(/[A-Za-z0-9][A-Za-z0-9._-]*)?$")
-_LEGACY_NAME_CLEANUP = re.compile(r"[^A-Za-z0-9_-]+")
 
 ###############################################################################
 def tokenizer_exchange_dir(name: str) -> Path:
@@ -112,10 +111,9 @@ def sweep_stale_staging() -> int:
 ###############################################################################
 @dataclass(frozen=True)
 class ImportPlan:
-    manifest: ExchangeManifest | None
+    manifest: ExchangeManifest
     name: str
     renamed_from: str | None
-    legacy: bool
 
 ###############################################################################
 class CheckpointExchangeService:
@@ -333,14 +331,16 @@ class CheckpointExchangeService:
     # Import
     ###########################################################################
     def assess_archive(
-        self, archive_path: Path, source_name: str, rename_to: str | None = None
+        self, archive_path: Path, rename_to: str | None = None
     ) -> ImportPlan:
         """Cheap synchronous validation: structure, compatibility and name conflicts."""
         try:
             with zipfile.ZipFile(archive_path) as archive:
                 entries = inspect_archive(archive)
                 if MANIFEST_NAME not in entries:
-                    return self._plan_legacy(entries, source_name, rename_to)
+                    raise BadRequestError(
+                        f"Checkpoint archive is missing required {MANIFEST_NAME}"
+                    )
                 if entries[MANIFEST_NAME].size > MAX_MANIFEST_BYTES:
                     raise ArchiveError("Archive manifest is too large")
                 manifest = ExchangeManifest.model_validate_json(
@@ -361,10 +361,10 @@ class CheckpointExchangeService:
     # -------------------------------------------------------------------------
     @staticmethod
     def _assert_versions(manifest: ExchangeManifest) -> None:
-        if manifest.format_version > EXCHANGE_FORMAT_VERSION:
+        if manifest.format_version != EXCHANGE_FORMAT_VERSION:
             raise BadRequestError(
-                f"Archive format version {manifest.format_version} is newer than this "
-                f"XREPORT supports ({EXCHANGE_FORMAT_VERSION}). Update XREPORT."
+                f"Unsupported checkpoint format version {manifest.format_version}; "
+                f"this XREPORT requires version {EXCHANGE_FORMAT_VERSION}."
             )
         if manifest.architecture != EXCHANGE_ARCHITECTURE:
             raise BadRequestError(f"Unsupported architecture: {manifest.architecture}")
@@ -425,29 +425,12 @@ class CheckpointExchangeService:
             )
 
     # -------------------------------------------------------------------------
-    def _plan_legacy(
-        self, entries: dict[str, Any], source_name: str, rename_to: str | None
-    ) -> ImportPlan:
-        missing = [path for path in CORE_FILES if path not in entries]
-        extra = [path for path in entries if path not in CORE_FILES]
-        if missing or extra:
-            raise BadRequestError(
-                "Archive has no manifest and is not a plain checkpoint. A checkpoint "
-                "needs saved_model.keras plus configuration/configuration.json, "
-                "metadata.json and session_history.json"
-                + (f" (missing: {', '.join(missing)})" if missing else "")
-            )
-        derived = _LEGACY_NAME_CLEANUP.sub("_", Path(source_name).stem).strip("_")[:100]
-        return self._plan_name(None, rename_to or derived, legacy=True)
-
-    # -------------------------------------------------------------------------
     def _plan_name(
         self,
-        manifest: ExchangeManifest | None,
+        manifest: ExchangeManifest,
         rename_to: str | None,
-        legacy: bool = False,
     ) -> ImportPlan:
-        original = manifest.checkpoint_name if manifest else (rename_to or "")
+        original = manifest.checkpoint_name
         try:
             name = validate_checkpoint_name(rename_to or original)
         except ValueError as exc:
@@ -456,18 +439,17 @@ class CheckpointExchangeService:
         on_disk = (CHECKPOINTS_DIR / name).exists()
         if existing is not None or on_disk:
             if (
-                manifest is not None
-                and existing is not None
+                existing is not None
                 and self._installed_digest(existing.path) == manifest.content_sha256
             ):
-                return ImportPlan(manifest, name, None, False)
+                return ImportPlan(manifest, name, None)
             suggestion = self._suggest_name(name)
             raise ConflictError(
                 f"A different checkpoint named '{name}' already exists. "
                 f"Import it under another name, for example '{suggestion}'."
             )
         renamed = original if rename_to and rename_to != original else None
-        return ImportPlan(manifest, name, renamed, legacy)
+        return ImportPlan(manifest, name, renamed)
 
     # -------------------------------------------------------------------------
     def _suggest_name(self, name: str) -> str:
@@ -492,11 +474,11 @@ class CheckpointExchangeService:
 
     # -------------------------------------------------------------------------
     def start_import(
-        self, archive_path: Path, source_name: str, rename_to: str | None
+        self, archive_path: Path, rename_to: str | None
     ) -> JobStartResponse:
         """Assess the staged archive and start the import job (which owns the file)."""
         try:
-            plan = self.assess_archive(archive_path, source_name, rename_to)
+            plan = self.assess_archive(archive_path, rename_to)
             job_id = self.jobs.start_job(
                 IMPORT_JOB_TYPE,
                 self.run_import,
@@ -525,16 +507,15 @@ class CheckpointExchangeService:
         installed: list[Path] = []
         final = CHECKPOINTS_DIR / plan.name
         try:
-            if plan.manifest is not None:
-                existing = self.checkpoints.get_checkpoint(plan.name)
-                if existing is not None and self._installed_digest(existing.path) == (
-                    plan.manifest.content_sha256
-                ):
-                    return {"import": ImportOutcome(
-                        checkpoint=plan.name,
-                        content_sha256=plan.manifest.content_sha256,
-                        status="already_imported",
-                    ).model_dump()}
+            existing = self.checkpoints.get_checkpoint(plan.name)
+            if existing is not None and self._installed_digest(existing.path) == (
+                plan.manifest.content_sha256
+            ):
+                return {"import": ImportOutcome(
+                    checkpoint=plan.name,
+                    content_sha256=plan.manifest.content_sha256,
+                    status="already_imported",
+                ).model_dump()}
             CHECKPOINTS_DIR.mkdir(parents=True, exist_ok=True)
             staging.mkdir()
             digest, manifest = self._extract_and_verify(
@@ -551,7 +532,6 @@ class CheckpointExchangeService:
                 json.dumps(
                     {
                         "content_sha256": digest,
-                        "legacy": plan.legacy,
                         "imported_utc": datetime.now(timezone.utc).isoformat(),
                         "manifest": manifest.model_dump(),
                     },
@@ -588,7 +568,6 @@ class CheckpointExchangeService:
             checkpoint=plan.name,
             content_sha256=digest,
             status="imported",
-            legacy=plan.legacy,
             renamed_from=plan.renamed_from,
         )
         return {"import": outcome.model_dump()}
@@ -626,11 +605,7 @@ class CheckpointExchangeService:
                     done += count
                     self._progress(job_id, 5 + 70 * done / total)
 
-                declared = (
-                    {item.path: item.size for item in plan.manifest.files}
-                    if plan.manifest is not None
-                    else {}
-                )
+                declared = {item.path: item.size for item in plan.manifest.files}
                 hashes: dict[str, str] = {}
                 for name in payload:
                     expected = declared.get(name, entries[name].size)
@@ -650,70 +625,14 @@ class CheckpointExchangeService:
                 str(exc), code="archive_invalid", phase="extract"
             ) from exc
 
-        if plan.manifest is not None:
-            for item in plan.manifest.files:
-                if hashes.get(item.path) != item.sha256:
-                    raise JobExecutionError(
-                        f"Checksum mismatch for {item.path}",
-                        code="checksum_mismatch",
-                        phase="verify",
-                    )
-            return plan.manifest.content_sha256, plan.manifest
-        return self._synthesize_legacy(plan, staging, hashes)
-
-    # -------------------------------------------------------------------------
-    def _synthesize_legacy(
-        self, plan: ImportPlan, staging: Path, hashes: dict[str, str]
-    ) -> tuple[str, ExchangeManifest]:
-        checkpoint_dir = staging / "checkpoint"
-        files = [
-            ManifestFile(
-                path=name,
-                size=(checkpoint_dir / name).stat().st_size,
-                sha256=hashes[name],
-            )
-            for name in CORE_FILES
-        ]
-        try:
-            metadata = json.loads(
-                (checkpoint_dir / "configuration" / "metadata.json").read_text("utf-8")
-            )
-            history = json.loads(
-                (checkpoint_dir / "configuration" / "session_history.json").read_text("utf-8")
-            )
-            tokenizer_name = metadata["tokenizer"]
-            tokenizer_exchange_dir(tokenizer_name)
-        except (OSError, ValueError, KeyError, TypeError) as exc:
-            raise JobExecutionError(
-                "Legacy checkpoint metadata is unreadable or has no tokenizer",
-                code="archive_invalid",
-                phase="verify",
-            ) from exc
-        revision = pinned_encoder_revision()
-        if not encoder_installed(revision):
-            raise JobExecutionError(
-                "The pinned BEiT encoder is not installed locally; legacy checkpoints "
-                "do not carry it. Install it or import a checkpoint exported with the encoder.",
-                code="encoder_missing",
-                phase="compatibility",
-            )
-        digest = content_digest(files)
-        manifest = ExchangeManifest(
-            format_version=EXCHANGE_FORMAT_VERSION,
-            architecture=EXCHANGE_ARCHITECTURE,
-            custom_objects_api=CUSTOM_OBJECTS_API,
-            checkpoint_name=plan.name,
-            content_sha256=digest,
-            legacy=True,
-            producer=ManifestProducer(application="XREPORT", version="legacy"),
-            tokenizer=ManifestTokenizer(name=tokenizer_name, bundled=False),
-            encoder=ManifestEncoder(
-                repository=ENCODER_REPOSITORY, revision=revision, bundled=False
-            ),
-            provenance=self._provenance(history),
-            files=files,
-        )
-        return digest, manifest
+        for item in plan.manifest.files:
+            if hashes.get(item.path) != item.sha256:
+                raise JobExecutionError(
+                    f"Checksum mismatch for {item.path}",
+                    code="checksum_mismatch",
+                    phase="verify",
+                )
+        return plan.manifest.content_sha256, plan.manifest
 
     # -------------------------------------------------------------------------
     def _install_shared_resources(

@@ -331,36 +331,41 @@ def test_validate_cached_cases_runs_each_case_independently(
     assert receipt["checks"]["technical_passed"] is True
 
 ###############################################################################
-def test_legacy_validation_path_remains_available(
+def test_case_manifest_cli_dispatches_to_independent_case_runner(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
 ) -> None:
     captured: dict[str, object] = {}
+    case = validation.ValidationCase(
+        case_id="case-1",
+        image_path=tmp_path / "case.png",
+        profile="deterministic",
+        clinical_context="",
+        expected_sha256="a" * 64,
+    )
 
     monkeypatch.setattr(
         validation,
         "_arguments",
         lambda: SimpleNamespace(
             model_ref="huggingface:test/model",
-            case_manifest=None,
-            image=[tmp_path / "case.png"],
-            profile="deterministic",
-            clinical_context="",
+            case_manifest=tmp_path / "cases.json",
+            receipt_path=None,
             fixture_provenance="public fixture",
             fixture_deidentification="no identifiers",
-            fixture_sha256=["a" * 64],
         ),
     )
+    monkeypatch.setattr(validation, "load_case_manifest", lambda _path: [case])
 
-    def fake_validate_cached_model(**kwargs: object) -> dict[str, object]:
+    def fake_validate_cached_cases(**kwargs: object) -> dict[str, object]:
         captured.update(kwargs)
         return {"status": "passed"}
 
-    monkeypatch.setattr(validation, "validate_cached_model", fake_validate_cached_model)
+    monkeypatch.setattr(validation, "validate_cached_cases", fake_validate_cached_cases)
 
     assert validation.main() == 0
-    assert captured["image_paths"] == [tmp_path / "case.png"]
-    assert captured["fixture_sha256"] == ["a" * 64]
+    assert captured["cases"] == [case]
+    assert captured["repeat_case_id"] == "case-1"
 
 
 

@@ -1,10 +1,8 @@
 import { DOCUMENT, isPlatformBrowser } from '@angular/common';
 import { DestroyRef, Injectable, PLATFORM_ID, computed, inject, signal } from '@angular/core';
-import { StorageService } from './storage.service';
 import { SettingsApiService } from './settings-api.service';
 import {
   DEFAULT_THEME_PREFERENCE,
-  LEGACY_THEME_STORAGE_KEY,
   isThemePreference,
   type ResolvedTheme,
   type ThemePreference,
@@ -21,7 +19,6 @@ export class ThemeService {
   private readonly document = inject(DOCUMENT);
   private readonly destroyRef = inject(DestroyRef);
   private readonly platformId = inject(PLATFORM_ID);
-  private readonly storage = inject(StorageService);
   private readonly settingsApi = inject(SettingsApiService);
   private readonly systemPrefersDark = signal(false);
   private mediaQuery: MediaQueryList | null = null;
@@ -41,7 +38,7 @@ export class ThemeService {
   });
 
   constructor() {
-    this.persistedPreference = this.readLegacyPreference() ?? DEFAULT_THEME_PREFERENCE;
+    this.persistedPreference = DEFAULT_THEME_PREFERENCE;
     this.preference.set(this.persistedPreference);
     this.initializeSystemPreference();
     this.applyResolvedTheme(this.resolvedTheme());
@@ -64,7 +61,6 @@ export class ThemeService {
         return;
       }
       this.persistedPreference = response.result.values.theme_preference ?? DEFAULT_THEME_PREFERENCE;
-      this.storage.removeString(LEGACY_THEME_STORAGE_KEY);
       this.persistenceError.set(null);
       this.persistenceSaved.set(true);
       this.applyPreference(this.persistedPreference);
@@ -87,23 +83,6 @@ export class ThemeService {
       return;
     }
 
-    const legacyPreference = this.readLegacyPreference();
-    if (legacyPreference && response.result.values.theme_preference === null) {
-      const migrated = await this.settingsApi.updateSettings({ theme_preference: legacyPreference });
-      if (revision !== this.preferenceRevision) return;
-      if (!migrated.result) {
-        this.persistenceError.set(migrated.error ?? 'Unable to migrate the saved theme preference.');
-        this.persistedPreference = DEFAULT_THEME_PREFERENCE;
-        this.applyPreference(legacyPreference);
-        return;
-      }
-      this.storage.removeString(LEGACY_THEME_STORAGE_KEY);
-      this.persistenceError.set(null);
-      this.applyDatabasePreference(migrated.result.values.theme_preference ?? legacyPreference);
-      return;
-    }
-
-    this.storage.removeString(LEGACY_THEME_STORAGE_KEY);
     this.persistenceError.set(null);
     this.applyDatabasePreference(response.result.values.theme_preference);
   }
@@ -112,7 +91,6 @@ export class ThemeService {
     if (preference !== null && !isThemePreference(preference)) return;
     this.preferenceRevision += 1;
     this.persistedPreference = preference ?? DEFAULT_THEME_PREFERENCE;
-    this.storage.removeString(LEGACY_THEME_STORAGE_KEY);
     this.persistenceError.set(null);
     this.persistenceSaved.set(false);
     this.applyPreference(this.persistedPreference);
@@ -124,15 +102,6 @@ export class ThemeService {
 
   async flushPersistence(): Promise<void> {
     await this.persistenceQueue;
-  }
-
-  clearLegacyPreference(): void {
-    this.storage.removeString(LEGACY_THEME_STORAGE_KEY);
-  }
-
-  private readLegacyPreference(): ThemePreference | null {
-    const stored = this.storage.readString(LEGACY_THEME_STORAGE_KEY);
-    return isThemePreference(stored) ? stored : null;
   }
 
   private applyPreference(preference: ThemePreference): void {
@@ -175,15 +144,8 @@ export class ThemeService {
 
     if (this.preference() === 'system' && !this.mediaQuerySubscribed) {
       this.systemPrefersDark.set(this.mediaQuery.matches);
-      let subscribed = false;
-      if (typeof this.mediaQuery.addEventListener === 'function') {
-        this.mediaQuery.addEventListener('change', this.mediaQueryListener);
-        subscribed = true;
-      } else if (typeof this.mediaQuery.addListener === 'function') {
-        this.mediaQuery.addListener(this.mediaQueryListener);
-        subscribed = true;
-      }
-      this.mediaQuerySubscribed = subscribed;
+      this.mediaQuery.addEventListener('change', this.mediaQueryListener);
+      this.mediaQuerySubscribed = true;
       return;
     }
 
@@ -192,11 +154,7 @@ export class ThemeService {
 
   private removeMediaQueryListener(): void {
     if (!this.mediaQuery || !this.mediaQueryListener || !this.mediaQuerySubscribed) return;
-    if (typeof this.mediaQuery.removeEventListener === 'function') {
-      this.mediaQuery.removeEventListener('change', this.mediaQueryListener);
-    } else if (typeof this.mediaQuery.removeListener === 'function') {
-      this.mediaQuery.removeListener(this.mediaQueryListener);
-    }
+    this.mediaQuery.removeEventListener('change', this.mediaQueryListener);
     this.mediaQuerySubscribed = false;
   }
 

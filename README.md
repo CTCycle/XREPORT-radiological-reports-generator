@@ -75,7 +75,7 @@ XREPORT is split into two local applications. **XREPORT** (inference, report rev
 powershell -ExecutionPolicy Bypass -File .\start_on_windows.ps1 -Action LaunchStudio
 ```
 
-Export a trained model from Studio with *Export for XREPORT* on the Training page, then use *Import checkpoint* in XREPORT's model catalogue. The archive (`.xreportckpt`) works across computers and with the packaged builds. Existing datasets and checkpoints can be copied into Studio with `-Action MigrateToStudio` (use `-DryRun` first); nothing is deleted. See [applications and checkpoint exchange](assets/docs/architecture/applications_and_checkpoint_exchange.md).
+Export a trained model from Studio with *Export for XREPORT* on the Training page, then use *Import checkpoint* in XREPORT's model catalogue. The version 2 archive (`.xreportckpt`) works across computers and with the packaged builds. The applications use separate data folders; there is no data migration command. See [applications and checkpoint exchange](assets/docs/architecture/applications_and_checkpoint_exchange.md).
 
 Windows CPU and CUDA portable or MSI packages are listed on [GitHub Releases](https://github.com/CTCycle/XREPORT-radiological-reports-generator/releases) when available. CUDA requires supported NVIDIA hardware and drivers. Portable packages require Microsoft WebView2.
 

@@ -5,7 +5,7 @@ from typing import Literal
 from pydantic import BaseModel, ConfigDict, Field
 
 EXCHANGE_FORMAT = "xreport-checkpoint"
-EXCHANGE_FORMAT_VERSION = 1
+EXCHANGE_FORMAT_VERSION = 2
 EXCHANGE_ARCHITECTURE = "xreport-beit-transformer"
 # Bump when registered Keras custom-object names or signatures change.
 CUSTOM_OBJECTS_API = 1
@@ -64,7 +64,6 @@ class ExchangeManifest(BaseModel):
     custom_objects_api: int
     checkpoint_name: str
     content_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
-    legacy: bool = False
     producer: ManifestProducer
     tokenizer: ManifestTokenizer
     encoder: ManifestEncoder
@@ -87,5 +86,4 @@ class ImportOutcome(BaseModel):
     checkpoint: str
     content_sha256: str
     status: Literal["imported", "already_imported"]
-    legacy: bool = False
     renamed_from: str | None = None
