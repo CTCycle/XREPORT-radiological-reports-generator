@@ -308,6 +308,8 @@ def test_inference_history_crud_preserves_original_output(
     detail = api_context.get(f"/api/inference/history/{seeded_history}")
     assert detail.ok
     original = detail.json()
+    assert original["request_id"] == seeded_history
+    assert original["status"] == "succeeded"
     assert [report["image_index"] for report in original["reports"]] == [0, 1]
     assert original["reports"][0]["generated_report"].startswith("Findings")
     assert original["reports"][0]["edited_report"] is None
