@@ -965,6 +965,36 @@
     gap: 6px;
 }
 
+.draft-persistence {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-3);
+    margin-top: var(--space-4);
+    padding-top: var(--space-3);
+    border-top: 1px solid var(--border-color);
+}
+
+.draft-persistence-status {
+    color: var(--text-secondary);
+    font-size: var(--text-sm);
+}
+
+.draft-persistence-actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-2);
+}
+
+.draft-persistence-error {
+    flex: 1 0 100%;
+    color: var(--error-color);
+    font-size: var(--text-sm);
+    overflow-wrap: anywhere;
+}
+
 .draft-empty {
     display: grid;
     min-height: 144px;
@@ -1095,6 +1125,16 @@ textarea:disabled {
     .model-meta-grid,
     .runtime-metadata {
         grid-template-columns: 1fr;
+    }
+
+    .draft-persistence {
+        align-items: stretch;
+        flex-direction: column;
+    }
+
+    .draft-persistence-actions {
+        align-items: stretch;
+        flex-direction: column;
     }
 
     .upload-zone {

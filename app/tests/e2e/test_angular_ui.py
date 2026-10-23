@@ -101,6 +101,118 @@ def test_reports_detail_edit_reload_and_confirmed_delete(
     expect(page.locator(f'a.report-card[href="/reports/{seeded_history}"]')).to_have_count(0)
 
 ###############################################################################
+def test_inference_draft_edit_save_and_reports_recovery(
+    page: Page,
+    base_url: str,
+    seeded_history: str,
+) -> None:
+    original_reports = [
+        "Findings\nClear lungs.\n\nImpression\nNo acute disease.",
+        "Findings\nMild bibasal opacity.\n\nImpression\nFollow-up recommended.",
+    ]
+    model = {
+        "model_ref": "huggingface:e2e/draft-model",
+        "provider": "huggingface",
+        "origin": "public",
+        "display_name": "E2E Draft Model",
+        "description": "Deterministic UI fixture model",
+        "status": "ready",
+        "enabled": True,
+        "validation_status": "passed",
+        "validation_receipt_status": "passed",
+        "category": "radiology",
+        "recommended": False,
+        "research_only": True,
+        "gated": False,
+        "access_policy": "open",
+        "anatomy_coverage": "chest_xray",
+        "hardware_demand": "moderate",
+        "input_semantics": "multiple_current_views",
+        "capabilities": {
+            "clinical_context": False,
+            "multiple_current_views": True,
+            "findings": True,
+            "impression": True,
+            "grounding": False,
+        },
+        "trust_remote_code": False,
+        "remote_code_approved": False,
+        "output_sections": ["findings", "impression"],
+        "max_current_images": 2,
+        "installation_state": "installed",
+        "integrity_status": "verified",
+        "available_actions": [],
+    }
+
+    page.route(
+        "**/api/inference/models",
+        lambda route: route.fulfill(json={"models": [model], "providers": {}}),
+    )
+    page.route(
+        "**/api/inference/generate",
+        lambda route: route.fulfill(
+            json={"job_id": "e2e-persistent-draft", "poll_interval": 0.1}
+        ),
+    )
+
+    def complete_job(route: Route) -> None:
+        route.fulfill(
+            json={
+                "job_id": "e2e-persistent-draft",
+                "job_type": "inference",
+                "status": "completed",
+                "poll_interval": 0.1,
+                "progress": 100,
+                "result": {
+                    "request_id": seeded_history,
+                    "reports": {
+                        "e2e-first.png": original_reports[0],
+                        "e2e-second.png": original_reports[1],
+                    },
+                    "reports_ordered": original_reports,
+                    "report_filenames": ["e2e-first.png", "e2e-second.png"],
+                    "count": 2,
+                    "display_sections": {},
+                    "provenance": {"report_scope": "image"},
+                },
+                "error": None,
+            }
+        )
+
+    page.route("**/api/jobs/e2e-persistent-draft", complete_job)
+    response = page.goto(f"{base_url}/inference")
+    assert response is not None and response.ok
+
+    page.locator('input[type="file"]').set_input_files(
+        [
+            {"name": "e2e-first.png", "mimeType": "image/png", "buffer": b"first"},
+            {"name": "e2e-second.png", "mimeType": "image/png", "buffer": b"second"},
+        ]
+    )
+    page.get_by_role("button", name="Generate draft", exact=True).click()
+    expect(page.get_by_text("Generated report saved.", exact=True)).to_be_visible()
+    findings = page.get_by_role("textbox", name="Findings").first
+    expect(findings).to_have_value("Clear lungs.")
+    findings.fill("Clear lungs after review.")
+    page.get_by_role("button", name="Save edits").click()
+    expect(page.get_by_text("Edits saved.", exact=True)).to_be_visible()
+
+    page.get_by_role("link", name="View in Reports").click()
+    expect(page).to_have_url(f"{base_url}/reports/{seeded_history}")
+    expect(page.get_by_role("textbox", name="Findings").first).to_have_value(
+        "Clear lungs after review."
+    )
+    page.locator("details.original-output summary").first.click()
+    expect(page.locator("details.original-output pre").first).to_contain_text(
+        "Findings\nClear lungs."
+    )
+
+    page.reload()
+    expect(page.get_by_role("textbox", name="Findings").first).to_have_value(
+        "Clear lungs after review."
+    )
+
+###############################################################################
 def test_desktop_catalogue_matches_details_height_and_keeps_internal_scroll(
     page: Page,
     base_url: str,
