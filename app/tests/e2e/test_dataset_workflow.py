@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import pytest
 from pathlib import Path
 from uuid import uuid4
 from playwright.sync_api import APIRequestContext, Page, expect
@@ -8,6 +9,17 @@ import os
 import shutil
 import time
 from server.common.path import RESOURCES_DIR
+
+
+@pytest.fixture
+def api_context(studio_context):
+    """These tests exercise XREPORT Studio, not the inference application."""
+    return studio_context
+
+
+@pytest.fixture(scope="session")
+def base_url(studio_base_url):
+    return studio_base_url
 
 
 
