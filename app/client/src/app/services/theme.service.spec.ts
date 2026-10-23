@@ -2,9 +2,8 @@ import { PLATFORM_ID } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import type { ApiResult } from './api-request.service';
 import { SettingsApiService } from './settings-api.service';
-import { StorageService } from './storage.service';
 import { ThemeService } from './theme.service';
-import { LEGACY_THEME_STORAGE_KEY, type ThemePreference } from '../types/theme';
+import { type ThemePreference } from '../types/theme';
 import type { ApplicationSettingsResponse } from '../types/settingsApi';
 import { vi } from 'vitest';
 
@@ -30,7 +29,6 @@ describe('ThemeService', () => {
     TestBed.configureTestingModule({
       providers: [
         ThemeService,
-        StorageService,
         { provide: SettingsApiService, useValue: settingsApi },
         { provide: PLATFORM_ID, useValue: 'browser' },
       ],
@@ -38,27 +36,13 @@ describe('ThemeService', () => {
     service = TestBed.inject(ThemeService);
   });
 
-  it('imports the previous browser theme into an unset database preference', async () => {
-    localStorage.setItem(LEGACY_THEME_STORAGE_KEY, 'dark');
+  it('uses the system preference when the database preference is unset', async () => {
     settingsApi.getSettings.mockResolvedValue(response(null));
-    settingsApi.updateSettings.mockResolvedValue(response('dark'));
-
-    await service.loadFromDatabase();
-
-    expect(settingsApi.updateSettings).toHaveBeenCalledWith({ theme_preference: 'dark' });
-    expect(service.preference()).toBe('dark');
-    expect(localStorage.getItem(LEGACY_THEME_STORAGE_KEY)).toBeNull();
-  });
-
-  it('uses the selected database theme and ignores a stale browser copy', async () => {
-    localStorage.setItem(LEGACY_THEME_STORAGE_KEY, 'light');
-    settingsApi.getSettings.mockResolvedValue(response('dark'));
 
     await service.loadFromDatabase();
 
     expect(settingsApi.updateSettings).not.toHaveBeenCalled();
-    expect(service.preference()).toBe('dark');
-    expect(localStorage.getItem(LEGACY_THEME_STORAGE_KEY)).toBeNull();
+    expect(service.preference()).toBe('system');
   });
 
   it('persists only the latest rapid theme selection', async () => {

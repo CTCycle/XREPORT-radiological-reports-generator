@@ -322,6 +322,4 @@ its own port and keeps the fail-closed handling of unknown listeners.
   `server.source_entry --app studio`. Unknown listeners are never stopped.
 - `RemoveLogs`, `RemoveCheckpoints`, and `RemoveAllData` act on one application (`-App`, or a prompt in
   the menu). Studio targets live under `<resources>/studio` and never include `models`.
-- `-Action MigrateToStudio [-DryRun]` copies existing datasets and checkpoints into Studio (see
-  [applications and checkpoint exchange](../architecture/applications_and_checkpoint_exchange.md)).
 - Tauri builds (`BuildDesktopRelease`, `LaunchDesktopDev`) remain XREPORT-only.

@@ -60,7 +60,7 @@ class CheckpointExchangeEndpoint:
             staged.unlink(missing_ok=True)
             raise
         return self.service.start_import(
-            staged, file.filename or "", (rename_to or "").strip() or None
+            staged, (rename_to or "").strip() or None
         )
 
     # -------------------------------------------------------------------------
