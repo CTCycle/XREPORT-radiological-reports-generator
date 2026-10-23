@@ -359,6 +359,7 @@ def run_inference_job(
         ) from exc
 
     return {
+        "request_id": request_id,
         "reports": reports_by_filename,
         "reports_ordered": reports_ordered,
         "report_filenames": report_filenames,

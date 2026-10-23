@@ -424,6 +424,40 @@ def _runtime_stub(provider: Any) -> Any:
     return RuntimeStub()
 
 ###############################################################################
+def test_successful_generation_result_exposes_persisted_request_id() -> None:
+    manager = JobManager()
+    image_store = InferenceImageStore()
+    job_id = "generation-result-request-id"
+    request_id = "persisted-request-id"
+    _setup_job(manager, image_store, job_id=job_id, request_id=request_id)
+    provider = MagicMock()
+    provider.generate.return_value = ProviderGenerationResult(
+        reports={"scan.png": "Findings\nClear lungs."},
+        display_sections={"scan.png": {"findings": "Clear lungs."}},
+        metadata=[],
+        provenance={"provider": "huggingface"},
+    )
+    repository = MagicMock()
+
+    result = run_inference_job(
+        model_ref="huggingface:test/model",
+        model_revision="a" * 40,
+        model_manifest={"revision": "a" * 40},
+        generation_profile="deterministic",
+        clinical_context="",
+        request_id=request_id,
+        job_id=job_id,
+        job_manager=manager,
+        inference_image_store=image_store,
+        runtime=_runtime_stub(provider),
+        repository=repository,
+    )
+
+    assert result["request_id"] == request_id
+    repository.save_generated_reports.assert_called_once()
+    assert repository.save_generated_reports.call_args.kwargs["request_id"] == request_id
+
+###############################################################################
 def test_cancelled_after_generation_does_not_persist_partial_reports() -> None:
     manager = JobManager()
     image_store = InferenceImageStore()
