@@ -3,7 +3,7 @@ import type {
   JobListResponse as ApiJobListResponse,
   JobStartResponse as ApiJobStartResponse,
   JobStatusResponse as ApiJobStatusResponse,
-} from './generated/types.gen';
+} from './generated/xreport/types.gen';
 
 export type JobLifecycleStatus = ApiJobStatusResponse['status'];
 export type JobStartResponse = ApiJobStartResponse;

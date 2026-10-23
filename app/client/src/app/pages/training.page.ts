@@ -12,7 +12,7 @@ import { AppStateService } from '../services/app-state.service';
 import { JobPollingService } from '../services/job-polling.service';
 import { JobsApiService } from '../services/jobs-api.service';
 import type { CheckpointInfo, DatasetInfo, StartTrainingConfig } from '../types/trainingApi';
-import type { CheckpointEvaluationReport } from '../types/inferenceApi';
+import type { CheckpointEvaluationReport } from '../types/validationApi';
 import type { JobLifecycleStatus } from '../types/jobs';
 import type { ChartDataPoint, TrainingDashboardState } from '../types';
 import { CheckpointEvaluationReportModalComponent } from '../components/checkpoint-evaluation-report-modal.component';
