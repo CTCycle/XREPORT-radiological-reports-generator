@@ -859,19 +859,20 @@ class TrainingService:
                 detail=str(exc),
             ) from exc
 
-        if self.job_manager.is_job_running(self.JOB_TYPE):
-            raise ConflictError(
-                detail="Cannot delete checkpoints while training is active",
-            )
+        with self.job_manager.lock:
+            if any(self.job_manager.is_job_running(kind) for kind in (self.JOB_TYPE, "checkpoint_export")):
+                raise ConflictError(
+                    detail="Cannot delete checkpoints while training or export is active",
+                )
 
-        try:
-            self.checkpoint_repository.delete_checkpoint(checkpoint)
-        except CheckpointRegistryError as exc:
-            if self.checkpoint_repository.get_checkpoint(checkpoint) is None:
-                raise NotFoundError(detail=str(exc)) from exc
-            if isinstance(exc, CheckpointReferencedError):
-                raise ConflictError(detail=str(exc)) from exc
-            raise InternalServiceError(detail=str(exc)) from exc
+            try:
+                self.checkpoint_repository.delete_checkpoint(checkpoint)
+            except CheckpointRegistryError as exc:
+                if self.checkpoint_repository.get_checkpoint(checkpoint) is None:
+                    raise NotFoundError(detail=str(exc)) from exc
+                if isinstance(exc, CheckpointReferencedError):
+                    raise ConflictError(detail=str(exc)) from exc
+                raise InternalServiceError(detail=str(exc)) from exc
 
         return DeleteResponse(
             success=True,

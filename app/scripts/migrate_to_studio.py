@@ -51,9 +51,23 @@ def _table_columns(connection: sqlite3.Connection, schema: str, table: str) -> l
 
 
 ###############################################################################
+def legacy_database_path(base_dir: Path) -> Path:
+    from server.configurations.database_config import read_database_configuration
+
+    config_path = base_dir / "database-config.json"
+    if not config_path.exists():
+        return base_dir / "database.db"
+    configuration = read_database_configuration(path=config_path)
+    if configuration.backend != "sqlite":
+        raise MigrationError("Only the embedded SQLite database can be migrated automatically.")
+    assert configuration.sqlite_path is not None
+    return configuration.sqlite_path
+
+
+###############################################################################
 def plan(base_dir: Path) -> dict:
     """Describe what would be copied without touching anything."""
-    database = base_dir / "database.db"
+    database = legacy_database_path(base_dir)
     if not database.is_file():
         raise MigrationError(f"No legacy database found at {database}")
     counts: dict[str, int] = {}
@@ -162,7 +176,8 @@ def migrate(
     backup_dir.mkdir(parents=True, exist_ok=True)
     stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
     backup = backup_dir / f"database-pre-studio-{stamp}.db"
-    with sqlite3.connect(f"file:{(base_dir / 'database.db').as_posix()}?mode=ro", uri=True) as source, sqlite3.connect(backup) as target:
+    database = legacy_database_path(base_dir)
+    with sqlite3.connect(f"file:{database.as_posix()}?mode=ro", uri=True) as source, sqlite3.connect(backup) as target:
         source.backup(target)
 
     studio_dir.mkdir(parents=True, exist_ok=True)
@@ -176,7 +191,7 @@ def migrate(
         connection.execute("PRAGMA foreign_keys = OFF")
         connection.execute(
             "ATTACH DATABASE ? AS legacy",
-            (f"file:{(base_dir / 'database.db').as_posix()}?mode=ro",),
+            (f"file:{database.as_posix()}?mode=ro",),
         )
         connection.execute("BEGIN IMMEDIATE")
         _assert_target_is_empty(connection)
