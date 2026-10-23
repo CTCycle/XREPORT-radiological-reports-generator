@@ -110,20 +110,20 @@ jobs:
         run: |
           PYTHONPATH=app app/server/.venv/bin/python -m uvicorn server.app:app --host 127.0.0.1 --port 5003 --log-level warning > runtimes/cache/ci-xreport-api.log 2>&1 &
           server_pid=$!
-          trap 'kill "$server_pid" 2>/dev/null || true' EXIT
-          for attempt in {1..30}; do
-            if curl --fail --silent http://127.0.0.1:5003/api/health > /dev/null; then
-              break
-            fi
-            sleep 1
+          XREPORT_APP=studio PYTHONPATH=app app/server/.venv/bin/python -m uvicorn server.app:app --host 127.0.0.1 --port 5013 --log-level warning > runtimes/cache/ci-studio-api.log 2>&1 &
+          studio_pid=$!
+          trap 'kill "$server_pid" "$studio_pid" 2>/dev/null || true' EXIT
+          for port in 5003 5013; do
+            for attempt in {1..30}; do
+              if curl --fail --silent http://127.0.0.1:$port/api/health > /dev/null; then
+                break
+              fi
+              sleep 1
+            done
+            curl --fail --silent http://127.0.0.1:$port/api/health > /dev/null || { cat runtimes/cache/ci-xreport-api.log runtimes/cache/ci-studio-api.log; exit 1; }
           done
-          curl --fail --silent http://127.0.0.1:5003/api/health > /dev/null || { cat runtimes/cache/ci-xreport-api.log; exit 1; }
-          APP_TEST_BACKEND_URL=http://127.0.0.1:5003 app/server/.venv/bin/python -m pytest \
-            -c app/server/pyproject.toml \
-            app/tests/e2e/test_api_inference_settings.py \
-            app/tests/e2e/test_training_api.py \
-            app/tests/e2e/test_upload_api.py \
-            -q --basetemp runtimes/cache/pytest-tmp/e2e -o "cache_dir=runtimes/cache/pytest"
+          APP_TEST_BACKEND_URL=http://127.0.0.1:5003 app/server/.venv/bin/python -m pytest             -c app/server/pyproject.toml             app/tests/e2e/test_api_inference_settings.py             -q --basetemp runtimes/cache/pytest-tmp/e2e -o "cache_dir=runtimes/cache/pytest"
+          XREPORT_APP=studio APP_TEST_STUDIO_BACKEND_URL=http://127.0.0.1:5013 app/server/.venv/bin/python -m pytest             -c app/server/pyproject.toml             app/tests/e2e/test_training_api.py             app/tests/e2e/test_upload_api.py             -q --basetemp runtimes/cache/pytest-tmp/e2e-studio -o "cache_dir=runtimes/cache/pytest"
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -143,6 +143,10 @@ jobs:
       - name: Build client
         working-directory: app/client
         run: npm run build
+
+      - name: Build Studio client
+        working-directory: app/client
+        run: npm run build:studio
 
       - name: Test built frontend server
         working-directory: app/client
