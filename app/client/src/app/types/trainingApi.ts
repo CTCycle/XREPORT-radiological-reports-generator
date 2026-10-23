@@ -17,7 +17,7 @@ import type {
   ProcessDatasetRequest as ApiProcessDatasetRequest,
   ProcessingMetadataResponse as ApiProcessingMetadataResponse,
   StartTrainingRequest as ApiStartTrainingRequest,
-} from './generated/types.gen';
+} from './generated/studio/types.gen';
 
 export type ImagePathResponse = ApiImagePathResponse;
 export type DatasetUploadResponse = ApiDatasetUploadResponse;
