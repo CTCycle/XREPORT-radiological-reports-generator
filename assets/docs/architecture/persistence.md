@@ -233,3 +233,11 @@ database preference, a user-editable setting, or a bundled JSON file.
 - Logs under `<resource root>/logs`.
 - Templates under `<resource root>/templates`.
 - Tokenizer resources under `<resource root>/tokenizers`.
+
+## Application data separation
+
+XREPORT and XREPORT Studio use separate databases and artifact folders (`<resources>/` and
+`<resources>/studio/`) with the same schema and migration stream, plus a per-folder process lock
+(`.xreport.lock`). Imported checkpoints are registered in XREPORT's `checkpoints` table with an
+`exchange.json` record (content hash, manifest) next to the artifact; evaluation history stays in
+Studio. See [applications and checkpoint exchange](applications_and_checkpoint_exchange.md).
