@@ -6,6 +6,12 @@ from openpyxl import Workbook
 from playwright.sync_api import APIRequestContext
 import pytest
 
+
+@pytest.fixture
+def api_context(studio_context):
+    """These tests exercise XREPORT Studio, not the inference application."""
+    return studio_context
+
 ###############################################################################
 def test_upload_parses_semicolon_csv_and_preserves_utf8_text(
     api_context: APIRequestContext,
