@@ -519,6 +519,7 @@ class CheckpointExchangeService:
         should_stop = self._stop_callback(job_id)
         staging = CHECKPOINTS_DIR / f"{STAGING_PREFIX}{uuid.uuid4().hex}"
         published = False
+        installed: list[Path] = []
         final = CHECKPOINTS_DIR / plan.name
         try:
             if plan.manifest is not None:
@@ -537,7 +538,7 @@ class CheckpointExchangeService:
                 source, plan, staging, should_stop, job_id
             )
             self._stop_check(should_stop)
-            self._install_shared_resources(manifest, staging)
+            installed = self._install_shared_resources(manifest, staging)
             self._progress(job_id, 80)
             self._smoke_test(staging)
             self._progress(job_id, 90)
@@ -571,10 +572,10 @@ class CheckpointExchangeService:
                     str(exc), code="registration_failed", phase="register"
                 ) from exc
         except ArchiveCancelled:
-            self._remove_published(final, published)
+            self._rollback(final, published, installed)
             return {}
         except Exception:
-            self._remove_published(final, published)
+            self._rollback(final, published, installed)
             raise
         finally:
             shutil.rmtree(staging, ignore_errors=True)
@@ -591,10 +592,15 @@ class CheckpointExchangeService:
 
     # -------------------------------------------------------------------------
     @staticmethod
-    def _remove_published(final: Path, published: bool) -> None:
-        """Remove only a folder this import published, never a pre-existing one."""
+    def _rollback(final: Path, published: bool, installed: list[Path]) -> None:
+        """Undo only what this import created; pre-existing resources stay untouched."""
         if published:
             shutil.rmtree(final, ignore_errors=True)
+        for path in installed:
+            if path.is_dir():
+                shutil.rmtree(path, ignore_errors=True)
+            else:
+                path.unlink(missing_ok=True)
 
     # -------------------------------------------------------------------------
     def _extract_and_verify(
@@ -707,8 +713,14 @@ class CheckpointExchangeService:
         return digest, manifest
 
     # -------------------------------------------------------------------------
-    def _install_shared_resources(self, manifest: ExchangeManifest, staging: Path) -> None:
-        """Install bundled tokenizer/encoder files; identical content is a no-op."""
+    def _install_shared_resources(
+        self, manifest: ExchangeManifest, staging: Path
+    ) -> list[Path]:
+        """Install bundled tokenizer/encoder files; identical content is a no-op.
+
+        Returns the paths newly created so a failed import can remove them again.
+        """
+        created: list[Path] = []
         tokenizer_source = staging / "tokenizer"
         if tokenizer_source.is_dir():
             target = tokenizer_exchange_dir(manifest.tokenizer.name)
@@ -723,6 +735,7 @@ class CheckpointExchangeService:
             else:
                 target.parent.mkdir(parents=True, exist_ok=True)
                 os.replace(tokenizer_source, target)
+                created.append(target)
         encoder_source = staging / "encoder"
         if encoder_source.is_dir() and not encoder_installed(manifest.encoder.revision):
             target = encoder_snapshot_dir(manifest.encoder.revision)
@@ -730,16 +743,21 @@ class CheckpointExchangeService:
                 shutil.rmtree(target)
             target.parent.mkdir(parents=True, exist_ok=True)
             os.replace(encoder_source, target)
+            created.append(target)
             refs = target.parent.parent / "refs"
             refs.mkdir(parents=True, exist_ok=True)
-            (refs / "main").write_text(manifest.encoder.revision, encoding="utf-8")
+            if not (refs / "main").exists():
+                (refs / "main").write_text(manifest.encoder.revision, encoding="utf-8")
+                created.append(refs / "main")
         if not encoder_installed(manifest.encoder.revision):
+            self._rollback(CHECKPOINTS_DIR / ".none", False, created)
             raise JobExecutionError(
                 "The pinned BEiT encoder is not installed (offline). Install it locally "
                 "or re-export the checkpoint with the encoder included.",
                 code="encoder_missing",
                 phase="compatibility",
             )
+        return created
 
     # -------------------------------------------------------------------------
     @staticmethod

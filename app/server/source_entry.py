@@ -23,8 +23,12 @@ def main() -> None:
     parser = argparse.ArgumentParser(description="XREPORT source-mode server")
     parser.add_argument("--app", choices=("xreport", "studio"), default="xreport")
     arguments = parser.parse_args()
-    # The profile selects data roots and routers at import time.
-    os.environ["XREPORT_APP"] = arguments.app
+    # The package selects data roots at import time, so the launcher must export
+    # XREPORT_APP before starting this process; the flag only has to agree with it.
+    if os.getenv("XREPORT_APP", "xreport").strip().lower() != arguments.app:
+        raise SystemExit(
+            f"XREPORT_APP must be '{arguments.app}' to start the {arguments.app} application"
+        )
     from server.app import app
 
     studio = arguments.app == "studio"
