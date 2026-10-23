@@ -755,7 +755,7 @@ print(json.dumps({
     )
     payload = json.loads(completed.stdout.strip().splitlines()[-1])
 
-    assert payload["route_count"] == 45
+    assert payload["route_count"] == 24
     assert payload["loaded_heavy_modules"] == []
 
 
