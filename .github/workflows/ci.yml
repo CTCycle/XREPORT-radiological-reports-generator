@@ -120,7 +120,7 @@ jobs:
           curl --fail --silent http://127.0.0.1:5003/api/health > /dev/null || { cat runtimes/cache/ci-xreport-api.log; exit 1; }
           APP_TEST_BACKEND_URL=http://127.0.0.1:5003 app/server/.venv/bin/python -m pytest \
             -c app/server/pyproject.toml \
-            app/tests/e2e/test_inference_api.py \
+            app/tests/e2e/test_api_inference_settings.py \
             app/tests/e2e/test_training_api.py \
             app/tests/e2e/test_upload_api.py \
             -q --basetemp runtimes/cache/pytest-tmp/e2e -o "cache_dir=runtimes/cache/pytest"

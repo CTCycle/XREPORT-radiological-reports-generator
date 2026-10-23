@@ -37,7 +37,6 @@ set "TEST_RESULT=0"
 set "BACKEND_PHASE=SKIPPED"
 set "FRONTEND_BOOTSTRAP_PHASE=SKIPPED"
 set "FRONTEND_UNIT_PHASE=SKIPPED"
-set "FRONTEND_E2E_PHASE=SKIPPED"
 set "PYTEST_PHASE=SKIPPED"
 set "LIVE_SERVER_PHASE=SKIPPED"
 set "STARTED_BACKEND=0"
@@ -73,6 +72,7 @@ set "UI_BASE_URL=%APP_TEST_FRONTEND_URL%"
 
 if "%STANDARD_TEST_SKIP_LIVE_SERVERS%"=="" set "STANDARD_TEST_SKIP_LIVE_SERVERS=false"
 if "%STANDARD_TEST_SKIP_FRONTEND%"=="" set "STANDARD_TEST_SKIP_FRONTEND=false"
+if "%STANDARD_TEST_SKIP_CLIENT_TESTS%"=="" set "STANDARD_TEST_SKIP_CLIENT_TESTS=false"
 
 if exist "%VENV_PYTHON%" (
   set "PYTHON_CMD=%VENV_PYTHON%"
@@ -198,14 +198,12 @@ if "%PYTEST_RC%"=="0" (
 )
 
 if /i "%STANDARD_TEST_SKIP_FRONTEND%"=="true" goto summary
+if /i "%STANDARD_TEST_SKIP_CLIENT_TESTS%"=="true" goto summary
 if not exist "%CLIENT_DIR%\package.json" goto summary
 
 set "HAS_FRONTEND_UNIT=0"
-set "HAS_FRONTEND_E2E=0"
 findstr /R /C:"\"test:unit\"[ ]*:" "%CLIENT_DIR%\package.json" >nul 2>&1
 if not errorlevel 1 set "HAS_FRONTEND_UNIT=1"
-findstr /R /C:"\"test:e2e\"[ ]*:" "%CLIENT_DIR%\package.json" >nul 2>&1
-if not errorlevel 1 set "HAS_FRONTEND_E2E=1"
 set "FRONTEND_BOOTSTRAP_PHASE=PASS"
 
 if "%HAS_FRONTEND_UNIT%"=="1" (
@@ -219,17 +217,6 @@ if "%HAS_FRONTEND_UNIT%"=="1" (
   )
 )
 
-if "%HAS_FRONTEND_E2E%"=="1" (
-  echo [STEP] Running frontend E2E tests...
-  call "%NPM_CMD%" --prefix "%CLIENT_DIR%" run test:e2e --if-present
-  if errorlevel 1 (
-    set "FRONTEND_E2E_PHASE=FAIL"
-    set "TEST_RESULT=1"
-  ) else (
-    set "FRONTEND_E2E_PHASE=PASS"
-  )
-)
-
 :summary
 echo.
 echo ============================================================
@@ -239,7 +226,6 @@ echo  Live server phase   : %LIVE_SERVER_PHASE%
 echo  Python tests        : %PYTEST_PHASE%
 echo  Frontend bootstrap  : %FRONTEND_BOOTSTRAP_PHASE%
 echo  Frontend unit tests : %FRONTEND_UNIT_PHASE%
-echo  Frontend E2E tests  : %FRONTEND_E2E_PHASE%
 echo ============================================================
 echo.
 

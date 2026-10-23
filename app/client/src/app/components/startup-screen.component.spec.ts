@@ -38,21 +38,6 @@ describe('StartupScreenComponent', () => {
     expect(element.querySelector('svg')).toBeNull();
   });
 
-  it('shows a single minimal status line and exposes retry only when unavailable', async () => {
-    const fixture = await createComponent();
-    const line = fixture.nativeElement.querySelector('.startup-status-line');
-
-    fixture.componentRef.setInput('phase', 'slow');
-    fixture.detectChanges();
-    expect(line.textContent.trim()).toMatch(/Validating|Preparing|Starting|Connecting/);
-    expect(fixture.nativeElement.querySelector('.startup-retry')).toBeNull();
-
-    fixture.componentRef.setInput('phase', 'unavailable');
-    fixture.detectChanges();
-    expect(line.textContent.trim()).toBe('Waiting for the local service');
-    expect(fixture.nativeElement.querySelector('.startup-retry')).not.toBeNull();
-  });
-
   it('advances progress monotonically from the started timestamp and completes only when ready', async () => {
     const fixture = await createComponent();
     const progressbar = fixture.nativeElement.querySelector('.startup-progress');
@@ -84,21 +69,25 @@ describe('StartupScreenComponent', () => {
     );
   });
 
-  it('labels the current preparation step and freezes progress when unavailable', async () => {
+  it('shows startup status, offers retry only when unavailable, and freezes progress', async () => {
     const fixture = await createComponent();
     const progressbar = fixture.nativeElement.querySelector('.startup-progress');
     const line = fixture.nativeElement.querySelector('.startup-status-line');
 
     fixture.componentRef.setInput('startedAt', Date.now());
+    fixture.componentRef.setInput('phase', 'slow');
     fixture.detectChanges();
     vi.advanceTimersByTime(4_000);
     fixture.detectChanges();
+    expect(fixture.nativeElement.querySelectorAll('.startup-status-line')).toHaveLength(1);
     expect(line.textContent.trim()).toMatch(/Validating|Preparing|Starting|Connecting/);
+    expect(fixture.nativeElement.querySelector('.startup-retry')).toBeNull();
 
     const frozen = Number(progressbar.getAttribute('aria-valuenow'));
     fixture.componentRef.setInput('phase', 'unavailable');
     fixture.detectChanges();
     expect(line.textContent.trim()).toBe('Waiting for the local service');
+    expect(fixture.nativeElement.querySelector('.startup-retry')).not.toBeNull();
 
     vi.advanceTimersByTime(10_000);
     fixture.detectChanges();

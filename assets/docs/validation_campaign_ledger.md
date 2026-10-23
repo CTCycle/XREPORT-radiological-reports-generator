@@ -201,6 +201,17 @@ see [testing and quality rules](coding/testing_and_quality.md).
 
 ## Current release evidence
 
+- Test-suite consolidation on the uncommitted working tree based on
+  `1cc34750dce461408bee513f42015e0dfd7f294a` (2026-10-22) reduced executable
+  test sources from 71 to 32 and collected cases from 357 to 355. The full
+  Windows runner passed 281 Python tests with 3 skipped and 62 Angular tests
+  in 162.86 seconds; the pre-change run took 310.91 seconds and repeated the
+  18-case browser suite. The separately focused browser command passed all 18
+  cases, and the CI-selected API E2E set passed 19. Integration tests passed
+  4 cases and skipped 3; the PostgreSQL contract remains gated in local runs.
+  The after timing followed standalone test and build checks that warmed the
+  shared caches, so the full-run comparison is observed rather than normalized.
+  Hosted CI was not run, and no production source was changed.
 - v3.2.0 was [published](https://github.com/CTCycle/XREPORT-radiological-reports-generator/releases/tag/v3.2.0)
   on 2026-10-18 from source `a8d75a0c0d5f02a29c85e9ac58f4837fc3081449`.
   [Package run 39056753392](https://github.com/CTCycle/XREPORT-radiological-reports-generator/actions/runs/39056753392)
@@ -234,9 +245,9 @@ see [testing and quality rules](coding/testing_and_quality.md).
   timing, genuine no-GPU fallback, broader representative-data behavior, and
   spoken accessibility remain outside those results.
 - `S51` bounded concurrency recheck passed 15 tests across
-  [`test_job_start_concurrency.py`](../../app/tests/unit/test_job_start_concurrency.py)
+  [`test_job_lifecycle.py`](../../app/tests/unit/test_job_lifecycle.py)
   and
-  [`test_validate_resilience_baseline.py`](../../app/tests/unit/test_validate_resilience_baseline.py)
+  [`test_resilience_harness.py`](../../app/tests/unit/test_resilience_harness.py)
   on source candidate `b98a9b60492b63fb41a904e3cff4815325b8d075`. These checks
   cover atomic duplicate-start rejection, overlap and cleanup for distinct job
   types, and the resilience harness's scenario and worker-observation
