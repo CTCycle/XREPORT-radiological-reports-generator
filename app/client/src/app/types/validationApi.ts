@@ -1,10 +1,13 @@
 import type {
+  CheckpointEvaluationReportResponse as ApiCheckpointEvaluationReport,
+  CheckpointEvaluationRequest as ApiCheckpointEvaluationRequest,
+  CheckpointEvaluationResults as ApiCheckpointEvaluationResults,
   ImageStatistics as ApiImageStatistics,
   PixelDistribution as ApiPixelDistribution,
   TextStatistics as ApiTextStatistics,
   ValidationReportResponse as ApiValidationReportResponse,
   ValidationRequest as ApiValidationRequest,
-} from './generated/types.gen';
+} from './generated/studio/types.gen';
 
 export type PixelDistribution = ApiPixelDistribution;
 export type ImageStatistics = ApiImageStatistics;
@@ -20,3 +23,6 @@ export interface ValidationResponse {
     image_statistics?: ImageStatistics | null;
     text_statistics?: TextStatistics | null;
 }
+export type CheckpointEvaluationRequest = ApiCheckpointEvaluationRequest;
+export type CheckpointEvaluationResults = ApiCheckpointEvaluationResults;
+export type CheckpointEvaluationReport = ApiCheckpointEvaluationReport;
