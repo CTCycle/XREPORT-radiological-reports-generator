@@ -1,15 +1,21 @@
 # Testing And Quality Rules
 
-Last updated: 2026-10-18
+Last updated: 2026-10-22
 
 ## Tooling And Quality Gates
 
 - Linting and formatting use Ruff or the established project-equivalent toolchain.
 - Typing should remain Pylance-compatible.
-- Testing uses pytest with coverage focused on `tests/unit` plus impacted `tests/e2e`.
-  The Angular client also exposes `npm run test:e2e`, which runs the rendered
-  UI checks in `app/tests/e2e/test_angular_ui.py` against the local services;
-  `app/tests/run_tests.bat` starts those services when needed.
+- The compact suite has 32 test source files: 12 Python unit suites, 6 Python
+  E2E suites, 2 integration suites, 11 Angular specs, and 1 built-server test.
+  It currently collects 355 cases (284 Python, 62 Angular, 9 Node). Keep
+  regression coverage focused on application behavior and contracts.
+- `app/tests/run_tests.bat` is the full Windows runner. It starts the local
+  services as needed, runs the Python suites once, then runs Angular unit tests.
+  Browser E2E cases are already included in pytest and are not invoked twice.
+- From `app/client`, `npm run test:e2e` routes the focused rendered UI suite
+  through `app/tests/run_tests.bat`, which starts the needed services and skips
+  the unrelated Angular unit-test phase.
 - Pytest configuration is centralized in `app/server/pyproject.toml`; CI and
   repository test helpers pass that file explicitly instead of relying on a
   root-level pytest configuration file.
@@ -17,8 +23,13 @@ Last updated: 2026-10-18
 - Run `cargo check` from `app/desktop/src-tauri` for the Rust desktop shell;
   `build.rs` must always invoke `tauri_build` so the checked-in capability
   files are available to `tauri::generate_context!()` during debug builds.
-- Keep `app/shared/openapi.json` synchronized with `app.server.app:app` and
+- Keep `app/shared/openapi.xreport.json` and `openapi.studio.json` synchronized with
+  `create_app("xreport")` / `create_app("studio")` (`app/scripts/export_openapi.py`) and
   regenerate Angular types with `npm run generate:api` after contract changes.
+- Studio end-to-end modules (`test_training_api`, `test_upload_api`, `test_dataset_workflow`,
+  `test_preparation_filesystem`, `test_studio_ui`) run in their own pytest process with
+  `XREPORT_APP=studio` against the Studio backend (`APP_TEST_STUDIO_BACKEND_URL`,
+  `APP_TEST_STUDIO_FRONTEND_URL`); `run_tests.bat` and CI start both backends.
 - Verify the generic `/api/jobs` resource and explicit upload/checkpoint
   identity behavior when changing long-running workflows.
 

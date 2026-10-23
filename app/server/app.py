@@ -3,26 +3,19 @@ from __future__ import annotations
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 import asyncio
+from importlib import import_module
 import hmac
 import os
 from pathlib import Path
 import re
 from time import perf_counter
 
-from fastapi import FastAPI, Header, HTTPException, Request
+from fastapi import APIRouter, FastAPI, Header, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse, RedirectResponse
 from sqlalchemy.exc import SQLAlchemyError
 
-from server.api.inference import router as inference_router
 from server.api.errors import register_service_error_handlers
-from server.api.database_settings import router as database_settings_router
-from server.api.jobs import router as jobs_router
-from server.api.preparation import router as preparation_router
-from server.api.settings import router as settings_router
-from server.api.training import router as training_router
-from server.api.upload import router as upload_router
-from server.api.validation import router as validation_router
 from server.common.constants import (
     FASTAPI_API_PREFIX,
     FASTAPI_DESCRIPTION,
@@ -39,7 +32,8 @@ from server.common.desktop_security import (
 )
 from server.common.database_switch import DatabaseRequestGate
 from server.common.path import CLIENT_DIST_DIR, PACKAGED_MODE
-from server.common.path import RUNTIME_VARIANT
+from server.common.path import APP_PROFILE, RESOURCES_DIR, RUNTIME_VARIANT
+from server.common.process_lock import DataFolderLock
 from server.configurations import get_database_settings
 from server.configurations.database_config import DatabaseConfigurationError
 from server.configurations.runtime_environment import (
@@ -48,6 +42,44 @@ from server.configurations.runtime_environment import (
 from server.domain.health import HealthResponse, ShutdownResponse
 from server.services.startup_validation import run_startup_validations
 from server.common.utils.logger import logger
+
+STUDIO_TITLE = "XREPORT Studio"
+
+###############################################################################
+def application_title(profile: str) -> str:
+    return STUDIO_TITLE if profile == "studio" else FASTAPI_TITLE
+
+###############################################################################
+def profile_routers(profile: str) -> list[APIRouter]:
+    """Import and return only the routers that belong to the given profile.
+
+    Modules of the other application are never imported, so they are absent from
+    the OpenAPI schema and from frozen desktop builds.
+    """
+    from server.api.database_settings import router as database_settings_router
+    from server.api.jobs import router as jobs_router
+    from server.api.settings import router as settings_router
+
+    shared = [jobs_router, settings_router, database_settings_router]
+    if profile == "studio":
+        # Resolved by name so static analysis of the XREPORT build never sees them.
+        studio_modules = (
+            "server.api.upload",
+            "server.api.preparation",
+            "server.api.training",
+            "server.api.validation",
+        )
+        from server.api.checkpoint_exchange import get_export_router
+
+        return [
+            get_export_router(),
+            *(import_module(name).router for name in studio_modules),
+            *shared,
+        ]
+    from server.api.checkpoint_exchange import get_import_router
+    from server.api.inference import router as inference_router
+
+    return [inference_router, get_import_router(), *shared]
 
 ###############################################################################
 def redirect_root_to_docs(*, serve_source_client: bool = False) -> RedirectResponse | FileResponse:
@@ -67,7 +99,9 @@ def health_check(request: Request) -> HealthResponse:
         status="ok"
         if getattr(request.app.state, "database_ready", False)
         else "database_recovery",
-        application=FASTAPI_TITLE,
+        application=application_title(
+            getattr(request.app.state, "app_profile", APP_PROFILE)
+        ),
         version=FASTAPI_VERSION,
         runtime_mode=runtime_mode,
         runtime_variant=RUNTIME_VARIANT,
@@ -191,6 +225,9 @@ async def app_lifespan(application: FastAPI) -> AsyncIterator[None]:
     application.state.database_ready = False
     application.state.database_error = None
     application.state.database_backend = "unknown"
+    # Fail closed when another process already owns this application's data folder.
+    data_lock = DataFolderLock(RESOURCES_DIR)
+    data_lock.acquire()
     startup_started = getattr(application.state, "desktop_startup_started_at", None)
     if startup_started is not None:
         logger.info(
@@ -201,6 +238,10 @@ async def app_lifespan(application: FastAPI) -> AsyncIterator[None]:
         database_settings = get_database_settings()
         application.state.database_backend = database_settings.backend
         settings = run_startup_validations(database_settings)
+        if getattr(application.state, "app_profile", APP_PROFILE) == "xreport":
+            from server.services.checkpoint_exchange import sweep_stale_staging
+
+            sweep_stale_staging()
         application.state.server_settings = settings
         application.state.database_ready = True
         if startup_started is not None:
@@ -243,6 +284,7 @@ async def app_lifespan(application: FastAPI) -> AsyncIterator[None]:
     try:
         yield
     finally:
+        data_lock.release()
         if shutdown_task is not None:
             shutdown_task.cancel()
             try:
@@ -251,7 +293,8 @@ async def app_lifespan(application: FastAPI) -> AsyncIterator[None]:
                 pass
 
 ###############################################################################
-def create_app() -> FastAPI:
+def create_app(profile: str | None = None) -> FastAPI:
+    profile = profile or APP_PROFILE
     runtime_environment = get_runtime_environment_settings()
     serve_source_client = (
         not PACKAGED_MODE
@@ -264,11 +307,12 @@ def create_app() -> FastAPI:
             f"Built Angular frontend was not found at {CLIENT_DIST_DIR / 'index.html'}"
         )
     application = FastAPI(
-        title=FASTAPI_TITLE,
+        title=application_title(profile),
         version=FASTAPI_VERSION,
         description=FASTAPI_DESCRIPTION,
         lifespan=app_lifespan,
     )
+    application.state.app_profile = profile
     application.state.database_request_gate = DatabaseRequestGate()
     application.state.database_ready = False
     application.state.database_error = None
@@ -297,16 +341,7 @@ def create_app() -> FastAPI:
     install_runtime_shutdown(application, source_launch_token)
     register_service_error_handlers(application)
 
-    for router in (
-        upload_router,
-        preparation_router,
-        training_router,
-        validation_router,
-        inference_router,
-        jobs_router,
-        settings_router,
-        database_settings_router,
-    ):
+    for router in profile_routers(profile):
         application.include_router(router, prefix=FASTAPI_API_PREFIX)
     application.add_api_route(
         "/api/health",

@@ -1,5 +1,6 @@
 """Cross-layer checks for destructive and resume-sensitive training API behavior."""
 
+import pytest
 import shutil
 import uuid
 from datetime import datetime, timezone
@@ -11,6 +12,12 @@ from sqlalchemy import delete
 from server.common.path import CHECKPOINTS_DIR
 from server.repositories.checkpoints import CheckpointRepository
 from server.repositories.schemas import CheckpointEvaluation
+
+
+@pytest.fixture
+def api_context(studio_context):
+    """These tests exercise XREPORT Studio, not the inference application."""
+    return studio_context
 
 ###############################################################################
 def _create_checkpoint_fixture(name: str) -> Path:

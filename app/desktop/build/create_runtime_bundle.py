@@ -20,6 +20,8 @@ FORBIDDEN_PARTS = {
     ".pytest_cache",
     ".ruff_cache",
     "node_modules",
+    "studio-angular",
+    "studio",
     "tests",
     "test",
     "logs",

@@ -33,15 +33,18 @@ set "FASTAPI_HOST=127.0.0.1"
 set "FASTAPI_PORT=5003"
 set "UI_HOST=127.0.0.1"
 set "UI_PORT=8003"
+set "STUDIO_FASTAPI_PORT=5013"
+set "STUDIO_UI_PORT=8013"
 set "TEST_RESULT=0"
 set "BACKEND_PHASE=SKIPPED"
 set "FRONTEND_BOOTSTRAP_PHASE=SKIPPED"
 set "FRONTEND_UNIT_PHASE=SKIPPED"
-set "FRONTEND_E2E_PHASE=SKIPPED"
 set "PYTEST_PHASE=SKIPPED"
 set "LIVE_SERVER_PHASE=SKIPPED"
 set "STARTED_BACKEND=0"
 set "STARTED_FRONTEND=0"
+set "STARTED_STUDIO_BACKEND=0"
+set "STARTED_STUDIO_FRONTEND=0"
 
 if exist "%SETTINGS_ENV%" (
   for /f "usebackq tokens=* delims=" %%L in ("%SETTINGS_ENV%") do (
@@ -52,6 +55,7 @@ if exist "%SETTINGS_ENV%" (
         if /i "%%A"=="FASTAPI_PORT" set "FASTAPI_PORT=%%B"
         if /i "%%A"=="UI_HOST" set "UI_HOST=%%B"
         if /i "%%A"=="UI_PORT" set "UI_PORT=%%B"
+        if /i "%%A"=="STUDIO_FASTAPI_PORT" set "STUDIO_FASTAPI_PORT=%%B"
       )
     )
   )
@@ -68,11 +72,14 @@ if /i "%TEST_UI_HOST%"=="[::]" set "TEST_UI_HOST=127.0.0.1"
 
 set "APP_TEST_BACKEND_URL=http://%TEST_FASTAPI_HOST%:%FASTAPI_PORT%"
 set "APP_TEST_FRONTEND_URL=http://%TEST_UI_HOST%:%UI_PORT%"
+set "APP_TEST_STUDIO_BACKEND_URL=http://%TEST_FASTAPI_HOST%:%STUDIO_FASTAPI_PORT%"
+set "APP_TEST_STUDIO_FRONTEND_URL=http://%TEST_UI_HOST%:%STUDIO_UI_PORT%"
 set "API_BASE_URL=%APP_TEST_BACKEND_URL%"
 set "UI_BASE_URL=%APP_TEST_FRONTEND_URL%"
 
 if "%STANDARD_TEST_SKIP_LIVE_SERVERS%"=="" set "STANDARD_TEST_SKIP_LIVE_SERVERS=false"
 if "%STANDARD_TEST_SKIP_FRONTEND%"=="" set "STANDARD_TEST_SKIP_FRONTEND=false"
+if "%STANDARD_TEST_SKIP_CLIENT_TESTS%"=="" set "STANDARD_TEST_SKIP_CLIENT_TESTS=false"
 
 if exist "%VENV_PYTHON%" (
   set "PYTHON_CMD=%VENV_PYTHON%"
@@ -110,6 +117,8 @@ echo ============================================================
 echo [INFO] Project root: %PROJECT_ROOT%
 echo [INFO] Backend URL : %APP_TEST_BACKEND_URL%
 echo [INFO] Frontend URL: %APP_TEST_FRONTEND_URL%
+echo [INFO] Studio backend URL : %APP_TEST_STUDIO_BACKEND_URL%
+echo [INFO] Studio frontend URL: %APP_TEST_STUDIO_FRONTEND_URL%
 echo.
 
 set "PYTEST_TARGET=%TESTS_DIR%"
@@ -125,6 +134,15 @@ if /i "%STANDARD_TEST_SKIP_LIVE_SERVERS%"=="false" if "%HAS_E2E%"=="1" (
     echo [INFO] Starting backend server...
     start "" /B /D "%BACKEND_WORKDIR%" "%PYTHON_CMD%" -m uvicorn %UVICORN_APP% --host %FASTAPI_HOST% --port %FASTAPI_PORT% --log-level warning >nul 2>&1
     set "STARTED_BACKEND=1"
+  )
+
+  curl -s --max-time 2 "%APP_TEST_STUDIO_BACKEND_URL%/docs" >nul 2>&1
+  if errorlevel 1 (
+    echo [INFO] Starting Studio backend server...
+    set "XREPORT_APP=studio"
+    start "" /B /D "%BACKEND_WORKDIR%" "%PYTHON_CMD%" -m uvicorn %UVICORN_APP% --host %FASTAPI_HOST% --port %STUDIO_FASTAPI_PORT% --log-level warning >nul 2>&1
+    set "XREPORT_APP="
+    set "STARTED_STUDIO_BACKEND=1"
   )
 
   if /i "%STANDARD_TEST_SKIP_FRONTEND%"=="false" if exist "%CLIENT_DIR%\package.json" (
@@ -159,6 +177,23 @@ if /i "%STANDARD_TEST_SKIP_LIVE_SERVERS%"=="false" if "%HAS_E2E%"=="1" (
       start "" /B /D "%CLIENT_DIR%" "%NPM_CMD%" run preview -- --host %UI_HOST% --port %UI_PORT% >nul 2>&1
       set "STARTED_FRONTEND=1"
     )
+
+    curl -s --max-time 2 "%APP_TEST_STUDIO_FRONTEND_URL%" >nul 2>&1
+    if errorlevel 1 (
+      if not exist "%CLIENT_DIR%\dist\studio-angular" (
+        echo [INFO] Building Studio frontend...
+        call "%NPM_CMD%" --prefix "%CLIENT_DIR%" run build:studio
+        if errorlevel 1 (
+          set "LIVE_SERVER_PHASE=FAIL"
+          set "TEST_RESULT=1"
+          goto cleanup
+        )
+      )
+
+      echo [INFO] Starting Studio frontend preview server...
+      start "" /B /D "%CLIENT_DIR%" "%NPM_CMD%" run preview -- --host %UI_HOST% --port %STUDIO_UI_PORT% --dist "%CLIENT_DIR%\dist\studio-angular\browser" --backend-port %STUDIO_FASTAPI_PORT% >nul 2>&1
+      set "STARTED_STUDIO_FRONTEND=1"
+    )
   )
 
   echo [INFO] Waiting for live services...
@@ -177,8 +212,24 @@ if /i "%STANDARD_TEST_SKIP_LIVE_SERVERS%"=="false" if "%HAS_E2E%"=="1" (
     goto wait_loop
   )
 
+  curl -s --max-time 2 "%APP_TEST_STUDIO_BACKEND_URL%/docs" >nul 2>&1
+  if errorlevel 1 (
+    set /a ATTEMPTS+=1
+    timeout /t 1 /nobreak >nul 2>&1
+    goto wait_loop
+  )
+
   if "%STARTED_FRONTEND%"=="1" (
     curl -s --max-time 2 "%APP_TEST_FRONTEND_URL%" >nul 2>&1
+    if errorlevel 1 (
+      set /a ATTEMPTS+=1
+      timeout /t 1 /nobreak >nul 2>&1
+      goto wait_loop
+    )
+  )
+
+  if "%STARTED_STUDIO_FRONTEND%"=="1" (
+    curl -s --max-time 2 "%APP_TEST_STUDIO_FRONTEND_URL%" >nul 2>&1
     if errorlevel 1 (
       set /a ATTEMPTS+=1
       timeout /t 1 /nobreak >nul 2>&1
@@ -188,8 +239,23 @@ if /i "%STANDARD_TEST_SKIP_LIVE_SERVERS%"=="false" if "%HAS_E2E%"=="1" (
 )
 
 echo [STEP] Running Python tests...
-"%PYTHON_CMD%" -m pytest -c "%SERVER_DIR%\pyproject.toml" "%PYTEST_TARGET%" -v --tb=short --basetemp "%PYTEST_BASETEMP%" %* -o "cache_dir=%PYTEST_CACHE_DIR%"
+set "PYTEST_IGNORES="
+set "STUDIO_E2E_TARGETS="
+if "%PYTEST_TARGET%"=="%TESTS_DIR%" (
+  for %%N in (test_training_api.py test_upload_api.py test_dataset_workflow.py test_preparation_filesystem.py test_studio_ui.py) do (
+    set "PYTEST_IGNORES=!PYTEST_IGNORES! --ignore="%TESTS_DIR%\e2e\%%N""
+    set "STUDIO_E2E_TARGETS=!STUDIO_E2E_TARGETS! "%TESTS_DIR%\e2e\%%N""
+  )
+)
+"%PYTHON_CMD%" -m pytest -c "%SERVER_DIR%\pyproject.toml" "%PYTEST_TARGET%" !PYTEST_IGNORES! -v --tb=short --basetemp "%PYTEST_BASETEMP%" %* -o "cache_dir=%PYTEST_CACHE_DIR%"
 set "PYTEST_RC=%ERRORLEVEL%"
+if not "!STUDIO_E2E_TARGETS!"=="" (
+  echo [STEP] Running Studio end-to-end tests...
+  set "XREPORT_APP=studio"
+  "%PYTHON_CMD%" -m pytest -c "%SERVER_DIR%\pyproject.toml" !STUDIO_E2E_TARGETS! -v --tb=short --basetemp "%PYTEST_BASETEMP%-studio" %* -o "cache_dir=%PYTEST_CACHE_DIR%"
+  if errorlevel 1 set "PYTEST_RC=1"
+  set "XREPORT_APP="
+)
 if "%PYTEST_RC%"=="0" (
   set "PYTEST_PHASE=PASS"
 ) else (
@@ -198,14 +264,12 @@ if "%PYTEST_RC%"=="0" (
 )
 
 if /i "%STANDARD_TEST_SKIP_FRONTEND%"=="true" goto summary
+if /i "%STANDARD_TEST_SKIP_CLIENT_TESTS%"=="true" goto summary
 if not exist "%CLIENT_DIR%\package.json" goto summary
 
 set "HAS_FRONTEND_UNIT=0"
-set "HAS_FRONTEND_E2E=0"
 findstr /R /C:"\"test:unit\"[ ]*:" "%CLIENT_DIR%\package.json" >nul 2>&1
 if not errorlevel 1 set "HAS_FRONTEND_UNIT=1"
-findstr /R /C:"\"test:e2e\"[ ]*:" "%CLIENT_DIR%\package.json" >nul 2>&1
-if not errorlevel 1 set "HAS_FRONTEND_E2E=1"
 set "FRONTEND_BOOTSTRAP_PHASE=PASS"
 
 if "%HAS_FRONTEND_UNIT%"=="1" (
@@ -219,17 +283,6 @@ if "%HAS_FRONTEND_UNIT%"=="1" (
   )
 )
 
-if "%HAS_FRONTEND_E2E%"=="1" (
-  echo [STEP] Running frontend E2E tests...
-  call "%NPM_CMD%" --prefix "%CLIENT_DIR%" run test:e2e --if-present
-  if errorlevel 1 (
-    set "FRONTEND_E2E_PHASE=FAIL"
-    set "TEST_RESULT=1"
-  ) else (
-    set "FRONTEND_E2E_PHASE=PASS"
-  )
-)
-
 :summary
 echo.
 echo ============================================================
@@ -239,7 +292,6 @@ echo  Live server phase   : %LIVE_SERVER_PHASE%
 echo  Python tests        : %PYTEST_PHASE%
 echo  Frontend bootstrap  : %FRONTEND_BOOTSTRAP_PHASE%
 echo  Frontend unit tests : %FRONTEND_UNIT_PHASE%
-echo  Frontend E2E tests  : %FRONTEND_E2E_PHASE%
 echo ============================================================
 echo.
 
@@ -249,6 +301,12 @@ if "%STARTED_BACKEND%"=="1" (
 )
 if "%STARTED_FRONTEND%"=="1" (
   for /f "tokens=5" %%P in ('netstat -ano ^| findstr /R "LISTENING" ^| findstr /R ":%UI_PORT% "') do taskkill /PID %%P /T /F >nul 2>&1
+)
+if "%STARTED_STUDIO_BACKEND%"=="1" (
+  for /f "tokens=5" %%P in ('netstat -ano ^| findstr /R "LISTENING" ^| findstr /R ":%STUDIO_FASTAPI_PORT% "') do taskkill /PID %%P /T /F >nul 2>&1
+)
+if "%STARTED_STUDIO_FRONTEND%"=="1" (
+  for /f "tokens=5" %%P in ('netstat -ano ^| findstr /R "LISTENING" ^| findstr /R ":%STUDIO_UI_PORT% "') do taskkill /PID %%P /T /F >nul 2>&1
 )
 
 exit /b %TEST_RESULT%

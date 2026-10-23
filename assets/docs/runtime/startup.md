@@ -276,3 +276,24 @@ cache, uninstall, and desktop-release removal actions. `RemoveAllData` clears
 the configured resource root's database sidecars, checkpoints, models,
 tokenizers, and logs while preserving application files, templates, and
 `.gitkeep` sentinels; external databases are not modified.
+
+## XREPORT Studio launch and application scope
+
+`-Action Launch` (and `-Launch`) starts XREPORT unchanged. `-Action LaunchStudio` starts XREPORT
+Studio on `STUDIO_FASTAPI_PORT` (default 5013) with its own launch token, data folder
+(`<resources>/studio`), and Angular project (`studio-angular`). The launcher exports `XREPORT_APP`
+before starting `server.source_entry` because the data roots are chosen when the server package is
+imported. Both applications can run at the same time; each Launch checks only its own port and keeps
+the fail-closed handling of unknown listeners.
+
+- Frontend freshness is tracked per project: `dist/<project>/.xreport-build-state.json`, with the
+  project name in the Studio fingerprint. Launch builds only the project it needs, and only when stale.
+  `-Action RebuildFrontend` builds both unless `-App` is given.
+- `-Action KillProcesses` stops every identified XREPORT, Studio, and desktop process; with
+  `-App Xreport|Studio` it stops only that application. Studio backends are recognised by
+  `server.source_entry --app studio`. Unknown listeners are never stopped.
+- `RemoveLogs`, `RemoveCheckpoints`, and `RemoveAllData` act on one application (`-App`, or a prompt in
+  the menu). Studio targets live under `<resources>/studio` and never include `models`.
+- `-Action MigrateToStudio [-DryRun]` copies existing datasets and checkpoints into Studio (see
+  [applications and checkpoint exchange](../architecture/applications_and_checkpoint_exchange.md)).
+- Tauri builds (`BuildDesktopRelease`, `LaunchDesktopDev`) remain XREPORT-only.

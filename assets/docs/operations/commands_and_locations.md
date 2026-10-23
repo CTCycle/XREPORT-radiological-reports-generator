@@ -55,7 +55,9 @@ timestamped backend logs beside it. Readiness/session files in
 
 ### Tests
 
-- `app/tests/run_tests.bat`
+- Full suite: `app/tests/run_tests.bat`
+- Focused rendered browser suite: from `app/client`, run `npm run test:e2e`
+- Built frontend server: from `app/client`, run `npm run test:built-server`
 - `$env:PYTHONPATH = "app"; & ".\app\server\.venv\Scripts\python.exe" ".\app\scripts\validate_inference_model.py" --help`
 
 For direct PowerShell pytest runs, resolve the cache root from the repository
