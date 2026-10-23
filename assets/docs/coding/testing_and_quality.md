@@ -6,9 +6,9 @@ Last updated: 2026-10-22
 
 - Linting and formatting use Ruff or the established project-equivalent toolchain.
 - Typing should remain Pylance-compatible.
-- The compact suite has 32 test source files: 12 Python unit suites, 6 Python
-  E2E suites, 2 integration suites, 11 Angular specs, and 1 built-server test.
-  It currently collects 355 cases (284 Python, 62 Angular, 9 Node). Keep
+- The compact suite has 40 test source files: 17 Python unit suites, 7 Python
+  E2E suites, 2 integration suites, 13 Angular specs, and 1 built-server test.
+  It currently collects 411 cases (330 Python, 72 Angular, 9 Node). Keep
   regression coverage focused on application behavior and contracts.
 - `app/tests/run_tests.bat` is the full Windows runner. It starts the local
   services as needed, runs the Python suites once, then runs Angular unit tests.

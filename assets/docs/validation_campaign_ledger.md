@@ -11,6 +11,24 @@ Validation here means technical software evidence for a stated scope. It does
 not establish clinical validity, diagnostic performance, regulatory approval,
 or suitability for patient care.
 
+## Shim and legacy cleanup (2026-10-23, `develop` at `25561838` plus working tree)
+
+- Scope: remove the browser theme-storage migration, manifestless/v1 checkpoint
+  imports, Studio data-copy utility, its launcher action, and the old single-case
+  inference-validation CLI path. Alembic history was not changed.
+- PASSED (Windows): 300 XREPORT Python tests, 3 skipped; 26 Studio E2E tests;
+  72 Angular tests; 9 built-server Node tests; Pyright; focused Ruff excluding
+  existing complexity checks and ESLint on changed files.
+  The app-lifespan lock test was deselected while the live backend owned its
+  resource root, then passed alone after the services stopped.
+- The inference draft E2E now waits for the asynchronously selected model to
+  enable multi-image input before supplying two files. The earlier live
+  checkpoint import used format version 1, so current version 2 live and
+  packaged import remain unverified.
+- Whole-project lint still reports complexity in the retained inference
+  validation helpers and three array-type issues in the untouched inference
+  draft spec.
+
 ## Persistent inference draft editing (2026-10-23, develop)
 
 - Scope: XREPORT inference and report review. Successful job results expose the

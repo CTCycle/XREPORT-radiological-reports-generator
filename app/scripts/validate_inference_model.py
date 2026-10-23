@@ -68,17 +68,11 @@ def _arguments() -> argparse.Namespace:
         "--model-ref", required=True, help="Configured model reference to validate"
     )
     parser.add_argument(
-        "--image",
-        type=Path,
-        action="append",
-        help="Public/de-identified fixture image; repeat for a multi-image study.",
-    )
-    parser.add_argument(
         "--case-manifest",
         type=Path,
+        required=True,
         help=(
-            "JSON manifest for independent cases; mutually exclusive with the "
-            "legacy --image/--profile/--clinical-context/--fixture-sha256 path."
+            "JSON manifest describing independent image-to-report validation cases."
         ),
     )
     parser.add_argument(
@@ -86,15 +80,9 @@ def _arguments() -> argparse.Namespace:
         type=Path,
         help=(
             "Optional aggregate receipt path for independent-case mode. When omitted, "
-            "the legacy canonical receipt location is used."
+            "the canonical receipt location is used."
         ),
     )
-    parser.add_argument(
-        "--profile",
-        choices=("deterministic", "concise", "detailed"),
-        default="deterministic",
-    )
-    parser.add_argument("--clinical-context", default="")
     parser.add_argument(
         "--fixture-provenance",
         default="",
@@ -104,11 +92,6 @@ def _arguments() -> argparse.Namespace:
         "--fixture-deidentification",
         default="",
         help="Explicit de-identification statement; required for real validation.",
-    )
-    parser.add_argument(
-        "--fixture-sha256",
-        action="append",
-        help="Expected SHA-256; repeat in the same order as --image.",
     )
     return parser.parse_args()
 
@@ -560,10 +543,9 @@ def validate_cached_cases(
 ) -> dict[str, object]:
     """Run independent one-image cases while reusing one loaded model.
 
-    This is intentionally separate from ``validate_cached_model``: repeated
-    ``--image`` values in the legacy command represent one multi-view study for
-    study-level adapters, whereas this function gives every case its own job,
-    request, context, profile, and persisted technical result.
+    This is intentionally separate from ``validate_cached_model``: each case
+    gets its own job, request, context, profile, and persisted technical result,
+    while the study validator sends all images in one request.
     """
     if not cases:
         raise ValueError("At least one independent validation case is required")
@@ -1094,34 +1076,15 @@ def validate_cached_cases(
 def main() -> int:
     args = _arguments()
     try:
-        if args.case_manifest is not None:
-            if args.image or args.fixture_sha256:
-                raise ValueError(
-                    "--case-manifest cannot be combined with --image or --fixture-sha256"
-                )
-            cases = load_case_manifest(args.case_manifest)
-            payload = validate_cached_cases(
-                model_ref=args.model_ref,
-                cases=cases,
-                fixture_provenance=args.fixture_provenance,
-                fixture_deidentification=args.fixture_deidentification,
-                repeat_case_id=cases[0].case_id,
-                receipt_path=args.receipt_path,
-            )
-        else:
-            if not args.image or not args.fixture_sha256:
-                raise ValueError(
-                    "Provide --case-manifest or at least one --image and --fixture-sha256"
-                )
-            payload = validate_cached_model(
-                model_ref=args.model_ref,
-                image_paths=list(args.image),
-                profile=args.profile,
-                clinical_context=args.clinical_context,
-                fixture_provenance=args.fixture_provenance,
-                fixture_deidentification=args.fixture_deidentification,
-                fixture_sha256=list(args.fixture_sha256),
-            )
+        cases = load_case_manifest(args.case_manifest)
+        payload = validate_cached_cases(
+            model_ref=args.model_ref,
+            cases=cases,
+            fixture_provenance=args.fixture_provenance,
+            fixture_deidentification=args.fixture_deidentification,
+            repeat_case_id=cases[0].case_id,
+            receipt_path=args.receipt_path,
+        )
     except (FileNotFoundError, ValueError) as exc:
         raise SystemExit(str(exc)) from exc
     print(json.dumps(payload, indent=2, sort_keys=True))

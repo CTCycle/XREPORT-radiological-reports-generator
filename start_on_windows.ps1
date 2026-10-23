@@ -1,13 +1,12 @@
 [CmdletBinding()]
 param(
-    [ValidateSet('Launch', 'LaunchDesktopDev', 'BuildDesktopRelease', 'RemoveDesktopRelease', 'Install', 'InstallStudio', 'RebuildFrontend', 'InitializeDatabase', 'Test', 'RemoveLogs', 'ClearCache', 'RemoveCheckpoints', 'RemoveAllData', 'Uninstall', 'KillProcesses', 'Update', 'LaunchStudio', 'MigrateToStudio')]
+    [ValidateSet('Launch', 'LaunchDesktopDev', 'BuildDesktopRelease', 'RemoveDesktopRelease', 'Install', 'InstallStudio', 'RebuildFrontend', 'InitializeDatabase', 'Test', 'RemoveLogs', 'ClearCache', 'RemoveCheckpoints', 'RemoveAllData', 'Uninstall', 'KillProcesses', 'Update', 'LaunchStudio')]
     [string]$Action,
     [switch]$Launch,
     [ValidateSet('Xreport', 'Studio')]
     [string]$App = 'Xreport',
     [ValidateSet('Standard', 'Cuda')]
     [string]$StudioProfile,
-    [switch]$DryRun,
     [ValidateSet('Cpu', 'Cuda', 'All')]
     [string]$DesktopRuntime = 'All',
     [ValidateSet('Portable', 'Msi', 'All')]
@@ -2577,23 +2576,6 @@ function Invoke-InitializeDatabase {
     Write-Ok 'Database initialization completed'
 }
 
-function Invoke-MigrateToStudio {
-    Ensure-PortableRuntimes
-    Initialize-Environment
-    $migrationScript = Join-Path $RepoRoot 'app\scripts\migrate_to_studio.py'
-    if (-not (Test-Path -LiteralPath $migrationScript)) { throw "Missing migration script: $migrationScript" }
-    $arguments = @('run', '--project', 'app/server', '--python', $PythonExe, 'python', 'app/scripts/migrate_to_studio.py')
-    if ($DryRun) { $arguments += '--dry-run' }
-    $previousPythonPath = $env:PYTHONPATH
-    $env:PYTHONPATH = Join-Path $RepoRoot 'app'
-    try {
-        Invoke-Checked -FilePath $UvExe -ArgumentList $arguments -WorkingDirectory $RepoRoot
-    } finally {
-        if ($null -eq $previousPythonPath) { Remove-Item Env:PYTHONPATH -ErrorAction SilentlyContinue }
-        else { $env:PYTHONPATH = $previousPythonPath }
-    }
-}
-
 function Invoke-TestSuite {
     if (-not (Test-Path -LiteralPath $TestsBat)) { throw "Missing test script: $TestsBat" }
     Write-Step "Executing test suite: $TestsBat"
@@ -2990,7 +2972,6 @@ function Get-LauncherMenuEntries {
         [pscustomobject]@{ Section = 'SOURCE CONTROL'; Key = 'Update'; Label = 'Update application'; Description = 'Pull origin/main (clean main branch required)'; Destructive = $false }
         [pscustomobject]@{ Section = 'BUILD & DISTRIBUTION'; Key = 'CreateRelease'; Label = 'Create release artifacts'; Description = 'Build selected desktop packages'; Destructive = $false }
         [pscustomobject]@{ Section = 'BUILD & DISTRIBUTION'; Key = 'RemoveRelease'; Label = 'Remove release artifacts'; Description = 'Remove selected packages or all releases and build state'; Destructive = $true }
-        [pscustomobject]@{ Section = 'DATA & MAINTENANCE'; Key = 'MigrateStudio'; Label = 'Copy data to Studio'; Description = 'Copy datasets and checkpoints into Studio (non-destructive)'; Destructive = $false }
         [pscustomobject]@{ Section = 'DATA & MAINTENANCE'; Key = 'Logs'; Label = 'Remove logs'; Description = 'Delete logs of one application'; Destructive = $true }
         [pscustomobject]@{ Section = 'DATA & MAINTENANCE'; Key = 'Cache'; Label = 'Clear cache'; Description = 'Remove temporary caches'; Destructive = $true }
         [pscustomobject]@{ Section = 'DATA & MAINTENANCE'; Key = 'Checkpoints'; Label = 'Remove checkpoints'; Description = 'Delete saved checkpoints of one application'; Destructive = $true }
@@ -3052,7 +3033,6 @@ if ($Action) {
         switch ($Action) {
             'Launch' { Invoke-Launch -Application $App }
             'LaunchStudio' { Invoke-Launch -Application Studio }
-            'MigrateToStudio' { Invoke-MigrateToStudio }
             'LaunchDesktopDev' { Invoke-LaunchDesktopDev }
             'BuildDesktopRelease' { Invoke-BuildDesktopRelease }
             'RemoveDesktopRelease' { Invoke-RemoveDesktopRelease }
@@ -3096,7 +3076,6 @@ while ($true) {
             switch ($entry.Key) {
                 'Launch' { Invoke-Launch -Application Xreport; exit 0 }
                 'LaunchStudio' { Invoke-Launch -Application Studio; exit 0 }
-                'MigrateStudio' { Invoke-MigrateToStudio }
                 'KillProcesses' { Stop-XReportProcesses }
                 'Install' { Invoke-InstallOrUpdate }
                 'InstallStudio' { Invoke-InstallStudio }

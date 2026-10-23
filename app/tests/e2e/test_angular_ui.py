@@ -183,7 +183,9 @@ def test_inference_draft_edit_save_and_reports_recovery(
     response = page.goto(f"{base_url}/inference")
     assert response is not None and response.ok
 
-    page.locator('input[type="file"]').set_input_files(
+    image_input = page.locator('input[type="file"]')
+    expect(image_input).to_have_attribute("multiple", "")
+    image_input.set_input_files(
         [
             {"name": "e2e-first.png", "mimeType": "image/png", "buffer": b"first"},
             {"name": "e2e-second.png", "mimeType": "image/png", "buffer": b"second"},

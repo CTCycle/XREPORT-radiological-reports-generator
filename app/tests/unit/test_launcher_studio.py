@@ -27,7 +27,9 @@ def _distribution_name(requirement: str) -> str:
 
 ###############################################################################
 def test_launch_actions_keep_the_launch_alias_and_add_studio() -> None:
-    assert "'LaunchStudio'" in LAUNCHER and "'MigrateToStudio'" in LAUNCHER
+    assert "'LaunchStudio'" in LAUNCHER
+    assert "MigrateToStudio" not in LAUNCHER
+    assert "MigrateStudio" not in LAUNCHER
     assert "'Launch' { Invoke-Launch -Application $App }" in LAUNCHER
     assert "'LaunchStudio' { Invoke-Launch -Application Studio }" in LAUNCHER
     launch = _function_body("Invoke-Launch")

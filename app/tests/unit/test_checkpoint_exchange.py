@@ -142,7 +142,7 @@ def _export(node: Node, name: str, include_encoder: bool = False) -> Path:
 def _import(node: Node, archive: Path, rename_to: str | None = None) -> dict:
     staged = node.root / "upload.xreportckpt"
     staged.write_bytes(archive.read_bytes())
-    plan = node.service.assess_archive(staged, archive.name, rename_to)
+    plan = node.service.assess_archive(staged, rename_to)
     return node.service.run_import(str(staged), plan)
 
 
@@ -186,8 +186,8 @@ def test_export_import_roundtrip_is_idempotent_and_conflict_aware(
     staged = consumer2.root / "u.xreportckpt"
     staged.write_bytes(other_archive.read_bytes())
     with pytest.raises(ConflictError, match="run1_2"):
-        consumer2.service.assess_archive(staged, "x", None)
-    renamed = consumer2.service.assess_archive(staged, "x", "run1_2")
+        consumer2.service.assess_archive(staged)
+    renamed = consumer2.service.assess_archive(staged, "run1_2")
     assert renamed.renamed_from == "run1"
 
 
@@ -255,7 +255,7 @@ def test_cancelled_import_cleans_up(
     consumer.jobs.should_stop = lambda _job: True
     staged = consumer.root / "u.xreportckpt"
     staged.write_bytes(archive.read_bytes())
-    plan = consumer.service.assess_archive(staged, "x", None)
+    plan = consumer.service.assess_archive(staged)
     assert consumer.service.run_import(str(staged), plan, job_id="j") == {}
     assert consumer.repository.records == {}
     assert not staged.exists()
@@ -274,7 +274,7 @@ def test_missing_encoder_is_explicit_when_not_bundled(
     bundled = _export(producer, "run1", include_encoder=True)
     consumer = Node(tmp_path / "xreport", monkeypatch)  # no encoder installed
     with pytest.raises(BadRequestError, match="encoder"):
-        consumer.service.assess_archive(archive_plain, "x", None)
+        consumer.service.assess_archive(archive_plain)
 
     result = _import(consumer, bundled)["import"]
     assert result["status"] == "imported"
@@ -293,7 +293,8 @@ def test_incompatible_versions_and_lone_keras_are_rejected(
     consumer.install_encoder()
 
     for field, value, message in (
-        ("format_version", 99, "newer"),
+        ("format_version", 1, "Unsupported checkpoint format version"),
+        ("format_version", 99, "Unsupported checkpoint format version"),
         ("custom_objects_api", 99, "custom-layer"),
         ("architecture", "other", "architecture"),
     ):
@@ -307,35 +308,31 @@ def test_incompatible_versions_and_lone_keras_are_rejected(
                     data = json.dumps(manifest).encode()
                 target.writestr(info.filename, data)
         with pytest.raises(BadRequestError, match=message):
-            consumer.service.assess_archive(edited, "x", None)
+            consumer.service.assess_archive(edited)
 
     lone = tmp_path / "lone.keras"
     lone.write_bytes(b"not a zip")
     with pytest.raises(BadRequestError, match="lone .keras"):
-        consumer.service.assess_archive(lone, "lone.keras", None)
+        consumer.service.assess_archive(lone)
 
 
 ###############################################################################
-def test_legacy_four_file_archive_is_accepted_with_local_encoder(
+def test_manifestless_four_file_archive_is_rejected(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, stub_ml
 ) -> None:
-    producer = Node(tmp_path / "old", monkeypatch)
-    old = producer.create_checkpoint("legacy-run")
-    legacy = tmp_path / "legacy-run.zip"
-    with zipfile.ZipFile(legacy, "w") as target:
+    producer = Node(tmp_path / "source", monkeypatch)
+    checkpoint = producer.create_checkpoint("run1")
+    archive = tmp_path / "run1.zip"
+    with zipfile.ZipFile(archive, "w") as target:
         for relative in CORE_FILES:
-            target.write(old / relative, relative)
+            target.write(checkpoint / relative, relative)
 
     consumer = Node(tmp_path / "xreport", monkeypatch)
-    with pytest.raises(JobExecutionError, match="encoder"):
-        _import(consumer, legacy)
+    staged = consumer.root / "upload.xreportckpt"
+    staged.write_bytes(archive.read_bytes())
+    with pytest.raises(BadRequestError, match="missing required manifest.json"):
+        consumer.service.assess_archive(staged)
     assert consumer.repository.records == {}
-
-    consumer.install_encoder()
-    result = _import(consumer, legacy)["import"]
-    assert result["status"] == "imported"
-    assert result["legacy"] is True
-    assert result["checkpoint"] == "legacy-run"
 
 
 ###############################################################################
