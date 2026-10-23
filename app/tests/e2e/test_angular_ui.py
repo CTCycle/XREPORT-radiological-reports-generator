@@ -17,8 +17,11 @@ def test_inference_route_renders_catalog_and_navigation(
     expect(page.get_by_role("heading", name="Turn a radiograph into a draft report")).to_be_visible()
     expect(page.get_by_text("Model catalogue", exact=True)).to_be_visible()
     expect(page.get_by_role("link", name="Reports")).to_be_visible()
-    expect(page.get_by_role("link", name="Dataset")).to_be_visible()
-    expect(page.get_by_role("link", name="Training")).to_be_visible()
+    expect(page.get_by_role("link", name="Dataset")).to_have_count(0)
+    expect(page.get_by_role("link", name="Training")).to_have_count(0)
+
+    page.goto(f"{base_url}/dataset")
+    expect(page).to_have_url(f"{base_url}/inference")
 
 ###############################################################################
 def test_reports_route_renders_history_or_explicit_empty_state(
@@ -437,37 +440,6 @@ def test_settings_autosave_failure_reverts_value_and_shows_error(
     expect(seed).to_have_value(previous_seed)
 
 ###############################################################################
-def test_dataset_and_training_routes_render_workflow_surfaces(
-    page: Page,
-    base_url: str,
-) -> None:
-    response = page.goto(f"{base_url}/dataset")
-
-    assert response is not None and response.ok
-    expect(page.get_by_text("Data Source", exact=True)).to_be_visible()
-    expect(page.get_by_role("button", name="Load Dataset")).to_be_visible()
-
-    response = page.goto(f"{base_url}/training")
-
-    assert response is not None and response.ok
-    expect(page.get_by_role("heading", name="XREPORT Transformer")).to_be_visible()
-    expect(page.get_by_role("heading", name="Training Dashboard")).to_be_visible()
-
-###############################################################################
-def test_validation_route_reports_missing_dataset_as_user_error(
-    page: Page,
-    base_url: str,
-) -> None:
-    dataset_name = "e2e-missing-dataset"
-    response = page.goto(f"{base_url}/dataset/validate/{dataset_name}")
-
-    assert response is not None and response.ok
-    page.get_by_role("button", name="Run Validation").click()
-    expect(page.get_by_text(f"No data found for dataset: {dataset_name}.")).to_be_visible(
-        timeout=20_000,
-    )
-
-###############################################################################
 def test_affected_pages_render_responsive_layouts_and_capture_qa_evidence(
     page: Page,
     base_url: str,
@@ -523,14 +495,6 @@ def test_affected_pages_render_responsive_layouts_and_capture_qa_evidence(
         expect(page.locator(".model-info-banner")).to_be_visible()
 
     page.set_viewport_size({"width": 640, "height": 800})
-    page.goto(f"{base_url}/dataset")
-    expect(page.get_by_text("Available Datasets", exact=True)).to_be_visible()
-    page.screenshot(path=str(qa_dir / "xreport-dataset-narrow-dark.png"), full_page=False)
-    dataset_heights = page.locator(".dataset-table-row").evaluate_all(
-        "els => els.map((element) => Math.round(element.getBoundingClientRect().height * 100) / 100)",
-    )
-    assert dataset_heights
-    assert len(set(dataset_heights)) == 1
 
     page.goto(f"{base_url}/settings")
     expect(page.get_by_role("tab", name="General")).to_be_visible()
@@ -658,8 +622,6 @@ def test_s52_responsive_route_modal_and_reduced_motion_matrix(
     routes = [
         ("inference", "/inference", "Turn a radiograph into a draft report"),
         ("reports", "/reports", "Reports"),
-        ("dataset", "/dataset", "Available Datasets"),
-        ("training", "/training", "Training Dashboard"),
         ("settings", "/settings", "Settings"),
     ]
 
@@ -668,10 +630,7 @@ def test_s52_responsive_route_modal_and_reduced_motion_matrix(
         for route_name, route, heading in routes:
             response = page.goto(f"{base_url}{route}")
             assert response is not None and response.ok, route
-            if route_name == "dataset":
-                expect(page.get_by_text(heading, exact=True)).to_be_visible()
-            else:
-                expect(page.get_by_role("heading", name=heading)).to_be_visible()
+            expect(page.get_by_role("heading", name=heading)).to_be_visible()
             expect(page.locator(".main-layout-content")).to_be_visible()
             _assert_s52_semantic_route_metadata(page, route_name)
 
@@ -877,19 +836,6 @@ def test_s52_semantic_metadata_and_keyboard_only_smoke(
     expect(data_panel).to_have_attribute("aria-labelledby", data_tab_id)
     expect(data_panel.get_by_role("heading", name="Data access")).to_be_visible()
 
-    response = page.goto(f"{base_url}/training")
-    assert response is not None and response.ok
-    expect(page.get_by_role("heading", name="XREPORT Transformer")).to_be_visible()
-    _assert_s52_semantic_route_metadata(page, "training")
-
-    collapse_button = page.locator("button.panel-collapse-toggle").first
-    _focus_s52_with_tab(page, collapse_button)
-    expect(collapse_button).to_have_attribute("aria-expanded", "true")
-    page.keyboard.press("Space")
-    expect(collapse_button).to_have_attribute("aria-expanded", "false")
-    page.keyboard.press("Enter")
-    expect(collapse_button).to_have_attribute("aria-expanded", "true")
-
 ###############################################################################
 def _assert_s52_semantic_route_metadata(page: Page, route_name: str) -> None:
     navigation = page.get_by_role("navigation", name="Primary navigation")
@@ -897,7 +843,7 @@ def _assert_s52_semantic_route_metadata(page: Page, route_name: str) -> None:
     expect(page.get_by_role("main")).to_have_count(1)
     assert page.locator("main").evaluate("element => element.tagName") == "MAIN"
 
-    for label in ("Inference", "Reports", "Dataset", "Training", "Settings"):
+    for label in ("Inference", "Reports", "Settings"):
         expect(navigation.get_by_role("link", name=label, exact=True)).to_be_visible()
 
     broken_references = page.evaluate(
@@ -938,22 +884,6 @@ def _assert_s52_semantic_route_metadata(page: Page, route_name: str) -> None:
         expect(page.get_by_role("textbox", name="Model reference")).to_be_visible()
         expect(page.get_by_role("combobox", name="Status")).to_be_visible()
         expect(page.get_by_role("combobox", name="Sort")).to_be_visible()
-    elif route_name == "dataset":
-        expect(page.get_by_role("button", name="Load Dataset")).to_be_visible()
-        expect(page.get_by_role("button", name="Upload Data File")).to_be_visible()
-        rows = page.locator('.dataset-table-row[role="button"]')
-        for index in range(rows.count()):
-            row = rows.nth(index)
-            expect(row).to_have_attribute("tabindex", "0")
-            expect(row).to_have_attribute("aria-pressed", re.compile(r"^(true|false)$"))
-    elif route_name == "training":
-        toggles = page.locator("main button.panel-collapse-toggle")
-        expect(toggles).to_have_count(2)
-        expect(page.get_by_role("button", name=re.compile(r"Collapse new training session|Expand new training session"))).to_be_visible()
-        for index in range(toggles.count()):
-            toggle = toggles.nth(index)
-            expect(toggle).to_have_attribute("aria-expanded", re.compile(r"^(true|false)$"))
-            assert toggle.get_attribute("aria-label")
     elif route_name == "settings":
         tabs = page.get_by_role("tab")
         expect(tabs).to_have_count(4)
@@ -1059,12 +989,6 @@ def _expect_s10_route_surface(page: Page, path: str) -> None:
         expect(page.get_by_role("heading", name="Reports")).to_be_visible()
     elif path.startswith("/reports/"):
         expect(page.get_by_role("textbox", name="Findings").first).to_be_visible()
-    elif path == "/dataset":
-        expect(page.get_by_text("Data Source", exact=True)).to_be_visible()
-    elif path == "/training":
-        expect(page.get_by_role("heading", name="Training Dashboard")).to_be_visible()
-    elif path.startswith("/dataset/validate/"):
-        expect(page.get_by_role("heading", name="Validation Wizard")).to_be_visible()
     elif path == "/settings":
         expect(page.get_by_role("heading", name="Settings")).to_be_visible()
     else:
@@ -1080,35 +1004,6 @@ def test_s10_direct_routes_refresh_navigation_and_clean_browser(
     qa_dir = _s10_qa_dir()
     errors = _capture_s10_browser_errors(page)
 
-    validation_dataset = "e2e-s10-validation-route-fixture"
-    validation_requests: list[str] = []
-
-    def serve_validation_fixture(route) -> None:
-        validation_requests.append(route.request.url)
-        route.fulfill(
-            status=200,
-            json={
-                "dataset_name": validation_dataset,
-                "date": "2026-09-22T12:00:00Z",
-                "sample_size": 0.5,
-                "metrics": ["image_statistics"],
-                "image_statistics": {
-                    "count": 1,
-                    "mean_height": 1024,
-                    "mean_width": 1024,
-                    "mean_pixel_value": 128.0,
-                    "std_pixel_value": 10.0,
-                    "mean_noise_std": 0.0,
-                    "mean_noise_ratio": 0.0,
-                },
-            },
-        )
-
-    page.route(
-        f"**/api/validation/reports/{validation_dataset}",
-        serve_validation_fixture,
-    )
-
     response = page.goto(f"{base_url}/")
     assert response is not None and response.ok
     expect(page).to_have_url(f"{base_url}/inference")
@@ -1119,9 +1014,6 @@ def test_s10_direct_routes_refresh_navigation_and_clean_browser(
         ("/inference", "Inference"),
         ("/reports", "Reports"),
         (f"/reports/{seeded_history}", "Reports"),
-        ("/dataset", "Dataset"),
-        ("/training", "Training"),
-        (f"/dataset/validate/{validation_dataset}", "Dataset"),
         ("/settings", "Settings"),
     ]
     for path, active_label in routes:
@@ -1141,13 +1033,9 @@ def test_s10_direct_routes_refresh_navigation_and_clean_browser(
         _expect_s10_route_surface(page, path)
         _expect_s10_active_navigation(page, active_label)
 
-    assert len(validation_requests) == 2, validation_requests
-
     for label, path in (
         ("Inference", "/inference"),
         ("Reports", "/reports"),
-        ("Dataset", "/dataset"),
-        ("Training", "/training"),
         ("Settings", "/settings"),
     ):
         page.get_by_role("link", name=label, exact=True).click()

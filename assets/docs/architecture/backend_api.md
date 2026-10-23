@@ -2,12 +2,19 @@
 
 Last updated: 2026-10-21
 
-The checked-in shared OpenAPI schema is `app/shared/openapi.json`. It mirrors the runtime FastAPI schema and is the contract snapshot available to frontend and tooling consumers. Regenerate it from the repository root with:
+Each application has a checked-in OpenAPI snapshot, `app/shared/openapi.xreport.json` and
+`app/shared/openapi.studio.json`, generated from `create_app(profile).openapi()`. Regenerate both
+from the repository root with:
 
 ```powershell
-$env:PYTHONPATH = "app"
-& ".\\app\\server\\.venv\\Scripts\\python.exe" -c "import json; from pathlib import Path; from server.app import app; Path('app/shared/openapi.json').write_text(json.dumps(app.openapi(), indent=2) + chr(10), encoding='utf-8')"
+& ".\app\server\.venv\Scripts\python.exe" app/scripts/export_openapi.py
 ```
+
+then run `npm run generate:api` in `app/client`. The XREPORT application mounts the inference,
+jobs, settings, and database-settings routers plus `POST /api/exchange/import`; XREPORT Studio mounts
+upload, preparation, training, validation, jobs, settings, database settings, `POST /api/exchange/export`,
+and `GET /api/exchange/exports/{filename}`. Endpoint groups below that belong to the other
+application return 404 (see [applications and checkpoint exchange](applications_and_checkpoint_exchange.md)).
 
 All routers are mounted under `/api`.
 

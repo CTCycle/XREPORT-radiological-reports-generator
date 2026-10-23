@@ -1,6 +1,6 @@
 import { Injectable, inject } from '@angular/core';
 import { asRecord, readBoolean, readNumber, readNumberArray, readString } from '../common/parsers';
-import { CheckpointEvaluationReport, CheckpointEvaluationRequest } from '../types/inferenceApi';
+import { CheckpointEvaluationReport, CheckpointEvaluationRequest } from '../types/validationApi';
 import {
   ImageStatistics,
   PixelDistribution,

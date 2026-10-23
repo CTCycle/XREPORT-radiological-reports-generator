@@ -1,6 +1,6 @@
 # XREPORT Validation Campaign Ledger
 
-Last updated: 2026-10-22
+Last updated: 2026-10-23
 
 This ledger summarizes current validation gates, release evidence, and known
 scope limits. The [project status ledger](project_status_ledger.md) owns
@@ -27,6 +27,16 @@ Removed the ignored `.scratch-db-config-tests`, `.scratch-db-switch`, and
 `.scratch-openapi` QA directories after consolidating their durable outcomes in
 the existing ledgers. Referenced validation captures and the logs supporting
 unresolved checks were retained.
+
+## Application split (2026-10-23, branch `feature/split-studio`)
+
+- Scope: XREPORT / XREPORT Studio separation, `.xreportckpt` exchange, Studio launcher, migration script.
+- PASSED (Windows, source mode): backend unit + integration suite (including new profile, exchange, lock, migration, packaging-boundary and launcher tests); Ruff and Pyright on `app/server`; client build for both Angular projects, lint, and 66 unit tests; XREPORT inference/settings API e2e and `test_angular_ui` (23 tests) against a live XREPORT; Studio upload/training/dataset/preparation API and UI e2e (19 tests) plus `test_studio_ui` (7 tests) against a live Studio; both servers running together with isolated data folders; app-scoped kill; stale-build rebuild of only the changed project.
+- PASSED (live, negative paths): import of a lone `.keras`, a traversal archive, a legacy archive without the encoder installed, and a crafted archive with a broken model were all rejected with explicit errors, with no checkpoint registered and the staging folder removed.
+- PASSED (live, real model): with the encoder and tokenizer installed in a disposable data root, a tiny checkpoint registered in Studio was exported with the bundled encoder, downloaded, and imported into a separate XREPORT data root without an encoder; the model became `ready`, a report was generated from a synthetic image, history survived a restart, a repeat import returned `already_imported`, a mid-flight cancel and a mid-import process kill left no checkpoint, and the next start removed the staging folder. The checkpoint came from Studio's model builder, not from a UI training run.
+- NOT RUN: Studio journey through the UI with real training, cancel/resume and evaluation; import into a packaged CPU or CUDA build; package contents audit; migration of real data; `run_tests.bat` end to end with the two-server setup.
+- Facts versus claims: the XREPORT bundle isolation and the import-closure result are observed; the claim that packaged builds exclude Studio code follows from the spec and is untested until a package is built.
+- PR #9 review fixes: source database configuration is checked before migration (PostgreSQL refusal and configured SQLite path); training/export start is mutually exclusive and deletion holds the job-registration lock. The 41 focused exchange, migration, and job-lifecycle tests, full backend unit suite (272 tests), Ruff, and full backend Pyright passed locally. The initial hosted run failed Pyright on the Keras output conversion; NumPy normalization repairs that error. SonarCloud reported 4.7% duplication, dominated by generated API types; `.sonarcloud.properties` excludes only those two generated files from duplication checks. Hosted CI passed at `0121c6b4` in [run 39931654917](https://github.com/CTCycle/XREPORT-radiological-reports-generator/actions/runs/39931654917): backend unit tests, Ruff, Pyright, PostgreSQL persistence, both profiles' retained API E2E, both client builds, built-server tests, client lint and unit tests. SonarCloud and GitGuardian also passed.
 
 ## Release 3.3.0 smoke (2026-10-22)
 
@@ -201,6 +211,17 @@ see [testing and quality rules](coding/testing_and_quality.md).
 
 ## Current release evidence
 
+- Test-suite consolidation on the uncommitted working tree based on
+  `1cc34750dce461408bee513f42015e0dfd7f294a` (2026-10-22) reduced executable
+  test sources from 71 to 32 and collected cases from 357 to 355. The full
+  Windows runner passed 281 Python tests with 3 skipped and 62 Angular tests
+  in 162.86 seconds; the pre-change run took 310.91 seconds and repeated the
+  18-case browser suite. The separately focused browser command passed all 18
+  cases, and the CI-selected API E2E set passed 19. Integration tests passed
+  4 cases and skipped 3; the PostgreSQL contract remains gated in local runs.
+  The after timing followed standalone test and build checks that warmed the
+  shared caches, so the full-run comparison is observed rather than normalized.
+  Hosted CI was not run, and no production source was changed.
 - v3.2.0 was [published](https://github.com/CTCycle/XREPORT-radiological-reports-generator/releases/tag/v3.2.0)
   on 2026-10-18 from source `a8d75a0c0d5f02a29c85e9ac58f4837fc3081449`.
   [Package run 39056753392](https://github.com/CTCycle/XREPORT-radiological-reports-generator/actions/runs/39056753392)
@@ -234,9 +255,9 @@ see [testing and quality rules](coding/testing_and_quality.md).
   timing, genuine no-GPU fallback, broader representative-data behavior, and
   spoken accessibility remain outside those results.
 - `S51` bounded concurrency recheck passed 15 tests across
-  [`test_job_start_concurrency.py`](../../app/tests/unit/test_job_start_concurrency.py)
+  [`test_job_lifecycle.py`](../../app/tests/unit/test_job_lifecycle.py)
   and
-  [`test_validate_resilience_baseline.py`](../../app/tests/unit/test_validate_resilience_baseline.py)
+  [`test_resilience_harness.py`](../../app/tests/unit/test_resilience_harness.py)
   on source candidate `b98a9b60492b63fb41a904e3cff4815325b8d075`. These checks
   cover atomic duplicate-start rejection, overlap and cleanup for distinct job
   types, and the resilience harness's scenario and worker-observation

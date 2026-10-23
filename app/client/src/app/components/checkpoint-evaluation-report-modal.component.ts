@@ -2,7 +2,7 @@ import { CommonModule } from '@angular/common';
 import { Component, EventEmitter, Input, Output } from '@angular/core';
 import { NgIcon, provideIcons } from '@ng-icons/core';
 import { lucideBarChart2, lucideCalendar, lucideListChecks, lucideLoaderCircle, lucideX } from '@ng-icons/lucide';
-import type { CheckpointEvaluationReport } from '../types/inferenceApi';
+import type { CheckpointEvaluationReport } from '../types/validationApi';
 import { ModalFocusDirective } from './modal-focus.directive';
 
 @Component({

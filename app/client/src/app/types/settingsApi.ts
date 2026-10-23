@@ -2,7 +2,7 @@ import type {
   ApplicationSettingsPatch as ApiApplicationSettingsPatch,
   ApplicationSettingsResponse as ApiApplicationSettingsResponse,
   RuntimeApplicationSettings as ApiRuntimeApplicationSettings,
-} from './generated/types.gen';
+} from './generated/xreport/types.gen';
 
 export type RuntimeApplicationSettings = ApiRuntimeApplicationSettings;
 export type ApplicationSettingsResponse = ApiApplicationSettingsResponse;
