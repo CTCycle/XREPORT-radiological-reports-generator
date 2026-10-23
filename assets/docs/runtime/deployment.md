@@ -104,3 +104,13 @@ maintained system WebView2 runtime. MSI packages are per-machine products with
 mode by default. The tagged `desktop-release.yml` workflow publishes the
 verified CPU/CUDA portable, MSI, checksum, and build-metadata files to the
 matching GitHub Release. Signing is deliberately absent.
+
+## Inference-only packages
+
+Tauri MSI and portable packages contain only XREPORT. `desktop_entry` runs the `xreport` profile, the
+PyInstaller spec excludes every module listed in `server/common/profile_modules.py` (dataset
+preparation, upload, training, validation, evaluation), and the runtime-bundle audit forbids `studio`
+and `studio-angular` members. XREPORT Studio has no installer, package, or release workflow. A unit
+test (`test_packaging_boundary.py`) keeps the XREPORT import closure free of Studio modules; package
+contents themselves were not rebuilt for this change (see the status ledger). Models are still not
+bundled; imported checkpoints live under the user data folder like other models.
