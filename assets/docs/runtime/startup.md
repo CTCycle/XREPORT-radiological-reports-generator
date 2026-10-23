@@ -1,6 +1,6 @@
 # Runtime Startup
 
-Last updated: 2026-10-21
+Last updated: 2026-10-23
 
 ## Windows Local Launcher
 
@@ -95,8 +95,35 @@ powershell -ExecutionPolicy Bypass -File .\start_on_windows.ps1 -Action RebuildF
 The install/update option prepares the portable runtimes before requesting an
 installation profile:
 
-- `Development` includes Ruff, Pyright, and pytest.
-- `Standard` installs runtime dependencies only.
+- `Development` includes Ruff, Pyright, pytest, Studio dependencies needed by
+  the full backend test suite, and desktop build dependencies.
+- `Standard` installs XREPORT runtime dependencies only, including its existing
+  CUDA-capable Torch stack; Studio-only dependencies are omitted.
+
+XREPORT Studio has a separate Python environment at
+`app/server/.venv-studio`. Select **Install / update Studio** in the launcher or
+run one of these commands to prepare it before launch:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\start_on_windows.ps1 -Action InstallStudio -StudioProfile Standard
+powershell -ExecutionPolicy Bypass -File .\start_on_windows.ps1 -Action InstallStudio -StudioProfile Cuda
+```
+
+**Standard** installs CPU Torch and works without CUDA hardware. **CUDA** uses
+the pinned cu130 Torch stack and requires a supported NVIDIA GPU and driver.
+The profile controls the installed runtime; Studio's existing device settings
+still determine which device a job uses. The XREPORT and Studio environments
+are isolated, so installing or changing Studio dependencies does not replace
+XREPORT's CUDA environment.
+
+On an interactive first **Launch XREPORT Studio**, the launcher asks which
+profile to install, then installs it and builds the Studio frontend before
+starting the backend. An unattended first launch defaults to Standard. Later
+launches reuse the installed profile; pass `-StudioProfile Cuda` or
+`-StudioProfile Standard` to `LaunchStudio` or `-Action Launch -App Studio` to
+switch profiles. The explicit **Install / update Studio** action also asks for
+a profile when run interactively and can be given `-StudioProfile` for direct
+selection.
 
 If the project virtual environment was created by an older pinned Python
 patch release, the launcher recreates that disposable environment before
@@ -212,7 +239,7 @@ Windows launcher exports the same locations automatically.
 PowerShell:
 
 ```powershell
-uv run --project app/server python -m uvicorn server.app:app --app-dir app --host 127.0.0.1 --port 5003
+uv run --project app/server --extra cuda python -m uvicorn server.app:app --app-dir app --host 127.0.0.1 --port 5003
 Set-Location app/client
 npm run dev -- --host 127.0.0.1 --port 8003
 ```
@@ -279,12 +306,13 @@ tokenizers, and logs while preserving application files, templates, and
 
 ## XREPORT Studio launch and application scope
 
-`-Action Launch` (and `-Launch`) starts XREPORT unchanged. `-Action LaunchStudio` starts XREPORT
-Studio on `STUDIO_FASTAPI_PORT` (default 5013) with its own launch token, data folder
-(`<resources>/studio`), and Angular project (`studio-angular`). The launcher exports `XREPORT_APP`
-before starting `server.source_entry` because the data roots are chosen when the server package is
-imported. Both applications can run at the same time; each Launch checks only its own port and keeps
-the fail-closed handling of unknown listeners.
+`-Action Launch` (and `-Launch`) starts XREPORT. `-Action LaunchStudio` starts
+XREPORT Studio on `STUDIO_FASTAPI_PORT` (default 5013) with its own Python
+environment, launch token, data folder (`<resources>/studio`), and Angular
+project (`studio-angular`). The launcher exports `XREPORT_APP` before starting
+`server.source_entry` because data roots are chosen when the server package is
+imported. Both applications can run at the same time; each Launch checks only
+its own port and keeps the fail-closed handling of unknown listeners.
 
 - Frontend freshness is tracked per project: `dist/<project>/.xreport-build-state.json`, with the
   project name in the Studio fingerprint. Launch builds only the project it needs, and only when stale.

@@ -1,6 +1,6 @@
 # Getting Started
 
-Last updated: 2026-10-21
+Last updated: 2026-10-23
 
 This guidance is for radiology and ML users running local report-generation workflows, plus technical operators validating datasets, training runs, and model outputs.
 
@@ -15,6 +15,28 @@ This guidance is for radiology and ML users running local report-generation work
    `settings/.env` (wildcard bind addresses open through loopback).
 
 For direct launch without the menu, run `powershell -ExecutionPolicy Bypass -File .\start_on_windows.ps1 -Action Launch`. The launcher stays open while the app runs; press Ctrl+C to request a graceful stop.
+
+### Optional XREPORT Studio Setup
+
+XREPORT and XREPORT Studio use separate Python environments. The regular
+XREPORT install does not install Studio-only packages. To prepare Studio ahead
+of time, choose **Install / update Studio** or run:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\start_on_windows.ps1 -Action InstallStudio
+```
+
+Choose **Standard** for CPU Torch or **CUDA** for the pinned cu130 Torch stack
+and a supported NVIDIA GPU/driver. To select a profile directly, add
+`-StudioProfile Standard` or `-StudioProfile Cuda`.
+
+Launch Studio with **Launch XREPORT Studio** or
+`powershell -ExecutionPolicy Bypass -File .\start_on_windows.ps1 -Action LaunchStudio`.
+On an interactive first launch, the launcher asks for a profile and installs
+it before starting Studio. An unattended first launch defaults to Standard.
+Subsequent launches reuse the installed profile; pass `-StudioProfile` to
+switch it. The installation builds Studio's Angular frontend and keeps Studio
+data under the existing `<resources>/studio` folder.
 
 The first launch creates the configured SQLite database (or PostgreSQL database
 when permitted) and applies all checked-in Alembic revisions. Subsequent
@@ -46,7 +68,7 @@ Start these two development processes in separate terminals.
 Terminal 1, from the repository root:
 
 ```bash
-uv run --project app/server python -m uvicorn server.app:app --app-dir app --host 127.0.0.1 --port 5003
+uv run --project app/server --extra cuda python -m uvicorn server.app:app --app-dir app --host 127.0.0.1 --port 5003
 ```
 
 Terminal 2, from the repository root:

@@ -60,6 +60,7 @@ assets/QA/**
 # Python
 *.egg-info/
 .venv/
+.venv-studio/
 venv/
 dist/
 build/
