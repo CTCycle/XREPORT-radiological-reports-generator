@@ -1,10 +1,12 @@
 [CmdletBinding()]
 param(
-    [ValidateSet('Launch', 'LaunchDesktopDev', 'BuildDesktopRelease', 'RemoveDesktopRelease', 'Install', 'RebuildFrontend', 'InitializeDatabase', 'Test', 'RemoveLogs', 'ClearCache', 'RemoveCheckpoints', 'RemoveAllData', 'Uninstall', 'KillProcesses', 'Update', 'LaunchStudio', 'MigrateToStudio')]
+    [ValidateSet('Launch', 'LaunchDesktopDev', 'BuildDesktopRelease', 'RemoveDesktopRelease', 'Install', 'InstallStudio', 'RebuildFrontend', 'InitializeDatabase', 'Test', 'RemoveLogs', 'ClearCache', 'RemoveCheckpoints', 'RemoveAllData', 'Uninstall', 'KillProcesses', 'Update', 'LaunchStudio', 'MigrateToStudio')]
     [string]$Action,
     [switch]$Launch,
     [ValidateSet('Xreport', 'Studio')]
     [string]$App = 'Xreport',
+    [ValidateSet('Standard', 'Cuda')]
+    [string]$StudioProfile,
     [switch]$DryRun,
     [ValidateSet('Cpu', 'Cuda', 'All')]
     [string]$DesktopRuntime = 'All',
@@ -19,6 +21,7 @@ param(
 
 $ErrorActionPreference = 'Stop'
 $AppExplicit = $PSBoundParameters.ContainsKey('App')
+$StudioProfileExplicit = $PSBoundParameters.ContainsKey('StudioProfile')
 $RepoRoot = Split-Path -Parent $MyInvocation.MyCommand.Path
 $RuntimesDir = Join-Path $RepoRoot 'runtimes'
 $PythonDir = Join-Path $RuntimesDir 'python'
@@ -74,6 +77,9 @@ $ClientDir = Join-Path $RepoRoot 'app\client'
 $FrontendServerScript = Join-Path $ClientDir 'scripts\serve-built.cjs'
 $VenvDir = Join-Path $ServerDir '.venv'
 $VenvPython = Join-Path $VenvDir 'Scripts\python.exe'
+$StudioVenvDir = Join-Path $ServerDir '.venv-studio'
+$StudioVenvPython = Join-Path $StudioVenvDir 'Scripts\python.exe'
+$StudioInstallStatePath = Join-Path $RuntimesDir 'studio-install-state.json'
 $EnvFile = Join-Path $RepoRoot 'settings\.env'
 $EnvExample = Join-Path $RepoRoot 'settings\.env.example'
 $TestsBat = Join-Path $RepoRoot 'app\tests\run_tests.bat'
@@ -505,11 +511,19 @@ function Ensure-PortableRuntimes {
     }
     Write-Ok "Python ready: $foundVersion"
 
-    if (Test-Path -LiteralPath $VenvPython) {
-        $venvVersion = (& $VenvPython --version 2>&1 | Out-String).Trim()
-        if ($venvVersion -ne "Python $PythonVersion") {
-            Write-Info "Recreating project virtual environment for Python $PythonVersion"
-            [void](Remove-LauncherPath -Path $VenvDir -Activity 'XREPORT: replace project Python environment' -Strict)
+    foreach ($venv in @(
+        [pscustomobject]@{ Directory = $VenvDir; Python = $VenvPython; Label = 'XREPORT' },
+        [pscustomobject]@{ Directory = $StudioVenvDir; Python = $StudioVenvPython; Label = 'XREPORT Studio' }
+    )) {
+        if (Test-Path -LiteralPath $venv.Python) {
+            $venvVersion = (& $venv.Python --version 2>&1 | Out-String).Trim()
+            if ($venvVersion -ne "Python $PythonVersion") {
+                Write-Info "Recreating $($venv.Label) Python environment for Python $PythonVersion"
+                [void](Remove-LauncherPath -Path $venv.Directory -Activity "XREPORT: replace $($venv.Label) Python environment" -Strict)
+                if ($venv.Label -eq 'XREPORT Studio') {
+                    Remove-Item -LiteralPath $StudioInstallStatePath -Force -ErrorAction SilentlyContinue
+                }
+            }
         }
     }
 
@@ -649,9 +663,9 @@ function Install-BackendDependencies {
     )
 
     Write-Step 'Synchronizing Python dependencies'
-    $syncArgs = @('sync', '--frozen', '--python', $PythonExe)
+    $syncArgs = @('sync', '--frozen', '--python', $PythonExe, '--extra', 'cuda')
     if ($InstallationType -eq 'Development') {
-        $syncArgs += '--all-extras'
+        $syncArgs += @('--extra', 'studio', '--extra', 'test', '--extra', 'desktop')
     }
     elseif ($InstallationType -eq 'Desktop') {
         $syncArgs += @('--extra', 'desktop')
@@ -723,6 +737,177 @@ print(PyInstaller.__version__)
         }
     }
 
+}
+
+function Get-StudioDependencyFingerprint {
+    param([ValidateSet('Standard', 'Cuda')][string]$Profile)
+
+    $inputParts = @(
+        "profile=$Profile",
+        "python=$PythonVersion",
+        (Get-FileHash -LiteralPath (Join-Path $ServerDir 'pyproject.toml') -Algorithm SHA256).Hash.ToLowerInvariant(),
+        (Get-FileHash -LiteralPath (Join-Path $ServerDir 'uv.lock') -Algorithm SHA256).Hash.ToLowerInvariant()
+    )
+    $bytes = [Text.UTF8Encoding]::new($false).GetBytes(($inputParts -join "`n"))
+    $sha = [Security.Cryptography.SHA256]::Create()
+    try {
+        return ([BitConverter]::ToString($sha.ComputeHash($bytes)) -replace '-', '').ToLowerInvariant()
+    }
+    finally {
+        $sha.Dispose()
+    }
+}
+
+function Read-StudioInstallState {
+    if (-not (Test-Path -LiteralPath $StudioInstallStatePath -PathType Leaf)) { return $null }
+    try {
+        $state = Get-Content -LiteralPath $StudioInstallStatePath -Raw | ConvertFrom-Json
+        if ([int]$state.schema_version -ne 1 -or [string]$state.profile -notin @('Standard', 'Cuda')) { return $null }
+        return $state
+    }
+    catch {
+        return $null
+    }
+}
+
+function Test-StudioPythonEnvironment {
+    param([ValidateSet('Standard', 'Cuda')][string]$Profile)
+
+    if (-not (Test-Path -LiteralPath $StudioVenvPython -PathType Leaf)) { return $false }
+    $pythonVersionOutput = (& $StudioVenvPython --version 2>&1 | Out-String).Trim()
+    if ($pythonVersionOutput -ne "Python $PythonVersion") { return $false }
+
+    $probeScript = @'
+import json
+import cv2
+import fastapi
+import keras
+import matplotlib
+import torch
+import torchvision
+import uvicorn
+
+print(json.dumps({"torch": torch.__version__, "torchvision": torchvision.__version__, "cuda": torch.version.cuda}))
+'@
+    $probeOutput = (& $StudioVenvPython -s -c $probeScript 2>&1 | Out-String).Trim()
+    if ($LASTEXITCODE -ne 0) { return $false }
+    try {
+        $probeLine = @($probeOutput -split "`r?`n" | Where-Object { -not [string]::IsNullOrWhiteSpace($_) })[-1]
+        $probe = $probeLine | ConvertFrom-Json
+    }
+    catch {
+        return $false
+    }
+
+    if ($Profile -eq 'Standard') {
+        return ([string]$probe.torch).EndsWith('+cpu') -and ([string]$probe.torchvision).EndsWith('+cpu') -and $null -eq $probe.cuda
+    }
+    return ([string]$probe.torch).EndsWith('+cu130') -and ([string]$probe.torchvision).EndsWith('+cu130') -and $null -ne $probe.cuda
+}
+
+function Test-StudioBackendDependenciesReady {
+    param([ValidateSet('Standard', 'Cuda')][string]$Profile)
+
+    $backendEntrypoint = Join-Path $ServerDir 'app.py'
+    if (-not (Test-Path -LiteralPath $PythonExe -PathType Leaf) -or
+        -not (Test-Path -LiteralPath $UvExe -PathType Leaf) -or
+        -not (Test-Path -LiteralPath $backendEntrypoint -PathType Leaf)) {
+        return $false
+    }
+    $portablePythonVersion = (& $PythonExe --version 2>&1 | Out-String).Trim()
+    if ($portablePythonVersion -ne "Python $PythonVersion") { return $false }
+    & $UvExe --version *> $null
+    if ($LASTEXITCODE -ne 0) { return $false }
+
+    $state = Read-StudioInstallState
+    if ($null -eq $state -or [string]$state.profile -ne $Profile) { return $false }
+    if ([string]$state.dependency_fingerprint -ne (Get-StudioDependencyFingerprint -Profile $Profile)) { return $false }
+    return Test-StudioPythonEnvironment -Profile $Profile
+}
+
+function Read-StudioProfile {
+    param([ValidateSet('Standard', 'Cuda')][string]$DefaultProfile = 'Standard')
+
+    if (-not $script:LauncherInteractive) { return $DefaultProfile }
+    $defaultChoice = if ($DefaultProfile -eq 'Cuda') { '2' } else { '1' }
+    Clear-LauncherProgress
+    Write-Host '  [1] Standard - CPU Torch; works without CUDA hardware'
+    Write-Host '  [2] CUDA     - CUDA 13.0 Torch; requires a supported NVIDIA GPU and driver'
+    $selection = ([string](Read-Host "  Select XREPORT Studio profile [1-2, default $defaultChoice]")).Trim()
+    if ([string]::IsNullOrWhiteSpace($selection)) { return $DefaultProfile }
+    switch ($selection) {
+        '1' { return 'Standard' }
+        '2' { return 'Cuda' }
+        default { throw 'Invalid Studio profile. Enter 1 for Standard or 2 for CUDA.' }
+    }
+}
+
+function Resolve-StudioProfile {
+    param([switch]$InstallationAction)
+
+    if ($StudioProfileExplicit) { return $StudioProfile }
+    $state = Read-StudioInstallState
+    $installedProfile = if ($null -ne $state -and (Test-Path -LiteralPath $StudioVenvPython -PathType Leaf)) { [string]$state.profile } else { $null }
+    if ($InstallationAction -and $script:LauncherInteractive) {
+        $defaultProfile = if ($installedProfile) { $installedProfile } else { 'Standard' }
+        return Read-StudioProfile -DefaultProfile $defaultProfile
+    }
+    if ($installedProfile) { return $installedProfile }
+    if ($script:LauncherInteractive) { return Read-StudioProfile -DefaultProfile 'Standard' }
+    return 'Standard'
+}
+
+function Install-StudioBackendDependencies {
+    param([ValidateSet('Standard', 'Cuda')][string]$Profile)
+
+    Initialize-Environment
+    $fingerprint = Get-StudioDependencyFingerprint -Profile $Profile
+    $state = Read-StudioInstallState
+    $environmentExists = Test-Path -LiteralPath $StudioVenvDir -PathType Container
+    $mustRecreate = $environmentExists -and (
+        $null -eq $state -or
+        [string]$state.profile -ne $Profile -or
+        [string]$state.dependency_fingerprint -ne $fingerprint
+    )
+    if ($mustRecreate) {
+        Write-Info 'Recreating the Studio Python environment because its profile or locked dependencies changed.'
+        [void](Remove-LauncherPath -Path $StudioVenvDir -Activity 'XREPORT Studio: recreate Python environment' -Strict)
+    }
+
+    Remove-Item -LiteralPath $StudioInstallStatePath -Force -ErrorAction SilentlyContinue
+    $previousProjectEnvironment = [Environment]::GetEnvironmentVariable('UV_PROJECT_ENVIRONMENT', 'Process')
+    $env:UV_PROJECT_ENVIRONMENT = $StudioVenvDir
+    $temporaryPath = "$StudioInstallStatePath.$PID.tmp"
+    Remove-Item -LiteralPath $temporaryPath -Force -ErrorAction SilentlyContinue
+    try {
+        $profileExtra = if ($Profile -eq 'Standard') { 'standard' } else { 'cuda' }
+        $syncArgs = @('sync', '--locked', '--python', $PythonExe, '--extra', 'studio', '--extra', $profileExtra)
+        Write-Step "Synchronizing XREPORT Studio $Profile dependencies"
+        Invoke-Checked -FilePath $UvExe -ArgumentList $syncArgs -WorkingDirectory $ServerDir
+        if (-not (Test-StudioPythonEnvironment -Profile $Profile)) {
+            throw "The XREPORT Studio $Profile environment failed its runtime probe. Its profile may be missing required packages."
+        }
+
+        $state = [ordered]@{
+            schema_version = 1
+            profile = $Profile
+            dependency_fingerprint = $fingerprint
+            python_version = $PythonVersion
+            installed_utc = [DateTime]::UtcNow.ToString('o')
+        }
+        $encoding = [Text.UTF8Encoding]::new($false)
+        [IO.File]::WriteAllText($temporaryPath, ($state | ConvertTo-Json -Depth 4), $encoding)
+        Move-Item -LiteralPath $temporaryPath -Destination $StudioInstallStatePath -Force
+    }
+    catch {
+        Remove-Item -LiteralPath $StudioInstallStatePath -Force -ErrorAction SilentlyContinue
+        Remove-Item -LiteralPath $temporaryPath -Force -ErrorAction SilentlyContinue
+        throw
+    }
+    finally {
+        if ($null -eq $previousProjectEnvironment) { Remove-Item Env:UV_PROJECT_ENVIRONMENT -ErrorAction SilentlyContinue }
+        else { $env:UV_PROJECT_ENVIRONMENT = $previousProjectEnvironment }
+    }
 }
 
 function Install-Dependencies {
@@ -1044,7 +1229,7 @@ function Test-BackendDependenciesReady {
     if ($LASTEXITCODE -ne 0) { return $false }
     $venvVersionOutput = (& $VenvPython --version 2>&1 | Out-String).Trim()
     if ($venvVersionOutput -ne "Python $PythonVersion") { return $false }
-    & $VenvPython -c 'import fastapi, uvicorn' *> $null
+    & $VenvPython -c 'import fastapi, torch, uvicorn; assert torch.version.cuda is not None' *> $null
     if ($LASTEXITCODE -ne 0) { return $false }
 
     return $true
@@ -1430,13 +1615,28 @@ function Invoke-Launch {
 
     $dependencyStarted = $launchStopwatch.ElapsedMilliseconds
     Initialize-Environment
-    if (-not (Test-BackendDependenciesReady)) {
-        Write-Step 'Backend environment is missing or unusable; installing backend dependencies.'
-        Ensure-PortableRuntimes
-        Install-BackendDependencies -InstallationType 'Standard'
+    $backendPython = $VenvPython
+    if ($studio) {
+        $selectedStudioProfile = Resolve-StudioProfile
+        if (-not (Test-StudioBackendDependenciesReady -Profile $selectedStudioProfile)) {
+            Write-Step "XREPORT Studio $selectedStudioProfile environment is missing or out of date; installing dependencies."
+            Ensure-PortableRuntimes
+            Install-StudioBackendDependencies -Profile $selectedStudioProfile
+        }
+        else {
+            Write-Ok "XREPORT Studio $selectedStudioProfile environment is ready; skipped dependency installation."
+        }
+        $backendPython = $StudioVenvPython
     }
     else {
-        Write-Ok 'Backend environment is ready; skipped backend dependency installation.'
+        if (-not (Test-BackendDependenciesReady)) {
+            Write-Step 'Backend environment is missing or unusable; installing backend dependencies.'
+            Ensure-PortableRuntimes
+            Install-BackendDependencies -InstallationType 'Standard'
+        }
+        else {
+            Write-Ok 'Backend environment is ready; skipped backend dependency installation.'
+        }
     }
     Write-Info "Launch timing phase=dependency_readiness elapsed_ms=$($launchStopwatch.ElapsedMilliseconds - $dependencyStarted)"
 
@@ -1448,8 +1648,8 @@ function Invoke-Launch {
     Ensure-FrontendBuild -Status $buildStatus -Project $frontendProject | Out-Null
     Write-Info "Launch timing phase=stale_rebuild elapsed_ms=$($launchStopwatch.ElapsedMilliseconds - $rebuildStarted)"
 
-    if (-not (Test-Path -LiteralPath $VenvPython)) {
-        throw "Virtual-environment Python was not found at $VenvPython."
+    if (-not (Test-Path -LiteralPath $backendPython)) {
+        throw "Virtual-environment Python was not found at $backendPython."
     }
     $backendAppPath = Join-Path $RepoRoot 'app'
     $entryArguments = if ($studio) { @('-m', 'server.source_entry', '--app', 'studio') } else { @('-m', 'server.source_entry') }
@@ -1466,7 +1666,7 @@ function Invoke-Launch {
         $env:XREPORT_APP = if ($studio) { 'studio' } else { 'xreport' }
         $env:XREPORT_LAUNCH_TOKEN = $launchToken
         Write-Step 'Starting the FastAPI server with the built Angular frontend'
-        $backendProcess = Start-Process -FilePath $VenvPython `
+        $backendProcess = Start-Process -FilePath $backendPython `
             -ArgumentList $entryArguments `
             -WorkingDirectory $backendAppPath -NoNewWindow -PassThru
         Write-Info "Launch timing phase=backend_process_start elapsed_ms=$($launchStopwatch.ElapsedMilliseconds - $backendStartStarted)"
@@ -1519,6 +1719,16 @@ function Invoke-InstallOrUpdate {
     Write-Step 'Synchronizing database schema'
     Invoke-InitializeDatabase
     Write-Ok 'Dependencies installed and frontend built successfully'
+}
+
+function Invoke-InstallStudio {
+    $selectedStudioProfile = Resolve-StudioProfile -InstallationAction
+    Stop-XReportProcesses -Scope Studio
+    Ensure-PortableRuntimes
+    Install-StudioBackendDependencies -Profile $selectedStudioProfile
+    $buildStatus = Get-FrontendBuildStatus -Project 'studio-angular'
+    Ensure-FrontendBuild -Status $buildStatus -Project 'studio-angular' | Out-Null
+    Write-Ok "XREPORT Studio $selectedStudioProfile dependencies and frontend are ready."
 }
 
 function Invoke-RebuildFrontend {
@@ -2336,8 +2546,8 @@ function Invoke-RemoveDesktopRelease {
 
 function Read-InstallationType {
     Clear-LauncherProgress
-    Write-Host '  [1] Development - include Ruff, Pyright, and pytest'
-    Write-Host '  [2] Standard    - install runtime dependencies only'
+    Write-Host '  [1] Development - include test, Studio, and desktop build dependencies'
+    Write-Host '  [2] Standard    - install XREPORT runtime dependencies only'
     $selection = (Read-Host '  Select installation profile [1-2]').Trim()
     switch ($selection) {
         '1' { Clear-LauncherProgress; return 'Development' }
@@ -2724,6 +2934,7 @@ function Uninstall-Application {
     $targets = @(
         $RuntimesDir,
         $VenvDir,
+        $StudioVenvDir,
         (Join-Path $RepoRoot '.venv'),
         (Join-Path $ClientDir 'node_modules'),
         (Join-Path $ClientDir 'dist')
@@ -2772,6 +2983,7 @@ function Get-LauncherMenuEntries {
         [pscustomobject]@{ Section = 'APPLICATION'; Key = 'LaunchStudio'; Label = 'Launch XREPORT Studio'; Description = 'Start dataset and training workspace'; Destructive = $false }
         [pscustomobject]@{ Section = 'APPLICATION'; Key = 'KillProcesses'; Label = 'Kill app processes'; Description = 'Stop XREPORT, Studio and desktop shells'; Destructive = $false }
         [pscustomobject]@{ Section = 'SETUP & VALIDATION'; Key = 'Install'; Label = 'Install / update dependencies'; Description = 'Sync runtimes and packages'; Destructive = $false }
+        [pscustomobject]@{ Section = 'SETUP & VALIDATION'; Key = 'InstallStudio'; Label = 'Install / update Studio'; Description = 'Choose Standard CPU or CUDA dependencies'; Destructive = $false }
         [pscustomobject]@{ Section = 'SETUP & VALIDATION'; Key = 'Rebuild'; Label = 'Rebuild frontend'; Description = 'Build client without launching services'; Destructive = $false }
         [pscustomobject]@{ Section = 'SETUP & VALIDATION'; Key = 'Database'; Label = 'Initialize database'; Description = 'Prepare local data store'; Destructive = $false }
         [pscustomobject]@{ Section = 'SETUP & VALIDATION'; Key = 'Tests'; Label = 'Run test suite'; Description = 'Execute project checks'; Destructive = $false }
@@ -2845,6 +3057,7 @@ if ($Action) {
             'BuildDesktopRelease' { Invoke-BuildDesktopRelease }
             'RemoveDesktopRelease' { Invoke-RemoveDesktopRelease }
             'Install' { Invoke-InstallOrUpdate }
+            'InstallStudio' { Invoke-InstallStudio }
             'RebuildFrontend' { Invoke-RebuildFrontend }
             'InitializeDatabase' { Invoke-InitializeDatabase }
             'Test' { Invoke-TestSuite }
@@ -2886,6 +3099,7 @@ while ($true) {
                 'MigrateStudio' { Invoke-MigrateToStudio }
                 'KillProcesses' { Stop-XReportProcesses }
                 'Install' { Invoke-InstallOrUpdate }
+                'InstallStudio' { Invoke-InstallStudio }
                 'Rebuild' { Invoke-RebuildFrontend }
                 'Database' { Invoke-InitializeDatabase }
                 'Tests' { Invoke-TestSuite }

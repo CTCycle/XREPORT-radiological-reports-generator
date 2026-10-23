@@ -81,9 +81,17 @@ jobs:
         with:
           version: "0.11.30"
 
+      - name: Check XREPORT and Studio dependency profiles
+        working-directory: app/server
+        run: |
+          uv lock --check
+          uv sync --locked --dry-run --extra cuda --python 3.14.7
+          uv sync --locked --dry-run --extra standard --extra studio --python 3.14.7
+          uv sync --locked --dry-run --extra cuda --extra studio --python 3.14.7
+
       - name: Synchronize locked backend dependencies
         working-directory: app/server
-        run: uv sync --locked --extra test --python 3.14.7
+        run: uv sync --locked --extra cuda --extra studio --extra test --python 3.14.7
 
       - name: Run Ruff
         working-directory: app/server

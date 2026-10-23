@@ -25,6 +25,7 @@ set "HF_CACHE_DIR="
 set "TRANSFORMERS_CACHE="
 set "SETTINGS_ENV=%PROJECT_ROOT%\settings\.env"
 set "VENV_PYTHON=%SERVER_DIR%\.venv\Scripts\python.exe"
+set "STUDIO_VENV_PYTHON=%SERVER_DIR%\.venv-studio\Scripts\python.exe"
 set "RUNTIME_NPM=%PROJECT_ROOT%\runtimes\nodejs\npm.cmd"
 
 for %%D in ("%RUNTIME_CACHE_DIR%" "%UV_CACHE_DIR%" "%PIP_CACHE_DIR%" "%NPM_CACHE_DIR%" "%PLAYWRIGHT_BROWSERS_PATH%" "%PYTEST_CACHE_DIR%" "%PYTEST_BASETEMP%" "%RUFF_CACHE_DIR%" "%MYPY_CACHE_DIR%" "%PYTHONPYCACHEPREFIX%" "%RUNTIME_CACHE_DIR%\coverage") do if not exist "%%~D" mkdir "%%~D" >nul 2>&1
@@ -138,9 +139,16 @@ if /i "%STANDARD_TEST_SKIP_LIVE_SERVERS%"=="false" if "%HAS_E2E%"=="1" (
 
   curl -s --max-time 2 "%APP_TEST_STUDIO_BACKEND_URL%/docs" >nul 2>&1
   if errorlevel 1 (
+    if not exist "%STUDIO_VENV_PYTHON%" (
+      echo [ERROR] XREPORT Studio environment is missing: "%STUDIO_VENV_PYTHON%"
+      echo [ERROR] Run start_on_windows.ps1 -Action InstallStudio before the full live-server test suite.
+      set "LIVE_SERVER_PHASE=FAIL"
+      set "TEST_RESULT=1"
+      goto cleanup
+    )
     echo [INFO] Starting Studio backend server...
     set "XREPORT_APP=studio"
-    start "" /B /D "%BACKEND_WORKDIR%" "%PYTHON_CMD%" -m uvicorn %UVICORN_APP% --host %FASTAPI_HOST% --port %STUDIO_FASTAPI_PORT% --log-level warning >nul 2>&1
+    start "" /B /D "%BACKEND_WORKDIR%" "%STUDIO_VENV_PYTHON%" -m uvicorn %UVICORN_APP% --host %FASTAPI_HOST% --port %STUDIO_FASTAPI_PORT% --log-level warning >nul 2>&1
     set "XREPORT_APP="
     set "STARTED_STUDIO_BACKEND=1"
   )
