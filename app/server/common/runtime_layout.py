@@ -20,6 +20,18 @@ from dotenv import dotenv_values
 
 RUNTIME_MANIFEST_FORMAT = 2
 RUNTIME_ARCHITECTURE = "windows-x64"
+APP_PROFILES = ("xreport", "studio")
+STUDIO_DATA_DIRNAME = "studio"
+
+###############################################################################
+def app_profile_from_environment() -> str:
+    """Return the application profile selected by XREPORT_APP (default xreport)."""
+    profile = (os.getenv("XREPORT_APP") or "xreport").strip().lower()
+    if profile not in APP_PROFILES:
+        raise RuntimeError(
+            f"XREPORT_APP must be one of {', '.join(APP_PROFILES)}; got {profile!r}"
+        )
+    return profile
 
 ###############################################################################
 def _truthy(value: str | None) -> bool:
@@ -35,6 +47,15 @@ class RuntimeLayout:
     client_dist_dir: Path
     release_version: str | None
     variant: str | None
+    app_profile: str = "xreport"
+    # Immutable pinned resources (BEiT encoder, tokenizers) live under the base
+    # resources root and are shared by both applications.
+    shared_resources_root: Path | None = None
+
+    # -------------------------------------------------------------------------
+    @property
+    def models_root(self) -> Path:
+        return (self.shared_resources_root or self.resources_root) / "models"
 
     # -------------------------------------------------------------------------
     @property
@@ -82,16 +103,30 @@ class RuntimeLayout:
             ).expanduser()
             if not resources_root.is_absolute():
                 resources_root = source_root / resources_root
+            resources_root = resources_root.resolve()
+            profile = app_profile_from_environment()
+            app_root = (
+                resources_root / STUDIO_DATA_DIRNAME
+                if profile == "studio"
+                else resources_root
+            )
+            client_project = (
+                "studio-angular" if profile == "studio" else "client-angular"
+            )
             return cls(
                 "source",
                 source_root,
-                resources_root.resolve(),
-                resources_root.resolve(),
-                source_root / "app" / "client" / "dist" / "client-angular" / "browser",
+                app_root,
+                app_root,
+                source_root / "app" / "client" / "dist" / client_project / "browser",
                 None,
                 None,
+                profile,
+                resources_root,
             )
 
+        if app_profile_from_environment() != "xreport":
+            raise RuntimeError("Packaged XREPORT only supports the xreport profile")
         runtime_value = os.getenv("XREPORT_RUNTIME_ROOT", "").strip()
         data_value = os.getenv("XREPORT_DATA_ROOT", "").strip()
         version = os.getenv("XREPORT_RELEASE_VERSION", "").strip()

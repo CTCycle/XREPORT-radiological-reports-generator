@@ -1,10 +1,9 @@
 import { CommonModule } from '@angular/common';
-import { Component, EventEmitter, Input, Output, inject } from '@angular/core';
+import { Component, EventEmitter, Input, Output, Type, ViewContainerRef, ViewChild, AfterViewInit, inject, signal, InjectionToken } from '@angular/core';
 import { Router } from '@angular/router';
 import { NgIcon, provideIcons } from '@ng-icons/core';
 import { lucideAlertTriangle, lucideBarChart2, lucideBrainCircuit, lucideFileSearch, lucideFileStack, lucideX } from '@ng-icons/lucide';
 import { DATA_TRAINING_TOUR_ID, GuidanceService, INFERENCE_TOUR_ID } from '../services/guidance.service';
-import { DatasetTrainingJourneyComponent } from './dataset-training-journey.component';
 import { ModalFocusDirective } from './modal-focus.directive';
 
 interface TipCard {
@@ -14,12 +13,20 @@ interface TipCard {
   route?: string;
   routeLabel?: string;
   tone?: 'warning';
+  scope: 'xreport' | 'studio' | 'both';
 }
+
+/** Studio provides the dataset/training journey card; XREPORT never bundles it. */
+export interface TipsJourneyComponent {
+  routeRequested: { subscribe(next: (route: string) => void): unknown };
+  walkthroughRequested: { subscribe(next: () => void): unknown };
+}
+export const TIPS_JOURNEY = new InjectionToken<Type<TipsJourneyComponent>>('TIPS_JOURNEY');
 
 @Component({
   standalone: true,
   selector: 'app-tips-and-tricks',
-  imports: [CommonModule, NgIcon, DatasetTrainingJourneyComponent, ModalFocusDirective],
+  imports: [CommonModule, NgIcon, ModalFocusDirective],
   providers: [provideIcons({ lucideAlertTriangle, lucideBarChart2, lucideBrainCircuit, lucideFileSearch, lucideFileStack, lucideX })],
   template: `
     @if (open) {
@@ -36,10 +43,10 @@ interface TipCard {
           </header>
 
           <div class="guidance-modal-body">
-            <app-dataset-training-journey (routeRequested)="openRoute($event)" (walkthroughRequested)="startDataTrainingTour()" />
+            <ng-container #journeyHost></ng-container>
             <h3 class="guidance-section-heading">Quick reminders</h3>
             <div class="guidance-tips-grid">
-              @for (tip of tips; track tip.title) {
+              @for (tip of visibleTips(); track tip.title) {
                 <article class="guidance-tip-card" [class.guidance-tip-card-warning]="tip.tone === 'warning'">
                   <div class="guidance-tip-card-header">
                     <ng-icon [name]="tip.icon" size="17" aria-hidden="true" />
@@ -55,16 +62,18 @@ interface TipCard {
               }
             </div>
 
-            <article class="guidance-tip-card guidance-tip-card-wide">
-              <div class="guidance-tip-card-header">
-                <ng-icon name="lucideFileSearch" size="17" aria-hidden="true" />
-                <h3>Inference walkthrough</h3>
-              </div>
-              <p>Use the walkthrough for a guided pass through model selection, image setup, generation, and draft review.</p>
-              <div class="guidance-tip-card-actions">
-                <button type="button" class="guidance-button guidance-button-primary" (click)="startInferenceTour()">Show walkthrough</button>
-              </div>
-            </article>
+            @if (!studio) {
+              <article class="guidance-tip-card guidance-tip-card-wide">
+                <div class="guidance-tip-card-header">
+                  <ng-icon name="lucideFileSearch" size="17" aria-hidden="true" />
+                  <h3>Inference walkthrough</h3>
+                </div>
+                <p>Use the walkthrough for a guided pass through model selection, image setup, generation, and draft review.</p>
+                <div class="guidance-tip-card-actions">
+                  <button type="button" class="guidance-button guidance-button-primary" (click)="startInferenceTour()">Show walkthrough</button>
+                </div>
+              </article>
+            }
           </div>
 
           <footer class="guidance-modal-footer">
@@ -76,12 +85,27 @@ interface TipCard {
   `,
   styleUrl: '../styles/Guidance.css',
 })
-export class TipsAndTricksComponent {
+export class TipsAndTricksComponent implements AfterViewInit {
   private readonly router = inject(Router);
   private readonly guidance = inject(GuidanceService);
 
+  private readonly journey = inject(TIPS_JOURNEY, { optional: true });
+  private readonly studioFlag = signal(false);
+  readonly visibleTips = () =>
+    this.tips.filter((tip) => tip.scope === 'both' || tip.scope === (this.studioFlag() ? 'studio' : 'xreport'));
+
   @Input() open = false;
+  @Input() set studio(value: boolean) { this.studioFlag.set(value); }
+  get studio(): boolean { return this.studioFlag(); }
   @Output() readonly closed = new EventEmitter<void>();
+  @ViewChild('journeyHost', { read: ViewContainerRef }) private journeyHost?: ViewContainerRef;
+
+  ngAfterViewInit(): void {
+    if (!this.journey || !this.journeyHost) return;
+    const ref = this.journeyHost.createComponent(this.journey);
+    ref.instance.routeRequested.subscribe((route) => this.openRoute(route));
+    ref.instance.walkthroughRequested.subscribe(() => this.startDataTrainingTour());
+  }
 
   readonly tips: readonly TipCard[] = [
     {
@@ -90,6 +114,7 @@ export class TipsAndTricksComponent {
       body: 'Model cards show anatomy, image limits, supported context, output sections, and readiness before you generate.',
       route: '/inference',
       routeLabel: 'Open Inference',
+      scope: 'xreport',
     },
     {
       icon: 'lucideFileStack',
@@ -97,6 +122,7 @@ export class TipsAndTricksComponent {
       body: 'Load the image folder and CSV/XLSX report file first. Then select exactly one source row before building a processed training dataset.',
       route: '/dataset',
       routeLabel: 'Open Dataset',
+      scope: 'studio',
     },
     {
       icon: 'lucideBrainCircuit',
@@ -104,6 +130,7 @@ export class TipsAndTricksComponent {
       body: 'Start new training from a processed dataset. Enable checkpoint saving when you want to continue later with Resume or inspect it with Evaluate Model.',
       route: '/training',
       routeLabel: 'Open Training',
+      scope: 'studio',
     },
     {
       icon: 'lucideBarChart2',
@@ -111,12 +138,14 @@ export class TipsAndTricksComponent {
       body: 'Use a fraction for quick checks and the full dataset for final validation decisions.',
       route: '/dataset',
       routeLabel: 'Open Dataset',
+      scope: 'studio',
     },
     {
       icon: 'lucideAlertTriangle',
       title: 'Treat output as a draft',
       body: 'Generated text remains an editable research-use draft. Inspect the returned provenance before copying or exporting it.',
       tone: 'warning',
+      scope: 'both',
     },
   ];
 

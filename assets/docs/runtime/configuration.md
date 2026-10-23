@@ -170,3 +170,10 @@ it; re-enter it after moving the data directory to another account or machine.
   global cache values, including deprecated `TRANSFORMERS_CACHE`, are cleared.
 - The external catalogue contains the reviewed SHA-pinned public report-generation models currently declared by application policy (three chest-X-ray specialists and the broader gated MedGemma option at this revision). Catalogue cardinality is not a product invariant. Their first Download or Generate action stages the pinned revision into `<resource root>/models/huggingface/staging`; only a verified snapshot that produces a non-empty report is promoted to `installed`.
 - Installed metadata is stored in `<resource root>/models/huggingface/metadata`. Restarted processes load the verified local snapshot with `local_files_only=true` and do not consult unrelated global caches. Check for updates, repair, reinstall, and download-update are explicit user actions.
+
+## Application profile variables
+
+- `XREPORT_APP`: `xreport` (default) or `studio`. Set by the launcher; selects routers, the data
+  root (`<XREPORT_RESOURCES_DIR>/studio` for Studio), and the Angular output used for source hosting.
+  Packaged builds reject anything but `xreport`.
+- `STUDIO_FASTAPI_PORT`: source-mode Studio backend port (default 5013, `settings/.env`).

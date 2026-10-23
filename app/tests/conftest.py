@@ -87,6 +87,21 @@ API_BASE_URL = _resolve_base_url(
     fallback_port="5003",
 )
 
+STUDIO_UI_BASE_URL = _resolve_base_url(
+    explicit_url_env="APP_TEST_STUDIO_FRONTEND_URL",
+    host_env="UI_HOST",
+    port_env="STUDIO_UI_PORT",
+    fallback_host="127.0.0.1",
+    fallback_port="8013",
+)
+STUDIO_API_BASE_URL = _resolve_base_url(
+    explicit_url_env="APP_TEST_STUDIO_BACKEND_URL",
+    host_env="FASTAPI_HOST",
+    port_env="STUDIO_FASTAPI_PORT",
+    fallback_host="127.0.0.1",
+    fallback_port="5013",
+)
+
 ###############################################################################
 @pytest.fixture(scope="session")
 def base_url() -> str:
@@ -109,6 +124,20 @@ def api_context(playwright):
     context = playwright.request.new_context(base_url=API_BASE_URL)
     yield context
     context.dispose()
+
+###############################################################################
+@pytest.fixture
+def studio_context(playwright):
+    """API request context for the XREPORT Studio backend (dataset and training)."""
+    context = playwright.request.new_context(base_url=STUDIO_API_BASE_URL)
+    yield context
+    context.dispose()
+
+###############################################################################
+@pytest.fixture(scope="session")
+def studio_base_url() -> str:
+    """Returns the base URL of the Studio UI."""
+    return STUDIO_UI_BASE_URL
 
 ###############################################################################
 def run_async_in_thread(awaitable):

@@ -35,6 +35,8 @@ This file is the root index for `assets/docs`. Read it first to find the narrowe
 
 - `architecture/system_overview.md`
   - Repository layout, runtime topology, dependency direction, and entry points.
+- `architecture/applications_and_checkpoint_exchange.md`
+  - XREPORT versus XREPORT Studio boundary, data ownership, migration, and the `.xreportckpt` checkpoint contract.
 - `architecture/backend_api.md`
   - Mounted routers, endpoint catalog, frontend client mapping, and root serving behavior.
 - `architecture/execution_and_data_flow.md`
