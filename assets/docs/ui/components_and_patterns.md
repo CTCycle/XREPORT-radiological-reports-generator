@@ -1,6 +1,6 @@
 # UI Components And Patterns
 
-Last updated: 2026-10-21
+Last updated: 2026-10-23
 
 ## Reusable Patterns
 
@@ -88,6 +88,12 @@ shell-level lifecycle component, not a feature-page loading state.
 persisted report detail page. It renders the model-declared output sections,
 keeps raw-report output intact, and supports read-only rendering when a
 session is not in a successful editable state.
+
+The Inference page takes its save baseline from the canonical report-history
+detail after a generation job completes. It sends edits through the existing
+history update API, maps a shared study report to its persisted row, and guards
+unsaved changes at the route and browser-exit boundaries. No separate draft
+store is used.
 
 The Settings route reuses the existing footer gear navigation control and
 `app-nav-button` active styling. It does not duplicate the theme selector or

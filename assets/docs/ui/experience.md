@@ -1,6 +1,6 @@
 # UI Experience Standards
 
-Last updated: 2026-10-21
+Last updated: 2026-10-23
 
 ## Core UX Journeys
 
@@ -11,7 +11,7 @@ Last updated: 2026-10-21
   - terminal success, error, or cancel feedback
 - Keep the inference research-use warning visible above the drafting workspace. Model status and capabilities must be clear before image upload or generation.
 - Generated report text remains an editable draft using the output sections declared by the selected model. Models may expose Findings, Impression, both sections, or a raw report; it is never presented as a clinically approved result.
-- Keep completed inference sessions discoverable from Reports. The list exposes model, status, images, timing, and a short preview; the detail page exposes provenance and metadata while preserving generated output separately from user edits.
+- Keep completed inference sessions discoverable from Reports. The inference page confirms that generated output was saved, exposes **Save edits** only for changed persisted reports, and links to the saved session. The list exposes model, status, images, timing, and a short preview; the detail page exposes provenance and metadata while preserving generated output separately from user edits.
 
 ## Application startup
 
@@ -50,6 +50,13 @@ Last updated: 2026-10-21
   section. Save is atomic, disabled until a draft changes, and never replaces
   the generated model output. Deleting a session is explicit and returns the
   user to the history list.
+- Inference-page edits are compared with the canonical saved history rows and
+  only changed rows are submitted. A study-level report shared across images
+  maps to its single saved row. Failed saves retain the draft, show an error,
+  and leave Save edits available for retry.
+- Unsaved inference edits prompt before model or study changes, regeneration,
+  and in-app navigation. Browser reload and close use the standard
+  `beforeunload` prompt where supported.
 
 ## Theme selection
 

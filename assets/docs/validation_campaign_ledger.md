@@ -11,6 +11,26 @@ Validation here means technical software evidence for a stated scope. It does
 not establish clinical validity, diagnostic performance, regulatory approval,
 or suitability for patient care.
 
+## Persistent inference draft editing (2026-10-23, develop)
+
+- Scope: XREPORT inference and report review. Successful job results expose the
+  persisted request ID; the inference draft loads canonical history before
+  enabling edits, saves only changed report rows, retains the original generated
+  output, and links to Reports for recovery. Study-level output maps to its one
+  persisted row. No Studio or persistence-schema changes.
+- PASSED (Windows): Angular client suite, 13 files and 73 tests, using a
+  temporary one-worker Vitest configuration after the default worker run hit a
+  Windows temp-directory rename (`EPERM`). `npm run build` passed. Focused
+  inference backend module: 21 passed, 1 deselected. History CRUD API E2E: 1
+  passed. Browser edit/save/navigation/reload E2E: 1 passed, using a seeded
+  SQLite history record and an intercepted deterministic generation job.
+- The inference backend module's existing
+  `test_inference_api_returns_conflict_for_a_degraded_public_model` was
+  deselected after its Windows `TestClient` run hung; this is an environment
+  limitation, not a confirmed product failure. Real-provider generation was
+  not exercised in this campaign. The browser run validates persistence and
+  recovery through the real history API, not model output quality.
+
 The v3.2.1 candidate at
 `1a15d24cb07fecbf66601940752a164c47972fc7` passed hosted CI run
 [39667709442](https://github.com/CTCycle/XREPORT-radiological-reports-generator/actions/runs/39667709442).
