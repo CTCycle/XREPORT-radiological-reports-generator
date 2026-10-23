@@ -84,7 +84,7 @@ class JobManager:
     def __init__(self) -> None:
         self.jobs: dict[str, JobState] = {}
         self.threads: dict[str, threading.Thread] = {}
-        self.lock = threading.Lock()
+        self.lock = threading.RLock()
 
     # -------------------------------------------------------------------------
     def start_job(
@@ -119,6 +119,13 @@ class JobManager:
         )
 
         with self.lock:
+            checkpoint_jobs = {"training", "checkpoint_export"}
+            if job_type in checkpoint_jobs and any(
+                active.job_type in checkpoint_jobs
+                and active.status in ("pending", "running")
+                for active in self.jobs.values()
+            ):
+                raise JobAlreadyRunningError("Training or checkpoint export is already in progress")
             if require_idle and any(
                 active.job_type == job_type and active.status in ("pending", "running")
                 for active in self.jobs.values()

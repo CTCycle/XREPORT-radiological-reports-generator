@@ -70,6 +70,9 @@ transaction for rows, temporary folder copies renamed into place, a foreign-key
 check, and `studio/migration-manifest.json` as the completion marker (reruns
 report "already migrated"). Rollback: stop Studio and delete `studio/`.
 Dataset image paths are not rewritten because source images are not copied.
+Migration reads XREPORT's `database-config.json` before copying, refuses a
+PostgreSQL source even when a stale SQLite file remains, and uses the configured
+SQLite path for the plan, backup, and copy.
 
 ## Checkpoint exchange (`.xreportckpt`, format version 1)
 
@@ -127,6 +130,8 @@ versions) import as `legacy` when the pinned encoder is installed; a lone
 Export (Studio) validates the registered artifact, collects the tokenizer
 through `TokenizerHandler`, hashes all members, and writes
 `<resources>/studio/exports/<name>.xreportckpt`, offered as a download.
+Training and export jobs exclude each other atomically. Checkpoint deletion
+checks both job types while holding the same job-registration lock.
 
 ## Not covered
 
