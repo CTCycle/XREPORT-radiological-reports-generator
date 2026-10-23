@@ -1,6 +1,6 @@
 # Runtime Deployment
 
-Last updated: 2026-10-21
+Last updated: 2026-10-23
 
 ## Deployment Scope
 
@@ -25,8 +25,11 @@ Last updated: 2026-10-21
 
 ## Dependency Consistency
 
-- Python dependencies are synchronized with `uv sync --frozen` from
-  `app/server/pyproject.toml` and `app/server/uv.lock`.
+- XREPORT's Windows source environment uses the locked `cuda` extra. Studio
+  uses a separate environment with the locked `studio` and either `standard`
+  (CPU) or `cuda` extra from `app/server/pyproject.toml` and `uv.lock`.
+- Python dependencies are synchronized with `uv sync --frozen` from the
+  profile-specific extras in `app/server/pyproject.toml` and `app/server/uv.lock`.
 - Frontend dependencies are always installed with `npm ci` from
   `app/client/package-lock.json`.
 - Desktop Tauri dependencies are always installed with `npm ci` from

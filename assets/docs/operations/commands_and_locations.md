@@ -1,6 +1,6 @@
 # Commands And Locations
 
-Last updated: 2026-10-21
+Last updated: 2026-10-23
 
 ## Primary Commands
 
@@ -49,7 +49,7 @@ timestamped backend logs beside it. Readiness/session files in
 
 ### Manual Backend And Frontend
 
-- `uv run --project app/server python -m uvicorn server.app:app --app-dir app --host <host> --port <port>`
+- `uv run --project app/server --extra cuda python -m uvicorn server.app:app --app-dir app --host <host> --port <port>`
 - `cd app/client && npm start -- --host <host> --port <port>` (Angular development server; `/api` is proxied to FastAPI)
 - `cd app/client && npm run build && npm run preview -- --host <host> --port <port>` (local bundle validation or Tauri development only; not production hosting)
 
@@ -85,7 +85,7 @@ The hard-gated foundational campaign is documented in
 current-head sequence in this order:
 
 ```powershell
-uv sync --locked --extra test --python 3.14.7
+uv sync --locked --extra cuda --extra studio --extra test --python 3.14.7
 Set-Location app/server
 .\.venv\Scripts\ruff.exe check .
 .\.venv\Scripts\pyright.exe .
