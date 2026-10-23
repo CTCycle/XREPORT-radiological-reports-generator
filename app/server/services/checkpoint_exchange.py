@@ -764,6 +764,7 @@ class CheckpointExchangeService:
     def _smoke_test(staging: Path) -> None:
         """Load the checkpoint and run one forward pass before it is registered."""
         import numpy as np
+        from keras import ops
 
         from server.models.training.processing import TokenizerHandler
         from server.repositories.serialization.model import ModelSerializer
@@ -790,7 +791,8 @@ class CheckpointExchangeService:
             sequence = np.zeros((1, max_report_size), dtype=np.int32)
             sequence[0, 0] = tokenizer.convert_tokens_to_ids(tokenizer.cls_token)
             image = np.zeros((1, 224, 224, 3), dtype=np.float32)
-            output = np.asarray(model([image, sequence], training=False))
+            # Keras conversion handles CUDA tensors, unlike np.asarray.
+            output = ops.convert_to_numpy(model([image, sequence], training=False))
             if output.shape[-1] != handler.vocabulary_size or not np.isfinite(output).all():
                 raise ValueError("model output does not match the tokenizer vocabulary")
         except Exception as exc:  # noqa: BLE001
