@@ -8,7 +8,7 @@ from tests.conftest import run_async_in_thread
 from server.api.errors import handle_service_error
 from server.services.errors import BadRequestError, ConflictError, ForbiddenError, InternalServiceError, NotFoundError, PayloadTooLargeError, ServiceError, UnsupportedOperationError
 from pathlib import Path
-from server.app import app
+from server.app import app, create_app
 from server.common.constants import FASTAPI_VERSION
 
 
@@ -59,16 +59,15 @@ def test_service_error_handler_preserves_http_contract(
 
 
 
-SHARED_OPENAPI_PATH = (
-    Path(__file__).resolve().parents[3] / "app" / "shared" / "openapi.json"
-)
+SHARED_DIR = Path(__file__).resolve().parents[3] / "app" / "shared"
 
 ###############################################################################
-def test_shared_openapi_schema_matches_runtime() -> None:
-    with SHARED_OPENAPI_PATH.open(encoding="utf-8") as schema_file:
-        shared_schema = json.load(schema_file)
+@pytest.mark.parametrize("profile", ["xreport", "studio"])
+def test_shared_openapi_schema_matches_runtime(profile: str) -> None:
+    schema_path = SHARED_DIR / f"openapi.{profile}.json"
+    shared_schema = json.loads(schema_path.read_text(encoding="utf-8"))
 
-    assert shared_schema == app.openapi()
+    assert shared_schema == create_app(profile).openapi()
 
 ###############################################################################
 def test_inference_generate_contract_has_only_current_request_fields() -> None:
@@ -88,7 +87,7 @@ def test_inference_generate_contract_has_only_current_request_fields() -> None:
 
 ###############################################################################
 def test_workflow_contracts_require_client_selected_parameters() -> None:
-    schemas = app.openapi()["components"]["schemas"]
+    schemas = create_app("studio").openapi()["components"]["schemas"]
 
     assert schemas["LoadDatasetRequest"]["required"] == [
         "upload_id",
@@ -173,6 +172,6 @@ def test_release_version_has_one_canonical_source() -> None:
     assert all(_json_version(path) == canonical for path in copies)
 
     openapi = json.loads(
-        (ROOT_DIR / "app" / "shared" / "openapi.json").read_text(encoding="utf-8")
+        (ROOT_DIR / "app" / "shared" / "openapi.xreport.json").read_text(encoding="utf-8")
     )
     assert openapi["info"]["version"] == canonical

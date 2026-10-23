@@ -81,6 +81,14 @@ class TokenizerHandler:
 
         from transformers import AutoTokenizer
 
+        # Tokenizers installed from a checkpoint exchange archive load offline.
+        exchange_path = TOKENIZERS_DIR / "_exchange" / tokenizer_name.replace("/", "--")
+        if exchange_path.is_dir() and any(exchange_path.iterdir()):
+            tokenizer = AutoTokenizer.from_pretrained(
+                str(exchange_path), local_files_only=True
+            )
+            return tokenizer, len(tokenizer.vocab)
+
         tokenizer_path = TOKENIZERS_DIR / tokenizer_name
         tokenizer_path.mkdir(parents=True, exist_ok=True)
         tokenizer = AutoTokenizer.from_pretrained(
