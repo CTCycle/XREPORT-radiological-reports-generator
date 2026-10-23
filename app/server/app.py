@@ -3,6 +3,7 @@ from __future__ import annotations
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 import asyncio
+from importlib import import_module
 import hmac
 import os
 from pathlib import Path
@@ -31,7 +32,8 @@ from server.common.desktop_security import (
 )
 from server.common.database_switch import DatabaseRequestGate
 from server.common.path import CLIENT_DIST_DIR, PACKAGED_MODE
-from server.common.path import APP_PROFILE, RUNTIME_VARIANT
+from server.common.path import APP_PROFILE, RESOURCES_DIR, RUNTIME_VARIANT
+from server.common.process_lock import DataFolderLock
 from server.configurations import get_database_settings
 from server.configurations.database_config import DatabaseConfigurationError
 from server.configurations.runtime_environment import (
@@ -60,18 +62,18 @@ def profile_routers(profile: str) -> list[APIRouter]:
 
     shared = [jobs_router, settings_router, database_settings_router]
     if profile == "studio":
-        from server.api.preparation import router as preparation_router
-        from server.api.training import router as training_router
-        from server.api.upload import router as upload_router
-        from server.api.validation import router as validation_router
+        # Resolved by name so static analysis of the XREPORT build never sees them.
+        studio_modules = (
+            "server.api.upload",
+            "server.api.preparation",
+            "server.api.training",
+            "server.api.validation",
+        )
         from server.api.checkpoint_exchange import get_export_router
 
         return [
             get_export_router(),
-            upload_router,
-            preparation_router,
-            training_router,
-            validation_router,
+            *(import_module(name).router for name in studio_modules),
             *shared,
         ]
     from server.api.checkpoint_exchange import get_import_router
@@ -223,6 +225,9 @@ async def app_lifespan(application: FastAPI) -> AsyncIterator[None]:
     application.state.database_ready = False
     application.state.database_error = None
     application.state.database_backend = "unknown"
+    # Fail closed when another process already owns this application's data folder.
+    data_lock = DataFolderLock(RESOURCES_DIR)
+    data_lock.acquire()
     startup_started = getattr(application.state, "desktop_startup_started_at", None)
     if startup_started is not None:
         logger.info(
@@ -279,6 +284,7 @@ async def app_lifespan(application: FastAPI) -> AsyncIterator[None]:
     try:
         yield
     finally:
+        data_lock.release()
         if shutdown_task is not None:
             shutdown_task.cancel()
             try:
