@@ -11,6 +11,7 @@ export const studioRoutes: Routes = [
       { path: 'dataset/validate/:datasetName', loadComponent: () => import('../app/pages/dataset-validation.page').then((m) => m.DatasetValidationPage) },
       { path: 'training', loadComponent: () => import('../app/pages/training.page').then((m) => m.TrainingPage) },
       { path: 'settings', loadComponent: () => import('../app/pages/settings.page').then((m) => m.SettingsPage) },
+      { path: '**', redirectTo: 'dataset' },
     ],
   },
 ];

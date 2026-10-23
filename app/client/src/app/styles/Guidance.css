@@ -719,3 +719,20 @@
         transition: none;
     }
 }
+
+.guidance-field {
+  display: grid;
+  gap: var(--space-1, 4px);
+  margin-top: var(--space-3, 12px);
+}
+
+.guidance-checkbox {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-2, 8px);
+  margin-top: var(--space-3, 12px);
+}
+
+.error-text {
+  color: var(--error-color);
+}

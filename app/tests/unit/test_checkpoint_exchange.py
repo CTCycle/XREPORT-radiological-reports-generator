@@ -383,3 +383,27 @@ def test_sweep_removes_only_import_staging(
     (node.checkpoints_dir / ".import-upload-1.xreportckpt").write_bytes(b"x")
     assert exchange.sweep_stale_staging() == 2
     assert keep.is_dir()
+
+
+###############################################################################
+def test_failed_import_removes_the_shared_resources_it_installed(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, stub_ml
+) -> None:
+    producer = Node(tmp_path / "studio", monkeypatch)
+    producer.install_encoder()
+    producer.create_checkpoint("run1")
+    bundled = _export(producer, "run1", include_encoder=True)
+    consumer = Node(tmp_path / "xreport", monkeypatch)  # nothing installed yet
+
+    def failing(_directory: Path) -> None:
+        raise JobExecutionError("bad weights", code="smoke_test_failed")
+
+    monkeypatch.setattr(
+        exchange.CheckpointExchangeService, "_smoke_test", staticmethod(failing)
+    )
+    with pytest.raises(JobExecutionError):
+        _import(consumer, bundled)
+
+    assert not exchange.encoder_installed(REVISION)
+    assert not (consumer.tokenizers_dir / "_exchange" / "org--tok").exists()
+    assert consumer.repository.records == {}

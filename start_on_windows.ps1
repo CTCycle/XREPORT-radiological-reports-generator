@@ -1457,11 +1457,13 @@ function Invoke-Launch {
     $healthUrl = "$appUrl/api/health"
     $launchToken = New-LauncherToken
     $previousServeClient = [Environment]::GetEnvironmentVariable('XREPORT_SERVE_CLIENT', 'Process')
+    $previousApp = [Environment]::GetEnvironmentVariable('XREPORT_APP', 'Process')
     $previousLaunchToken = [Environment]::GetEnvironmentVariable('XREPORT_LAUNCH_TOKEN', 'Process')
     $backendProcess = $null
     $backendStartStarted = $launchStopwatch.ElapsedMilliseconds
     try {
         $env:XREPORT_SERVE_CLIENT = '1'
+        $env:XREPORT_APP = if ($studio) { 'studio' } else { 'xreport' }
         $env:XREPORT_LAUNCH_TOKEN = $launchToken
         Write-Step 'Starting the FastAPI server with the built Angular frontend'
         $backendProcess = Start-Process -FilePath $VenvPython `
@@ -1497,6 +1499,8 @@ function Invoke-Launch {
                 }
             }
         } finally {
+            if ($null -eq $previousApp) { Remove-Item Env:XREPORT_APP -ErrorAction SilentlyContinue }
+            else { $env:XREPORT_APP = $previousApp }
             if ($null -eq $previousServeClient) { Remove-Item Env:XREPORT_SERVE_CLIENT -ErrorAction SilentlyContinue }
             else { $env:XREPORT_SERVE_CLIENT = $previousServeClient }
             if ($null -eq $previousLaunchToken) { Remove-Item Env:XREPORT_LAUNCH_TOKEN -ErrorAction SilentlyContinue }
