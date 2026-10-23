@@ -101,6 +101,8 @@ where to revalidate after a change.
 
 ### Application split and checkpoint exchange
 
+PR #9 review fixes passed 272 backend unit tests, Ruff and Pyright locally, and hosted [CI run 39931654917](https://github.com/CTCycle/XREPORT-radiological-reports-generator/actions/runs/39931654917) at `0121c6b4`, including both client builds and both profiles' retained API E2E. SonarCloud and GitGuardian passed. Source migration selection and checkpoint export concurrency findings are resolved; packaged import, real-data migration and a full Studio UI training journey remain unverified.
+
 | Component | Status | Current scope or limit | Authority |
 | --- | --- | --- | --- |
 | `app.profiles` | `WORKING` | Branch `feature/split-studio`: `create_app(profile)` mounts only profile routers; route sets verified on live servers (XREPORT: inference, jobs, settings, exchange; Studio: upload, preparation, training, validation, jobs, settings, exchange) and by subprocess tests; the XREPORT static import closure is free of Studio modules. Both applications ran side by side on ports 5003/5013 with isolated data. | [Applications](architecture/applications_and_checkpoint_exchange.md) |
