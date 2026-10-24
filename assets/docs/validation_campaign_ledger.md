@@ -1,6 +1,13 @@
 # XREPORT Validation Campaign Ledger
 
-Last updated: 2026-10-23
+Last updated: 2026-10-24
+
+## Browser validation plan (2026-10-24, run `xr-20261024-01`)
+
+- V00–V03 passed on Windows against source `04820a7fdda5d9a36072fc0f54163037d366f894` and isolated SQLite roots. Hosted CI run [40114328827](https://github.com/CTCycle/XREPORT-radiological-reports-generator/actions/runs/40114328827) passed; local XREPORT and Studio builds/lints and all 79 Angular tests passed. The XREPORT live Chromium UI suite passed 17/17. The Studio runner preview could not bind its test URL (`8013`), so the same 7 Studio UI cases were run directly against the official Studio launcher and passed 7/7.
+- V01 verified simultaneous XREPORT/Studio launch, isolated profile routes and databases, independent theme preferences, and fail-closed duplicate-resource-root locks. V02 verified Studio seed persistence across reload, XREPORT database-candidate apply/revert, and restored the original SQLite path across an official launcher restart.
+- V03 used synthetic files only. The clean CSV loaded 8/8 rows; malformed and missing-text CSVs were rejected; partial matching required explicit confirmation and imported 7/8 rows. The viewer navigated records and retained the full long source path in its title while truncating the displayed cell. The S23 browser cleanup case now creates its own deterministic PNG/CSV fixture under `tmp_path` instead of depending on an ignored `s27` directory; focused Studio Chromium run passed 1/1.
+- Evidence and detailed run notes remain in ignored `assets/QA/validation_campaign/xr-20261024-01/`. No production code was changed in V00–V03. V04 onward is still in progress; later rows will be added here as their gates finish.
 
 This ledger summarizes current validation gates, release evidence, and known
 scope limits. The [project status ledger](project_status_ledger.md) owns

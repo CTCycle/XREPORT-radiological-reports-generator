@@ -434,30 +434,20 @@ def test_s23_source_delete_requires_processed_dataset_cleanup(
         "allow_local_filesystem_access"
     ]
 
-    repo_root = Path(__file__).resolve().parents[3]
     fixture_root = tmp_path / "s23-delete-browser-fixture"
     image_folder = fixture_root / "images"
-    shutil.copytree(
-        repo_root
-        / "assets"
-        / "QA"
-        / "validation_campaign"
-        / "s27"
-        / "fixtures"
-        / "images",
-        image_folder,
-    )
+    image_folder.mkdir(parents=True)
     dataset_name = f"s23-delete-{uuid4().hex}"
     csv_path = fixture_root / f"{dataset_name}.csv"
-    shutil.copyfile(
-        repo_root
-        / "assets"
-        / "QA"
-        / "validation_campaign"
-        / "s27"
-        / "fixtures"
-        / "s27_technical_fixture.csv",
-        csv_path,
+    for index in range(1, 9):
+        (image_folder / f"image_{index:02}.png").write_bytes(_API_ONE_PIXEL_PNG)
+    csv_path.write_text(
+        "image,text\n"
+        + "".join(
+            f"image_{index:02}.png,Synthetic deletion fixture {index}.\n"
+            for index in range(1, 9)
+        ),
+        encoding="utf-8",
     )
     processed_name = f"{dataset_name}-processed"
     evidence_dir = Path(
