@@ -11,6 +11,7 @@ Last updated: 2026-10-24
 - V05 is `BLOCKED`: the Standard CPU profile and local tokenizer are usable, but the pinned BEiT encoder is absent at `data/models/XRAYEncoder`. No weights were fetched. V06 and V07 are `BLOCKED` on the UI-trained V05 checkpoint.
 - V08 is `PARTIAL` on XREPORT source `9b298c54`: the UI rejected a lone `.keras` file and a four-core manifestless ZIP with typed HTTP 400 responses before job admission, and the catalogue remained at zero custom checkpoints. The import dialog's copy mismatch is confirmed as `ISSUE-004`; checksum/version/conflict paths, positive import, cancellation and restart recovery require a V05 checkpoint.
 - V09 is `PARTIAL` on app source `9b298c54`: validation and dataset-processing jobs completed, the UI recovered after one interrupted validation poll, and both apps remained healthy when the other app alone was stopped and restarted. The short validation finished before the DELETE arrived, so live cancellation and duplicate-start refusal remain unverified.
+- V10 is `PARTIAL` on app source `9b298c54`. The in-app Chromium review covered all seven primary routes in both profiles at 1440×900, 1024×720, 390×844, and 320×640; the document root stayed within the viewport. At 320px, Studio's dataset table clips the `Rows` column (`x=302–336` in a 320px viewport), recorded as `ISSUE-005`. Viewer, validation, and five-step training dialogs were reachable; XREPORT's report history was empty and model generation/import remained gated. Keyboard focus return, disabled controls, and theme switching were reviewed. The Browser tool could not emulate `prefers-reduced-motion`; screen-reader speech and model-dependent positive paths remain unverified. Timings and captures are in the run QA log and `screenshots/v10/`.
 - Gate map for this campaign (the exact runtime SHA is shown; `PARTIAL` retains any recorded finding or limit):
 
   | Gate | Status | SHA / branch | Evidence and limit |
@@ -25,9 +26,9 @@ Last updated: 2026-10-24
   | V07 | `BLOCKED` | `9b298c54` / `develop` | Requires V06 imported custom model for real XREPORT inference. |
   | V08 | `PARTIAL` | `9b298c54` / `develop` | UI lone-`.keras` and manifestless four-core ZIP rejected before job; no custom entry. Further archive cases depend on a V05 checkpoint. Dialog mismatch is `ISSUE-004`. |
   | V09 | `PARTIAL` | `9b298c54` / `develop` | Job completion, transient-poll recovery, and app-scoped stop/restart verified. Cancellation arrived after completion; duplicate-start refusal is unverified. |
-  | V10 | `UNTESTED` | — | Viewport, keyboard, theme, motion and accessibility review remains. |
+  | V10 | `PARTIAL` | `9b298c54` / `develop` | Seven routes × four viewports across both apps; no document-level horizontal overflow. Studio `Rows` values clip at 320px (`ISSUE-005`). Reachable modal, keyboard, disabled-state and theme checks passed; reduced-motion emulation and screen-reader output were unavailable. Positive checkpoint/report paths remain blocked by V05. |
   | V11 | `UNTESTED` | — | Exact final-SHA rerun and ledger close remain. |
-- Detailed logs and screenshots remain under ignored `assets/QA/validation_campaign/xr-20261024-01/`. V00–V09 changed no production code. Later rows will be updated here as their gates finish.
+- Detailed logs and screenshots remain under ignored `assets/QA/validation_campaign/xr-20261024-01/`. V00–V10 changed no production code. V11 exact-SHA checks and ledger reconciliation remain.
 
 This ledger summarizes current validation gates, release evidence, and known
 scope limits. The [project status ledger](project_status_ledger.md) owns
