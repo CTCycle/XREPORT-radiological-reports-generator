@@ -63,7 +63,7 @@ function generationResult(requestId: string, session: InferenceHistoryDetail, st
   };
 }
 
-function updatedSession(session: InferenceHistoryDetail, reports: Array<{ image_index: number; edited_report: string }>): InferenceHistoryDetail {
+function updatedSession(session: InferenceHistoryDetail, reports: { image_index: number; edited_report: string }[]): InferenceHistoryDetail {
   const updates = new Map(reports.map((value) => [value.image_index, value.edited_report]));
   return {
     ...session,
@@ -104,11 +104,11 @@ const model: ModelAvailability = {
   integrity_status: 'verified',
 } as unknown as ModelAvailability;
 
-async function createInferencePage(options: { imageCount?: number; studyLevel?: boolean; historyError?: string; updateResults?: Array<{ result: InferenceHistoryDetail | null; error: string | null }> } = {}) {
+async function createInferencePage(options: { imageCount?: number; studyLevel?: boolean; historyError?: string; updateResults?: { result: InferenceHistoryDetail | null; error: string | null }[] } = {}) {
   const requestId = 'persisted-e2e-request';
   const imageCount = options.studyLevel ? 2 : options.imageCount ?? 2;
   let session = savedSession(requestId, options.studyLevel, imageCount);
-  const updateHistory = vi.fn(async (_id: string, request: { reports: Array<{ image_index: number; edited_report: string }> }) => {
+  const updateHistory = vi.fn(async (_id: string, request: { reports: { image_index: number; edited_report: string }[] }) => {
     const next = options.updateResults?.shift();
     if (next) {
       if (next.result) session = next.result;
