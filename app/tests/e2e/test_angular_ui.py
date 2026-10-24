@@ -4,7 +4,7 @@ import os
 import re
 from pathlib import Path
 
-from playwright.sync_api import Page, Route, expect
+from playwright.sync_api import Page, Route, TimeoutError as PlaywrightTimeoutError, expect
 
 ###############################################################################
 def test_inference_route_renders_catalog_and_navigation(
@@ -58,6 +58,43 @@ def test_reports_detail_edit_reload_and_confirmed_delete(
     expect(page).to_have_url(f"{base_url}/reports/{seeded_history}")
     findings = page.get_by_role("textbox", name="Findings").first
     expect(findings).to_have_value("Clear lungs.")
+
+    findings.fill("Unsaved review draft.")
+    unload_dialog_types: list[str] = []
+
+    def dismiss_unload_dialog(dialog) -> None:
+        unload_dialog_types.append(dialog.type)
+        dialog.dismiss()
+
+    page.once("dialog", dismiss_unload_dialog)
+    try:
+        page.reload(timeout=1500)
+    except PlaywrightTimeoutError:
+        # Dismissing beforeunload cancels the reload, so no navigation completes.
+        pass
+    assert unload_dialog_types == ["beforeunload"]
+    expect(page).to_have_url(f"{base_url}/reports/{seeded_history}")
+    findings = page.get_by_role("textbox", name="Findings").first
+    expect(findings).to_have_value("Unsaved review draft.")
+
+    page.once("dialog", lambda dialog: dialog.dismiss())
+    page.get_by_role("link", name="Back to Reports").click()
+    expect(page).to_have_url(f"{base_url}/reports/{seeded_history}")
+    expect(findings).to_have_value("Unsaved review draft.")
+
+    page.once("dialog", lambda dialog: dialog.dismiss())
+    page.evaluate("window.history.back()")
+    expect(page).to_have_url(f"{base_url}/reports/{seeded_history}")
+    expect(findings).to_have_value("Unsaved review draft.")
+
+    page.once("dialog", lambda dialog: dialog.accept())
+    page.get_by_role("link", name="Back to Reports").click()
+    expect(page).to_have_url(f"{base_url}/reports")
+
+    page.locator(f'a.report-card[href="/reports/{seeded_history}"]').click()
+    expect(page).to_have_url(f"{base_url}/reports/{seeded_history}")
+    findings = page.get_by_role("textbox", name="Findings").first
+    expect(findings).to_have_value("Clear lungs.")
     findings.fill("Clear lungs after review.")
     page.get_by_role("button", name="Save edits").click()
     expect(page.get_by_text("Edits saved.", exact=False)).to_be_visible()
@@ -95,6 +132,7 @@ def test_reports_detail_edit_reload_and_confirmed_delete(
         "() => document.querySelector('.main-layout-content').scrollTop > 0"
     )
 
+    findings.fill("Unsaved draft before deleting the session.")
     page.once("dialog", lambda dialog: dialog.accept())
     page.get_by_role("button", name="Delete session").click()
     expect(page).to_have_url(f"{base_url}/reports")

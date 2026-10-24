@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { Component, DestroyRef, computed, inject, signal } from '@angular/core';
+import { Component, DestroyRef, HostListener, computed, inject, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { ReportDraftEditorComponent } from '../components/report-draft-editor.component';
@@ -113,6 +113,7 @@ export class ReportDetailPage {
   private readonly baselineDrafts = signal<DraftMap>({});
   readonly dirty = computed(() => JSON.stringify(this.drafts()) !== JSON.stringify(this.baselineDrafts()));
   private requestId: string | null = null;
+  private allowNavigationAfterDeletion = false;
 
   constructor() {
     this.route.paramMap.pipe(takeUntilDestroyed(this.destroyRef)).subscribe((params) => {
@@ -176,7 +177,7 @@ export class ReportDetailPage {
 
   async save(): Promise<void> {
     const session = this.detail();
-    if (!session || !this.requestId || session.status !== 'succeeded' || !this.dirty()) return;
+    if (!session || !this.requestId || session.status !== 'succeeded' || !this.dirty() || this.saving() || this.deleting()) return;
     const updates = session.reports
       .filter((report) => JSON.stringify(this.drafts()[report.image_index] ?? {}) !== JSON.stringify(this.baselineDrafts()[report.image_index] ?? {}))
       .map((report) => ({ image_index: report.image_index, edited_report: this.reportText(report) }));
@@ -184,30 +185,74 @@ export class ReportDetailPage {
     this.saving.set(true);
     this.errorMessage.set(null);
     this.saveMessage.set(null);
-    const response = await this.api.updateHistory(this.requestId, { reports: updates });
-    if (response.result) {
-      this.applyDetail(response.result);
-      this.saveMessage.set('Edits saved. The original model output remains available below.');
-    } else {
-      this.errorMessage.set(response.error ?? 'Unable to save report edits.');
+    try {
+      const response = await this.api.updateHistory(this.requestId, { reports: updates });
+      if (response.result) {
+        this.applyDetail(response.result);
+        this.errorMessage.set(null);
+        this.saveMessage.set('Edits saved. The original model output remains available below.');
+      } else {
+        this.errorMessage.set(response.error ?? 'Unable to save report edits. Your changes are still available; try again.');
+      }
+    } catch (error) {
+      this.errorMessage.set(error instanceof Error ? error.message : 'Unable to save report edits. Your changes are still available; try again.');
+    } finally {
+      this.saving.set(false);
     }
-    this.saving.set(false);
   }
 
   async deleteSession(): Promise<void> {
     const session = this.detail();
-    if (!session || !this.requestId || this.deleting()) return;
+    if (!session || !this.requestId || this.deleting() || this.saving()) return;
     const name = session.reports[0]?.input_image_name ?? session.request_id;
     if (!confirm(`Delete the saved report session for ${name}? This removes the history entry but not model or dataset files.`)) return;
     this.deleting.set(true);
     this.errorMessage.set(null);
-    const response = await this.api.deleteHistory(this.requestId);
-    if (response.result?.success) {
-      await this.router.navigateByUrl('/reports');
-    } else {
-      this.errorMessage.set(response.error ?? response.result?.message ?? 'Unable to delete saved report.');
+    try {
+      const response = await this.api.deleteHistory(this.requestId);
+      if (!response.result?.success) {
+        this.errorMessage.set(response.error ?? response.result?.message ?? 'Unable to delete saved report.');
+        this.deleting.set(false);
+        return;
+      }
+    } catch (error) {
+      this.errorMessage.set(error instanceof Error ? error.message : 'Unable to delete saved report.');
       this.deleting.set(false);
+      return;
     }
+
+    this.allowNavigationAfterDeletion = true;
+    try {
+      const navigated = await this.router.navigateByUrl('/reports');
+      if (!navigated) {
+        this.allowNavigationAfterDeletion = false;
+        this.deleting.set(false);
+        this.errorMessage.set('The session was deleted, but Reports could not be opened.');
+      }
+    } catch (error) {
+      this.allowNavigationAfterDeletion = false;
+      this.deleting.set(false);
+      this.errorMessage.set(error instanceof Error ? error.message : 'The session was deleted, but Reports could not be opened.');
+    }
+  }
+
+  confirmDiscardUnsavedChanges(): boolean {
+    if (this.allowNavigationAfterDeletion) {
+      this.allowNavigationAfterDeletion = false;
+      return true;
+    }
+    if (this.saving() || this.deleting()) {
+      this.errorMessage.set('Wait for the report operation to finish before leaving this page.');
+      return false;
+    }
+    return !this.dirty() || window.confirm('You have unsaved report edits. Leave and discard them? The last saved report remains unchanged.');
+  }
+
+  @HostListener('window:beforeunload', ['$event'])
+  protectUnsavedDraft(event: BeforeUnloadEvent): void {
+    if (!this.dirty() && !this.saving() && !this.deleting()) return;
+    event.preventDefault();
+    event.returnValue = '';
   }
 
   modelLabel(modelRef: string): string {

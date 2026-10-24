@@ -1,6 +1,6 @@
 # UI Experience Standards
 
-Last updated: 2026-10-23
+Last updated: 2026-10-24
 
 ## Core UX Journeys
 
@@ -50,6 +50,12 @@ Last updated: 2026-10-23
   section. Save is atomic, disabled until a draft changes, and never replaces
   the generated model output. Deleting a session is explicit and returns the
   user to the history list.
+- Unsaved edits on the report detail page prompt before in-app navigation,
+  including browser Back; canceling preserves the exact draft. Browser reload
+  and close use the standard `beforeunload` prompt where supported. Navigation
+  is blocked while a save or delete request is pending. A successful deletion
+  redirects without a second discard prompt, while a failed deletion retains
+  the draft.
 - Inference-page edits are compared with the canonical saved history rows and
   only changed rows are submitted. A study-level report shared across images
   maps to its single saved row. Failed saves retain the draft, show an error,
