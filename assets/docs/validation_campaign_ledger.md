@@ -10,6 +10,7 @@ Last updated: 2026-10-24
 - V04 processed the clean synthetic 8-row source to 7 train/1 validation rows, generated pixel/text/image statistics, and reopened the saved report after a page reload. A missing synthetic image was rejected before job creation. The UI accepts validation splits through `1.0`, while the backend schema caps them at `0.5`; a split of `1.2` produced the backend's typed 422. This is an open UI finding, recorded as `ISSUE-003`; no production code was changed. Evidence is in `assets/QA/validation_campaign/xr-20261024-01/v04-processing.log` and the run's screenshots.
 - V05 is `BLOCKED`: the Standard CPU profile and local tokenizer are usable, but the pinned BEiT encoder is absent at `data/models/XRAYEncoder`. No weights were fetched. V06 and V07 are `BLOCKED` on the UI-trained V05 checkpoint.
 - V08 is `PARTIAL` on XREPORT source `9b298c54`: the UI rejected a lone `.keras` file and a four-core manifestless ZIP with typed HTTP 400 responses before job admission, and the catalogue remained at zero custom checkpoints. The import dialog's copy mismatch is confirmed as `ISSUE-004`; checksum/version/conflict paths, positive import, cancellation and restart recovery require a V05 checkpoint.
+- V09 is `PARTIAL` on app source `9b298c54`: validation and dataset-processing jobs completed, the UI recovered after one interrupted validation poll, and both apps remained healthy when the other app alone was stopped and restarted. The short validation finished before the DELETE arrived, so live cancellation and duplicate-start refusal remain unverified.
 - Gate map for this campaign (the exact runtime SHA is shown; `PARTIAL` retains any recorded finding or limit):
 
   | Gate | Status | SHA / branch | Evidence and limit |
@@ -23,9 +24,10 @@ Last updated: 2026-10-24
   | V06 | `BLOCKED` | `9b298c54` / `develop` | Requires a V05 UI-trained checkpoint for format-2 export/import. |
   | V07 | `BLOCKED` | `9b298c54` / `develop` | Requires V06 imported custom model for real XREPORT inference. |
   | V08 | `PARTIAL` | `9b298c54` / `develop` | UI lone-`.keras` and manifestless four-core ZIP rejected before job; no custom entry. Further archive cases depend on a V05 checkpoint. Dialog mismatch is `ISSUE-004`. |
-  | V09–V10 | `UNTESTED` | — | Independent lifecycle, accessibility, responsive and performance checks remain. |
+  | V09 | `PARTIAL` | `9b298c54` / `develop` | Job completion, transient-poll recovery, and app-scoped stop/restart verified. Cancellation arrived after completion; duplicate-start refusal is unverified. |
+  | V10 | `UNTESTED` | — | Viewport, keyboard, theme, motion and accessibility review remains. |
   | V11 | `UNTESTED` | — | Exact final-SHA rerun and ledger close remain. |
-- Detailed logs and screenshots remain under ignored `assets/QA/validation_campaign/xr-20261024-01/`. V00–V08 changed no production code. Later rows will be updated here as their gates finish.
+- Detailed logs and screenshots remain under ignored `assets/QA/validation_campaign/xr-20261024-01/`. V00–V09 changed no production code. Later rows will be updated here as their gates finish.
 
 This ledger summarizes current validation gates, release evidence, and known
 scope limits. The [project status ledger](project_status_ledger.md) owns
