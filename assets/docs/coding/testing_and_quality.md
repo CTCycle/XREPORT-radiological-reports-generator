@@ -1,14 +1,17 @@
 # Testing And Quality Rules
 
-Last updated: 2026-10-22
+Last updated: 2026-10-24
 
 ## Tooling And Quality Gates
 
 - Linting and formatting use Ruff or the established project-equivalent toolchain.
 - Typing should remain Pylance-compatible.
-- The compact suite has 40 test source files: 17 Python unit suites, 7 Python
-  E2E suites, 2 integration suites, 13 Angular specs, and 1 built-server test.
-  It currently collects 411 cases (330 Python, 72 Angular, 9 Node). Keep
+- At exact `develop` SHA `e8ad7bedd776800ee3099239d6b257ee4d5cd0c6`, the suite has
+  41 test source files: 17 Python unit suites, 7 Python E2E suites, 2 integration
+  suites, 14 Angular specs, and 1 built-server test. It collects 419 cases (331
+  Python, 79 Angular, 9 Node). V11 ran the 79 Angular and 9 Node cases; the
+  331-case Python inventory was collected, while focused Python suites are listed
+  in the [campaign ledger](../validation_campaign_ledger.md). Keep
   regression coverage focused on application behavior and contracts.
 - `app/tests/run_tests.bat` is the full Windows runner. It starts the local
   services as needed, runs the Python suites once, then runs Angular unit tests.
