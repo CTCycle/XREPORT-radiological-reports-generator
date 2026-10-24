@@ -8,7 +8,8 @@ Last updated: 2026-10-24
 - V01 verified simultaneous XREPORT/Studio launch, isolated profile routes and databases, independent theme preferences, and fail-closed duplicate-resource-root locks. V02 verified Studio seed persistence across reload, XREPORT database-candidate apply/revert, and restored the original SQLite path across an official launcher restart.
 - V03 used synthetic files only. The clean CSV loaded 8/8 rows; malformed and missing-text CSVs were rejected; partial matching required explicit confirmation and imported 7/8 rows. The viewer navigated records and retained the full long source path in its title while truncating the displayed cell. The S23 browser cleanup case now creates its own deterministic PNG/CSV fixture under `tmp_path` instead of depending on an ignored `s27` directory; focused Studio Chromium run passed 1/1.
 - V04 processed the clean synthetic 8-row source to 7 train/1 validation rows, generated pixel/text/image statistics, and reopened the saved report after a page reload. A missing synthetic image was rejected before job creation. The UI accepts validation splits through `1.0`, while the backend schema caps them at `0.5`; a split of `1.2` produced the backend's typed 422. This is an open UI finding, recorded as `ISSUE-003`; no production code was changed. Evidence is in `assets/QA/validation_campaign/xr-20261024-01/v04-processing.log` and the run's screenshots.
-- V05 is `BLOCKED`: the Standard CPU profile and local tokenizer are usable, but the pinned BEiT encoder is absent at `data/models/XRAYEncoder`. No weights were fetched. V06–V08 depend on the UI-trained V05 checkpoint and remain blocked; their independent import-dialog review is still pending.
+- V05 is `BLOCKED`: the Standard CPU profile and local tokenizer are usable, but the pinned BEiT encoder is absent at `data/models/XRAYEncoder`. No weights were fetched. V06 and V07 are `BLOCKED` on the UI-trained V05 checkpoint.
+- V08 is `PARTIAL` on XREPORT source `9b298c54`: the UI rejected a lone `.keras` file and a four-core manifestless ZIP with typed HTTP 400 responses before job admission, and the catalogue remained at zero custom checkpoints. The import dialog's copy mismatch is confirmed as `ISSUE-004`; checksum/version/conflict paths, positive import, cancellation and restart recovery require a V05 checkpoint.
 - Gate map for this campaign (the exact runtime SHA is shown; `PARTIAL` retains any recorded finding or limit):
 
   | Gate | Status | SHA / branch | Evidence and limit |
@@ -19,10 +20,12 @@ Last updated: 2026-10-24
   | V03 | `PASS` | `04820a7f` app UI; `919e3b61` S23 harness | Synthetic upload/matching/viewer paths; self-contained S23 focused browser test 1/1. |
   | V04 | `PARTIAL` | `04820a7f` / `develop` (product code; live UI) | Processing and all validation metrics pass; UI/backend validation-split bounds mismatch is open as `ISSUE-003`. |
   | V05 | `BLOCKED` | `919e3b61` / `develop` | Pinned encoder absent; no model weights fetched. |
-  | V06–V08 | `BLOCKED` | `919e3b61` / `develop` | Require a V05 UI-trained checkpoint; import-dialog copy review remains independent. |
+  | V06 | `BLOCKED` | `9b298c54` / `develop` | Requires a V05 UI-trained checkpoint for format-2 export/import. |
+  | V07 | `BLOCKED` | `9b298c54` / `develop` | Requires V06 imported custom model for real XREPORT inference. |
+  | V08 | `PARTIAL` | `9b298c54` / `develop` | UI lone-`.keras` and manifestless four-core ZIP rejected before job; no custom entry. Further archive cases depend on a V05 checkpoint. Dialog mismatch is `ISSUE-004`. |
   | V09–V10 | `UNTESTED` | — | Independent lifecycle, accessibility, responsive and performance checks remain. |
   | V11 | `UNTESTED` | — | Exact final-SHA rerun and ledger close remain. |
-- Detailed logs and screenshots remain under ignored `assets/QA/validation_campaign/xr-20261024-01/`. V00–V04 changed no production code. Later rows will be updated here as their gates finish.
+- Detailed logs and screenshots remain under ignored `assets/QA/validation_campaign/xr-20261024-01/`. V00–V08 changed no production code. Later rows will be updated here as their gates finish.
 
 This ledger summarizes current validation gates, release evidence, and known
 scope limits. The [project status ledger](project_status_ledger.md) owns
