@@ -2,6 +2,7 @@
 
 import os
 import re
+import zipfile
 from pathlib import Path
 
 from playwright.sync_api import Page, Route, TimeoutError as PlaywrightTimeoutError, expect
@@ -39,6 +40,32 @@ def test_reports_route_renders_history_or_explicit_empty_state(
         "() => document.documentElement.scrollWidth <= document.documentElement.clientWidth"
     )
     assert overflow
+
+
+def test_checkpoint_import_rejects_manifestless_archive_in_live_ui(
+    page: Page,
+    base_url: str,
+    tmp_path: Path,
+) -> None:
+    archive = tmp_path / "manifestless-four-core.zip"
+    with zipfile.ZipFile(archive, "w") as bundle:
+        bundle.writestr("saved_model.keras", b"synthetic model placeholder")
+        bundle.writestr("configuration/configuration.json", b"{}")
+        bundle.writestr("configuration/metadata.json", b"{}")
+        bundle.writestr("configuration/session_history.json", b"[]")
+
+    response = page.goto(f"{base_url}/inference")
+    assert response is not None and response.ok
+    page.get_by_role("button", name="Import checkpoint").click()
+    dialog = page.get_by_role("dialog", name="Import checkpoint")
+    dialog.get_by_label("Checkpoint archive").set_input_files(str(archive))
+    dialog.get_by_role("button", name="Import", exact=True).click()
+
+    expect(dialog.get_by_role("status")).to_contain_text(
+        "missing required manifest.json"
+    )
+    expect(dialog.get_by_role("progressbar")).to_have_count(0)
+    expect(dialog.get_by_role("button", name="Cancel import")).to_have_count(0)
 
 ###############################################################################
 def test_reports_detail_edit_reload_and_confirmed_delete(
