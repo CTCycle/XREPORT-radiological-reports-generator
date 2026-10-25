@@ -127,6 +127,26 @@ function Write-Info([string]$Message) { Clear-LauncherProgress; Write-Host "[INF
 function Write-Warn([string]$Message) { Clear-LauncherProgress; Write-Host "[WARN] $Message" -ForegroundColor Yellow }
 function Write-Fatal([string]$Message) { Clear-LauncherProgress; Write-Host "[FATAL] $Message" -ForegroundColor Red }
 
+function Write-LaunchTiming {
+    param([Parameter(Mandatory = $true)][string]$Phase, [Parameter(Mandatory = $true)][long]$ElapsedMilliseconds)
+    $phaseNames = @{
+        port_preflight = 'Port checks'
+        dependency_readiness = 'Backend dependency check'
+        build_freshness_check = 'Frontend build check'
+        stale_rebuild = 'Frontend build preparation'
+        backend_process_start = 'Backend process start'
+        backend_healthy = 'Backend startup'
+    }
+    $phaseName = if ($phaseNames.ContainsKey($Phase)) { $phaseNames[$Phase] } else { $Phase.Replace('_', ' ') }
+    $duration = if ($ElapsedMilliseconds -lt 1000) {
+        "$ElapsedMilliseconds ms"
+    } else {
+        $seconds = ($ElapsedMilliseconds / 1000.0).ToString('0.0', [Globalization.CultureInfo]::InvariantCulture)
+        "$seconds seconds"
+    }
+    Write-Info "$phaseName completed in $duration ($ElapsedMilliseconds ms)."
+}
+
 function Confirm-DestructiveAction([string]$Description) {
     if (-not $script:LauncherInteractive) {
         throw "The destructive action '$Description' requires an interactive console; no files were changed."
@@ -365,18 +385,21 @@ function Invoke-HealthCheck {
         [Parameter(Mandatory = $true)][string]$Uri,
         [ValidateRange(1, 3600)][int]$TimeoutSeconds = 60,
         [Diagnostics.Process]$Process,
-        [string]$ProcessLabel = 'Application process'
+        [string]$ProcessLabel = 'Application process',
+        [switch]$SuppressProgress
     )
     $deadline = (Get-Date).AddSeconds($TimeoutSeconds)
     $activity = "XREPORT: wait for health $Uri"
-    $progressId = Start-LauncherProgress -Activity $activity -Status "Waiting up to $TimeoutSeconds seconds"
+    $progressId = if ($SuppressProgress) { $null } else { Start-LauncherProgress -Activity $activity -Status "Waiting up to $TimeoutSeconds seconds" }
     try {
         do {
             if ($Process -and $Process.HasExited) {
                 throw "$ProcessLabel exited before reporting ready (exit code $($Process.ExitCode))."
             }
             $elapsed = [int](([DateTime]::Now - $deadline.AddSeconds(-$TimeoutSeconds)).TotalSeconds)
-            Update-LauncherProgress -Id $progressId -Activity $activity -Status "Waiting for healthy response; ${elapsed}s elapsed"
+            if (-not $SuppressProgress) {
+                Update-LauncherProgress -Id $progressId -Activity $activity -Status "Waiting for healthy response; ${elapsed}s elapsed"
+            }
             try {
                 $response = Invoke-WebRequest -UseBasicParsing -Uri $Uri -TimeoutSec 2
                 if ($response.StatusCode -ge 200 -and $response.StatusCode -lt 300) {
@@ -388,7 +411,7 @@ function Invoke-HealthCheck {
         } while ((Get-Date) -lt $deadline)
         throw "Health check timed out after $TimeoutSeconds seconds: $Uri"
     } finally {
-        Complete-LauncherProgress -Id $progressId
+        if (-not $SuppressProgress) { Complete-LauncherProgress -Id $progressId }
     }
 }
 
@@ -1202,6 +1225,24 @@ function Get-FrontendBuildStatus {
     }
 }
 
+function Get-FrontendBuildReasonDescription {
+    param([Parameter(Mandatory = $true)][string]$Reason)
+    $descriptions = @{
+        Current = 'the production bundle is current'
+        OutputMissing = 'the production bundle is missing'
+        ManifestMissing = 'the build state file is missing'
+        ManifestInvalid = 'the build state file is unreadable or invalid'
+        SchemaChanged = 'the build state format has changed'
+        NodeVersionChanged = 'the required Node.js version has changed'
+        NpmVersionChanged = 'the required npm version has changed'
+        DependencyManifestChanged = 'frontend dependencies have changed'
+        ProductionInputChanged = 'frontend source or build settings have changed'
+        OutputChanged = 'one or more generated frontend files have changed'
+    }
+    if ($descriptions.ContainsKey($Reason)) { return $descriptions[$Reason] }
+    return $Reason.Replace('_', ' ').ToLowerInvariant()
+}
+
 function Ensure-FrontendBuild {
     param(
         [psobject]$Status,
@@ -1214,7 +1255,7 @@ function Ensure-FrontendBuild {
         return $status
     }
 
-    Write-Info "Frontend production bundle requires work: $($status.Reason)"
+    Write-Info "Frontend production bundle needs a rebuild because $(Get-FrontendBuildReasonDescription -Reason $status.Reason)."
     # A stale or missing bundle must be recoverable after runtimes/ is cleared.
     # Restore the pinned Node.js toolchain before invoking npm or Angular.
     if (-not (Test-PortableNodeRuntimeReady)) {
@@ -1666,7 +1707,7 @@ function Invoke-Launch {
     $launchStopwatch = [Diagnostics.Stopwatch]::StartNew()
     $portPreflightStarted = $launchStopwatch.ElapsedMilliseconds
     Resolve-LaunchPortConflicts -Settings $settings
-    Write-Info "Launch timing phase=port_preflight elapsed_ms=$($launchStopwatch.ElapsedMilliseconds - $portPreflightStarted)"
+    Write-LaunchTiming -Phase 'port_preflight' -ElapsedMilliseconds ($launchStopwatch.ElapsedMilliseconds - $portPreflightStarted)
 
     $dependencyStarted = $launchStopwatch.ElapsedMilliseconds
     Initialize-Environment
@@ -1693,15 +1734,15 @@ function Invoke-Launch {
             Write-Ok 'Backend environment is ready; skipped backend dependency installation.'
         }
     }
-    Write-Info "Launch timing phase=dependency_readiness elapsed_ms=$($launchStopwatch.ElapsedMilliseconds - $dependencyStarted)"
+    Write-LaunchTiming -Phase 'dependency_readiness' -ElapsedMilliseconds ($launchStopwatch.ElapsedMilliseconds - $dependencyStarted)
 
     $buildCheckStarted = $launchStopwatch.ElapsedMilliseconds
     $buildStatus = Get-FrontendBuildStatus -Project $frontendProject
-    Write-Info "Frontend build status ($frontendProject): $($buildStatus.Reason)"
-    Write-Info "Launch timing phase=build_freshness_check elapsed_ms=$($launchStopwatch.ElapsedMilliseconds - $buildCheckStarted)"
+    Write-Info "Frontend build status ($frontendProject): $(Get-FrontendBuildReasonDescription -Reason $buildStatus.Reason)."
+    Write-LaunchTiming -Phase 'build_freshness_check' -ElapsedMilliseconds ($launchStopwatch.ElapsedMilliseconds - $buildCheckStarted)
     $rebuildStarted = $launchStopwatch.ElapsedMilliseconds
     Ensure-FrontendBuild -Status $buildStatus -Project $frontendProject | Out-Null
-    Write-Info "Launch timing phase=stale_rebuild elapsed_ms=$($launchStopwatch.ElapsedMilliseconds - $rebuildStarted)"
+    Write-LaunchTiming -Phase 'stale_rebuild' -ElapsedMilliseconds ($launchStopwatch.ElapsedMilliseconds - $rebuildStarted)
 
     if (-not (Test-Path -LiteralPath $backendPython)) {
         throw "Virtual-environment Python was not found at $backendPython."
@@ -1724,12 +1765,13 @@ function Invoke-Launch {
         $backendProcess = Start-Process -FilePath $backendPython `
             -ArgumentList $entryArguments `
             -WorkingDirectory $backendAppPath -NoNewWindow -PassThru
-        Write-Info "Launch timing phase=backend_process_start elapsed_ms=$($launchStopwatch.ElapsedMilliseconds - $backendStartStarted)"
+        Write-LaunchTiming -Phase 'backend_process_start' -ElapsedMilliseconds ($launchStopwatch.ElapsedMilliseconds - $backendStartStarted)
 
         Write-Step "Waiting for FastAPI health at $healthUrl"
         $healthStarted = $launchStopwatch.ElapsedMilliseconds
-        Invoke-HealthCheck -Uri $healthUrl -TimeoutSeconds 90 -Process $backendProcess -ProcessLabel 'FastAPI backend'
-        Write-Info "Launch timing phase=backend_healthy elapsed_ms=$($launchStopwatch.ElapsedMilliseconds - $healthStarted)"
+        Invoke-HealthCheck -Uri $healthUrl -TimeoutSeconds 90 -Process $backendProcess -ProcessLabel 'FastAPI backend' -SuppressProgress
+        Write-Ok "FastAPI is healthy at $healthUrl."
+        Write-LaunchTiming -Phase 'backend_healthy' -ElapsedMilliseconds ($launchStopwatch.ElapsedMilliseconds - $healthStarted)
 
         try {
             Start-Process -FilePath $appUrl -ErrorAction Stop | Out-Null
@@ -3128,7 +3170,7 @@ while ($true) {
     }
 
     try {
-        Invoke-TrackedLauncherAction -Name "menu option $($entry.Number)" -Operation {
+        Invoke-TrackedLauncherAction -Name "menu option $($entry.Number): $($entry.Label)" -Operation {
             switch ($entry.Key) {
                 'Launch' { Invoke-Launch -Application Xreport; exit 0 }
                 'LaunchStudio' { Invoke-Launch -Application Studio; exit 0 }
