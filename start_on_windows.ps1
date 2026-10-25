@@ -114,7 +114,7 @@ $NodeArchive = "node-v$NodeVersion-win-x64.zip"
 $NodeUrl = "https://nodejs.org/dist/v$NodeVersion/$NodeArchive"
 $NodeSha256 = '6c8d54f635feff4df76c2ca80f45332eb2ff57d25226edce36592e51a177ee33'
 $NpmVersion = '10.9.8'
-$FrontendBuildStateSchemaVersion = 1
+$FrontendBuildStateSchemaVersion = 2
 $RustVersion = '1.95.0'
 $script:NextProgressId = 1
 $script:ActiveProgressActivities = [Collections.Generic.Dictionary[int, string]]::new()
@@ -624,7 +624,6 @@ function Import-XReportEnvironment {
         UI_HOST = '127.0.0.1'
         UI_PORT = '8003'
         UI_API_BASE_URL = '/api'
-        RELOAD = 'false'
     }
 
     $environmentSource = $EnvFile
@@ -968,7 +967,11 @@ function Invoke-FrontendBuild {
     if ($beforeFingerprint -ne $afterFingerprint -or $beforeDependencyFingerprint -ne $afterDependencyFingerprint) {
         throw 'Frontend inputs changed while the build was running. The build-state manifest was not written; rerun the frontend build.'
     }
-    Write-FrontendBuildState -BuildFingerprint $afterFingerprint -DependencyFingerprint $afterDependencyFingerprint -Project $Project
+    $outputFiles = @(Get-FrontendOutputManifest -Project $Project)
+    if ($outputFiles.Count -eq 0) {
+        throw "Angular production output is empty for $Project."
+    }
+    Write-FrontendBuildState -BuildFingerprint $afterFingerprint -DependencyFingerprint $afterDependencyFingerprint -OutputFiles $outputFiles -Project $Project
 }
 
 function Get-FrontendProductionInputRelativePaths {
@@ -1055,7 +1058,7 @@ function Get-FrontendFingerprint {
 function Get-FrontendBuildFingerprint {
     param([string]$Project = 'client-angular')
 
-    $context = @("schema=$FrontendBuildStateSchemaVersion", "node=$NodeVersion")
+    $context = @("schema=$FrontendBuildStateSchemaVersion", "node=$NodeVersion", "npm=$NpmVersion")
     # The XREPORT project keeps its original fingerprint; Studio adds its own context.
     if ($Project -ne 'client-angular') { $context += "project=$Project" }
     return Get-FrontendFingerprint -RelativePaths (Get-FrontendProductionInputRelativePaths) -Context $context
@@ -1064,14 +1067,59 @@ function Get-FrontendBuildFingerprint {
 function Get-FrontendDependencyFingerprint {
     return Get-FrontendFingerprint -RelativePaths (Get-FrontendDependencyRelativePaths) -Context @(
         "schema=$FrontendBuildStateSchemaVersion",
-        "node=$NodeVersion"
+        "node=$NodeVersion",
+        "npm=$NpmVersion"
     )
+}
+
+function Get-FrontendOutputManifest {
+    param([string]$Project = 'client-angular')
+
+    $outputRoot = Join-Path $ClientDir "dist\$Project\browser"
+    if (-not (Test-Path -LiteralPath $outputRoot -PathType Container)) { return @() }
+
+    $root = [IO.Path]::GetFullPath($outputRoot)
+    $separators = [char[]]@([IO.Path]::DirectorySeparatorChar, [IO.Path]::AltDirectorySeparatorChar)
+    $rootPrefix = $root.TrimEnd($separators) + [IO.Path]::DirectorySeparatorChar
+    $entries = foreach ($file in @(Get-ChildItem -LiteralPath $outputRoot -Recurse -File)) {
+        $fullPath = [IO.Path]::GetFullPath($file.FullName)
+        if (-not $fullPath.StartsWith($rootPrefix, [StringComparison]::OrdinalIgnoreCase)) {
+            throw "Frontend output escaped its browser directory: $($file.FullName)"
+        }
+        $relative = $fullPath.Substring($rootPrefix.Length).Replace('\', '/')
+        $digest = Get-FileHash -LiteralPath $fullPath -Algorithm SHA256
+        [pscustomobject]@{
+            path = $relative
+            sha256 = $digest.Hash.ToLowerInvariant()
+        }
+    }
+    return @($entries | Sort-Object -Property path)
+}
+
+function Test-FrontendOutputManifestCurrent {
+    param(
+        [object[]]$ExpectedFiles,
+        [string]$Project = 'client-angular'
+    )
+
+    if ($null -eq $ExpectedFiles -or $ExpectedFiles.Count -eq 0) { return $false }
+    $actualFiles = @(Get-FrontendOutputManifest -Project $Project)
+    if ($actualFiles.Count -ne $ExpectedFiles.Count) { return $false }
+
+    for ($index = 0; $index -lt $actualFiles.Count; $index++) {
+        if ([string]$ExpectedFiles[$index].path -cne [string]$actualFiles[$index].path -or
+            [string]$ExpectedFiles[$index].sha256 -cne [string]$actualFiles[$index].sha256) {
+            return $false
+        }
+    }
+    return $true
 }
 
 function Write-FrontendBuildState {
     param(
         [Parameter(Mandatory = $true)][string]$BuildFingerprint,
         [Parameter(Mandatory = $true)][string]$DependencyFingerprint,
+        [Parameter(Mandatory = $true)][object[]]$OutputFiles,
         [string]$Project = 'client-angular'
     )
 
@@ -1084,10 +1132,12 @@ function Write-FrontendBuildState {
         production_input_fingerprint = $BuildFingerprint
         dependency_manifest_fingerprint = $DependencyFingerprint
         node_version = $NodeVersion
+        npm_version = $NpmVersion
+        output_files = @($OutputFiles)
         build_completed_utc = [DateTime]::UtcNow.ToString('o')
     }
     $encoding = [Text.UTF8Encoding]::new($false)
-    [IO.File]::WriteAllText($temporaryPath, ($state | ConvertTo-Json -Depth 4), $encoding)
+    [IO.File]::WriteAllText($temporaryPath, ($state | ConvertTo-Json -Depth 8), $encoding)
     Move-Item -LiteralPath $temporaryPath -Destination $statePath -Force
     Write-Ok "Frontend build state refreshed: $([IO.Path]::GetFileName($statePath))"
 }
@@ -1118,11 +1168,17 @@ function Get-FrontendBuildStatus {
                 elseif ([string]$state.node_version -ne $NodeVersion) {
                     $reason = 'NodeVersionChanged'
                 }
+                elseif ([string]$state.npm_version -ne $NpmVersion) {
+                    $reason = 'NpmVersionChanged'
+                }
                 elseif ([string]$state.dependency_manifest_fingerprint -ne $dependencyFingerprint) {
                     $reason = 'DependencyManifestChanged'
                 }
                 elseif ([string]$state.production_input_fingerprint -ne $buildFingerprint) {
                     $reason = 'ProductionInputChanged'
+                }
+                elseif (-not (Test-FrontendOutputManifestCurrent -ExpectedFiles @($state.output_files) -Project $Project)) {
+                    $reason = 'OutputChanged'
                 }
                 else {
                     $isCurrent = $true
@@ -1164,7 +1220,7 @@ function Ensure-FrontendBuild {
     if (-not (Test-PortableNodeRuntimeReady)) {
         Ensure-PortableNodeRuntime
     }
-    if ($status.Reason -eq 'DependencyManifestChanged' -or -not (Test-FrontendDependenciesReady)) {
+    if ($status.Reason -in @('DependencyManifestChanged', 'NodeVersionChanged', 'NpmVersionChanged') -or -not (Test-FrontendDependenciesReady)) {
         Install-FrontendDependencies -Locked
     }
     Invoke-FrontendBuild -Project $Project

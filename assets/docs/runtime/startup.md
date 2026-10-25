@@ -1,6 +1,6 @@
 # Runtime Startup
 
-Last updated: 2026-10-23
+Last updated: 2026-10-25
 
 ## Windows Local Launcher
 
@@ -137,12 +137,15 @@ Normal Launch reuses a valid `app/client/dist/client-angular` bundle. After a
 successful production build, the launcher writes the ignored
 `.xreport-build-state.json` manifest beside that bundle. Its SHA-256 inputs are
 the production Angular source, public assets, build configuration, dependency
-manifests, and the expected Node toolchain version; test files, the dev proxy
+manifests, and the expected Node/npm toolchain versions. It also records the
+generated browser files and their SHA-256 hashes; a missing, changed, or
+unreadable output makes the bundle stale. Test files, the dev proxy
 configuration, backend files, documentation, and port-only environment edits
-do not invalidate it. A missing or stale bundle rebuilds, and a dependency
-manifest change runs `npm ci` before rebuilding. A current bundle never invokes
-the Angular CLI during normal Launch. The explicit **Rebuild frontend** and
-install/update actions always refresh the production bundle and state manifest.
+do not invalidate it. A dependency-manifest or toolchain change runs `npm ci`
+before rebuilding. A current bundle never invokes the Angular CLI during
+normal Launch. **Rebuild frontend** always forces a build; the XREPORT Install
+action also rebuilds, while Studio install and normal Launch reuse current
+bundles.
 
 ### Source updates
 

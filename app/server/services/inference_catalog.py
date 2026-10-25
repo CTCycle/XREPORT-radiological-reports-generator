@@ -120,7 +120,7 @@ class InferenceModelCatalog:
         candidate_revision = inspected["candidate_revision"]
         if not self.settings.hf_local_only:
             status = "disabled"
-            status_message = "HF_LOCAL_ONLY must remain enabled for local inference."
+            status_message = "INFERENCE_HF_LOCAL_ONLY must remain enabled for local inference."
         elif not entry.enabled:
             status = "disabled"
             status_message = (
@@ -379,7 +379,7 @@ class InferenceModelCatalog:
         if not self.settings.hf_local_only:
             return ProviderAvailability(
                 status="disabled",
-                message="HF_LOCAL_ONLY must remain enabled for local inference.",
+                message="INFERENCE_HF_LOCAL_ONLY must remain enabled for local inference.",
             )
         if not hf_models:
             return ProviderAvailability(

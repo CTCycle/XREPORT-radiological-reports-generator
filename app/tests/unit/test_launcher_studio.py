@@ -51,6 +51,59 @@ def test_frontend_freshness_is_tracked_per_angular_project() -> None:
 
 
 ###############################################################################
+def test_frontend_freshness_validates_toolchain_and_built_outputs() -> None:
+    fingerprint = _function_body("Get-FrontendBuildFingerprint")
+    dependency_fingerprint = _function_body("Get-FrontendDependencyFingerprint")
+    output_manifest = _function_body("Get-FrontendOutputManifest")
+    output_check = _function_body("Test-FrontendOutputManifestCurrent")
+    write_state = _function_body("Write-FrontendBuildState")
+    status = _function_body("Get-FrontendBuildStatus")
+    ensure = _function_body("Ensure-FrontendBuild")
+    rebuild = _function_body("Invoke-RebuildFrontend")
+
+    assert '"npm=$NpmVersion"' in fingerprint
+    assert '"npm=$NpmVersion"' in dependency_fingerprint
+    assert "Get-FileHash" in output_manifest
+    assert "ExpectedFiles[$index].sha256" in output_check
+    assert "npm_version = $NpmVersion" in write_state
+    assert "output_files = @($OutputFiles)" in write_state
+    assert "state.npm_version" in status
+    assert "Test-FrontendOutputManifestCurrent" in status
+    assert "'NpmVersionChanged'" in ensure
+    assert "Invoke-FrontendBuild -Project $project" in rebuild
+
+
+###############################################################################
+def test_environment_template_contains_no_obsolete_or_unused_settings() -> None:
+    template = (ROOT / "settings/.env.example").read_text(encoding="utf-8")
+    keys = {
+        line.split("=", maxsplit=1)[0].strip()
+        for line in template.splitlines()
+        if line.strip() and not line.lstrip().startswith(("#", ";")) and "=" in line
+    }
+
+    assert "RELOAD" not in keys
+    assert not keys.intersection(
+        {
+            "ALWAYS_REBUILD",
+            "HF_LOCAL_ONLY",
+            "INFERENCE_MAX_LOADED_MODELS",
+            "INFERENCE_MODEL_TIMEOUT",
+        }
+    )
+    assert {
+        "FASTAPI_HOST",
+        "FASTAPI_PORT",
+        "STUDIO_FASTAPI_PORT",
+        "CORS_ALLOWED_ORIGINS",
+        "INFERENCE_HF_LOCAL_ONLY",
+        "INFERENCE_DEVICE",
+        "HF_TOKEN",
+        "XREPORT_RESOURCES_DIR",
+    }.issubset(keys)
+
+
+###############################################################################
 def test_process_ownership_is_scoped_per_application() -> None:
     identify = _function_body("Get-XReportApplicationProcessIds")
     kill = _function_body("Stop-XReportProcesses")

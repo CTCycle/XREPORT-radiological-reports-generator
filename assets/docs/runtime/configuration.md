@@ -1,6 +1,6 @@
 # Runtime Configuration
 
-Last updated: 2026-10-21
+Last updated: 2026-10-25
 
 ## Shared Configuration Sources
 
@@ -51,7 +51,6 @@ downloads, tokenizers, templates, caches, and logs are all below the data root.
 - `CORS_ALLOW_HEADERS`
 - `INFERENCE_HF_LOCAL_ONLY`
 - `INFERENCE_DEVICE`
-- `RELOAD`
 - `MPLBACKEND`
 - `KERAS_BACKEND`
 - `HF_TOKEN` (optional; required for gated Hugging Face models such as MedGemma)
@@ -61,8 +60,9 @@ downloads, tokenizers, templates, caches, and logs are all below the data root.
 On Windows normal Launch, `FASTAPI_HOST` and `FASTAPI_PORT` determine the
 browser origin because FastAPI serves both the SPA and `/api`. A wildcard bind
 opens through loopback. `UI_HOST`, `UI_PORT`, and `UI_API_BASE_URL` configure
-Angular development and the Tauri built-bundle development server. `RELOAD` is
-for manual backend development; normal Launch does not enable reload.
+Angular development and the Tauri built-bundle development server. Manual
+backend development selects reload behavior in the Uvicorn command itself;
+there is no `.env` reload setting.
 `XREPORT_SERVE_CLIENT` and `XREPORT_LAUNCH_TOKEN` are temporary launcher-owned
 process variables and are not configured in `.env`.
 
