@@ -12,9 +12,10 @@ import uuid
 from collections.abc import Callable, Mapping
 from typing import Any
 
-from huggingface_hub import HfApi, get_token
+from huggingface_hub import HfApi
 import requests
 
+from server.services.huggingface_access import resolve_token
 from server.common.path import (
     DATA_ROOT,
     HF_INSTALLED_DIR,
@@ -66,8 +67,12 @@ class ModelInstallationManager:
 
     # -------------------------------------------------------------------------
     def __init__(self, *, api: HfApi | None = None) -> None:
-        self.token = os.environ.get("HF_TOKEN") or get_token()
-        self.api = api or HfApi(endpoint="https://huggingface.co", token=self.token)
+        self.api = api or HfApi(endpoint="https://huggingface.co")
+
+    # -------------------------------------------------------------------------
+    @property
+    def token(self) -> str | None:
+        return resolve_token()
 
     # -------------------------------------------------------------------------
     def _auth_headers(self) -> dict[str, str]:
@@ -493,6 +498,11 @@ class ModelInstallationManager:
                 )
             return response, start
         except requests.RequestException as exc:
+            status_code = getattr(getattr(exc, "response", None), "status_code", None)
+            if status_code in {401, 403}:
+                raise InstallationError(
+                    "Hugging Face access requires accepted model terms and a valid local token."
+                ) from exc
             raise InstallationError(f"Model download failed for {name}: {exc}") from exc
 
     # -------------------------------------------------------------------------
@@ -974,7 +984,11 @@ class ModelInstallationManager:
         try:
             info = self.api.model_info(repository_id, token=False)
             latest_revision = str(getattr(info, "sha", ""))
-            available = bool(latest_revision and latest_revision != installed_revision)
+            available = bool(
+                installed_revision
+                and latest_revision
+                and latest_revision != installed_revision
+            )
             result = {
                 "model_ref": f"huggingface:{repository_id}",
                 "repository_id": repository_id,

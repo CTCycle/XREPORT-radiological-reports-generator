@@ -148,6 +148,9 @@ the obsolete `inference.max_loaded_models` key are never returned by this API.
 
 - `GET /api/settings/database` reports the active connection, schema readiness,
   background-job state, and recovery status without exposing credentials.
+- `GET`/`PUT`/`DELETE /api/settings/huggingface` report, validate-and-save, or remove the
+  Hugging Face access token used for gated models; responses expose only `configured` and
+  `source`, never the token.
 - `POST /api/settings/database/test` tests a candidate connection and reports
   connection and schema readiness separately.
 - `POST /api/settings/database/switch` prepares the target schema, pauses and

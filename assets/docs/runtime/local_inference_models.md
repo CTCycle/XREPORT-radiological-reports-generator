@@ -1,6 +1,6 @@
 # Local Inference Models
 
-Last updated: 2026-09-29
+Last updated: 2026-10-26
 
 ## Safety scope
 
@@ -141,15 +141,25 @@ snapshot after its transient module cache entry was removed.
 ## Gated MedGemma access
 
 Accept the terms on the [MedGemma model page](https://huggingface.co/google/medgemma-1.5-4b-it)
-and configure `HF_TOKEN` in the backend environment, or use the standard local
-Hugging Face credential store. The token is resolved only by the backend for
-Hub metadata/download requests; it is never entered, returned, or logged by
-the browser. Missing credentials or unaccepted terms produce a structured
-`access_required` failure with a safe message and the model access link.
+and provide a token under **Settings → Model access**, configure `HF_TOKEN` in
+the backend environment, or use the standard local Hugging Face credential
+store. The Settings form sends the token once to
+`PUT /api/settings/huggingface`, where the backend validates it with the Hub
+and saves it in the standard credential store; `GET` and `DELETE` on the same
+path report or remove it. Responses expose only `configured` and `source`
+(`environment` or `stored`), never the token. `HF_TOKEN` takes precedence and,
+when set, the form is read-only. The token is resolved only by the backend for
+Hub metadata/download requests and is never returned or logged. Missing credentials or unaccepted terms produce a structured
+`access_required` failure with a safe message and the model access link. This
+applies to Hub metadata and to per-file download responses (HTTP 401/403).
 
 ## Maintenance and failure contracts
 
 - `POST /api/inference/models/check-update` checks a selected public repository.
+  It is a single synchronous Hub metadata call; `update_available` is true only
+  when an active local revision exists and differs from the latest published
+  revision. The UI shows a "Checking…" state with an indeterminate progress bar
+  and then the installed/latest revision outcome or the failure.
 - `POST /api/inference/models/maintenance` supports `download`, `repair`,
   `reinstall`, `download_update`, and `delete_local`; every operation is a
   background job with lifecycle and byte/file progress.

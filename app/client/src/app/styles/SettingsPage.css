@@ -131,7 +131,8 @@
   gap: 0.45rem;
 }
 
-.settings-field-control input[type='number'] {
+.settings-field-control input[type='number'],
+.settings-field-control input[type='password'] {
   box-sizing: border-box;
   width: min(100%, 260px);
   min-height: var(--control-height-md);
@@ -142,7 +143,8 @@
   color: var(--text-primary);
 }
 
-.settings-field-control input[type='number']:disabled {
+.settings-field-control input[type='number']:disabled,
+.settings-field-control input[type='password']:disabled {
   cursor: not-allowed;
   opacity: 0.65;
 }
@@ -358,7 +360,8 @@
     gap: 0.75rem;
   }
 
-  .settings-field-control input[type='number'] {
+  .settings-field-control input[type='number'],
+  .settings-field-control input[type='password'] {
     width: min(100%, 320px);
   }
 
@@ -384,4 +387,10 @@
   .database-actions {
     flex-direction: column-reverse;
   }
+}
+
+.settings-inline-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
 }

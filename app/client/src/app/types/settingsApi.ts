@@ -58,3 +58,8 @@ export interface EditableSettings {
   jobs: { polling_interval: number };
   inference: { model_timeout: number };
 }
+
+export interface HuggingFaceAccessStatus {
+  configured: boolean;
+  source: 'environment' | 'stored' | null;
+}

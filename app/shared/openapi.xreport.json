@@ -377,6 +377,85 @@
         }
       }
     },
+    "/api/settings/huggingface": {
+      "get": {
+        "tags": [
+          "huggingface-access"
+        ],
+        "summary": "Get Status",
+        "operationId": "get_status_api_settings_huggingface_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HuggingFaceAccessStatus"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "huggingface-access"
+        ],
+        "summary": "Save Token",
+        "operationId": "save_token_api_settings_huggingface_put",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/HuggingFaceTokenUpdate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HuggingFaceAccessStatus"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "huggingface-access"
+        ],
+        "summary": "Clear Token",
+        "operationId": "clear_token_api_settings_huggingface_delete",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HuggingFaceAccessStatus"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/exchange/import": {
       "post": {
         "tags": [
@@ -1295,6 +1374,54 @@
         },
         "type": "object",
         "title": "HTTPValidationError"
+      },
+      "HuggingFaceAccessStatus": {
+        "properties": {
+          "configured": {
+            "type": "boolean",
+            "title": "Configured"
+          },
+          "source": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "environment",
+                  "stored"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "configured"
+        ],
+        "title": "HuggingFaceAccessStatus",
+        "description": "Token presence only; the token value is never returned."
+      },
+      "HuggingFaceTokenUpdate": {
+        "properties": {
+          "token": {
+            "type": "string",
+            "maxLength": 512,
+            "minLength": 1,
+            "format": "password",
+            "title": "Token",
+            "writeOnly": true
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "token"
+        ],
+        "title": "HuggingFaceTokenUpdate"
       },
       "InferenceHistoryDeleteResponse": {
         "properties": {

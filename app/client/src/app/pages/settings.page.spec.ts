@@ -52,6 +52,9 @@ describe('SettingsPage', () => {
     getDatabaseSettings: vi.fn(),
     testDatabaseConnection: vi.fn(),
     switchDatabase: vi.fn(),
+    getHuggingFaceAccess: vi.fn(),
+    saveHuggingFaceToken: vi.fn(),
+    clearHuggingFaceToken: vi.fn(),
   };
 
   beforeEach(() => {
@@ -76,6 +79,9 @@ describe('SettingsPage', () => {
       result: { active: databaseSummary('C:\\data\\target.db'), settings: settingsResponse() },
       error: null,
     });
+    api.getHuggingFaceAccess.mockReset().mockResolvedValue({ result: { configured: false, source: null }, error: null });
+    api.saveHuggingFaceToken.mockReset().mockResolvedValue({ result: { configured: true, source: 'stored' }, error: null });
+    api.clearHuggingFaceToken.mockReset().mockResolvedValue({ result: { configured: false, source: null }, error: null });
     TestBed.configureTestingModule({ imports: [SettingsPage], providers: [{ provide: SettingsApiService, useValue: api }] });
   });
 
@@ -212,6 +218,28 @@ describe('SettingsPage', () => {
     expect(page.activeTab()).toBe('database');
     expect(element.querySelector('#database-backend')).not.toBeNull();
     expect(element.querySelector('#database-sqlite-path')).not.toBeNull();
+  });
+
+  it('saves the Hugging Face token once, clears the field, and offers removal', async () => {
+    const fixture = TestBed.createComponent(SettingsPage);
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges();
+    const page = fixture.componentInstance;
+    const element = fixture.nativeElement as HTMLElement;
+
+    (element.querySelector('#settings-tab-models') as HTMLButtonElement).click();
+    fixture.detectChanges();
+    expect(element.textContent).toContain('No token is configured.');
+
+    page.huggingFaceTokenInput = ' hf_example ';
+    await page.saveHuggingFaceToken();
+    fixture.detectChanges();
+
+    expect(api.saveHuggingFaceToken).toHaveBeenCalledWith('hf_example');
+    expect(page.huggingFaceTokenInput).toBe('');
+    expect(element.textContent).toContain('A token is saved on this computer.');
+    expect(element.textContent).toContain('Remove token');
   });
 
   it('tests and switches the selected database, then applies its settings immediately', async () => {

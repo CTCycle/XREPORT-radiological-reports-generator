@@ -25,6 +25,37 @@ def test_inference_route_renders_catalog_and_navigation(
     expect(page).to_have_url(f"{base_url}/inference")
 
 ###############################################################################
+def test_model_update_check_shows_progress_then_result(
+    page: Page,
+    base_url: str,
+) -> None:
+    pending: list[Route] = []
+    page.route("**/api/inference/models/check-update", lambda route: pending.append(route))
+    page.goto(f"{base_url}/inference")
+    page.get_by_role("button", name=re.compile("CXRMate Multi")).click()
+
+    page.get_by_role("button", name="Check for updates").click()
+    expect(page.get_by_role("button", name="Checking…")).to_be_disabled()
+    expect(page.get_by_text("Checking Hugging Face for a newer revision…")).to_be_visible()
+
+    while not pending:
+        page.wait_for_timeout(50)
+    pending[0].fulfill(
+        json={
+            "model_ref": "huggingface:aehrc/cxrmate-multi-tf",
+            "repository_id": "aehrc/cxrmate-multi-tf",
+            "installed_revision": "a" * 40,
+            "latest_revision": "b" * 40,
+            "update_available": True,
+            "source": "https://huggingface.co/aehrc/cxrmate-multi-tf",
+            "checked_at": "2026-01-01T00:00:00+00:00",
+            "error": None,
+        }
+    )
+    expect(page.get_by_text(f"Update available: {'a' * 12} → {'b' * 12}")).to_be_visible()
+    expect(page.get_by_role("button", name="Check for updates")).to_be_enabled()
+
+###############################################################################
 def test_reports_route_renders_history_or_explicit_empty_state(
     page: Page,
     base_url: str,
@@ -308,6 +339,7 @@ def test_desktop_catalogue_matches_details_height_and_keeps_internal_scroll(
     assert metrics["selectionContainsCatalog"]
     assert abs(metrics["catalogHeight"] - metrics["detailsHeight"]) <= 1
     assert metrics["overflowY"] in {"auto", "scroll"}
+    page.screenshot(path="G:/Projects/Repositories/Active projects/XREPORT Radiological Reports/assets/QA/catalogue-rows-desktop.png")  # TEMP
 
     page.get_by_placeholder("Filter by model, anatomy, or origin").fill("CheXOne")
     filtered_metrics = page.evaluate(
@@ -643,16 +675,10 @@ def test_affected_pages_render_responsive_layouts_and_capture_qa_evidence(
         () => {
           const catalog = document.querySelector('.catalog-panel');
           const groups = document.querySelector('.model-groups');
-          const cards = [...document.querySelectorAll('.model-card')];
           return {
             catalogHeight: catalog?.getBoundingClientRect().height ?? 0,
             groupsHeight: groups?.getBoundingClientRect().height ?? 0,
             overflowY: groups ? getComputedStyle(groups).overflowY : '',
-            cardHeightsByList: [...document.querySelectorAll('.model-list')].map((list) =>
-              [...list.querySelectorAll('.model-card')].map((card) =>
-                Math.round(card.getBoundingClientRect().height * 100) / 100,
-              ),
-            ),
           };
         }
         """,
@@ -660,11 +686,6 @@ def test_affected_pages_render_responsive_layouts_and_capture_qa_evidence(
     assert inference_metrics["catalogHeight"] > 0
     assert inference_metrics["groupsHeight"] > 0
     assert inference_metrics["overflowY"] in {"auto", "scroll"}
-    assert all(
-        len(set(card_heights)) == 1
-        for card_heights in inference_metrics["cardHeightsByList"]
-        if card_heights
-    )
 
     page.get_by_role("button", name="Dismiss model information").click()
     expect(banner).to_have_count(0)

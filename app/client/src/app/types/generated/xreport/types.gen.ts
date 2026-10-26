@@ -265,6 +265,32 @@ export type HttpValidationError = {
 };
 
 /**
+ * HuggingFaceAccessStatus
+ *
+ * Token presence only; the token value is never returned.
+ */
+export type HuggingFaceAccessStatus = {
+    /**
+     * Configured
+     */
+    configured: boolean;
+    /**
+     * Source
+     */
+    source?: 'environment' | 'stored' | null;
+};
+
+/**
+ * HuggingFaceTokenUpdate
+ */
+export type HuggingFaceTokenUpdate = {
+    /**
+     * Token
+     */
+    token: string;
+};
+
+/**
  * InferenceHistoryDeleteResponse
  */
 export type InferenceHistoryDeleteResponse = {
@@ -1297,6 +1323,63 @@ export type GenerateReportsApiInferenceGeneratePostResponses = {
 };
 
 export type GenerateReportsApiInferenceGeneratePostResponse = GenerateReportsApiInferenceGeneratePostResponses[keyof GenerateReportsApiInferenceGeneratePostResponses];
+
+export type ClearTokenApiSettingsHuggingfaceDeleteData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/api/settings/huggingface';
+};
+
+export type ClearTokenApiSettingsHuggingfaceDeleteResponses = {
+    /**
+     * Successful Response
+     */
+    200: HuggingFaceAccessStatus;
+};
+
+export type ClearTokenApiSettingsHuggingfaceDeleteResponse = ClearTokenApiSettingsHuggingfaceDeleteResponses[keyof ClearTokenApiSettingsHuggingfaceDeleteResponses];
+
+export type GetStatusApiSettingsHuggingfaceGetData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/api/settings/huggingface';
+};
+
+export type GetStatusApiSettingsHuggingfaceGetResponses = {
+    /**
+     * Successful Response
+     */
+    200: HuggingFaceAccessStatus;
+};
+
+export type GetStatusApiSettingsHuggingfaceGetResponse = GetStatusApiSettingsHuggingfaceGetResponses[keyof GetStatusApiSettingsHuggingfaceGetResponses];
+
+export type SaveTokenApiSettingsHuggingfacePutData = {
+    body: HuggingFaceTokenUpdate;
+    path?: never;
+    query?: never;
+    url: '/api/settings/huggingface';
+};
+
+export type SaveTokenApiSettingsHuggingfacePutErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type SaveTokenApiSettingsHuggingfacePutError = SaveTokenApiSettingsHuggingfacePutErrors[keyof SaveTokenApiSettingsHuggingfacePutErrors];
+
+export type SaveTokenApiSettingsHuggingfacePutResponses = {
+    /**
+     * Successful Response
+     */
+    200: HuggingFaceAccessStatus;
+};
+
+export type SaveTokenApiSettingsHuggingfacePutResponse = SaveTokenApiSettingsHuggingfacePutResponses[keyof SaveTokenApiSettingsHuggingfacePutResponses];
 
 export type ImportCheckpointApiExchangeImportPostData = {
     body: BodyImportCheckpointApiExchangeImportPost;

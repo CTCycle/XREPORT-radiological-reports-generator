@@ -24,13 +24,13 @@ import { ModalFocusDirective } from './modal-focus.directive';
           </header>
           <div class="guidance-modal-body">
             <p>
-              A checkpoint is more than one file. Use the archive exported from Studio, or a zip containing
-              <code>saved_model.keras</code> and <code>configuration/configuration.json</code>,
-              <code>metadata.json</code> and <code>session_history.json</code>. A lone <code>.keras</code> file cannot be imported.
+              Select the <code>.xreportckpt</code> archive exported from XREPORT Studio. It bundles the model,
+              configuration and tokenizer with a manifest that is verified before anything is installed.
+              A lone <code>.keras</code> file or a hand-made zip cannot be imported.
             </p>
             <label class="guidance-field">
               <span>Checkpoint archive</span>
-              <input type="file" accept=".xreportckpt,.zip" [disabled]="busy()" (change)="onFile($event)" />
+              <input type="file" accept=".xreportckpt" [disabled]="busy()" (change)="onFile($event)" />
             </label>
             @if (conflict()) {
               <label class="guidance-field">

@@ -12,6 +12,7 @@ import type {
   DatabaseConnectionTest,
   DatabaseBackend,
   EditableSettings,
+  HuggingFaceAccessStatus,
 } from '../types/settingsApi';
 
 interface ValidationErrors {
@@ -20,7 +21,7 @@ interface ValidationErrors {
   model_timeout?: string;
 }
 
-type SettingsTab = 'general' | 'data' | 'advanced' | 'database';
+type SettingsTab = 'general' | 'data' | 'advanced' | 'models' | 'database';
 
 @Component({
   selector: 'app-settings-page',
@@ -125,6 +126,40 @@ type SettingsTab = 'general' | 'data' | 'advanced' | 'database';
                   </div>
                 </div>
               </div>
+            } @else if (activeTab() === 'models') {
+              <div class="settings-section-heading">
+                <h2>Model access</h2>
+                <p>Gated public models, such as MedGemma, need a Hugging Face access token before they can be downloaded.</p>
+              </div>
+              <div class="settings-fields">
+                <div class="settings-field">
+                  <div class="settings-field-copy">
+                    <h3 id="hf-token-title">Hugging Face access token</h3>
+                    <p>Accept the model terms on its Hugging Face page first, then create a read token in your Hugging Face account settings. The token is stored on this computer by the backend and is never shown again.</p>
+                  </div>
+                  <div class="settings-field-control">
+                    @if (huggingFaceLoadError(); as error) {
+                      <span class="settings-error" role="alert">{{ error }}</span>
+                    } @else if (huggingFaceStatus(); as access) {
+                      <span id="hf-token-status" class="settings-help" role="status">{{ huggingFaceStatusLabel(access) }}</span>
+                    }
+                    <input id="hf-token" type="password" autocomplete="off" spellcheck="false" name="hf_token" placeholder="hf_…"
+                      [(ngModel)]="huggingFaceTokenInput" [disabled]="huggingFaceBusy() || huggingFaceStatus()?.source === 'environment'"
+                      aria-labelledby="hf-token-title" aria-describedby="hf-token-status" />
+                    <div class="settings-inline-actions">
+                      <button type="button" class="secondary-button" (click)="saveHuggingFaceToken()"
+                        [disabled]="huggingFaceBusy() || !huggingFaceTokenInput.trim() || huggingFaceStatus()?.source === 'environment'">
+                        {{ huggingFaceBusy() ? 'Working…' : 'Save token' }}
+                      </button>
+                      @if (huggingFaceStatus()?.source === 'stored') {
+                        <button type="button" class="secondary-button" (click)="clearHuggingFaceToken()" [disabled]="huggingFaceBusy()">Remove token</button>
+                      }
+                    </div>
+                    @if (huggingFaceActionError(); as error) { <span class="settings-error" role="alert">{{ error }}</span> }
+                    @if (huggingFaceActionMessage(); as message) { <span class="settings-help" role="status">{{ message }}</span> }
+                  </div>
+                </div>
+              </div>
             } @else {
               <ng-container [ngTemplateOutlet]="databasePanel" />
             }
@@ -140,7 +175,7 @@ type SettingsTab = 'general' | 'data' | 'advanced' | 'database';
           @if (statusMessage()) {
             <div class="settings-save-status settings-save-status-success" role="status">{{ statusMessage() }}</div>
           }
-          @if (activeTab() !== 'database') {
+          @if (activeTab() !== 'database' && activeTab() !== 'models') {
             <div class="settings-actions">
               <button type="button" class="secondary-button" (click)="reset()" [disabled]="resetting() || databaseSwitching()">
                 {{ resetting() ? 'Resetting…' : 'Reset to defaults' }}
@@ -311,6 +346,12 @@ export class SettingsPage implements OnInit, OnDestroy {
   readonly databaseStatus = signal<DatabaseConfigurationStatus | null>(null);
   readonly databaseDraft = signal<DatabaseConfigurationDraft | null>(null);
   readonly databaseTestResult = signal<DatabaseConnectionTest | null>(null);
+  readonly huggingFaceStatus = signal<HuggingFaceAccessStatus | null>(null);
+  readonly huggingFaceBusy = signal(false);
+  readonly huggingFaceLoadError = signal<string | null>(null);
+  readonly huggingFaceActionError = signal<string | null>(null);
+  readonly huggingFaceActionMessage = signal<string | null>(null);
+  huggingFaceTokenInput = '';
   readonly draft = signal<EditableSettings | null>(null);
   private readonly baseline = signal<EditableSettings | null>(null);
   readonly defaults = signal<EditableSettings | null>(null);
@@ -318,6 +359,7 @@ export class SettingsPage implements OnInit, OnDestroy {
     { id: 'general' as const, label: 'General' },
     { id: 'data' as const, label: 'Data access' },
     { id: 'advanced' as const, label: 'Advanced' },
+    { id: 'models' as const, label: 'Model access' },
     { id: 'database' as const, label: 'Database' },
   ];
   readonly activeTab = signal<SettingsTab>('general');
@@ -351,6 +393,48 @@ export class SettingsPage implements OnInit, OnDestroy {
   ngOnInit(): void {
     if (!this.databaseOnly) void this.load();
     void this.loadDatabaseStatus();
+    if (!this.databaseOnly) void this.loadHuggingFaceStatus();
+  }
+
+  async loadHuggingFaceStatus(): Promise<void> {
+    this.huggingFaceLoadError.set(null);
+    const response = await this.api.getHuggingFaceAccess();
+    if (response.result) this.huggingFaceStatus.set(response.result);
+    else this.huggingFaceLoadError.set(response.error ?? 'Unable to load Hugging Face access status.');
+  }
+
+  huggingFaceStatusLabel(access: HuggingFaceAccessStatus): string {
+    if (access.source === 'environment') return 'A token is set through the HF_TOKEN environment variable and takes precedence. Remove it there to manage the token here.';
+    return access.configured ? 'A token is saved on this computer.' : 'No token is configured.';
+  }
+
+  async saveHuggingFaceToken(): Promise<void> {
+    await this.runHuggingFaceAction(
+      () => this.api.saveHuggingFaceToken(this.huggingFaceTokenInput.trim()),
+      'Token verified and saved.',
+    );
+    if (!this.huggingFaceActionError()) this.huggingFaceTokenInput = '';
+  }
+
+  async clearHuggingFaceToken(): Promise<void> {
+    await this.runHuggingFaceAction(() => this.api.clearHuggingFaceToken(), 'Token removed.');
+  }
+
+  private async runHuggingFaceAction(
+    action: () => Promise<{ result?: HuggingFaceAccessStatus | null; error?: string | null }>,
+    successMessage: string,
+  ): Promise<void> {
+    this.huggingFaceBusy.set(true);
+    this.huggingFaceActionError.set(null);
+    this.huggingFaceActionMessage.set(null);
+    const response = await action();
+    if (response.result) {
+      this.huggingFaceStatus.set(response.result);
+      this.huggingFaceActionMessage.set(successMessage);
+    } else {
+      this.huggingFaceActionError.set(response.error ?? 'Hugging Face token update failed.');
+    }
+    this.huggingFaceBusy.set(false);
   }
 
   ngOnDestroy(): void {

@@ -1142,6 +1142,50 @@ def test_http_downloader_resumes_partial_weight_file(
     assert any(call.get("headers") == {"Range": "bytes=1-"} for call in calls)
 
 ###############################################################################
+def test_check_update_reports_update_only_against_an_active_revision(
+    manager_paths: Path,
+) -> None:
+    del manager_paths
+    manager = ModelInstallationManager(api=FakeApi(NEXT_REVISION))
+
+    not_installed = manager.check_update("example/report-model")
+    assert not_installed["update_available"] is False
+    assert not_installed["latest_revision"] == NEXT_REVISION
+
+    installed = (
+        installation_module.HF_INSTALLED_DIR / "example__report-model" / INSTALLATION_REVISION
+    )
+    installed.mkdir(parents=True)
+    manager._write_metadata(
+        "example/report-model", _active_metadata(manager, installed)
+    )
+    outdated = manager.check_update("example/report-model")
+    assert outdated["update_available"] is True
+    assert outdated["installed_revision"] == INSTALLATION_REVISION
+
+###############################################################################
+def test_gated_file_download_reports_access_required(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    response = installation_module.requests.Response()
+    response.status_code = 401
+
+    def fake_get(url: str, **kwargs: object) -> object:
+        del url, kwargs
+        return response
+
+    monkeypatch.setattr(installation_module.requests, "get", fake_get)
+
+    with pytest.raises(InstallationError, match="accepted model terms"):
+        ModelInstallationManager._open_download_response(
+            url="https://huggingface.co/example/report-model/resolve/x/config.json",
+            headers={},
+            start=0,
+            partial=Path("config.json.incomplete"),
+            name="config.json",
+        )
+
+###############################################################################
 def test_activation_preserves_previous_revision_for_rollback(
     manager_paths: Path,
     monkeypatch: pytest.MonkeyPatch,

@@ -6,6 +6,7 @@ import type {
   DatabaseConfigurationStatus,
   DatabaseConnectionTest,
   DatabaseSwitchResult,
+  HuggingFaceAccessStatus,
 } from '../types/settingsApi';
 import { ApiRequestService } from './api-request.service';
 
@@ -40,6 +41,18 @@ export class SettingsApiService {
 
   switchDatabase(candidate: DatabaseConfigurationDraft) {
     return this.request.request<DatabaseSwitchResult>('POST', '/api/settings/database/switch', candidate);
+  }
+
+  getHuggingFaceAccess() {
+    return this.request.request<HuggingFaceAccessStatus>('GET', '/api/settings/huggingface');
+  }
+
+  saveHuggingFaceToken(token: string) {
+    return this.request.request<HuggingFaceAccessStatus>('PUT', '/api/settings/huggingface', { token });
+  }
+
+  clearHuggingFaceToken() {
+    return this.request.request<HuggingFaceAccessStatus>('DELETE', '/api/settings/huggingface');
   }
 
   private enqueueSettingsRequest<T>(operation: () => Promise<T>): Promise<T> {
