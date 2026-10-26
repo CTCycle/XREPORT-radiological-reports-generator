@@ -153,51 +153,59 @@ type SettingsTab = 'general' | 'advanced' | 'models' | 'storage' | 'database';
                 <h2>Storage location</h2>
                 <p>Downloaded models, checkpoints, the application database, templates and logs live under one folder. Changes take effect after XREPORT restarts.</p>
               </div>
-              <div class="settings-fields">
-                <div class="settings-field">
-                  <div class="settings-field-copy">
-                    <h3 id="storage-root-title">Current location</h3>
-                    <p>Existing data is copied to the new folder and verified first. The old folder is left untouched; delete it yourself once you no longer need it.</p>
-                  </div>
-                  <div class="settings-field-control">
-                    @if (storageLoadError(); as error) {
-                      <span class="settings-error" role="alert">{{ error }}</span>
-                    } @else if (storageStatus(); as storage) {
-                      <code id="storage-active-root" class="settings-help">{{ storage.active_root }}</code>
-                      <ul class="settings-help" aria-label="Storage folders">
-                        @for (folder of storage.folders; track folder.name) { <li>{{ folder.name }} · {{ formatBytes(folder.size_bytes) }}</li> }
-                      </ul>
+              <div class="storage-layout">
+                @if (storageLoadError(); as error) {
+                  <span class="settings-error" role="alert">{{ error }}</span>
+                } @else if (storageStatus(); as storage) {
+                  <div class="storage-overview">
+                    <section class="storage-block" aria-labelledby="storage-root-title">
+                      <h3 id="storage-root-title">Current location</h3>
+                      <code id="storage-active-root" class="storage-path">{{ storage.active_root }}</code>
                       @if (storage.restart_required) {
                         <span class="settings-help" role="status">Restart required: XREPORT will use {{ storage.pending_root }} after it restarts.</span>
                       }
                       @if (storage.locked) {
                         <span class="settings-help" role="status">The location is set by XREPORT_RESOURCES_DIR in the environment or settings/.env and can only be changed there.</span>
                       }
-                    }
-                    <input id="storage-path" type="text" spellcheck="false" name="storage_path" placeholder="D:\\XREPORT-data"
-                      [ngModel]="storagePathInput()" (ngModelChange)="onStoragePathChange($event)"
-                      [disabled]="storageBusy() || storageStatus()?.locked !== false" aria-labelledby="storage-root-title" />
-                    <div class="settings-inline-actions">
-                      <button type="button" class="secondary-button" (click)="validateStorage()"
-                        [disabled]="storageBusy() || !storagePathInput().trim() || storageStatus()?.locked !== false">Check folder</button>
-                      <button type="button" class="secondary-button" (click)="applyStorage()"
-                        [disabled]="storageBusy() || !storageValidation()?.valid">
-                        {{ storageBusy() ? 'Moving…' : storageValidation()?.target_state === 'existing' ? 'Use this folder' : 'Move data here' }}
-                      </button>
-                    </div>
-                    @if (storageValidation(); as check) {
+                    </section>
+                    <section class="storage-block" aria-labelledby="storage-usage-title">
+                      <h3 id="storage-usage-title">Usage <span class="settings-unit">{{ formatBytes(totalBytes(storage)) }} total</span></h3>
+                      <ul class="storage-usage" aria-label="Storage folders">
+                        @for (folder of storage.folders; track folder.name) {
+                          <li><span>{{ folder.name }}</span><span class="storage-size">{{ formatBytes(folder.size_bytes) }}</span></li>
+                        }
+                      </ul>
+                    </section>
+                  </div>
+                }
+                <section class="storage-block storage-destination" aria-labelledby="storage-destination-title">
+                  <h3 id="storage-destination-title">New destination</h3>
+                  <p class="settings-help">Existing data is copied to the new folder and verified first. The old folder is left untouched; delete it yourself once you no longer need it.</p>
+                  <input id="storage-path" type="text" spellcheck="false" name="storage_path" placeholder="D:\\XREPORT-data"
+                    [ngModel]="storagePathInput()" (ngModelChange)="onStoragePathChange($event)"
+                    [disabled]="storageBusy() || storageStatus()?.locked !== false" aria-labelledby="storage-destination-title" />
+                  @if (storageValidation(); as check) {
+                    <div class="storage-feedback">
                       @for (error of check.errors; track error) { <span class="settings-error" role="alert">{{ error }}</span> }
                       @for (warning of check.warnings; track warning) { <span class="settings-help" role="status">{{ warning }}</span> }
                       @if (check.valid && check.target_state !== 'existing') {
                         <span class="settings-help" role="status">{{ formatBytes(check.required_bytes) }} will be copied; {{ formatBytes(check.free_bytes ?? 0) }} free.</span>
                       }
-                    }
-                    @if (storageBusy()) {
-                      <span class="settings-help" role="status">{{ storageProgressMessage() }} ({{ storageProgress() | number:'1.0-0' }}%)</span>
-                    }
-                    @if (storageActionError(); as error) { <span class="settings-error" role="alert">{{ error }}</span> }
+                    </div>
+                  }
+                  @if (storageBusy()) {
+                    <span class="settings-help" role="status">{{ storageProgressMessage() }} ({{ storageProgress() | number:'1.0-0' }}%)</span>
+                  }
+                  @if (storageActionError(); as error) { <span class="settings-error" role="alert">{{ error }}</span> }
+                  <div class="storage-actions">
+                    <button type="button" class="secondary-button" (click)="validateStorage()"
+                      [disabled]="storageBusy() || !storagePathInput().trim() || storageStatus()?.locked !== false">Check folder</button>
+                    <button type="button" class="primary-button" (click)="applyStorage()"
+                      [disabled]="storageBusy() || !storageValidation()?.valid">
+                      {{ storageBusy() ? 'Moving…' : storageValidation()?.target_state === 'existing' ? 'Use this folder' : 'Move data here' }}
+                    </button>
                   </div>
-                </div>
+                </section>
               </div>
             } @else {
               <ng-container [ngTemplateOutlet]="databasePanel" />
@@ -490,6 +498,10 @@ export class SettingsPage implements OnInit, OnDestroy {
       else this.storageValidation.set(null);
       void this.loadStorageStatus();
     });
+  }
+
+  totalBytes(storage: StorageStatus): number {
+    return storage.folders.reduce((total, folder) => total + folder.size_bytes, 0);
   }
 
   formatBytes(bytes: number): string {

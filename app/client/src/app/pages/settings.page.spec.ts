@@ -249,7 +249,8 @@ describe('SettingsPage', () => {
     page.selectTab('storage');
     fixture.detectChanges();
     expect(element.textContent).toContain('C:/data');
-    expect(element.textContent).toContain('models · 2.0 KB');
+    expect(element.querySelector('.storage-usage')?.textContent).toMatch(/models\s*2\.0 KB/);
+    expect(element.textContent).toContain('2.0 KB total');
 
     await page.applyStorage();
     expect(api.applyStorage).not.toHaveBeenCalled();
