@@ -129,22 +129,7 @@ function Write-Fatal([string]$Message) { Clear-LauncherProgress; Write-Host "[FA
 
 function Write-LaunchTiming {
     param([Parameter(Mandatory = $true)][string]$Phase, [Parameter(Mandatory = $true)][long]$ElapsedMilliseconds)
-    $phaseNames = @{
-        port_preflight = 'Port checks'
-        dependency_readiness = 'Backend dependency check'
-        build_freshness_check = 'Frontend build check'
-        stale_rebuild = 'Frontend build preparation'
-        backend_process_start = 'Backend process start'
-        backend_healthy = 'Backend startup'
-    }
-    $phaseName = if ($phaseNames.ContainsKey($Phase)) { $phaseNames[$Phase] } else { $Phase.Replace('_', ' ') }
-    $duration = if ($ElapsedMilliseconds -lt 1000) {
-        "$ElapsedMilliseconds ms"
-    } else {
-        $seconds = ($ElapsedMilliseconds / 1000.0).ToString('0.0', [Globalization.CultureInfo]::InvariantCulture)
-        "$seconds seconds"
-    }
-    Write-Info "$phaseName completed in $duration ($ElapsedMilliseconds ms)."
+    Write-Host ('[TIME] {0,-42} {1,8} ms' -f "$($Phase):", $ElapsedMilliseconds) -ForegroundColor Gray
 }
 
 function Confirm-DestructiveAction([string]$Description) {
@@ -1698,80 +1683,109 @@ function Invoke-Launch {
     $studio = $Application -eq 'Studio'
     $displayName = if ($studio) { 'XREPORT Studio' } else { 'XREPORT' }
     $frontendProject = if ($studio) { 'studio-angular' } else { 'client-angular' }
-    $settings = Import-XReportEnvironment
-    if ($studio) {
-        # Studio owns a separate port, database, and process identity.
-        $settings = $settings.Clone()
-        $settings.FASTAPI_PORT = $settings.STUDIO_FASTAPI_PORT
-    }
     $launchStopwatch = [Diagnostics.Stopwatch]::StartNew()
+    $configurationStarted = $launchStopwatch.ElapsedMilliseconds
+    try {
+        $settings = Import-XReportEnvironment
+        if ($studio) {
+            # Studio owns a separate port, database, and process identity.
+            $settings = $settings.Clone()
+            $settings.FASTAPI_PORT = $settings.STUDIO_FASTAPI_PORT
+        }
+    } finally {
+        Write-LaunchTiming -Phase 'Environment and launch configuration' -ElapsedMilliseconds ($launchStopwatch.ElapsedMilliseconds - $configurationStarted)
+    }
     $portPreflightStarted = $launchStopwatch.ElapsedMilliseconds
-    Resolve-LaunchPortConflicts -Settings $settings
-    Write-LaunchTiming -Phase 'port_preflight' -ElapsedMilliseconds ($launchStopwatch.ElapsedMilliseconds - $portPreflightStarted)
+    try {
+        Resolve-LaunchPortConflicts -Settings $settings
+    } finally {
+        Write-LaunchTiming -Phase 'Port checks' -ElapsedMilliseconds ($launchStopwatch.ElapsedMilliseconds - $portPreflightStarted)
+    }
 
     $dependencyStarted = $launchStopwatch.ElapsedMilliseconds
-    Initialize-Environment
-    $backendPython = $VenvPython
-    if ($studio) {
-        $selectedStudioProfile = Resolve-StudioProfile
-        if (-not (Test-StudioBackendDependenciesReady -Profile $selectedStudioProfile)) {
-            Write-Step "XREPORT Studio $selectedStudioProfile environment is missing or out of date; installing dependencies."
-            Ensure-PortableRuntimes
-            Install-StudioBackendDependencies -Profile $selectedStudioProfile
+    try {
+        Initialize-Environment
+        $backendPython = $VenvPython
+        if ($studio) {
+            $selectedStudioProfile = Resolve-StudioProfile
+            if (-not (Test-StudioBackendDependenciesReady -Profile $selectedStudioProfile)) {
+                Write-Step "XREPORT Studio $selectedStudioProfile environment is missing or out of date; installing dependencies."
+                Ensure-PortableRuntimes
+                Install-StudioBackendDependencies -Profile $selectedStudioProfile
+            }
+            else {
+                Write-Ok "XREPORT Studio $selectedStudioProfile environment is ready; skipped dependency installation."
+            }
+            $backendPython = $StudioVenvPython
         }
         else {
-            Write-Ok "XREPORT Studio $selectedStudioProfile environment is ready; skipped dependency installation."
+            if (-not (Test-BackendDependenciesReady)) {
+                Write-Step 'Backend environment is missing or unusable; installing backend dependencies.'
+                Ensure-PortableRuntimes
+                Install-BackendDependencies -InstallationType 'Standard'
+            }
+            else {
+                Write-Ok 'Backend environment is ready; skipped backend dependency installation.'
+            }
         }
-        $backendPython = $StudioVenvPython
+    } finally {
+        Write-LaunchTiming -Phase 'Backend dependency check and setup' -ElapsedMilliseconds ($launchStopwatch.ElapsedMilliseconds - $dependencyStarted)
     }
-    else {
-        if (-not (Test-BackendDependenciesReady)) {
-            Write-Step 'Backend environment is missing or unusable; installing backend dependencies.'
-            Ensure-PortableRuntimes
-            Install-BackendDependencies -InstallationType 'Standard'
-        }
-        else {
-            Write-Ok 'Backend environment is ready; skipped backend dependency installation.'
-        }
-    }
-    Write-LaunchTiming -Phase 'dependency_readiness' -ElapsedMilliseconds ($launchStopwatch.ElapsedMilliseconds - $dependencyStarted)
 
     $buildCheckStarted = $launchStopwatch.ElapsedMilliseconds
-    $buildStatus = Get-FrontendBuildStatus -Project $frontendProject
-    Write-Info "Frontend build status ($frontendProject): $(Get-FrontendBuildReasonDescription -Reason $buildStatus.Reason)."
-    Write-LaunchTiming -Phase 'build_freshness_check' -ElapsedMilliseconds ($launchStopwatch.ElapsedMilliseconds - $buildCheckStarted)
-    $rebuildStarted = $launchStopwatch.ElapsedMilliseconds
-    Ensure-FrontendBuild -Status $buildStatus -Project $frontendProject | Out-Null
-    Write-LaunchTiming -Phase 'stale_rebuild' -ElapsedMilliseconds ($launchStopwatch.ElapsedMilliseconds - $rebuildStarted)
-
-    if (-not (Test-Path -LiteralPath $backendPython)) {
-        throw "Virtual-environment Python was not found at $backendPython."
+    try {
+        $buildStatus = Get-FrontendBuildStatus -Project $frontendProject
+        Write-Info "Frontend build status ($frontendProject): $(Get-FrontendBuildReasonDescription -Reason $buildStatus.Reason)."
+    } finally {
+        Write-LaunchTiming -Phase 'Frontend build check' -ElapsedMilliseconds ($launchStopwatch.ElapsedMilliseconds - $buildCheckStarted)
     }
-    $backendAppPath = Join-Path $RepoRoot 'app'
-    $entryArguments = if ($studio) { @('-m', 'server.source_entry', '--app', 'studio') } else { @('-m', 'server.source_entry') }
-    $appUrl = Get-LocalServiceUrl -HostName ([string]$settings.FASTAPI_HOST) -Port ([int]$settings.FASTAPI_PORT)
-    $healthUrl = "$appUrl/api/health"
-    $launchToken = New-LauncherToken
-    $previousServeClient = [Environment]::GetEnvironmentVariable('XREPORT_SERVE_CLIENT', 'Process')
-    $previousApp = [Environment]::GetEnvironmentVariable('XREPORT_APP', 'Process')
-    $previousLaunchToken = [Environment]::GetEnvironmentVariable('XREPORT_LAUNCH_TOKEN', 'Process')
-    $backendProcess = $null
+    $rebuildStarted = $launchStopwatch.ElapsedMilliseconds
+    try {
+        Ensure-FrontendBuild -Status $buildStatus -Project $frontendProject | Out-Null
+    } finally {
+        Write-LaunchTiming -Phase 'Frontend build preparation' -ElapsedMilliseconds ($launchStopwatch.ElapsedMilliseconds - $rebuildStarted)
+    }
+
+    $backendPreparationStarted = $launchStopwatch.ElapsedMilliseconds
+    try {
+        if (-not (Test-Path -LiteralPath $backendPython)) {
+            throw "Virtual-environment Python was not found at $backendPython."
+        }
+        $backendAppPath = Join-Path $RepoRoot 'app'
+        $entryArguments = if ($studio) { @('-m', 'server.source_entry', '--app', 'studio') } else { @('-m', 'server.source_entry') }
+        $appUrl = Get-LocalServiceUrl -HostName ([string]$settings.FASTAPI_HOST) -Port ([int]$settings.FASTAPI_PORT)
+        $healthUrl = "$appUrl/api/health"
+        $launchToken = New-LauncherToken
+        $previousServeClient = [Environment]::GetEnvironmentVariable('XREPORT_SERVE_CLIENT', 'Process')
+        $previousApp = [Environment]::GetEnvironmentVariable('XREPORT_APP', 'Process')
+        $previousLaunchToken = [Environment]::GetEnvironmentVariable('XREPORT_LAUNCH_TOKEN', 'Process')
+        $backendProcess = $null
+    } finally {
+        Write-LaunchTiming -Phase 'Backend launch preparation' -ElapsedMilliseconds ($launchStopwatch.ElapsedMilliseconds - $backendPreparationStarted)
+    }
     $backendStartStarted = $launchStopwatch.ElapsedMilliseconds
     try {
-        $env:XREPORT_SERVE_CLIENT = '1'
-        $env:XREPORT_APP = if ($studio) { 'studio' } else { 'xreport' }
-        $env:XREPORT_LAUNCH_TOKEN = $launchToken
-        Write-Step 'Starting the FastAPI server with the built Angular frontend'
-        $backendProcess = Start-Process -FilePath $backendPython `
-            -ArgumentList $entryArguments `
-            -WorkingDirectory $backendAppPath -NoNewWindow -PassThru
-        Write-LaunchTiming -Phase 'backend_process_start' -ElapsedMilliseconds ($launchStopwatch.ElapsedMilliseconds - $backendStartStarted)
+        try {
+            $env:XREPORT_SERVE_CLIENT = '1'
+            $env:XREPORT_APP = if ($studio) { 'studio' } else { 'xreport' }
+            $env:XREPORT_LAUNCH_TOKEN = $launchToken
+            Write-Step 'Starting the FastAPI server with the built Angular frontend'
+            $backendProcess = Start-Process -FilePath $backendPython `
+                -ArgumentList $entryArguments `
+                -WorkingDirectory $backendAppPath -NoNewWindow -PassThru
+        } finally {
+            Write-LaunchTiming -Phase 'Backend process start' -ElapsedMilliseconds ($launchStopwatch.ElapsedMilliseconds - $backendStartStarted)
+        }
 
         Write-Step "Waiting for FastAPI health at $healthUrl"
         $healthStarted = $launchStopwatch.ElapsedMilliseconds
-        Invoke-HealthCheck -Uri $healthUrl -TimeoutSeconds 90 -Process $backendProcess -ProcessLabel 'FastAPI backend' -SuppressProgress
-        Write-Ok "FastAPI is healthy at $healthUrl."
-        Write-LaunchTiming -Phase 'backend_healthy' -ElapsedMilliseconds ($launchStopwatch.ElapsedMilliseconds - $healthStarted)
+        try {
+            Invoke-HealthCheck -Uri $healthUrl -TimeoutSeconds 90 -Process $backendProcess -ProcessLabel 'FastAPI backend' -SuppressProgress
+            Write-Ok "FastAPI is healthy at $healthUrl."
+        } finally {
+            Write-LaunchTiming -Phase 'Backend health readiness' -ElapsedMilliseconds ($launchStopwatch.ElapsedMilliseconds - $healthStarted)
+        }
+        Write-LaunchTiming -Phase 'Total time to application readiness' -ElapsedMilliseconds $launchStopwatch.ElapsedMilliseconds
 
         try {
             Start-Process -FilePath $appUrl -ErrorAction Stop | Out-Null

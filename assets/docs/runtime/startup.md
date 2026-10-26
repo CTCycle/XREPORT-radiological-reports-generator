@@ -1,6 +1,6 @@
 # Runtime Startup
 
-Last updated: 2026-10-25
+Last updated: 2026-10-26
 
 ## Windows Local Launcher
 
@@ -53,7 +53,9 @@ console as the lifecycle owner. Press Ctrl+C to stop. The launcher requests
 FastAPI's authenticated shutdown endpoint and force-stops only the backend
 process tree it started if graceful shutdown does not finish. Backend logs stay
 in this console. If automatic browser launch fails, use the printed URL.
-Launcher steps include the selected menu label and readable phase durations.
+Launcher output includes the selected menu label and aligned `[TIME]` rows in
+milliseconds for startup phases, including total time to backend health
+readiness.
 During the foreground health wait, it hides the live progress display so it
 does not overwrite FastAPI startup output; readiness is reported after the
 health endpoint responds.
