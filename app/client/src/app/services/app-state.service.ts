@@ -12,7 +12,7 @@ function freshTrainingState(): TrainingPageState {
   return { config: { ...defaultTrainingConfig }, newSessionExpanded: true, resumeSessionExpanded: false, selectedCheckpoint: '', additionalEpochs: 50, dashboardState: { ...defaultDashboard } };
 }
 function freshInferenceState(): InferencePageState {
-  return { images: [], currentIndex: 0, generatedReport: '', isGenerating: false, isCopied: false, selectedModelRef: '', generationProfile: 'deterministic', clinicalContext: '', modelAvailability: [], isLoadingModels: false, reports: {}, streamingTokens: '', currentStreamingIndex: -1, validationMetrics: { evaluationReport: true, bleuScore: false }, numBleuSamples: 10, isEvaluating: false, evaluationResults: null, evaluationError: null };
+  return { images: [], currentIndex: 0, generatedReport: '', isGenerating: false, activeJobId: null, runScope: 'selected', runIndices: [], studyReport: false, requestId: null, isCopied: false, selectedModelRef: '', generationProfile: 'deterministic', clinicalContext: '', modelAvailability: [], isLoadingModels: false, reports: {}, streamingTokens: '', currentStreamingIndex: -1, validationMetrics: { evaluationReport: true, bleuScore: false }, numBleuSamples: 10, isEvaluating: false, evaluationResults: null, evaluationError: null };
 }
 
 @Injectable({ providedIn: 'root' })

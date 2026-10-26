@@ -23,11 +23,12 @@ export class InferenceApiService {
   maintainModel(modelRef: string, action: ModelMaintenanceAction, revision?: string) {
     return this.request.request<JobStartResponse>('POST', '/api/inference/models/maintenance', { model_ref: modelRef, action, revision });
   }
-  generateReports(images: File[], modelRef: string, profile: GenerationProfile, clinicalContext: string) {
+  generateReports(images: File[], modelRef: string, profile: GenerationProfile, clinicalContext: string, batchMode: 'study' | 'per_image' = 'study') {
     const form = new FormData();
     form.append('model_ref', modelRef);
     form.append('generation_profile', profile);
     form.append('clinical_context', clinicalContext);
+    form.append('batch_mode', batchMode);
     images.forEach((image) => form.append('images', image));
     return this.request.request<JobStartResponse>('POST', '/api/inference/generate', form);
   }

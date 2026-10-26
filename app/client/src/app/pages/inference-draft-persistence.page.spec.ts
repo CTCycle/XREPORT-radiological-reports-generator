@@ -1,6 +1,6 @@
 import { TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
-import { of } from 'rxjs';
+import { NEVER, Observable, of } from 'rxjs';
 import { vi } from 'vitest';
 import { AppStateService } from '../services/app-state.service';
 import { GuidanceService } from '../services/guidance.service';
@@ -141,6 +141,7 @@ async function createInferencePage(options: { imageCount?: number; studyLevel?: 
   appState.updateInference((state) => ({
     ...state,
     selectedModelRef: modelRef,
+    runScope: options.studyLevel ? 'study' : 'all',
     images: Array.from({ length: imageCount }, (_, index) =>
       new File([`image ${index + 1}`], `view-${index + 1}.png`, { type: 'image/png' }),
     ),
@@ -265,5 +266,100 @@ describe('inference draft persistence', () => {
     expect(generateReports).not.toHaveBeenCalled();
 
     confirm.mockRestore();
+  });
+
+  describe('navigation and batch runs', () => {
+    const urlStub = { createObjectURL: vi.fn(() => 'blob:preview'), revokeObjectURL: vi.fn() };
+
+    async function createPage(options: { state?: Partial<ReturnType<AppStateService['inference']>>; poll?: () => Observable<unknown>; generateReports?: ReturnType<typeof vi.fn> } = {}) {
+      const requestId = 'persisted-e2e-request';
+      const session = savedSession(requestId, false, 1);
+      const api = {
+        getModels: () => apiResult({ models: [model], providers: {} }),
+        generateReports: options.generateReports ?? vi.fn(() => apiResult({ job_id: 'generation-job', poll_interval: 0.1 })),
+        getHistory: vi.fn(() => apiResult(session)),
+        updateHistory: vi.fn(),
+      };
+      const completed = { job_id: 'generation-job', job_type: 'inference', status: 'completed', poll_interval: 0.1, progress: 100, result: generationResult(requestId, session), error: null };
+      await TestBed.configureTestingModule({
+        imports: [InferencePage],
+        providers: [
+          provideRouter([]),
+          { provide: InferenceApiService, useValue: api },
+          { provide: JobsApiService, useValue: { get: vi.fn(), cancel: vi.fn() } },
+          { provide: JobPollingService, useValue: { poll: options.poll ?? (() => of(completed)) } },
+          { provide: GuidanceService, useValue: { requestTour: vi.fn(), shouldShow: () => false } },
+        ],
+      }).compileComponents();
+      const appState = TestBed.inject(AppStateService);
+      appState.updateInference((state) => ({
+        ...state,
+        selectedModelRef: modelRef,
+        images: [new File(['one'], 'view-1.png', { type: 'image/png' }), new File(['two'], 'view-2.png', { type: 'image/png' }), new File(['three'], 'view-3.png', { type: 'image/png' })],
+        ...options.state,
+      }));
+      const fixture = TestBed.createComponent(InferencePage);
+      await fixture.whenStable();
+      return { fixture, page: fixture.componentInstance, api, appState, requestId };
+    }
+
+    beforeEach(() => { vi.stubGlobal('URL', Object.assign(URL, urlStub)); });
+    afterEach(() => { vi.unstubAllGlobals(); });
+
+    it('resumes a job that finished while the page was closed and restores its saved report', async () => {
+      const { page, api, appState, requestId } = await createPage({ state: { isGenerating: true, activeJobId: 'generation-job', runIndices: [0] } });
+
+      expect(appState.inference().isGenerating).toBe(false);
+      expect(appState.inference().activeJobId).toBeNull();
+      expect(api.getHistory).toHaveBeenCalledWith(requestId);
+      expect(page.persistedHistory()?.request_id).toBe(requestId);
+      expect(page.draft('findings')).toBe('Clear lungs.');
+      expect(page.currentImageUrl()).toBe('blob:preview');
+    });
+
+    it('keeps tracking a job that is still running when the page is recreated', async () => {
+      const { page, appState } = await createPage({
+        state: { isGenerating: true, activeJobId: 'generation-job' },
+        poll: () => of({ job_id: 'generation-job', job_type: 'inference', status: 'running', poll_interval: 0.1, progress: 42, result: { lifecycle: { message: 'Generating report 1 of 3' } }, error: null }, ),
+      });
+
+      expect(appState.inference().isGenerating).toBe(true);
+      expect(page.progress()).toBe(42);
+      expect(page.progressMessage()).toBe('Generating report 1 of 3');
+    });
+
+    it('reloads the saved report of a completed run when the page is recreated', async () => {
+      const { page, api, requestId } = await createPage({ state: { requestId: 'persisted-e2e-request', runIndices: [0] }, poll: () => NEVER });
+
+      expect(api.getHistory).toHaveBeenCalledWith(requestId);
+      expect(page.persistedHistory()?.request_id).toBe(requestId);
+    });
+
+    it('runs only the selected image by default and maps its report back to that image', async () => {
+      const generateReports = vi.fn(() => apiResult({ job_id: 'generation-job', poll_interval: 0.1 }));
+      const { fixture, page, appState } = await createPage({ generateReports, state: { currentIndex: 2 } });
+
+      await page.generate();
+      await fixture.whenStable();
+
+      const [files, , , , batchMode] = generateReports.mock.calls[0] as unknown as [File[], string, string, string, string];
+      expect(files.map((file) => file.name)).toEqual(['view-3.png']);
+      expect(batchMode).toBe('study');
+      expect(Object.keys(appState.inference().reports)).toEqual(['2']);
+      expect(page.draft('findings')).toBe('Clear lungs.');
+    });
+
+    it('runs every uploaded image independently when requested', async () => {
+      const generateReports = vi.fn(() => apiResult({ job_id: 'generation-job', poll_interval: 0.1 }));
+      const { fixture, page, appState } = await createPage({ generateReports, state: { runScope: 'all' } });
+
+      await page.generate();
+      await fixture.whenStable();
+
+      const [files, , , , batchMode] = generateReports.mock.calls[0] as unknown as [File[], string, string, string, string];
+      expect(files.map((file) => file.name)).toEqual(['view-1.png', 'view-2.png', 'view-3.png']);
+      expect(batchMode).toBe('per_image');
+      expect(appState.inference().runIndices).toEqual([0, 1, 2]);
+    });
   });
 });

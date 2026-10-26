@@ -124,6 +124,16 @@ export interface InferencePageState {
     currentIndex: number;
     generatedReport: string;
     isGenerating: boolean;
+    // Survives page navigation so the inference page can resume tracking the running job
+    activeJobId: string | null;
+    // 'selected' runs the previewed image, 'all' runs every image independently, 'study' sends all images as one study
+    runScope: 'selected' | 'all' | 'study';
+    // Uploaded-image indices submitted by the active or latest run, in submission order
+    runIndices: number[];
+    // Whether the latest run produced one study-level report shared by every submitted image
+    studyReport: boolean;
+    // Saved history request of the latest completed run, reloaded when the page is recreated
+    requestId: string | null;
     isCopied: boolean;
     selectedModelRef: string;
     generationProfile: GenerationProfile;

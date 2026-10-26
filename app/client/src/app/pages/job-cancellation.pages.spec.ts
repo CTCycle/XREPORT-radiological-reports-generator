@@ -1,5 +1,5 @@
 import { TestBed } from '@angular/core/testing';
-import { of } from 'rxjs';
+import { NEVER, of } from 'rxjs';
 import { vi } from 'vitest';
 import { AppStateService } from '../services/app-state.service';
 import { DatasetApiService } from '../services/dataset-api.service';
@@ -76,6 +76,7 @@ describe('cooperative page cancellation', () => {
       providers: [
         { provide: InferenceApiService, useValue: { getModels: () => apiResult({ models: [] }) } },
         { provide: JobsApiService, useValue: { cancel } },
+        { provide: JobPollingService, useValue: { poll: () => NEVER } },
         { provide: GuidanceService, useValue: hiddenGuidance() },
       ],
     }).compileComponents();
@@ -84,15 +85,15 @@ describe('cooperative page cancellation', () => {
     await fixture.whenStable();
     const page = fixture.componentInstance;
     const appState = TestBed.inject(AppStateService);
-    appState.updateInference((state) => ({ ...state, isGenerating: true }));
-    activeJob(page).activeJobId = 'generation-1';
+    appState.updateInference((state) => ({ ...state, isGenerating: true, activeJobId: 'generation-1' }));
+    await fixture.whenStable();
 
     await page.cancelGeneration();
 
     expect(cancel).toHaveBeenCalledTimes(1);
     expect(cancel).toHaveBeenCalledWith('generation-1');
     expect(appState.inference().isGenerating).toBe(true);
-    expect(activeJob(page).activeJobId).toBe('generation-1');
+    expect(appState.inference().activeJobId).toBe('generation-1');
     expect(page.progressMessage()).toBe('Cancellation requested…');
   });
 
@@ -103,6 +104,7 @@ describe('cooperative page cancellation', () => {
       providers: [
         { provide: InferenceApiService, useValue: { getModels: () => apiResult({ models: [] }) } },
         { provide: JobsApiService, useValue: { cancel } },
+        { provide: JobPollingService, useValue: { poll: () => NEVER } },
         { provide: GuidanceService, useValue: hiddenGuidance() },
       ],
     }).compileComponents();
@@ -111,13 +113,13 @@ describe('cooperative page cancellation', () => {
     await fixture.whenStable();
     const page = fixture.componentInstance;
     const appState = TestBed.inject(AppStateService);
-    appState.updateInference((state) => ({ ...state, isGenerating: true }));
-    activeJob(page).activeJobId = 'generation-2';
+    appState.updateInference((state) => ({ ...state, isGenerating: true, activeJobId: 'generation-2' }));
+    await fixture.whenStable();
 
     await page.cancelGeneration();
 
     expect(appState.inference().isGenerating).toBe(true);
-    expect(activeJob(page).activeJobId).toBe('generation-2');
+    expect(appState.inference().activeJobId).toBe('generation-2');
     expect(page.generationError()).toBe('Job cannot be cancelled');
   });
 
