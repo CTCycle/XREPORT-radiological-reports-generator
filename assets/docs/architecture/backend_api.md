@@ -1,6 +1,6 @@
 # XREPORT Backend API
 
-Last updated: 2026-10-21
+Last updated: 2026-10-26
 
 Each application has a checked-in OpenAPI snapshot, `app/shared/openapi.xreport.json` and
 `app/shared/openapi.studio.json`, generated from `create_app(profile).openapi()`. Regenerate both
@@ -148,6 +148,8 @@ the obsolete `inference.max_loaded_models` key are never returned by this API.
 
 - `GET /api/settings/database` reports the active connection, schema readiness,
   background-job state, and recovery status without exposing credentials.
+- `GET /api/settings/storage` reports the active and pending storage root, its source and folder sizes; `POST /api/settings/storage/validate` checks a candidate folder; `POST /api/settings/storage/apply` starts a `storage_migration` job (copy, or `use_existing`) that takes effect after restart. XREPORT profile only.
+- `POST /api/inference/generate` accepts an optional `batch_mode` (`study` default, or `per_image`, which runs each image independently, tolerates per-image failures reported in `provenance.image_errors`, and allows up to 16 images regardless of the model's study limit).
 - `GET`/`PUT`/`DELETE /api/settings/huggingface` report, validate-and-save, or remove the
   Hugging Face access token used for gated models; responses expose only `configured` and
   `source`, never the token.

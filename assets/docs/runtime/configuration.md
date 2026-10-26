@@ -1,6 +1,6 @@
 # Runtime Configuration
 
-Last updated: 2026-10-25
+Last updated: 2026-10-26
 
 ## Shared Configuration Sources
 
@@ -28,7 +28,7 @@ Packaged mode receives an internal runtime contract from Rust:
 `XREPORT_RUNTIME_ROOT`, `XREPORT_DATA_ROOT`, `XREPORT_RELEASE_VERSION`,
 `XREPORT_RUNTIME_VARIANT`, `XREPORT_CLIENT_DIST_DIR`, and the ephemeral
 `XREPORT_DESKTOP_TOKEN`. These values are absent from `.env.example` and are
-not emitted into logs. `XREPORT_RESOURCES_DIR` is ignored in packaged mode.
+not emitted into logs. `XREPORT_RESOURCES_DIR` is ignored in packaged mode; use Settings → Storage instead.
 
 Mutable deployment configuration is `%LOCALAPPDATA%\XREPORT\data\.env`;
 database connection configuration is
@@ -123,7 +123,7 @@ theme preference is imported into the active database once; later theme
 changes are stored in that database and switching databases loads its theme
 choice.
 
-`UI_API_BASE_URL` should remain `/api` for the proxied local flow. The Windows PowerShell launcher always opens a dedicated terminal for backend logs. Source mode accepts `XREPORT_RESOURCES_DIR` as an absolute path or a path relative to the repository root. Environment initialization preserves an explicit process-level value over a value in `settings/.env`, so spawned job workers inherit the same resource root resolved by the parent. Packaged mode ignores that source-relative override: immutable files stay in the verified extracted runtime, while the SQLite database and all mutable state are under `%LOCALAPPDATA%\\XREPORT\\data`.
+`UI_API_BASE_URL` should remain `/api` for the proxied local flow. The Windows PowerShell launcher always opens a dedicated terminal for backend logs. Source mode accepts `XREPORT_RESOURCES_DIR` as an absolute path or a path relative to the repository root. Environment initialization preserves an explicit process-level value over a value in `settings/.env`, so spawned job workers inherit the same resource root resolved by the parent. When neither is set, the storage root comes from `settings/storage-location.json` (source) or `%LOCALAPPDATA%\XREPORT\data\storage-location.json` (packaged), written atomically by Settings → Storage; precedence is process environment, then `settings/.env`, then that pointer file, then the default. Packaged mode ignores that source-relative override: immutable files stay in the verified extracted runtime, while the SQLite database and all mutable state are under `%LOCALAPPDATA%\\XREPORT\\data`.
 
 ## Database switching
 
@@ -177,3 +177,9 @@ it; re-enter it after moving the data directory to another account or machine.
   root (`<XREPORT_RESOURCES_DIR>/studio` for Studio), and the Angular output used for source hosting.
   Packaged builds reject anything but `xreport`.
 - `STUDIO_FASTAPI_PORT`: source-mode Studio backend port (default 5013, `settings/.env`).
+
+## Storage Root
+
+- One storage root owns `models`, `checkpoints`, `templates`, `exports`, `validation_receipts`, `logs`, `database.db`, `database-config.json` and (source mode) `studio`. Runtime extraction, shell state, `.env`, NLTK data and disposable caches stay in the fixed bootstrap location; the Tauri shell's own log files also stay there.
+- Settings → Storage validates a candidate (absolute, writable, not inside the application files or the current root, enough free space, empty or already an XREPORT root, network/removable drive warning), then copies the owned entries into a staging folder, verifies sizes, rewrites the copied checkpoint registry and `database-config.json` paths, moves the staged entries into place and writes the pointer last. The previous root is never modified or deleted. A target that already holds XREPORT data is used as-is and nothing is copied. Moving is refused while jobs run, when the root is set by `XREPORT_RESOURCES_DIR`, and when the application database is not the default SQLite file in the root.
+- The new root is used after the backend restarts.

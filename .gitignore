@@ -125,3 +125,6 @@ release/
 
 # Retained desktop smoke shell logs (must override the global *.log rule above).
 !assets/QA/desktop/smoke-*-shell.log
+
+# User-selected storage root pointer
+settings/storage-location.json
