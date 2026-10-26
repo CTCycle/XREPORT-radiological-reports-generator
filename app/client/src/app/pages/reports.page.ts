@@ -24,7 +24,7 @@ import type {
       <section class="reports-toolbar" aria-label="Report history filters">
         <label>
           <span>Model reference</span>
-          <input [(ngModel)]="modelRef" name="model-ref" placeholder="Filter by model reference" (keyup.enter)="applyFilters()" />
+          <input [ngModel]="modelRef" (ngModelChange)="onModelRefInput($event)" name="model-ref" placeholder="Filter by model reference" (keyup.enter)="applyFilters()" />
         </label>
         <label>
           <span>Status</span>
@@ -40,7 +40,6 @@ import type {
             <option value="oldest">Oldest first</option>
           </select>
         </label>
-        <button type="button" class="secondary-button" (click)="applyFilters()" [disabled]="loading()">Apply filters</button>
       </section>
 
       @if (loading()) {
@@ -105,6 +104,7 @@ export class ReportsPage {
   readonly loading = signal(true);
   readonly error = signal<string | null>(null);
   readonly pageSize = 10;
+  private readonly filterDebounceMs = 300;
   readonly statusOptions: InferenceHistoryStatus[] = ['queued', 'running', 'succeeded', 'failed', 'cancelled'];
   readonly Math = Math;
 
@@ -113,9 +113,13 @@ export class ReportsPage {
   sort: InferenceHistorySort = 'newest';
   offset = 0;
 
+  private modelRefTimer: ReturnType<typeof setTimeout> | null = null;
+
   constructor() {
+    this.destroyRef.onDestroy(() => this.clearModelRefTimer());
     this.route.queryParamMap.pipe(takeUntilDestroyed(this.destroyRef)).subscribe((params) => {
-      this.modelRef = params.get('model_ref') ?? '';
+      const modelRef = params.get('model_ref') ?? '';
+      if (modelRef !== this.modelRef.trim()) this.modelRef = modelRef;
       const status = params.get('status') ?? '';
       this.status = this.statusOptions.includes(status as InferenceHistoryStatus)
         ? status as InferenceHistoryStatus
@@ -150,9 +154,22 @@ export class ReportsPage {
     this.loading.set(false);
   }
 
+  onModelRefInput(value: string): void {
+    this.modelRef = value;
+    this.clearModelRefTimer();
+    this.modelRefTimer = setTimeout(() => this.applyFilters(), this.filterDebounceMs);
+  }
+
   applyFilters(): void {
+    this.clearModelRefTimer();
     this.offset = 0;
     void this.updateQuery();
+  }
+
+  private clearModelRefTimer(): void {
+    if (this.modelRefTimer === null) return;
+    clearTimeout(this.modelRefTimer);
+    this.modelRefTimer = null;
   }
 
   previousPage(): void {

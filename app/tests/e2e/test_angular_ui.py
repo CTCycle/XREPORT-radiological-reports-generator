@@ -729,7 +729,7 @@ def test_affected_pages_render_responsive_layouts_and_capture_qa_evidence(
     expect(page.locator("html")).to_have_attribute("data-theme", "dark")
     with page.expect_response(lambda item: item.url.endswith("/api/settings") and item.request.method == "PATCH"):
         page.get_by_role("button", name="Use System theme").click()
-    expect(page.get_by_text("Theme saved", exact=True)).to_be_visible()
+    expect(page.get_by_text("Theme saved", exact=True)).to_have_count(0)
 
     page.set_viewport_size({"width": 390, "height": 844})
     response = page.goto(f"{base_url}/inference")
@@ -1268,7 +1268,7 @@ def test_s10_theme_preferences_follow_system_and_persist_across_routes(
         light.click()
     expect(light).to_have_attribute("aria-pressed", "true")
     expect(page.locator("html")).to_have_attribute("data-theme", "light")
-    expect(page.get_by_text("Theme saved", exact=True)).to_be_visible()
+    expect(page.get_by_text("Theme saved", exact=True)).to_have_count(0)
     assert page.evaluate("() => localStorage.getItem('theme-preference')") is None
     page.screenshot(path=str(qa_dir / "theme-light-inference.png"), full_page=False)
     response = page.reload()
@@ -1282,7 +1282,7 @@ def test_s10_theme_preferences_follow_system_and_persist_across_routes(
         dark.click()
     expect(dark).to_have_attribute("aria-pressed", "true")
     expect(page.locator("html")).to_have_attribute("data-theme", "dark")
-    expect(page.get_by_text("Theme saved", exact=True)).to_be_visible()
+    expect(page.get_by_text("Theme saved", exact=True)).to_have_count(0)
     assert page.evaluate("() => localStorage.getItem('theme-preference')") is None
     response = page.reload()
     assert response is not None and response.ok

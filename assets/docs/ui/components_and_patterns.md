@@ -42,7 +42,8 @@ shell-level lifecycle component, not a feature-page loading state.
   (Backend and CUDA LEDs, RAM and VRAM in GB), fed by `SystemStatusService`.
 - `NotificationService` keeps the notification history (local storage, capped at 50)
   and the transient toasts rendered by `app-toast-host`. Pass `history: false` for
-  toast-only confirmations such as "Theme saved". `app-notification-center` in the
+  toast-only confirmations. Theme changes apply silently and raise no toast on
+  success. `app-notification-center` in the
   sidebar footer lists the history with unread badge, mark-read, dismiss and clear.
 - Inference completion, failure and cancellation are emitted by the inference page
   while it is mounted; connection loss and restoration by `SystemStatusService`.

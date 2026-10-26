@@ -34,7 +34,6 @@ type DraftMap = Record<number, DraftSections>;
       } @else if (detail(); as session) {
         <header class="detail-header">
           <div>
-            <p class="detail-eyebrow">Persisted inference session</p>
             <h1 id="report-detail-title">{{ modelLabel(session.model_ref) }}</h1>
             <p>{{ formatDate(session.date) }} · {{ session.reports.length }} report{{ session.reports.length === 1 ? '' : 's' }}</p>
           </div>

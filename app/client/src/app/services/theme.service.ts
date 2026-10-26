@@ -61,7 +61,6 @@ export class ThemeService {
       }
       this.persistedPreference = response.result.values.theme_preference ?? DEFAULT_THEME_PREFERENCE;
       this.persistenceError.set(null);
-      this.notifications.notify({ type: 'success', message: 'Theme saved', history: false });
       this.applyPreference(this.persistedPreference);
     });
     this.persistenceQueue = pending.catch(() => undefined);

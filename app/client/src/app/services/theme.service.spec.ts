@@ -56,7 +56,7 @@ describe('ThemeService', () => {
     expect(settingsApi.updateSettings).toHaveBeenCalledOnce();
     expect(settingsApi.updateSettings).toHaveBeenCalledWith({ theme_preference: 'light' });
     expect(service.preference()).toBe('light');
-    expect(TestBed.inject(NotificationService).toasts().map((toast) => toast.message)).toEqual(['Theme saved']);
+    expect(TestBed.inject(NotificationService).toasts()).toEqual([]);
     expect(TestBed.inject(NotificationService).notifications()).toEqual([]);
   });
 
