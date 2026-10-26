@@ -33,11 +33,6 @@ interface ThemeOption {
           </button>
         }
       </div>
-      @if (theme.persistenceError()) {
-        <p class="theme-selector-error" role="status" aria-live="polite">{{ theme.persistenceError() }}</p>
-      } @else if (theme.persistenceSaved()) {
-        <p class="theme-selector-saved" role="status" aria-live="polite">Theme saved</p>
-      }
     </fieldset>
   `,
   styleUrl: '../styles/ThemeSelector.css',

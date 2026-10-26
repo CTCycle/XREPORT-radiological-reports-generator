@@ -1,0 +1,77 @@
+:host {
+    display: block;
+    flex: 0 0 auto;
+    width: 100%;
+}
+
+.system-status {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 0.2rem 1.25rem;
+    padding: 0.3rem var(--space-4);
+    border-top: 1px solid var(--border-color);
+    color: var(--text-secondary);
+    background: var(--bg-secondary);
+    font-size: var(--text-xs);
+    font-variant-numeric: tabular-nums;
+    line-height: 1.2;
+}
+
+.system-status-item,
+.system-status-metric {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    white-space: nowrap;
+}
+
+.system-status-item {
+    font-weight: 600;
+}
+
+.system-status-led {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--text-muted);
+    opacity: 0.5;
+}
+
+.system-status-led.on {
+    background: var(--success-color);
+    box-shadow: 0 0 6px var(--success-color);
+    opacity: 1;
+}
+
+.system-status-led.off {
+    background: var(--error-color);
+    box-shadow: 0 0 6px var(--error-color);
+    opacity: 1;
+}
+
+.system-status-metric span:first-child {
+    font-weight: 600;
+}
+
+.system-status-metric span:last-child {
+    color: var(--text-primary);
+}
+
+.visually-hidden {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+}
+
+@media (max-width: 720px) {
+    .system-status {
+        justify-content: space-between;
+        gap: 0.2rem 0.75rem;
+        padding-inline: 0.9rem;
+    }
+}

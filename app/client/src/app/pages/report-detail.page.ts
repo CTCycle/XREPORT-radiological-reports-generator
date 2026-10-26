@@ -2,6 +2,7 @@ import { CommonModule } from '@angular/common';
 import { Component, DestroyRef, HostListener, computed, inject, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
+import { GenerationMetadataComponent } from '../components/generation-metadata.component';
 import { ReportDraftEditorComponent } from '../components/report-draft-editor.component';
 import { formatReportDraft, isOutputSection, parseReportDraft } from '../common/report-sections';
 import type { DraftSections } from '../common/report-sections';
@@ -17,7 +18,7 @@ type DraftMap = Record<number, DraftSections>;
 @Component({
   standalone: true,
   selector: 'app-report-detail-page',
-  imports: [CommonModule, RouterLink, ReportDraftEditorComponent],
+  imports: [CommonModule, RouterLink, GenerationMetadataComponent, ReportDraftEditorComponent],
   template: `
     <main class="report-detail-page page-container" aria-labelledby="report-detail-title">
       <a class="back-link" routerLink="/reports">← Back to Reports</a>
@@ -80,7 +81,7 @@ type DraftMap = Record<number, DraftSections>;
 
         <details class="generation-metadata">
           <summary>Generation metadata and provenance</summary>
-          <pre>{{ session.generation_config | json }}</pre>
+          <app-generation-metadata [config]="session.generation_config" />
         </details>
 
         <div class="detail-feedback" aria-live="polite">

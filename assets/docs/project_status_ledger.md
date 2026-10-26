@@ -85,6 +85,8 @@ evidence and remaining boundaries.
 | `NOT_IMPLEMENTED` | The capability is absent. |
 | `DEPRECATED` | Intentionally retired or scheduled for removal. |
 
+Source-validated 2026-10-26 (not part of a release gate): the shared client gained a full-width system status bar (`GET /api/system/status`), a notification centre with toasts, and a structured generation-metadata view. Backend unit tests, Angular lint/build/unit tests, and a manual light/dark and backend-offline check on XREPORT passed. The Studio profile shares the same layout and endpoint and was built but not exercised in a browser. Notifications for inference outcomes are emitted only while the inference page is mounted.
+
 ## Component status
 
 Statuses refer to the most recent evidence recorded for each scope, not to an

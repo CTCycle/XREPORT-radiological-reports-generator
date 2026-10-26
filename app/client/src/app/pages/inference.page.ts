@@ -14,6 +14,7 @@ import { SECTION_LABELS, formatReportDraft, isOutputSection, parseReportDraft } 
 import type { DraftSections } from '../common/report-sections';
 import { InferenceApiService } from '../services/inference-api.service';
 import { AppStateService } from '../services/app-state.service';
+import { NotificationService } from '../services/notification.service';
 import { JobPollingService } from '../services/job-polling.service';
 import { JobsApiService } from '../services/jobs-api.service';
 import { GuidanceService, INFERENCE_TOUR_ID } from '../services/guidance.service';
@@ -102,6 +103,7 @@ export class InferencePage implements AfterViewInit {
   private readonly appState = inject(AppStateService);
   private readonly polling = inject(JobPollingService);
   private readonly jobsApi = inject(JobsApiService);
+  private readonly notifications = inject(NotificationService);
   private readonly guidance = inject(GuidanceService);
   private readonly destroyRef = inject(DestroyRef);
   readonly state = this.appState.inference;
@@ -252,7 +254,7 @@ export class InferencePage implements AfterViewInit {
     this.appState.updateInference((state) => ({ ...state, isGenerating: true, isCopied: false, runIndices: indices }));
     this.progress.set(0); this.progressMessage.set('Preparing and generating…'); this.generationError.set(null); this.generationCancelled.set(false);
     const started = await this.api.generateReports(indices.map((index) => all[index]), model.model_ref, this.generationProfile, this.clinicalContext, scope === 'all' ? 'per_image' : 'study');
-    if (!started.result) { this.appState.updateInference((state) => ({ ...state, isGenerating: false, runIndices: [] })); this.generationError.set(started.error ?? 'Unable to start generation.'); return; }
+    if (!started.result) { this.appState.updateInference((state) => ({ ...state, isGenerating: false, runIndices: [] })); this.generationError.set(started.error ?? 'Unable to start generation.'); this.notifications.notify({ type: 'error', message: `Unable to start generation: ${this.generationError()}` }); return; }
     this.clearPersistedDraftState(); this.drafts.set({}); this.studyReport.set(false);
     this.pollInterval = started.result.poll_interval ?? 1;
     this.appState.updateInference((state) => ({ ...state, reports: {}, generatedReport: '', isCopied: false, activeJobId: started.result!.job_id }));
@@ -273,10 +275,14 @@ export class InferencePage implements AfterViewInit {
         if (requestId) void this.loadPersistedHistory(requestId); else this.saveError.set('Generation completed, but its saved report could not be linked. Check Reports and try again.');
         const failures = Object.entries(asRecord(asRecord(status.result?.['provenance'])?.['image_errors']) ?? {});
         if (failures.length) this.generationError.set(`${failures.length} image(s) failed: ${failures.map(([name, message]) => `${name} (${String(message)})`).join('; ')}`);
+        this.notifications.notify(failures.length
+          ? { type: 'warning', message: `Report generation finished with ${failures.length} failed image(s).` }
+          : { type: 'success', message: 'Report generation completed.' });
       } else {
         const cancelled = status.status === 'cancelled';
         this.generationCancelled.set(cancelled);
         this.generationError.set(status.error ?? (cancelled ? 'Generation cancelled.' : 'Generation did not complete.'));
+        this.notifications.notify({ type: cancelled ? 'info' : 'error', message: cancelled ? 'Report generation cancelled.' : `Report generation failed: ${this.generationError()}` });
       }
       void this.loadModels();
     });

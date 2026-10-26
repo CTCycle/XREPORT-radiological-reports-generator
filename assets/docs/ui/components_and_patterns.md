@@ -36,6 +36,19 @@ shell-level lifecycle component, not a feature-page loading state.
 - `app-nav-button`
 - active route styling
 
+### Status And Notifications
+
+- `app-system-status-bar` is a full-width strip below the navigation and content
+  (Backend and CUDA LEDs, RAM and VRAM in GB), fed by `SystemStatusService`.
+- `NotificationService` keeps the notification history (local storage, capped at 50)
+  and the transient toasts rendered by `app-toast-host`. Pass `history: false` for
+  toast-only confirmations such as "Theme saved". `app-notification-center` in the
+  sidebar footer lists the history with unread badge, mark-read, dismiss and clear.
+- Inference completion, failure and cancellation are emitted by the inference page
+  while it is mounted; connection loss and restoration by `SystemStatusService`.
+- Report detail renders generation provenance through `app-generation-metadata`
+  (grouped, labelled fields) with the stored JSON available under "Raw JSON".
+
 ### Forms
 
 - checkbox and toggle variants

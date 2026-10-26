@@ -1,5 +1,6 @@
 import { DOCUMENT, isPlatformBrowser } from '@angular/common';
 import { DestroyRef, Injectable, PLATFORM_ID, computed, inject, signal } from '@angular/core';
+import { NotificationService } from './notification.service';
 import { SettingsApiService } from './settings-api.service';
 import {
   DEFAULT_THEME_PREFERENCE,
@@ -20,6 +21,7 @@ export class ThemeService {
   private readonly destroyRef = inject(DestroyRef);
   private readonly platformId = inject(PLATFORM_ID);
   private readonly settingsApi = inject(SettingsApiService);
+  private readonly notifications = inject(NotificationService);
   private readonly systemPrefersDark = signal(false);
   private mediaQuery: MediaQueryList | null = null;
   private mediaQueryListener: ((event: MediaQueryListEvent) => void) | null = null;
@@ -30,7 +32,6 @@ export class ThemeService {
 
   readonly preference = signal<ThemePreference>(DEFAULT_THEME_PREFERENCE);
   readonly persistenceError = signal<string | null>(null);
-  readonly persistenceSaved = signal(false);
   readonly databaseSwitching = signal(false);
   readonly resolvedTheme = computed<ResolvedTheme>(() => {
     const preference = this.preference();
@@ -48,28 +49,25 @@ export class ThemeService {
     if (!isThemePreference(preference) || this.databaseSwitching()) return Promise.resolve();
     const revision = ++this.preferenceRevision;
     this.applyPreference(preference);
-    this.persistenceSaved.set(false);
     this.persistenceError.set(null);
     const pending = this.persistenceQueue.then(async () => {
       if (revision !== this.preferenceRevision) return;
       const response = await this.settingsApi.updateSettings({ theme_preference: preference });
       if (revision !== this.preferenceRevision) return;
       if (!response.result) {
-        this.persistenceError.set(response.error ?? 'Unable to save the theme preference.');
-        this.persistenceSaved.set(false);
+        this.reportSaveFailure(response.error ?? 'Unable to save the theme preference.');
         this.applyPreference(this.persistedPreference);
         return;
       }
       this.persistedPreference = response.result.values.theme_preference ?? DEFAULT_THEME_PREFERENCE;
       this.persistenceError.set(null);
-      this.persistenceSaved.set(true);
+      this.notifications.notify({ type: 'success', message: 'Theme saved', history: false });
       this.applyPreference(this.persistedPreference);
     });
     this.persistenceQueue = pending.catch(() => undefined);
     return pending.catch((error: unknown) => {
       if (revision !== this.preferenceRevision) return;
-      this.persistenceError.set(error instanceof Error ? error.message : 'Unable to save the theme preference.');
-      this.persistenceSaved.set(false);
+      this.reportSaveFailure(error instanceof Error ? error.message : 'Unable to save the theme preference.');
       this.applyPreference(this.persistedPreference);
     });
   }
@@ -92,7 +90,6 @@ export class ThemeService {
     this.preferenceRevision += 1;
     this.persistedPreference = preference ?? DEFAULT_THEME_PREFERENCE;
     this.persistenceError.set(null);
-    this.persistenceSaved.set(false);
     this.applyPreference(this.persistedPreference);
   }
 
@@ -102,6 +99,11 @@ export class ThemeService {
 
   async flushPersistence(): Promise<void> {
     await this.persistenceQueue;
+  }
+
+  private reportSaveFailure(message: string): void {
+    this.persistenceError.set(message);
+    this.notifications.notify({ type: 'warning', message });
   }
 
   private applyPreference(preference: ThemePreference): void {

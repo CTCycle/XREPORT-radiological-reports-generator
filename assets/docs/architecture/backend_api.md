@@ -125,6 +125,13 @@ and incompatible model/data shapes report `checkpoint_input_mismatch`.
 
 - `GET /api/health`
 
+## System Status
+
+- `GET /api/system/status` (both profiles) reports RAM use, CUDA availability and
+  device name, and GPU VRAM use in GB from live `psutil`/`torch` readings. Metrics
+  that cannot be read are `null`; the endpoint does not raise. The client polls it
+  every 5 s while the tab is visible and treats a failed request as backend offline.
+
 ## Runtime Settings
 
 - `GET /api/settings`

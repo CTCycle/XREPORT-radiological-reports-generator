@@ -17,20 +17,6 @@
     gap: var(--space-1);
 }
 
-.theme-selector-error {
-    margin: 0.4rem 0 0;
-    color: var(--danger-color, #e07070);
-    font-size: var(--text-xs);
-    line-height: 1.35;
-}
-
-.theme-selector-saved {
-    margin: 0.4rem 0 0;
-    color: var(--success-color);
-    font-size: var(--text-xs);
-    line-height: 1.35;
-}
-
 .theme-selector-option {
     display: inline-flex;
     min-width: 0;

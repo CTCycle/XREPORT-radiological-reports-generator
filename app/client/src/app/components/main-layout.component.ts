@@ -7,15 +7,20 @@ import { lucideBrainCircuit, lucideCircleHelp, lucideFileSearch, lucideFileStack
 import { GuidanceService } from '../services/guidance.service';
 import type { GuidanceDefinition } from '../types/guidance';
 import { GuidedTourComponent } from './guided-tour.component';
+import { NotificationCenterComponent } from './notification-center.component';
+import { SystemStatusBarComponent } from './system-status-bar.component';
 import { ThemeSelectorComponent } from './theme-selector.component';
 import { TipsAndTricksComponent } from './tips-and-tricks.component';
+import { ToastHostComponent } from './toast-host.component';
+import { SystemStatusService } from '../services/system-status.service';
 
 @Component({
   selector: 'app-main-layout',
-  imports: [RouterLink, RouterLinkActive, RouterOutlet, NgIcon, GuidedTourComponent, ThemeSelectorComponent, TipsAndTricksComponent],
+  imports: [RouterLink, RouterLinkActive, RouterOutlet, NgIcon, GuidedTourComponent, NotificationCenterComponent, SystemStatusBarComponent, ThemeSelectorComponent, TipsAndTricksComponent, ToastHostComponent],
   providers: [provideIcons({ lucideBrainCircuit, lucideCircleHelp, lucideFileSearch, lucideFileStack, lucideFileText, lucideSettings })],
   template: `
     <div class="main-layout">
+      <div class="main-layout-body">
       <div class="main-layout-chrome">
         <nav class="app-nav-bar" aria-label="Primary navigation">
           <div class="app-nav-brand">
@@ -43,6 +48,7 @@ import { TipsAndTricksComponent } from './tips-and-tricks.component';
             <button type="button" class="app-nav-button app-nav-help" title="Help and tips" aria-label="Help and tips" aria-haspopup="dialog" [attr.aria-expanded]="tipsOpen()" (click)="tipsOpen.set(true)">
               <ng-icon name="lucideCircleHelp" size="16" /> <span>Help and tips</span>
             </button>
+            <app-notification-center />
             <a routerLink="/settings" routerLinkActive="active" class="app-nav-button app-nav-settings" title="Settings" aria-label="Settings">
               <ng-icon name="lucideSettings" size="16" /> <span>Settings</span>
             </a>
@@ -51,6 +57,9 @@ import { TipsAndTricksComponent } from './tips-and-tricks.component';
         </nav>
       </div>
       <div #content class="main-layout-content" (scroll)="onContentScroll($event)"><router-outlet /></div>
+      </div>
+      <app-system-status-bar />
+      <app-toast-host />
       @if (tipsOpen()) { <app-tips-and-tricks [open]="true" [studio]="studio" (closed)="tipsOpen.set(false)" /> }
       @if (activeTour(); as tour) { <app-guided-tour [definition]="tour" [open]="true" (closed)="activeTour.set(null)" /> }
     </div>
@@ -63,10 +72,13 @@ export class MainLayoutComponent {
   readonly studio = inject(ActivatedRoute).snapshot.data['application'] === 'studio';
   private readonly destroyRef = inject(DestroyRef);
   private readonly guidance = inject(GuidanceService);
+  private readonly systemStatus = inject(SystemStatusService);
   readonly tipsOpen = signal(false);
   readonly activeTour = signal<GuidanceDefinition | null>(null);
 
   constructor() {
+    this.systemStatus.start();
+    this.destroyRef.onDestroy(() => this.systemStatus.stop());
     this.guidance.tourRequests$.pipe(takeUntilDestroyed(this.destroyRef)).subscribe((tourId) => this.handleTourRequest(tourId));
     this.router.events.pipe(filter((event): event is NavigationEnd => event instanceof NavigationEnd), takeUntilDestroyed(this.destroyRef)).subscribe(() => {
       const tour = this.activeTour();

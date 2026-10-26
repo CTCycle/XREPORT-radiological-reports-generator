@@ -208,6 +208,20 @@ export type CheckpointsResponse = {
 };
 
 /**
+ * CudaStatus
+ */
+export type CudaStatus = {
+    /**
+     * Available
+     */
+    available: boolean;
+    /**
+     * Device Name
+     */
+    device_name?: string | null;
+};
+
+/**
  * DatabaseConfiguration
  *
  * Validated in-memory connection configuration; secrets are never serialized directly.
@@ -844,6 +858,20 @@ export type LoadDatasetResponse = {
 };
 
 /**
+ * MemoryUsage
+ */
+export type MemoryUsage = {
+    /**
+     * Used Gb
+     */
+    used_gb: number;
+    /**
+     * Total Gb
+     */
+    total_gb: number;
+};
+
+/**
  * PixelDistribution
  *
  * Model for pixel intensity distribution.
@@ -1155,6 +1183,15 @@ export type StartTrainingRequest = {
      * Warmup steps for scheduler
      */
     warmup_steps: number;
+};
+
+/**
+ * SystemStatusResponse
+ */
+export type SystemStatusResponse = {
+    ram?: MemoryUsage | null;
+    cuda: CudaStatus;
+    vram?: MemoryUsage | null;
 };
 
 /**
@@ -2107,3 +2144,19 @@ export type SwitchDatabaseApiSettingsDatabaseSwitchPostResponses = {
 };
 
 export type SwitchDatabaseApiSettingsDatabaseSwitchPostResponse = SwitchDatabaseApiSettingsDatabaseSwitchPostResponses[keyof SwitchDatabaseApiSettingsDatabaseSwitchPostResponses];
+
+export type GetStatusApiSystemStatusGetData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/api/system/status';
+};
+
+export type GetStatusApiSystemStatusGetResponses = {
+    /**
+     * Successful Response
+     */
+    200: SystemStatusResponse;
+};
+
+export type GetStatusApiSystemStatusGetResponse = GetStatusApiSystemStatusGetResponses[keyof GetStatusApiSystemStatusGetResponses];

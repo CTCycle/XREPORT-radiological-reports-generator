@@ -182,8 +182,7 @@ summary:focus-visible {
     font-weight: 700;
 }
 
-.original-output pre,
-.generation-metadata pre {
+.original-output pre {
     max-height: 360px;
     margin: var(--space-3) 0 0;
     padding: var(--space-3);

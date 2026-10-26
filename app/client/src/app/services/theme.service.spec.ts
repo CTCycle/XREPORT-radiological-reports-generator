@@ -1,6 +1,7 @@
 import { PLATFORM_ID } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import type { ApiResult } from './api-request.service';
+import { NotificationService } from './notification.service';
 import { SettingsApiService } from './settings-api.service';
 import { ThemeService } from './theme.service';
 import { type ThemePreference } from '../types/theme';
@@ -55,7 +56,8 @@ describe('ThemeService', () => {
     expect(settingsApi.updateSettings).toHaveBeenCalledOnce();
     expect(settingsApi.updateSettings).toHaveBeenCalledWith({ theme_preference: 'light' });
     expect(service.preference()).toBe('light');
-    expect(service.persistenceSaved()).toBe(true);
+    expect(TestBed.inject(NotificationService).toasts().map((toast) => toast.message)).toEqual(['Theme saved']);
+    expect(TestBed.inject(NotificationService).notifications()).toEqual([]);
   });
 
   it('reverts to the last persisted theme when saving a new preference fails', async () => {
@@ -67,7 +69,7 @@ describe('ThemeService', () => {
 
     expect(service.preference()).toBe('dark');
     expect(service.persistenceError()).toContain('backend offline');
-    expect(service.persistenceSaved()).toBe(false);
+    expect(TestBed.inject(NotificationService).notifications()[0]?.type).toBe('warning');
   });
 
   it('does not accept theme changes while a database switch is in progress', async () => {

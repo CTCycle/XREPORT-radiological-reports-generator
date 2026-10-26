@@ -59,8 +59,9 @@ def profile_routers(profile: str) -> list[APIRouter]:
     from server.api.database_settings import router as database_settings_router
     from server.api.jobs import router as jobs_router
     from server.api.settings import router as settings_router
+    from server.api.system import router as system_router
 
-    shared = [jobs_router, settings_router, database_settings_router]
+    shared = [jobs_router, settings_router, database_settings_router, system_router]
     if profile == "studio":
         # Resolved by name so static analysis of the XREPORT build never sees them.
         studio_modules = (

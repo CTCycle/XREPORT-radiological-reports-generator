@@ -1268,6 +1268,27 @@
           }
         }
       }
+    },
+    "/api/system/status": {
+      "get": {
+        "tags": [
+          "system"
+        ],
+        "summary": "Get Status",
+        "operationId": "get_status_api_system_status_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SystemStatusResponse"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -1681,6 +1702,30 @@
           "checkpoints"
         ],
         "title": "CheckpointsResponse"
+      },
+      "CudaStatus": {
+        "properties": {
+          "available": {
+            "type": "boolean",
+            "title": "Available"
+          },
+          "device_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Device Name"
+          }
+        },
+        "type": "object",
+        "required": [
+          "available"
+        ],
+        "title": "CudaStatus"
       },
       "DatabaseConfiguration": {
         "properties": {
@@ -2684,6 +2729,24 @@
         ],
         "title": "LoadDatasetResponse"
       },
+      "MemoryUsage": {
+        "properties": {
+          "used_gb": {
+            "type": "number",
+            "title": "Used Gb"
+          },
+          "total_gb": {
+            "type": "number",
+            "title": "Total Gb"
+          }
+        },
+        "type": "object",
+        "required": [
+          "used_gb",
+          "total_gb"
+        ],
+        "title": "MemoryUsage"
+      },
       "PixelDistribution": {
         "properties": {
           "bins": {
@@ -3117,6 +3180,38 @@
           "warmup_steps"
         ],
         "title": "StartTrainingRequest"
+      },
+      "SystemStatusResponse": {
+        "properties": {
+          "ram": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/MemoryUsage"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "cuda": {
+            "$ref": "#/components/schemas/CudaStatus"
+          },
+          "vram": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/MemoryUsage"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "cuda"
+        ],
+        "title": "SystemStatusResponse"
       },
       "TextStatistics": {
         "properties": {
