@@ -5,6 +5,7 @@ from typing import TYPE_CHECKING, Annotated, cast
 from fastapi import APIRouter, Depends, File, Form, Query, UploadFile, status
 
 from server.domain.inference import (
+    BatchMode,
     GenerationProfile,
     InferenceImage,
     InferenceGenerateRequest,
@@ -31,11 +32,13 @@ def parse_generation_request(
     model_ref: str = Form(...),
     generation_profile: GenerationProfile = Form(...),
     clinical_context: str = Form(""),
+    batch_mode: BatchMode = Form("study"),
 ) -> InferenceGenerateRequest:
     return InferenceGenerateRequest(
         model_ref=model_ref,
         generation_profile=generation_profile,
         clinical_context=clinical_context,
+        batch_mode=batch_mode,
     )
 
 ###############################################################################
@@ -154,6 +157,7 @@ class InferenceEndpoint:
             generation_profile=request.generation_profile,
             clinical_context=request.clinical_context,
             images=parsed_images,
+            batch_mode=request.batch_mode,
         )
 
     # -------------------------------------------------------------------------

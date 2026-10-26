@@ -26,6 +26,8 @@ class ProviderGenerationResult:
 
 ###############################################################################
 GenerationProfile = Literal["deterministic", "concise", "detailed"]
+# "study" submits all images together; "per_image" runs each image independently
+BatchMode = Literal["study", "per_image"]
 OutputSection = Literal["raw_report", "findings", "impression"]
 ValidationStatus = Literal[
     "blocked",
@@ -293,6 +295,7 @@ class InferenceGenerateRequest(BaseModel):
     model_ref: str
     generation_profile: GenerationProfile
     clinical_context: str = ""
+    batch_mode: BatchMode = "study"
 
 ###############################################################################
 InferenceHistoryStatus = Literal[

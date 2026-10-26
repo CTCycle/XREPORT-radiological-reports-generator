@@ -458,6 +458,58 @@ def test_successful_generation_result_exposes_persisted_request_id() -> None:
     assert repository.save_generated_reports.call_args.kwargs["request_id"] == request_id
 
 ###############################################################################
+def test_per_image_mode_runs_each_image_and_keeps_going_after_a_failure() -> None:
+    manager = JobManager()
+    image_store = InferenceImageStore()
+    job_id, request_id = "per-image-job", "per-image-request"
+    manager.jobs[job_id] = JobState(job_id=job_id, job_type="inference", status="running")
+    names = ["a.png", "b.png", "c.png"]
+    image_store.store(
+        request_id,
+        [InferenceImage(filename=name, content_type="image/png", data=b"x", size_bytes=1) for name in names],
+    )
+    image_store.link_job(job_id, request_id)
+    seen: list[list[str]] = []
+
+    def generate(**kwargs: Any) -> ProviderGenerationResult:
+        filenames = [image.filename for image in kwargs["images"]]
+        seen.append(filenames)
+        if filenames == ["b.png"]:
+            raise RuntimeError("decode failed")
+        return ProviderGenerationResult(
+            reports={filenames[0]: f"Findings\n{filenames[0]}"},
+            display_sections={filenames[0]: {"findings": filenames[0]}},
+            metadata=[{"filename": filenames[0]}],
+            provenance={"provider": "huggingface", "report_scope": "study"},
+        )
+
+    provider = MagicMock()
+    provider.generate.side_effect = generate
+    repository = MagicMock()
+
+    result = run_inference_job(
+        model_ref="huggingface:test/model",
+        model_revision="a" * 40,
+        model_manifest={"revision": "a" * 40},
+        generation_profile="deterministic",
+        clinical_context="",
+        request_id=request_id,
+        job_id=job_id,
+        batch_mode="per_image",
+        job_manager=manager,
+        inference_image_store=image_store,
+        runtime=_runtime_stub(provider),
+        repository=repository,
+    )
+
+    assert seen == [["a.png"], ["b.png"], ["c.png"]]
+    assert result["report_filenames"] == ["a.png", "c.png"]
+    assert result["provenance"]["report_scope"] == "image"
+    assert result["provenance"]["image_errors"] == {"b.png": "decode failed"}
+    saved = repository.save_generated_reports.call_args.args[0]
+    assert [row["image"] for row in saved] == ["a.png", "c.png"]
+
+###############################################################################
 def test_cancelled_after_generation_does_not_persist_partial_reports() -> None:
     manager = JobManager()
     image_store = InferenceImageStore()

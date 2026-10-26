@@ -19,6 +19,7 @@ from server.services.errors import (
 )
 
 from server.domain.inference import (
+    BatchMode,
     GenerationProfile,
     InferenceImage,
     InferenceHistoryDetail,
@@ -30,6 +31,7 @@ from server.domain.inference import (
     InferenceModelsResponse,
     ModelAvailability,
     ModelUpdateCheckResponse,
+    ProviderGenerationResult,
 )
 from server.domain.jobs import (
     JobStartResponse,
@@ -249,6 +251,62 @@ def report_inference_progress(
         job_manager.update_result(job_id, {"provenance": provenance})
 
 ###############################################################################
+def generate_per_image(
+    runtime: InferenceRuntimeCoordinator,
+    images: list[InferenceImage],
+    job_id: str,
+    *,
+    job_manager: JobManager,
+    **generate_kwargs: Any,
+) -> ProviderGenerationResult:
+    """Run each image as its own request so a failure only affects that image."""
+    reports: dict[str, str] = {}
+    display_sections: dict[str, dict[str, str]] = {}
+    metadata: list[dict[str, Any]] = []
+    errors: dict[str, str] = {}
+    provenance: dict[str, Any] = {}
+    first_error: Exception | None = None
+    total = len(images)
+    for index, image in enumerate(images, start=1):
+        if job_manager.should_stop(job_id):
+            break
+        try:
+            result = runtime.generate(
+                images=[image],
+                should_stop=partial(job_manager.should_stop, job_id),
+                report_progress=lambda *_args, **_kwargs: None,
+                **generate_kwargs,
+            )
+        except Exception as exc:  # noqa: BLE001
+            logger.exception("Inference failed for image %s in job %s", image.filename, job_id)
+            first_error = first_error or exc
+            errors[image.filename] = str(exc).split("\n")[0][:300]
+        else:
+            reports.update(result.reports)
+            display_sections.update(result.display_sections)
+            metadata.extend(result.metadata)
+            provenance = result.provenance
+        report_inference_progress(
+            job_id,
+            index,
+            total,
+            reports,
+            metadata,
+            display_sections,
+            {**provenance, "report_scope": "image", "image_errors": errors},
+            job_manager=job_manager,
+        )
+    if not reports and first_error is not None:
+        raise first_error
+    provenance = {
+        **provenance,
+        "report_scope": "image",
+        "input_images": metadata,
+        "image_errors": errors,
+    }
+    return ProviderGenerationResult(reports, display_sections, metadata, provenance)
+
+###############################################################################
 def run_inference_job(
     model_ref: str,
     model_revision: str | None,
@@ -257,6 +315,7 @@ def run_inference_job(
     clinical_context: str,
     request_id: str,
     job_id: str,
+    batch_mode: BatchMode = "study",
     *,
     job_manager: JobManager,
     inference_image_store: InferenceImageStore,
@@ -279,21 +338,33 @@ def run_inference_job(
         report_progress = partial(
             report_inference_progress, job_id, job_manager=job_manager
         )
-        execution = runtime.generate(
-            model_ref=model_ref,
-            model_revision=model_revision,
-            model_manifest=model_manifest,
-            generation_profile=generation_profile,
-            clinical_context=clinical_context,
-            images=stored_images,
-            should_stop=partial(job_manager.should_stop, job_id),
-            report_progress=report_progress,
-            report_lifecycle=partial(
+        generate_kwargs: dict[str, Any] = {
+            "model_ref": model_ref,
+            "model_revision": model_revision,
+            "model_manifest": model_manifest,
+            "generation_profile": generation_profile,
+            "clinical_context": clinical_context,
+            "report_lifecycle": partial(
                 report_installation_lifecycle,
                 job_id,
                 job_manager=job_manager,
             ),
-        )
+        }
+        if batch_mode == "per_image" and len(stored_images) > 1:
+            execution = generate_per_image(
+                runtime,
+                stored_images,
+                job_id,
+                job_manager=job_manager,
+                **generate_kwargs,
+            )
+        else:
+            execution = runtime.generate(
+                images=stored_images,
+                should_stop=partial(job_manager.should_stop, job_id),
+                report_progress=report_progress,
+                **generate_kwargs,
+            )
         reports_by_filename = execution.reports
         display_sections = execution.display_sections
         provenance = execution.provenance
@@ -776,6 +847,7 @@ class InferenceService:
         generation_profile: GenerationProfile,
         clinical_context: str,
         images: list[InferenceImage],
+        batch_mode: BatchMode = "study",
     ) -> JobStartResponse:
         catalog = self.get_models()
         selected_model = next(
@@ -807,11 +879,16 @@ class InferenceService:
             raise BadRequestError(
                 detail="Selected model does not support clinical context",
             )
-        if len(images) > selected_model.max_current_images:
+        image_limit = (
+            MAX_INFERENCE_IMAGES
+            if batch_mode == "per_image"
+            else selected_model.max_current_images
+        )
+        if len(images) > image_limit:
             raise BadRequestError(
                 detail=(
                     "Selected model accepts at most "
-                    f"{selected_model.max_current_images} current image(s)"
+                    f"{image_limit} current image(s)"
                 ),
             )
         self.validate_inference_images(images)
@@ -852,6 +929,7 @@ class InferenceService:
                     "generation_profile": generation_profile,
                     "clinical_context": clinical_context,
                     "request_id": request_id,
+                    "batch_mode": batch_mode,
                 },
             )
 
