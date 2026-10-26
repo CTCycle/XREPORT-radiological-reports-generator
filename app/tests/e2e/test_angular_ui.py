@@ -301,9 +301,9 @@ def test_inference_draft_edit_save_and_reports_recovery(
         "Clear lungs after review."
     )
     page.locator("details.original-output summary").first.click()
-    expect(page.locator("details.original-output pre").first).to_contain_text(
-        "Findings\nClear lungs."
-    )
+    original_output = page.locator("details.original-output .original-text").first
+    expect(original_output).to_contain_text("Findings")
+    expect(original_output).to_contain_text("Clear lungs.")
 
     page.reload()
     expect(page.get_by_role("textbox", name="Findings").first).to_have_value(

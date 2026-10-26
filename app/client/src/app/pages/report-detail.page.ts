@@ -4,8 +4,10 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { GenerationMetadataComponent } from '../components/generation-metadata.component';
 import { ReportDraftEditorComponent } from '../components/report-draft-editor.component';
-import { formatReportDraft, isOutputSection, parseReportDraft } from '../common/report-sections';
+import { SECTION_LABELS, formatReportDraft, isOutputSection, parseReportDraft } from '../common/report-sections';
 import type { DraftSections } from '../common/report-sections';
+import { diffOriginal } from '../common/text-diff';
+import type { OriginalSegment } from '../common/text-diff';
 import { InferenceApiService } from '../services/inference-api.service';
 import type {
   InferenceHistoryDetail,
@@ -14,6 +16,7 @@ import type {
 } from '../types/inferenceApi';
 
 type DraftMap = Record<number, DraftSections>;
+interface OriginalPart { label: string; segments: OriginalSegment[]; }
 
 @Component({
   standalone: true,
@@ -71,7 +74,17 @@ type DraftMap = Record<number, DraftSections>;
                 />
                 <details class="original-output">
                   <summary>Show original model output</summary>
-                  <pre>{{ report.generated_report }}</pre>
+                  @if (originalParts(report); as parts) {
+                    <div class="original-text">
+                      @for (part of parts; track part.label) {
+                        <p>
+                          @if (part.label) { <strong class="original-label">{{ part.label }}</strong> }
+                          <span>@for (segment of part.segments; track $index) {<span [class.diff-changed]="segment.changed">{{ segment.text }}</span>}</span>
+                        </p>
+                      }
+                    </div>
+                    @if (hasOriginalChanges(parts)) { <p class="original-legend">Highlighted text was changed or removed in the current report.</p> }
+                  }
                 </details>
               </article>
             }
@@ -165,6 +178,23 @@ export class ReportDetailPage {
     }));
     this.errorMessage.set(null);
     this.saveMessage.set(null);
+  }
+
+  originalParts(report: InferenceHistoryReport): OriginalPart[] {
+    const sections = this.sectionsFor(report);
+    const draft = this.drafts()[report.image_index] ?? {};
+    if (sections.includes('raw_report')) {
+      return [{ label: '', segments: diffOriginal(report.generated_report, draft.raw_report ?? '') }];
+    }
+    const original = parseReportDraft(report.generated_report, sections);
+    return sections.map((section) => ({
+      label: SECTION_LABELS[section],
+      segments: diffOriginal(original[section] ?? '', draft[section] ?? ''),
+    }));
+  }
+
+  hasOriginalChanges(parts: OriginalPart[]): boolean {
+    return parts.some((part) => part.segments.some((segment) => segment.changed));
   }
 
   private reportText(report: InferenceHistoryReport): string {

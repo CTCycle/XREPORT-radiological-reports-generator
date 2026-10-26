@@ -173,7 +173,7 @@ summary:focus-visible {
     font-weight: 700;
 }
 
-.original-output pre {
+.original-text {
     max-height: 360px;
     margin: var(--space-3) 0 0;
     padding: var(--space-3);
@@ -186,6 +186,34 @@ summary:focus-visible {
     line-height: 1.55;
     white-space: pre-wrap;
     overflow-wrap: anywhere;
+}
+
+.original-text p {
+    margin: 0;
+}
+
+.original-text p + p {
+    margin-top: var(--space-3);
+}
+
+.original-label {
+    display: block;
+    color: var(--text-secondary);
+}
+
+.diff-changed {
+    color: var(--text-primary);
+    font-weight: 700;
+    text-decoration: underline;
+    text-decoration-color: var(--accent-color-strong);
+    text-decoration-thickness: 1px;
+    text-underline-offset: 3px;
+}
+
+.original-legend {
+    margin: var(--space-2) 0 0;
+    color: var(--text-secondary);
+    font-size: var(--text-xs);
 }
 
 .generation-metadata {
