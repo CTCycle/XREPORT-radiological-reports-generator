@@ -82,6 +82,7 @@ def test_inference_generate_contract_has_only_current_request_fields() -> None:
         "model_ref",
         "generation_profile",
         "clinical_context",
+        "batch_mode",
         "images",
     }
 

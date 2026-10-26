@@ -59,6 +59,32 @@ export interface EditableSettings {
   inference: { model_timeout: number };
 }
 
+export interface StorageFolder {
+  name: string;
+  path: string;
+  size_bytes: number;
+}
+
+export interface StorageStatus {
+  active_root: string;
+  default_root: string;
+  pending_root: string | null;
+  source: 'environment' | 'env_file' | 'pointer' | 'default';
+  locked: boolean;
+  restart_required: boolean;
+  folders: StorageFolder[];
+}
+
+export interface StorageValidation {
+  valid: boolean;
+  resolved_path: string;
+  target_state: 'new' | 'empty' | 'existing' | null;
+  required_bytes: number;
+  free_bytes: number | null;
+  errors: string[];
+  warnings: string[];
+}
+
 export interface HuggingFaceAccessStatus {
   configured: boolean;
   source: 'environment' | 'stored' | null;

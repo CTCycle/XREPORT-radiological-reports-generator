@@ -1,6 +1,9 @@
 import { CommonModule } from '@angular/common';
 import { Component, computed, EventEmitter, HostListener, inject, Input, OnDestroy, OnInit, Output, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import type { Subscription } from 'rxjs';
+import { JobPollingService } from '../services/job-polling.service';
+import { JobsApiService } from '../services/jobs-api.service';
 import { SettingsApiService } from '../services/settings-api.service';
 import { ThemeService } from '../services/theme.service';
 import type {
@@ -13,6 +16,8 @@ import type {
   DatabaseBackend,
   EditableSettings,
   HuggingFaceAccessStatus,
+  StorageStatus,
+  StorageValidation,
 } from '../types/settingsApi';
 
 interface ValidationErrors {
@@ -21,7 +26,7 @@ interface ValidationErrors {
   model_timeout?: string;
 }
 
-type SettingsTab = 'general' | 'data' | 'advanced' | 'models' | 'database';
+type SettingsTab = 'general' | 'data' | 'advanced' | 'models' | 'storage' | 'database';
 
 @Component({
   selector: 'app-settings-page',
@@ -160,6 +165,57 @@ type SettingsTab = 'general' | 'data' | 'advanced' | 'models' | 'database';
                   </div>
                 </div>
               </div>
+            } @else if (activeTab() === 'storage') {
+              <div class="settings-section-heading">
+                <h2>Storage location</h2>
+                <p>Downloaded models, checkpoints, the application database, templates and logs live under one folder. Changes take effect after XREPORT restarts.</p>
+              </div>
+              <div class="settings-fields">
+                <div class="settings-field">
+                  <div class="settings-field-copy">
+                    <h3 id="storage-root-title">Current location</h3>
+                    <p>Existing data is copied to the new folder and verified first. The old folder is left untouched; delete it yourself once you no longer need it.</p>
+                  </div>
+                  <div class="settings-field-control">
+                    @if (storageLoadError(); as error) {
+                      <span class="settings-error" role="alert">{{ error }}</span>
+                    } @else if (storageStatus(); as storage) {
+                      <code id="storage-active-root" class="settings-help">{{ storage.active_root }}</code>
+                      <ul class="settings-help" aria-label="Storage folders">
+                        @for (folder of storage.folders; track folder.name) { <li>{{ folder.name }} · {{ formatBytes(folder.size_bytes) }}</li> }
+                      </ul>
+                      @if (storage.restart_required) {
+                        <span class="settings-help" role="status">Restart required: XREPORT will use {{ storage.pending_root }} after it restarts.</span>
+                      }
+                      @if (storage.locked) {
+                        <span class="settings-help" role="status">The location is set by XREPORT_RESOURCES_DIR in the environment or settings/.env and can only be changed there.</span>
+                      }
+                    }
+                    <input id="storage-path" type="text" spellcheck="false" name="storage_path" placeholder="D:\\XREPORT-data"
+                      [ngModel]="storagePathInput()" (ngModelChange)="onStoragePathChange($event)"
+                      [disabled]="storageBusy() || storageStatus()?.locked !== false" aria-labelledby="storage-root-title" />
+                    <div class="settings-inline-actions">
+                      <button type="button" class="secondary-button" (click)="validateStorage()"
+                        [disabled]="storageBusy() || !storagePathInput().trim() || storageStatus()?.locked !== false">Check folder</button>
+                      <button type="button" class="secondary-button" (click)="applyStorage()"
+                        [disabled]="storageBusy() || !storageValidation()?.valid">
+                        {{ storageBusy() ? 'Moving…' : storageValidation()?.target_state === 'existing' ? 'Use this folder' : 'Move data here' }}
+                      </button>
+                    </div>
+                    @if (storageValidation(); as check) {
+                      @for (error of check.errors; track error) { <span class="settings-error" role="alert">{{ error }}</span> }
+                      @for (warning of check.warnings; track warning) { <span class="settings-help" role="status">{{ warning }}</span> }
+                      @if (check.valid && check.target_state !== 'existing') {
+                        <span class="settings-help" role="status">{{ formatBytes(check.required_bytes) }} will be copied; {{ formatBytes(check.free_bytes ?? 0) }} free.</span>
+                      }
+                    }
+                    @if (storageBusy()) {
+                      <span class="settings-help" role="status">{{ storageProgressMessage() }} ({{ storageProgress() | number:'1.0-0' }}%)</span>
+                    }
+                    @if (storageActionError(); as error) { <span class="settings-error" role="alert">{{ error }}</span> }
+                  </div>
+                </div>
+              </div>
             } @else {
               <ng-container [ngTemplateOutlet]="databasePanel" />
             }
@@ -175,7 +231,7 @@ type SettingsTab = 'general' | 'data' | 'advanced' | 'models' | 'database';
           @if (statusMessage()) {
             <div class="settings-save-status settings-save-status-success" role="status">{{ statusMessage() }}</div>
           }
-          @if (activeTab() !== 'database' && activeTab() !== 'models') {
+          @if (activeTab() !== 'database' && activeTab() !== 'models' && activeTab() !== 'storage') {
             <div class="settings-actions">
               <button type="button" class="secondary-button" (click)="reset()" [disabled]="resetting() || databaseSwitching()">
                 {{ resetting() ? 'Resetting…' : 'Reset to defaults' }}
@@ -352,6 +408,17 @@ export class SettingsPage implements OnInit, OnDestroy {
   readonly huggingFaceActionError = signal<string | null>(null);
   readonly huggingFaceActionMessage = signal<string | null>(null);
   huggingFaceTokenInput = '';
+  private readonly jobsApi = inject(JobsApiService);
+  private readonly polling = inject(JobPollingService);
+  private storagePoll: Subscription | null = null;
+  readonly storageStatus = signal<StorageStatus | null>(null);
+  readonly storageLoadError = signal<string | null>(null);
+  readonly storagePathInput = signal('');
+  readonly storageValidation = signal<StorageValidation | null>(null);
+  readonly storageBusy = signal(false);
+  readonly storageProgress = signal(0);
+  readonly storageProgressMessage = signal('Starting…');
+  readonly storageActionError = signal<string | null>(null);
   readonly draft = signal<EditableSettings | null>(null);
   private readonly baseline = signal<EditableSettings | null>(null);
   readonly defaults = signal<EditableSettings | null>(null);
@@ -360,6 +427,7 @@ export class SettingsPage implements OnInit, OnDestroy {
     { id: 'data' as const, label: 'Data access' },
     { id: 'advanced' as const, label: 'Advanced' },
     { id: 'models' as const, label: 'Model access' },
+    { id: 'storage' as const, label: 'Storage' },
     { id: 'database' as const, label: 'Database' },
   ];
   readonly activeTab = signal<SettingsTab>('general');
@@ -394,6 +462,60 @@ export class SettingsPage implements OnInit, OnDestroy {
     if (!this.databaseOnly) void this.load();
     void this.loadDatabaseStatus();
     if (!this.databaseOnly) void this.loadHuggingFaceStatus();
+    if (!this.databaseOnly) void this.loadStorageStatus();
+  }
+
+  async loadStorageStatus(): Promise<void> {
+    this.storageLoadError.set(null);
+    const response = await this.api.getStorage();
+    if (response.result) this.storageStatus.set(response.result);
+    else this.storageLoadError.set(response.error ?? 'Unable to load the storage location.');
+  }
+
+  onStoragePathChange(value: string): void {
+    this.storagePathInput.set(value);
+    this.storageValidation.set(null);
+    this.storageActionError.set(null);
+  }
+
+  async validateStorage(): Promise<void> {
+    this.storageActionError.set(null);
+    const response = await this.api.validateStorage(this.storagePathInput().trim());
+    if (response.result) this.storageValidation.set(response.result);
+    else this.storageActionError.set(response.error ?? 'Unable to check this folder.');
+  }
+
+  async applyStorage(): Promise<void> {
+    const check = this.storageValidation();
+    if (!check?.valid || this.storageBusy()) return;
+    this.storageBusy.set(true);
+    this.storageProgress.set(0);
+    this.storageProgressMessage.set('Starting…');
+    this.storageActionError.set(null);
+    const started = await this.api.applyStorage(check.resolved_path, check.target_state === 'existing' ? 'use_existing' : 'copy');
+    if (!started.result) {
+      this.storageBusy.set(false);
+      this.storageActionError.set(started.error ?? 'Unable to start moving the data.');
+      return;
+    }
+    this.storagePoll = this.polling.poll((id) => this.jobsApi.get(id), started.result.job_id, started.result.poll_interval ?? 1).subscribe((status) => {
+      this.storageProgress.set(status.progress ?? 0);
+      const lifecycle = status.result?.['lifecycle'] as { message?: string } | undefined;
+      if (lifecycle?.message) this.storageProgressMessage.set(lifecycle.message);
+      if (!['completed', 'failed', 'cancelled'].includes(status.status)) return;
+      this.storageBusy.set(false);
+      if (status.status !== 'completed') this.storageActionError.set(status.error ?? 'Moving the data did not complete. The current location is unchanged.');
+      else this.storageValidation.set(null);
+      void this.loadStorageStatus();
+    });
+  }
+
+  formatBytes(bytes: number): string {
+    const units = ['B', 'KB', 'MB', 'GB', 'TB'];
+    let value = bytes;
+    let unit = 0;
+    while (value >= 1024 && unit < units.length - 1) { value /= 1024; unit += 1; }
+    return `${unit === 0 ? value : value.toFixed(1)} ${units[unit]}`;
   }
 
   async loadHuggingFaceStatus(): Promise<void> {
@@ -438,6 +560,7 @@ export class SettingsPage implements OnInit, OnDestroy {
   }
 
   ngOnDestroy(): void {
+    this.storagePoll?.unsubscribe();
     void this.flushSettingsPersistence();
   }
 

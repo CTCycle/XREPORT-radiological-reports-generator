@@ -7,7 +7,10 @@ import type {
   DatabaseConnectionTest,
   DatabaseSwitchResult,
   HuggingFaceAccessStatus,
+  StorageStatus,
+  StorageValidation,
 } from '../types/settingsApi';
+import type { JobStartResponse } from '../types/jobs';
 import { ApiRequestService } from './api-request.service';
 
 @Injectable({ providedIn: 'root' })
@@ -53,6 +56,18 @@ export class SettingsApiService {
 
   clearHuggingFaceToken() {
     return this.request.request<HuggingFaceAccessStatus>('DELETE', '/api/settings/huggingface');
+  }
+
+  getStorage() {
+    return this.request.request<StorageStatus>('GET', '/api/settings/storage');
+  }
+
+  validateStorage(path: string) {
+    return this.request.request<StorageValidation>('POST', '/api/settings/storage/validate', { path });
+  }
+
+  applyStorage(path: string, mode: 'copy' | 'use_existing') {
+    return this.request.request<JobStartResponse>('POST', '/api/settings/storage/apply', { path, mode });
   }
 
   private enqueueSettingsRequest<T>(operation: () => Promise<T>): Promise<T> {

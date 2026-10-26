@@ -79,8 +79,9 @@ def profile_routers(profile: str) -> list[APIRouter]:
     from server.api.checkpoint_exchange import get_import_router
     from server.api.huggingface_access import router as huggingface_access_router
     from server.api.inference import router as inference_router
+    from server.api.storage_settings import router as storage_settings_router
 
-    return [inference_router, huggingface_access_router, get_import_router(), *shared]
+    return [inference_router, huggingface_access_router, storage_settings_router, get_import_router(), *shared]
 
 ###############################################################################
 def redirect_root_to_docs(*, serve_source_client: bool = False) -> RedirectResponse | FileResponse:

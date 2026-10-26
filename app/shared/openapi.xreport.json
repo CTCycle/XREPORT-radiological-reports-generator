@@ -456,6 +456,109 @@
         }
       }
     },
+    "/api/settings/storage": {
+      "get": {
+        "tags": [
+          "storage-settings"
+        ],
+        "summary": "Get Status",
+        "operationId": "get_status_api_settings_storage_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StorageStatus"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/settings/storage/validate": {
+      "post": {
+        "tags": [
+          "storage-settings"
+        ],
+        "summary": "Validate",
+        "operationId": "validate_api_settings_storage_validate_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/StoragePathRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StorageValidationResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/settings/storage/apply": {
+      "post": {
+        "tags": [
+          "storage-settings"
+        ],
+        "summary": "Apply",
+        "operationId": "apply_api_settings_storage_apply_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/StorageApplyRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JobStartResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/exchange/import": {
       "post": {
         "tags": [
@@ -938,6 +1041,15 @@
             "type": "string",
             "title": "Clinical Context",
             "default": ""
+          },
+          "batch_mode": {
+            "type": "string",
+            "enum": [
+              "study",
+              "per_image"
+            ],
+            "title": "Batch Mode",
+            "default": "study"
           }
         },
         "type": "object",
@@ -2877,6 +2989,196 @@
           "polling_interval"
         ],
         "title": "RuntimeJobSettings"
+      },
+      "StorageApplyRequest": {
+        "properties": {
+          "path": {
+            "type": "string",
+            "maxLength": 1024,
+            "minLength": 1,
+            "title": "Path"
+          },
+          "mode": {
+            "type": "string",
+            "enum": [
+              "copy",
+              "use_existing"
+            ],
+            "title": "Mode",
+            "default": "copy"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "path"
+        ],
+        "title": "StorageApplyRequest"
+      },
+      "StorageFolder": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "path": {
+            "type": "string",
+            "title": "Path"
+          },
+          "size_bytes": {
+            "type": "integer",
+            "title": "Size Bytes"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "name",
+          "path",
+          "size_bytes"
+        ],
+        "title": "StorageFolder"
+      },
+      "StoragePathRequest": {
+        "properties": {
+          "path": {
+            "type": "string",
+            "maxLength": 1024,
+            "minLength": 1,
+            "title": "Path"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "path"
+        ],
+        "title": "StoragePathRequest"
+      },
+      "StorageStatus": {
+        "properties": {
+          "active_root": {
+            "type": "string",
+            "title": "Active Root"
+          },
+          "default_root": {
+            "type": "string",
+            "title": "Default Root"
+          },
+          "pending_root": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pending Root"
+          },
+          "source": {
+            "type": "string",
+            "enum": [
+              "environment",
+              "env_file",
+              "pointer",
+              "default"
+            ],
+            "title": "Source"
+          },
+          "locked": {
+            "type": "boolean",
+            "title": "Locked"
+          },
+          "restart_required": {
+            "type": "boolean",
+            "title": "Restart Required"
+          },
+          "folders": {
+            "items": {
+              "$ref": "#/components/schemas/StorageFolder"
+            },
+            "type": "array",
+            "title": "Folders"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "active_root",
+          "default_root",
+          "source",
+          "locked",
+          "restart_required",
+          "folders"
+        ],
+        "title": "StorageStatus",
+        "description": "Active and pending storage root with the folders it owns."
+      },
+      "StorageValidationResponse": {
+        "properties": {
+          "valid": {
+            "type": "boolean",
+            "title": "Valid"
+          },
+          "resolved_path": {
+            "type": "string",
+            "title": "Resolved Path"
+          },
+          "target_state": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "new",
+                  "empty",
+                  "existing"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Target State"
+          },
+          "required_bytes": {
+            "type": "integer",
+            "title": "Required Bytes",
+            "default": 0
+          },
+          "free_bytes": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Free Bytes"
+          },
+          "errors": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Errors"
+          },
+          "warnings": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Warnings"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "valid",
+          "resolved_path"
+        ],
+        "title": "StorageValidationResponse"
       },
       "ValidationError": {
         "properties": {

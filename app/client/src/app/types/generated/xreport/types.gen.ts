@@ -46,6 +46,10 @@ export type BodyGenerateReportsApiInferenceGeneratePost = {
      * Clinical Context
      */
     clinical_context?: string;
+    /**
+     * Batch Mode
+     */
+    batch_mode?: 'study' | 'per_image';
 };
 
 /**
@@ -1080,6 +1084,118 @@ export type RuntimeJobSettings = {
 };
 
 /**
+ * StorageApplyRequest
+ */
+export type StorageApplyRequest = {
+    /**
+     * Path
+     */
+    path: string;
+    /**
+     * Mode
+     */
+    mode?: 'copy' | 'use_existing';
+};
+
+/**
+ * StorageFolder
+ */
+export type StorageFolder = {
+    /**
+     * Name
+     */
+    name: string;
+    /**
+     * Path
+     */
+    path: string;
+    /**
+     * Size Bytes
+     */
+    size_bytes: number;
+};
+
+/**
+ * StoragePathRequest
+ */
+export type StoragePathRequest = {
+    /**
+     * Path
+     */
+    path: string;
+};
+
+/**
+ * StorageStatus
+ *
+ * Active and pending storage root with the folders it owns.
+ */
+export type StorageStatus = {
+    /**
+     * Active Root
+     */
+    active_root: string;
+    /**
+     * Default Root
+     */
+    default_root: string;
+    /**
+     * Pending Root
+     */
+    pending_root?: string | null;
+    /**
+     * Source
+     */
+    source: 'environment' | 'env_file' | 'pointer' | 'default';
+    /**
+     * Locked
+     */
+    locked: boolean;
+    /**
+     * Restart Required
+     */
+    restart_required: boolean;
+    /**
+     * Folders
+     */
+    folders: Array<StorageFolder>;
+};
+
+/**
+ * StorageValidationResponse
+ */
+export type StorageValidationResponse = {
+    /**
+     * Valid
+     */
+    valid: boolean;
+    /**
+     * Resolved Path
+     */
+    resolved_path: string;
+    /**
+     * Target State
+     */
+    target_state?: 'new' | 'empty' | 'existing' | null;
+    /**
+     * Required Bytes
+     */
+    required_bytes?: number;
+    /**
+     * Free Bytes
+     */
+    free_bytes?: number | null;
+    /**
+     * Errors
+     */
+    errors?: Array<string>;
+    /**
+     * Warnings
+     */
+    warnings?: Array<string>;
+};
+
+/**
  * ValidationError
  */
 export type ValidationError = {
@@ -1380,6 +1496,72 @@ export type SaveTokenApiSettingsHuggingfacePutResponses = {
 };
 
 export type SaveTokenApiSettingsHuggingfacePutResponse = SaveTokenApiSettingsHuggingfacePutResponses[keyof SaveTokenApiSettingsHuggingfacePutResponses];
+
+export type GetStatusApiSettingsStorageGetData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/api/settings/storage';
+};
+
+export type GetStatusApiSettingsStorageGetResponses = {
+    /**
+     * Successful Response
+     */
+    200: StorageStatus;
+};
+
+export type GetStatusApiSettingsStorageGetResponse = GetStatusApiSettingsStorageGetResponses[keyof GetStatusApiSettingsStorageGetResponses];
+
+export type ValidateApiSettingsStorageValidatePostData = {
+    body: StoragePathRequest;
+    path?: never;
+    query?: never;
+    url: '/api/settings/storage/validate';
+};
+
+export type ValidateApiSettingsStorageValidatePostErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type ValidateApiSettingsStorageValidatePostError = ValidateApiSettingsStorageValidatePostErrors[keyof ValidateApiSettingsStorageValidatePostErrors];
+
+export type ValidateApiSettingsStorageValidatePostResponses = {
+    /**
+     * Successful Response
+     */
+    200: StorageValidationResponse;
+};
+
+export type ValidateApiSettingsStorageValidatePostResponse = ValidateApiSettingsStorageValidatePostResponses[keyof ValidateApiSettingsStorageValidatePostResponses];
+
+export type ApplyApiSettingsStorageApplyPostData = {
+    body: StorageApplyRequest;
+    path?: never;
+    query?: never;
+    url: '/api/settings/storage/apply';
+};
+
+export type ApplyApiSettingsStorageApplyPostErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type ApplyApiSettingsStorageApplyPostError = ApplyApiSettingsStorageApplyPostErrors[keyof ApplyApiSettingsStorageApplyPostErrors];
+
+export type ApplyApiSettingsStorageApplyPostResponses = {
+    /**
+     * Successful Response
+     */
+    202: JobStartResponse;
+};
+
+export type ApplyApiSettingsStorageApplyPostResponse = ApplyApiSettingsStorageApplyPostResponses[keyof ApplyApiSettingsStorageApplyPostResponses];
 
 export type ImportCheckpointApiExchangeImportPostData = {
     body: BodyImportCheckpointApiExchangeImportPost;

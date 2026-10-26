@@ -22,6 +22,54 @@ RUNTIME_MANIFEST_FORMAT = 2
 RUNTIME_ARCHITECTURE = "windows-x64"
 APP_PROFILES = ("xreport", "studio")
 STUDIO_DATA_DIRNAME = "studio"
+STORAGE_POINTER_FILENAME = "storage-location.json"
+STORAGE_POINTER_SCHEMA_VERSION = 1
+# Entries owned by the storage root; everything else beside them (runtime
+# extraction, shell state, caches, .env) stays in the bootstrap location.
+STORAGE_ENTRIES = (
+    "logs",
+    "exports",
+    "models",
+    "checkpoints",
+    "templates",
+    "validation_receipts",
+    "database.db",
+    "database-config.json",
+    STUDIO_DATA_DIRNAME,
+)
+
+###############################################################################
+def storage_pointer_path(bootstrap_dir: Path) -> Path:
+    """Return the pointer file that records a user-selected storage root."""
+    return bootstrap_dir / STORAGE_POINTER_FILENAME
+
+###############################################################################
+def read_storage_pointer(bootstrap_dir: Path) -> str | None:
+    try:
+        payload = json.loads(storage_pointer_path(bootstrap_dir).read_text("utf-8"))
+    except (OSError, ValueError):
+        return None
+    value = payload.get("storage_root") if isinstance(payload, dict) else None
+    return value.strip() if isinstance(value, str) and value.strip() else None
+
+###############################################################################
+def write_storage_pointer(bootstrap_dir: Path, storage_root: Path | None) -> None:
+    """Atomically persist the storage root; ``None`` restores the default."""
+    pointer = storage_pointer_path(bootstrap_dir)
+    if storage_root is None:
+        pointer.unlink(missing_ok=True)
+        return
+    bootstrap_dir.mkdir(parents=True, exist_ok=True)
+    payload = {
+        "schema_version": STORAGE_POINTER_SCHEMA_VERSION,
+        "storage_root": str(storage_root),
+    }
+    with tempfile.NamedTemporaryFile(
+        mode="w", encoding="utf-8", dir=bootstrap_dir, prefix=".storage-", delete=False
+    ) as temporary:
+        temporary_path = Path(temporary.name)
+        json.dump(payload, temporary, indent=2)
+    os.replace(temporary_path, pointer)
 
 ###############################################################################
 def app_profile_from_environment() -> str:
@@ -51,6 +99,14 @@ class RuntimeLayout:
     # Immutable pinned resources (BEiT encoder, tokenizers) live under the base
     # resources root and are shared by both applications.
     shared_resources_root: Path | None = None
+    # Where the storage root was configured: environment, env_file, pointer or default
+    storage_source: str = "default"
+
+    # -------------------------------------------------------------------------
+    @property
+    def bootstrap_dir(self) -> Path:
+        """Fixed location of the storage pointer, independent of the storage root."""
+        return self.data_root if self.packaged else self.runtime_root / "settings"
 
     # -------------------------------------------------------------------------
     @property
@@ -90,12 +146,19 @@ class RuntimeLayout:
         if not packaged:
             source_root = Path(__file__).resolve().parents[3]
             configured_resources = os.getenv("XREPORT_RESOURCES_DIR")
+            storage_source = "environment"
             if configured_resources is None:
+                storage_source = "env_file"
                 env_path = source_root / "settings" / ".env"
                 if env_path.is_file():
                     configured_resources = dotenv_values(env_path).get(
                         "XREPORT_RESOURCES_DIR"
                     )
+            if not (configured_resources and configured_resources.strip()):
+                storage_source = "pointer"
+                configured_resources = read_storage_pointer(source_root / "settings")
+            if not (configured_resources and configured_resources.strip()):
+                storage_source = "default"
             resources_root = Path(
                 configured_resources.strip()
                 if configured_resources and configured_resources.strip()
@@ -123,6 +186,7 @@ class RuntimeLayout:
                 None,
                 profile,
                 resources_root,
+                storage_source,
             )
 
         if app_profile_from_environment() != "xreport":
@@ -152,14 +216,21 @@ class RuntimeLayout:
             raise RuntimeError(
                 f"Packaged client directory does not exist: {client_dist_dir}"
             )
+        configured_storage = read_storage_pointer(data_root)
+        storage_root = (
+            Path(configured_storage).expanduser().resolve()
+            if configured_storage
+            else data_root
+        )
         return cls(
             "packaged",
             runtime_root,
             data_root,
-            data_root,
+            storage_root,
             client_dist_dir,
             version,
             variant,
+            storage_source="pointer" if configured_storage else "default",
         )
 
 ###############################################################################
@@ -231,15 +302,10 @@ def ensure_packaged_data(layout: RuntimeLayout) -> None:
         layout.settings_template,
         layout.data_root / ".env",
     )
-    for name in (
-        "logs",
-        "models",
-        "checkpoints",
-        "templates",
-        "state",
-        "validation_receipts",
-    ):
-        (layout.data_root / name).mkdir(parents=True, exist_ok=True)
+    (layout.data_root / "state").mkdir(parents=True, exist_ok=True)
+    layout.resources_root.mkdir(parents=True, exist_ok=True)
+    for name in ("logs", "models", "checkpoints", "templates", "validation_receipts"):
+        (layout.resources_root / name).mkdir(parents=True, exist_ok=True)
     layout.cache_root.mkdir(parents=True, exist_ok=True)
 
 ###############################################################################

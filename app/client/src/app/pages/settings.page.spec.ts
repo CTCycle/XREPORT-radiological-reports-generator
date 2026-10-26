@@ -55,6 +55,9 @@ describe('SettingsPage', () => {
     getHuggingFaceAccess: vi.fn(),
     saveHuggingFaceToken: vi.fn(),
     clearHuggingFaceToken: vi.fn(),
+    getStorage: vi.fn(),
+    validateStorage: vi.fn(),
+    applyStorage: vi.fn(),
   };
 
   beforeEach(() => {
@@ -82,6 +85,9 @@ describe('SettingsPage', () => {
     api.getHuggingFaceAccess.mockReset().mockResolvedValue({ result: { configured: false, source: null }, error: null });
     api.saveHuggingFaceToken.mockReset().mockResolvedValue({ result: { configured: true, source: 'stored' }, error: null });
     api.clearHuggingFaceToken.mockReset().mockResolvedValue({ result: { configured: false, source: null }, error: null });
+    api.getStorage.mockReset().mockResolvedValue({ result: { active_root: 'C:/data', default_root: 'C:/data', pending_root: null, source: 'default', locked: false, restart_required: false, folders: [{ name: 'models', path: 'C:/data/models', size_bytes: 2048 }] }, error: null });
+    api.validateStorage.mockReset();
+    api.applyStorage.mockReset();
     TestBed.configureTestingModule({ imports: [SettingsPage], providers: [{ provide: SettingsApiService, useValue: api }] });
   });
 
@@ -240,6 +246,33 @@ describe('SettingsPage', () => {
     expect(page.huggingFaceTokenInput).toBe('');
     expect(element.textContent).toContain('A token is saved on this computer.');
     expect(element.textContent).toContain('Remove token');
+  });
+
+  it('validates a storage folder and starts a move only for a valid check', async () => {
+    api.validateStorage.mockResolvedValue({ result: { valid: true, resolved_path: 'D:/xreport', target_state: 'empty', required_bytes: 2048, free_bytes: 4096, errors: [], warnings: [] }, error: null });
+    api.applyStorage.mockResolvedValue({ result: { job_id: 'move-1', job_type: 'storage_migration', status: 'running', message: 'started', poll_interval: 1 }, error: null });
+    const fixture = TestBed.createComponent(SettingsPage);
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges();
+    const page = fixture.componentInstance;
+    const element = fixture.nativeElement as HTMLElement;
+
+    page.selectTab('storage');
+    fixture.detectChanges();
+    expect(element.textContent).toContain('C:/data');
+    expect(element.textContent).toContain('models · 2.0 KB');
+
+    await page.applyStorage();
+    expect(api.applyStorage).not.toHaveBeenCalled();
+
+    page.onStoragePathChange('D:/xreport');
+    await page.validateStorage();
+    await page.applyStorage();
+
+    expect(api.validateStorage).toHaveBeenCalledWith('D:/xreport');
+    expect(api.applyStorage).toHaveBeenCalledWith('D:/xreport', 'copy');
+    page.ngOnDestroy();
   });
 
   it('tests and switches the selected database, then applies its settings immediately', async () => {
