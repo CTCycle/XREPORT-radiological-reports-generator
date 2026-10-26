@@ -91,6 +91,7 @@ configured `global.seed` value.
 - `GET /api/inference/models`
 - `POST /api/inference/models/check-update`
 - `POST /api/inference/models/maintenance`
+- `POST /api/inference/runtime/release`
 - `POST /api/inference/generate`
 - `GET /api/inference/history`
 - `GET /api/inference/history/{request_id}`
@@ -98,6 +99,8 @@ configured `global.seed` value.
 - `DELETE /api/inference/history/{request_id}`
 
 `POST /api/inference/generate` is multipart and accepts only `model_ref`, `generation_profile`, `clinical_context`, and `images`. Model readiness, capabilities, and input semantics come from `GET /api/inference/models`.
+
+`POST /api/inference/runtime/release` unloads the resident model and returns cached CUDA blocks to the driver; it answers `{released, model_ref}`. It returns 409 while an inference or model-maintenance job runs, or while a run holds the residency lock, so it can never interrupt a generation. It does not touch inference history or client-side studies.
 
 The multipart metadata is parsed into the domain `InferenceGenerateRequest`; the uploaded files remain typed `UploadFile` inputs and the flat field names remain unchanged.
 
@@ -139,8 +142,8 @@ and incompatible model/data shapes report `checkpoint_input_mismatch`.
 - `POST /api/settings/reset`
 
 The Settings API exposes only the runtime-managed application values:
-`global.seed`, `jobs.polling_interval`, `inference.model_timeout`, and
-`theme_preference`. PATCH requests are
+`global.seed`, `jobs.polling_interval`, `inference.model_timeout`,
+`inference.model_idle_timeout`, and `theme_preference`. PATCH requests are
 nested partial updates and are validated by the backend before the authoritative
 `application_settings` row is updated transactionally. Reset restores those
 public values while preserving static inference policy, file-backed

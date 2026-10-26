@@ -78,6 +78,7 @@ The application-settings record contains the following owned values:
 - `global.seed`
 - `jobs.polling_interval`
 - `inference.model_timeout`
+- `inference.model_idle_timeout`
 - `theme_preference` (the global theme selector)
 
 `INFERENCE_HF_LOCAL_ONLY` and `INFERENCE_DEVICE` are process-level inference
@@ -111,10 +112,14 @@ Only these values are user-editable through Settings:
 - `global.seed` (`0` through `4,294,967,295`)
 - `jobs.polling_interval` (`0.25` through `60` seconds)
 - `inference.model_timeout` (at least `1` second)
+- `inference.model_idle_timeout` (`0` or more seconds; default `300`; `0` keeps the model loaded; XREPORT only in the UI)
 - `theme_preference` (`light`, `dark`, or `system`)
 
 Changing a seed, polling interval, or inference timeout applies to newly started
 work. Running jobs and generations keep the value captured at their start.
+The idle timeout is read by the resident-model watcher on every check (about
+every 5 seconds), so a change applies to the currently loaded model without a
+restart. It never interrupts a running generation.
 `INFERENCE_DEVICE`, `INFERENCE_HF_LOCAL_ONLY`, and the static model catalogue
 remain runtime policy and are not exposed by the Settings API. A prior browser
 theme preference is imported into the active database once; later theme

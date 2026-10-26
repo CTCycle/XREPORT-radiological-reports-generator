@@ -1,6 +1,6 @@
 # UI Experience Standards
 
-Last updated: 2026-10-24
+Last updated: 2026-10-26
 
 ## Core UX Journeys
 
@@ -60,9 +60,18 @@ Last updated: 2026-10-24
   only changed rows are submitted. A study-level report shared across images
   maps to its single saved row. Failed saves retain the draft, show an error,
   and leave Save edits available for retry.
-- Unsaved inference edits prompt before model or study changes, regeneration,
-  and in-app navigation. Browser reload and close use the standard
-  `beforeunload` prompt where supported.
+- Each model keeps its own inference study: images, the selected image, run
+  scope, profile, clinical context, generated reports, unsaved edits, and the
+  linked saved history. Switching models stores the current study and restores
+  the target model's study, or starts an empty one. Studies survive in-app
+  navigation without a prompt; only **Clear study** resets the selected model's
+  study. Releasing model memory never affects studies.
+- Unsaved inference edits prompt before the study is replaced (new images,
+  Clear study) or regenerated. Browser reload and close use the standard
+  `beforeunload` prompt where supported, because studies live in memory.
+- The status bar's **Free memory** button (XREPORT only) unloads the resident
+  model and refreshes the RAM and VRAM readings. It is disabled while inference
+  runs, and the backend also refuses a release during a run.
 
 ## Theme selection
 
@@ -87,6 +96,8 @@ Last updated: 2026-10-24
 - Database settings stay as a draft until the user activates the connection. The backend prepares and validates the target before activation, and a failed switch restores the previous connection.
 - Help text explains that seed, polling interval, and inference timeout changes
   apply to new work; active jobs and generations retain their starting values.
+- **Unload idle models after** (Advanced, XREPORT only) sets the idle release
+  timeout in seconds; `0` keeps the model loaded.
 
 ## Contextual Guidance
 

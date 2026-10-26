@@ -1,6 +1,6 @@
 # XREPORT Execution And Data Flow
 
-Last updated: 2026-10-23
+Last updated: 2026-10-26
 
 ## Layer Responsibilities
 
@@ -159,6 +159,14 @@ sequenceDiagram
         API-->>UI: updated report history
     end
 ```
+
+## Model Residency And Memory Release
+
+`InferenceRuntimeCoordinator` keeps at most one model resident across providers: a Hugging Face model in `HuggingFaceProvider` or an XREPORT Keras checkpoint cached by checkpoint path and weights modification time. Consecutive runs, including every image of a per-image batch, reuse the resident model; loading a different model releases the previous one first.
+
+All residency changes happen under the coordinator's lock, which a run holds from target resolution to completion. Release paths (`release(blocking=False)`) acquire it without waiting and skip when it is held, so neither the idle watcher nor `POST /api/inference/runtime/release` can interrupt a run. A release drops the model, processor, and adapter references, clears the Keras session for checkpoint models, runs garbage collection, and calls `torch.cuda.empty_cache()` and `ipc_collect()`; cache clearing never runs inside a generation loop.
+
+Each run stamps its end time. While a model is resident, a daemon watcher checks every 5 seconds and releases it once it has been idle for `inference.model_idle_timeout` seconds (`0` disables the release). The watcher exits when nothing is resident and starts again after the next run. A failed model load clears the loader frames and frees partial allocations immediately. Per-image batches keep only the first failure's message, not its traceback, so failed frames do not retain device tensors.
 
 Inference history persistence failures are terminal job failures. They are logged and raised as typed job errors; they are not swallowed after a successful-looking generation result. The completed job returns its request ID only after the generated reports have been persisted. Inference-page edits then reuse the existing history read and update endpoints.
 
