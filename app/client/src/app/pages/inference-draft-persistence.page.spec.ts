@@ -278,33 +278,72 @@ describe('inference draft persistence', () => {
     expect(generateReports).toHaveBeenCalledWith(expect.anything(), modelRef, 'detailed', expect.anything(), 'per_image');
   });
 
-  it('blocks route exit and browser unload when edits are unsaved', async () => {
-    const { page } = await createInferencePage();
+  it('keeps unsaved edits across page navigation and still guards browser unload', async () => {
+    const { fixture, page, api } = await createInferencePage();
     page.updateDraft('findings', 'Unsaved finding.');
-    const confirm = vi.spyOn(window, 'confirm').mockReturnValue(false);
+    const confirm = vi.spyOn(window, 'confirm');
 
-    expect(page.confirmDiscardUnsavedChanges()).toBe(false);
-    expect(confirm).toHaveBeenCalledOnce();
+    expect(page.confirmDiscardUnsavedChanges()).toBe(true);
+    expect(confirm).not.toHaveBeenCalled();
     const event = new Event('beforeunload', { cancelable: true }) as BeforeUnloadEvent;
     page.protectUnsavedDraft(event);
     expect(event.defaultPrevented).toBe(true);
 
+    fixture.destroy();
+    const returned = TestBed.createComponent(InferencePage);
+    await returned.whenStable();
+    expect(returned.componentInstance.draft('findings')).toBe('Unsaved finding.');
+    expect(returned.componentInstance.dirty()).toBe(true);
+    expect(api.getHistory).toHaveBeenCalledOnce();
+
     confirm.mockRestore();
   });
 
-  it('confirms before model changes, study replacement, or regeneration discards a dirty draft', async () => {
+  it('keeps an independent study per model across switches until it is cleared', async () => {
+    const { page, appState, api, requestId } = await createInferencePage();
+    const other = { ...model, model_ref: 'huggingface:e2e/other-model', display_name: 'Other model' } as ModelAvailability;
+    appState.updateInference((state) => ({ ...state, modelAvailability: [model, other] }));
+    page.updateDraft('findings', 'Unsaved finding.');
+    page.setIndex(1);
+    const firstImages = page.state().images.map((image) => image.name);
+
+    page.selectModel(other);
+    expect(page.state().selectedModelRef).toBe(other.model_ref);
+    expect(page.state().images).toEqual([]);
+    expect(page.hasDraft()).toBe(false);
+    expect(page.persistedHistory()).toBeNull();
+    page.addFiles([new File(['other'], 'other.png', { type: 'image/png' })] as unknown as FileList);
+
+    page.selectModel(model);
+    expect(page.state().images.map((image) => image.name)).toEqual(firstImages);
+    expect(page.state().currentIndex).toBe(1);
+    expect(page.persistedHistory()?.request_id).toBe(requestId);
+    page.setIndex(0);
+    expect(page.draft('findings')).toBe('Unsaved finding.');
+    expect(page.dirty()).toBe(true);
+    expect(api.getHistory).toHaveBeenCalledOnce();
+
+    const confirm = vi.spyOn(window, 'confirm').mockReturnValue(true);
+    page.resetStudy();
+    expect(page.state().images).toEqual([]);
+    expect(page.hasDraft()).toBe(false);
+    page.selectModel(other);
+    expect(page.state().images.map((image) => image.name)).toEqual(['other.png']);
+    confirm.mockRestore();
+  });
+
+  it('confirms before study replacement or regeneration discards a dirty draft', async () => {
     const { page, api } = await createInferencePage();
     page.updateDraft('findings', 'Unsaved finding.');
     const originalImages = page.state().images.map((image) => image.name);
     const generateReports = vi.spyOn(api, 'generateReports');
     const confirm = vi.spyOn(window, 'confirm').mockReturnValue(false);
 
-    page.selectModel({ ...model, model_ref: 'huggingface:e2e:replacement-model' });
     page.addFiles([new File(['replacement'], 'replacement.png', { type: 'image/png' })] as unknown as FileList);
     page.resetStudy();
     await page.generate();
 
-    expect(confirm).toHaveBeenCalledTimes(4);
+    expect(confirm).toHaveBeenCalledTimes(3);
     expect(page.dirty()).toBe(true);
     expect(page.draft('findings')).toBe('Unsaved finding.');
     expect(page.state().selectedModelRef).toBe(modelRef);
