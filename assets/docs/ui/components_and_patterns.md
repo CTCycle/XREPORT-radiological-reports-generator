@@ -1,6 +1,6 @@
 # UI Components And Patterns
 
-Last updated: 2026-10-23
+Last updated: 2026-10-26
 
 ## Reusable Patterns
 
@@ -70,7 +70,7 @@ shell-level lifecycle component, not a feature-page loading state.
 
 - Dataset page: dataset loading, preprocessing, browsing, and validation entry actions
 - Training page: training start or resume, checkpoint management, and metrics dashboards
-- Inference page: filterable local model catalog and details, capability-aware study preparation, clinical context, generation profiles, and editable model-declared report sections with copy, regenerate, and export actions
+- Inference page: filterable local model catalog and details, capability-aware study preparation, clinical context, generation profiles (editable after a draft exists), described run scopes, a report selector for per-image batches, and editable model-declared report sections with copy, regenerate, and export actions
 - Reports page: filterable persisted inference sessions, explicit loading/empty/error states, paginated summaries, and links to detail views
 - Report detail page: session metadata, reusable section-aware draft editor, original-output disclosure, atomic save, and destructive session deletion
 - Dataset validation page: validation orchestration and report review

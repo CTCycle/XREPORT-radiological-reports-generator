@@ -232,6 +232,52 @@ describe('inference draft persistence', () => {
     expect(page.dirty()).toBe(false);
   });
 
+  it('navigates per-image reports and saves each one independently', async () => {
+    const { fixture, page, updateHistory } = await createInferencePage();
+    const element = fixture.nativeElement as HTMLElement;
+    expect(element.querySelector('.report-navigator')).not.toBeNull();
+    expect(page.reportEntries().map((entry) => entry.name)).toEqual(['view-1.png', 'view-2.png']);
+
+    page.updateDraft('findings', 'Edited first.');
+    page.stepReport(1);
+    expect(page.state().currentIndex).toBe(1);
+    expect(page.draft('findings')).toBe('Mild basilar opacity.');
+    page.updateDraft('impression', 'Edited second.');
+    page.stepReport(-1);
+    expect(page.draft('findings')).toBe('Edited first.');
+
+    await page.saveEdits();
+
+    expect(updateHistory).toHaveBeenCalledWith('persisted-e2e-request', {
+      reports: [{ image_index: 0, edited_report: 'Findings\nEdited first.\n\nImpression\nNo acute disease.' }],
+    });
+    expect(page.currentDirty()).toBe(false);
+    expect(page.dirty()).toBe(true);
+    page.stepReport(1);
+    expect(page.draft('impression')).toBe('Edited second.');
+    expect(page.currentDirty()).toBe(true);
+  });
+
+  it('keeps the generation profile editable after a draft and falls back from an unsupported study scope', async () => {
+    const { fixture, page, api, appState } = await createInferencePage();
+    const profile = fixture.nativeElement.querySelector('#profile-select') as HTMLSelectElement;
+    expect(page.hasDraft()).toBe(true);
+    expect(profile.disabled).toBe(false);
+
+    const generateReports = vi.spyOn(api, 'generateReports');
+    appState.updateInference((state) => ({
+      ...state,
+      runScope: 'study',
+      generationProfile: 'detailed',
+      modelAvailability: [{ ...model, capabilities: { ...model.capabilities, multiple_current_views: false } }],
+    }));
+    expect(page.effectiveScope()).toBe('all');
+
+    await page.generate();
+
+    expect(generateReports).toHaveBeenCalledWith(expect.anything(), modelRef, 'detailed', expect.anything(), 'per_image');
+  });
+
   it('blocks route exit and browser unload when edits are unsaved', async () => {
     const { page } = await createInferencePage();
     page.updateDraft('findings', 'Unsaved finding.');
