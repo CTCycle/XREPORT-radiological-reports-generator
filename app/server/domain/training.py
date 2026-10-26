@@ -202,7 +202,6 @@ class ProcessDatasetResponse(BaseModel):
 class DatasetStatusResponse(BaseModel):
     has_data: bool
     row_count: int
-    allow_server_browse: bool
     message: str
 
 ###############################################################################

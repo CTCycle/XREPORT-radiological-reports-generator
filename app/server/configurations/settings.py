@@ -31,11 +31,6 @@ class GlobalSettings:
 
 ###############################################################################
 @dataclass(frozen=True)
-class FeatureSettings:
-    allow_local_filesystem_access: bool
-
-###############################################################################
-@dataclass(frozen=True)
 class JobsSettings:
     polling_interval: float
 
@@ -51,7 +46,6 @@ class InferenceSettings:
 class ServerSettings:
     database: DatabaseSettings
     global_settings: GlobalSettings
-    features: FeatureSettings
     jobs: JobsSettings
     inference: InferenceSettings
 
@@ -62,7 +56,6 @@ class ApplicationSettingsValues(BaseModel):
     model_config = ConfigDict(extra="forbid", strict=True)
 
     global_seed: int = Field(ge=0, le=4_294_967_295)
-    allow_local_filesystem_access: bool
     job_polling_interval: float = Field(
         ge=0.25,
         le=60.0,
@@ -74,7 +67,6 @@ class ApplicationSettingsValues(BaseModel):
 
 DEFAULT_APPLICATION_SETTINGS = ApplicationSettingsValues(
     global_seed=42,
-    allow_local_filesystem_access=True,
     job_polling_interval=1.0,
     inference_model_timeout=600,
     theme_preference=None,
@@ -89,9 +81,6 @@ def application_settings_to_server_settings(
     return ServerSettings(
         database=database,
         global_settings=GlobalSettings(seed=values.global_seed),
-        features=FeatureSettings(
-            allow_local_filesystem_access=values.allow_local_filesystem_access
-        ),
         jobs=JobsSettings(polling_interval=values.job_polling_interval),
         inference=InferenceSettings(
             hf_local_only=runtime.inference_hf_local_only,

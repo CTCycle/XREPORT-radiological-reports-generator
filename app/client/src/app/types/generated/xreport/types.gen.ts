@@ -9,7 +9,6 @@ export type ClientOptions = {
  */
 export type ApplicationSettingsPatch = {
     global?: GlobalSettingsPatch | null;
-    features?: FeatureSettingsPatch | null;
     jobs?: JobSettingsPatch | null;
     inference?: InferenceSettingsPatch | null;
     /**
@@ -250,16 +249,6 @@ export type DatabaseConnectionTestResponse = {
 export type DatabaseSwitchResponse = {
     active: DatabaseConfigurationSummary;
     settings: ApplicationSettingsResponse;
-};
-
-/**
- * FeatureSettingsPatch
- */
-export type FeatureSettingsPatch = {
-    /**
-     * Allow Local Filesystem Access
-     */
-    allow_local_filesystem_access?: boolean | null;
 };
 
 /**
@@ -1062,23 +1051,12 @@ export type ProviderAvailability = {
  */
 export type RuntimeApplicationSettings = {
     global: RuntimeGlobalSettings;
-    features: RuntimeFeatureSettings;
     jobs: RuntimeJobSettings;
     inference: RuntimeInferenceSettings;
     /**
      * Theme Preference
      */
     theme_preference: 'light' | 'dark' | 'system' | null;
-};
-
-/**
- * RuntimeFeatureSettings
- */
-export type RuntimeFeatureSettings = {
-    /**
-     * Allow Local Filesystem Access
-     */
-    allow_local_filesystem_access: boolean;
 };
 
 /**

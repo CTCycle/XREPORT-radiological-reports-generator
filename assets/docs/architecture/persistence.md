@@ -1,6 +1,6 @@
 # XREPORT Persistence
 
-Last updated: 2026-10-21
+Last updated: 2026-10-26
 
 ## Database Backend Selection
 
@@ -13,8 +13,8 @@ The sources of truth are deliberately separated:
   backend and its connection parameters. It is independent of the database;
   PostgreSQL passwords are DPAPI-protected for the current Windows account.
 - The singleton `application_settings` database row owns only mutable
-  user-facing application behavior such as the global seed, filesystem-access
-  flag, job polling interval, inference timeout, and theme preference.
+  user-facing application behavior such as the global seed, job polling
+  interval, inference timeout, and theme preference.
 - `app/server/configurations/inference_models.py` owns the immutable, reviewed
   inference catalogue and its safety/runtime contract.
 
@@ -162,7 +162,6 @@ erDiagram
     APPLICATION_SETTINGS {
         int settings_id PK
         bigint global_seed
-        boolean allow_local_filesystem_access
         float job_polling_interval
         bigint inference_model_timeout
         string theme_preference

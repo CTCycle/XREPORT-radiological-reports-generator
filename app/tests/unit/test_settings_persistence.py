@@ -71,7 +71,6 @@ def _database(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> ApplicationDat
         session.query(ApplicationSettingsRecord).update(
             {
                 "global_seed": 123,
-                "allow_local_filesystem_access": False,
                 "job_polling_interval": 2.5,
                 "inference_model_timeout": 120,
             }
@@ -91,7 +90,6 @@ def test_fresh_upgrade_uses_typed_defaults(
 
     assert values.model_dump() == {
         "global_seed": 42,
-        "allow_local_filesystem_access": True,
         "job_polling_interval": 1.0,
         "inference_model_timeout": 600,
         "theme_preference": None,
@@ -105,14 +103,12 @@ def test_public_projection_contains_only_application_settings(tmp_path, monkeypa
     payload = response.model_dump(mode="json", by_alias=True)
     assert payload["values"] == {
         "global": {"seed": 123},
-        "features": {"allow_local_filesystem_access": False},
         "jobs": {"polling_interval": 2.5},
         "inference": {"model_timeout": 120},
         "theme_preference": None,
     }
     assert payload["defaults"] == {
         "global": {"seed": 42},
-        "features": {"allow_local_filesystem_access": True},
         "jobs": {"polling_interval": 1.0},
         "inference": {"model_timeout": 600},
         "theme_preference": None,
@@ -166,7 +162,6 @@ def test_public_settings_are_restored_after_reopening_the_database(
     repository.update_public_settings(
         {
             "global_seed": 321,
-            "allow_local_filesystem_access": True,
             "job_polling_interval": 3.5,
             "inference_model_timeout": 777,
             "theme_preference": "dark",
@@ -178,7 +173,6 @@ def test_public_settings_are_restored_after_reopening_the_database(
     try:
         restored = ApplicationSettingsRepository(reopened).get_settings()
         assert restored.global_seed == 321
-        assert restored.allow_local_filesystem_access is True
         assert restored.job_polling_interval == 3.5
         assert restored.inference_model_timeout == 777
         assert restored.theme_preference == "dark"
@@ -540,18 +534,19 @@ def test_policy_migration_from_baseline_preserves_user_settings_and_records(
         }
         assert "inference_hf_local_only" not in columns
         assert "inference_device" not in columns
+        assert "allow_local_filesystem_access" not in columns
         with engine.connect() as connection:
             assert connection.exec_driver_sql(
-                "SELECT global_seed, allow_local_filesystem_access, "
+                "SELECT global_seed, "
                 "job_polling_interval, inference_model_timeout, theme_preference "
                 "FROM application_settings WHERE settings_id = 1"
-            ).one() == (909, 0, 2.5, 901, "dark")
+            ).one() == (909, 2.5, 901, "dark")
             assert connection.exec_driver_sql(
                 "SELECT name FROM datasets WHERE name_key = 'retained-dataset'"
             ).scalar_one() == "Retained dataset"
             assert connection.exec_driver_sql(
                 "SELECT version_num FROM alembic_version"
-            ).scalar_one() == initializer.HEAD_REVISION == "42c8e1f7b0d3"
+            ).scalar_one() == initializer.HEAD_REVISION == "7d3f9a1c5e82"
     finally:
         engine.dispose()
 
@@ -606,13 +601,14 @@ def test_published_v3_2_database_migrates_from_legacy_revision(
         }
         assert "inference_hf_local_only" not in columns
         assert "inference_device" not in columns
+        assert "allow_local_filesystem_access" not in columns
         assert {"edited_report", "edited_at"}.issubset(report_columns)
         with engine.connect() as connection:
             assert connection.exec_driver_sql(
-                "SELECT global_seed, allow_local_filesystem_access, "
+                "SELECT global_seed, "
                 "job_polling_interval, inference_model_timeout, theme_preference "
                 "FROM application_settings WHERE settings_id = 1"
-            ).one() == (909, 0, 2.5, 901, None)
+            ).one() == (909, 2.5, 901, None)
             assert connection.exec_driver_sql(
                 "SELECT name FROM datasets WHERE name_key = 'retained-v3-2'"
             ).scalar_one() == "Retained v3.2 dataset"

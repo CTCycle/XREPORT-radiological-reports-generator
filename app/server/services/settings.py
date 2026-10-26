@@ -8,7 +8,6 @@ from server.domain.settings import (
     ApplicationSettingsPatch,
     ApplicationSettingsResponse,
     RuntimeApplicationSettings,
-    RuntimeFeatureSettings,
     RuntimeGlobalSettings,
     RuntimeInferenceSettings,
     RuntimeJobSettings,
@@ -65,11 +64,6 @@ class SettingsService:
         if patch.global_settings is not None:
             if patch.global_settings.seed is not None:
                 changes["global_seed"] = patch.global_settings.seed
-        if patch.features is not None:
-            if patch.features.allow_local_filesystem_access is not None:
-                changes["allow_local_filesystem_access"] = (
-                    patch.features.allow_local_filesystem_access
-                )
         if patch.jobs is not None:
             if patch.jobs.polling_interval is not None:
                 changes["job_polling_interval"] = patch.jobs.polling_interval
@@ -101,9 +95,6 @@ class SettingsService:
         return RuntimeApplicationSettings(
             **{
                 "global": RuntimeGlobalSettings(seed=values.global_seed),
-                "features": RuntimeFeatureSettings(
-                    allow_local_filesystem_access=values.allow_local_filesystem_access,
-                ),
                 "jobs": RuntimeJobSettings(
                     polling_interval=values.job_polling_interval,
                 ),

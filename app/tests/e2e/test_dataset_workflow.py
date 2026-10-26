@@ -22,25 +22,12 @@ def base_url(studio_base_url):
     return studio_base_url
 
 
-
-
-
-
-
 _API_ONE_PIXEL_PNG = (
     b"\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00\x01"
     b"\x00\x00\x00\x01\x08\x06\x00\x00\x00\x1f\x15\xc4\x89"
     b"\x00\x00\x00\x0bIDATx\x9cc\xf8\xcf\xc0\xf0\x1f\x00"
     b"\x05\x00\x01\xff\x89\x99=\x1d\x00\x00\x00\x00IEND\xaeB`\x82"
 )
-
-###############################################################################
-def _set_api_filesystem_access(api_context: APIRequestContext, enabled: bool) -> None:
-    response = api_context.patch(
-        "/api/settings",
-        data={"features": {"allow_local_filesystem_access": enabled}},
-    )
-    assert response.ok, f"Could not set filesystem access: {response.status}"
 
 ###############################################################################
 def _dataset_names(api_context: APIRequestContext) -> list[dict[str, object]]:
@@ -53,12 +40,6 @@ def test_s21_partial_import_requires_confirmation_and_persists_matched_row(
     api_context: APIRequestContext,
     tmp_path: Path,
 ) -> None:
-    settings = api_context.get("/api/settings")
-    assert settings.ok
-    original_access = settings.json()["values"]["features"][
-        "allow_local_filesystem_access"
-    ]
-
     fixture_root = tmp_path / "s21-partial-fixture"
     image_folder = fixture_root / "images"
     image_folder.mkdir(parents=True)
@@ -68,7 +49,6 @@ def test_s21_partial_import_requires_confirmation_and_persists_matched_row(
     imported = False
 
     try:
-        _set_api_filesystem_access(api_context, True)
         uploaded = api_context.post(
             "/api/upload/dataset",
             multipart={
@@ -134,73 +114,44 @@ def test_s21_partial_import_requires_confirmation_and_persists_matched_row(
     finally:
         if imported:
             api_context.delete(f"/api/preparation/dataset/{dataset_name}")
-        _set_api_filesystem_access(api_context, original_access)
 
 ###############################################################################
 def test_s21_no_matching_rows_fail_without_persisting_source(
     api_context: APIRequestContext,
     tmp_path: Path,
 ) -> None:
-    settings = api_context.get("/api/settings")
-    assert settings.ok
-    original_access = settings.json()["values"]["features"][
-        "allow_local_filesystem_access"
-    ]
-
     image_folder = tmp_path / "s21-no-match-images"
     image_folder.mkdir()
     (image_folder / "available.png").write_bytes(_API_ONE_PIXEL_PNG)
     dataset_name = f"s21-no-match-{uuid4().hex}"
 
-    try:
-        _set_api_filesystem_access(api_context, True)
-        uploaded = api_context.post(
-            "/api/upload/dataset",
-            multipart={
-                "file": {
-                    "name": f"{dataset_name}.csv",
-                    "mimeType": "text/csv",
-                    "buffer": b"image,text\nmissing.jpg,No matching report\n",
-                }
-            },
-        )
-        assert uploaded.ok, uploaded.text()
+    uploaded = api_context.post(
+        "/api/upload/dataset",
+        multipart={
+            "file": {
+                "name": f"{dataset_name}.csv",
+                "mimeType": "text/csv",
+                "buffer": b"image,text\nmissing.jpg,No matching report\n",
+            }
+        },
+    )
+    assert uploaded.ok, uploaded.text()
 
-        response = api_context.post(
-            "/api/preparation/dataset/load",
-            data={
-                "upload_id": uploaded.json()["upload_id"],
-                "image_folder_path": str(image_folder),
-                "sample_size": 1.0,
-                "confirm_unmatched": True,
-            },
-        )
-        assert response.status == 400, response.text()
-        assert "No dataset rows matched" in response.json()["detail"]
-        assert not any(row["name"] == dataset_name for row in _dataset_names(api_context))
-    finally:
-        _set_api_filesystem_access(api_context, original_access)
-
-
-
-
-
-
-
-
-
-
+    response = api_context.post(
+        "/api/preparation/dataset/load",
+        data={
+            "upload_id": uploaded.json()["upload_id"],
+            "image_folder_path": str(image_folder),
+            "sample_size": 1.0,
+            "confirm_unmatched": True,
+        },
+    )
+    assert response.status == 400, response.text()
+    assert "No dataset rows matched" in response.json()["detail"]
+    assert not any(row["name"] == dataset_name for row in _dataset_names(api_context))
 
 
 _ONE_PIXEL_PNG = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAIAAACQd1PeAAAADUlEQVR4nGP4z8AAAAMBAQDJ/pLvAAAAAElFTkSuQmCC"
-
-###############################################################################
-def _set_filesystem_access(api_context: APIRequestContext, enabled: bool) -> None:
-    response = api_context.patch(
-        "/api/settings",
-        data={"features": {"allow_local_filesystem_access": enabled}},
-    )
-    assert response.ok, f"Could not set filesystem access: {response.status}"
 
 ###############################################################################
 def test_s21_dataset_page_shows_and_confirms_partial_import(
@@ -209,12 +160,6 @@ def test_s21_dataset_page_shows_and_confirms_partial_import(
     page: Page,
     tmp_path: Path,
 ) -> None:
-    settings = api_context.get("/api/settings")
-    assert settings.ok
-    original_access = settings.json()["values"]["features"][
-        "allow_local_filesystem_access"
-    ]
-
     fixture_root = tmp_path / "s21-browser-fixture"
     image_folder = fixture_root / "images"
     image_folder.mkdir(parents=True)
@@ -232,7 +177,6 @@ def test_s21_dataset_page_shows_and_confirms_partial_import(
     imported = False
 
     try:
-        _set_filesystem_access(api_context, True)
         page.set_viewport_size({"width": 1440, "height": 1000})
         page.goto(f"{base_url.rstrip('/')}/dataset")
 
@@ -286,7 +230,6 @@ def test_s21_dataset_page_shows_and_confirms_partial_import(
     finally:
         if imported:
             api_context.delete(f"/api/preparation/dataset/{dataset_name}")
-        _set_filesystem_access(api_context, original_access)
 
 ###############################################################################
 def test_s23_viewer_navigation_and_long_source_path_row_containment(
@@ -295,12 +238,6 @@ def test_s23_viewer_navigation_and_long_source_path_row_containment(
     page: Page,
     tmp_path: Path,
 ) -> None:
-    settings = api_context.get("/api/settings")
-    assert settings.ok
-    original_access = settings.json()["values"]["features"][
-        "allow_local_filesystem_access"
-    ]
-
     dataset_name = f"s23-row-{uuid4().hex}"
     fixture_root = Path(RESOURCES_DIR) / f"s23-{uuid4().hex[:8]}"
     fixture_root.mkdir(parents=True)
@@ -334,7 +271,6 @@ def test_s23_viewer_navigation_and_long_source_path_row_containment(
     imported = False
 
     try:
-        _set_filesystem_access(api_context, True)
         with csv_path.open("rb") as dataset_file:
             uploaded = api_context.post(
                 "/api/upload/dataset",
@@ -416,10 +352,7 @@ def test_s23_viewer_navigation_and_long_source_path_row_containment(
                 cleanup = api_context.delete(f"/api/preparation/dataset/{dataset_name}")
                 assert cleanup.ok, cleanup.text()
         finally:
-            try:
-                _set_filesystem_access(api_context, original_access)
-            finally:
-                shutil.rmtree(fixture_root, ignore_errors=True)
+            shutil.rmtree(fixture_root, ignore_errors=True)
 
 ###############################################################################
 def test_s23_source_delete_requires_processed_dataset_cleanup(
@@ -428,12 +361,6 @@ def test_s23_source_delete_requires_processed_dataset_cleanup(
     page: Page,
     tmp_path: Path,
 ) -> None:
-    settings = api_context.get("/api/settings")
-    assert settings.ok
-    original_access = settings.json()["values"]["features"][
-        "allow_local_filesystem_access"
-    ]
-
     fixture_root = tmp_path / "s23-delete-browser-fixture"
     image_folder = fixture_root / "images"
     image_folder.mkdir(parents=True)
@@ -458,7 +385,6 @@ def test_s23_source_delete_requires_processed_dataset_cleanup(
     processed = False
 
     try:
-        _set_filesystem_access(api_context, True)
         with csv_path.open("rb") as dataset_file:
             uploaded = api_context.post(
                 "/api/upload/dataset",
@@ -560,5 +486,4 @@ def test_s23_source_delete_requires_processed_dataset_cleanup(
             api_context.delete(f"/api/preparation/dataset/{processed_name}")
         if imported:
             api_context.delete(f"/api/preparation/dataset/{dataset_name}")
-        _set_filesystem_access(api_context, original_access)
         shutil.rmtree(fixture_root, ignore_errors=True)

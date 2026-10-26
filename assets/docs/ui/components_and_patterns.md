@@ -85,11 +85,11 @@ shell-level lifecycle component, not a feature-page loading state.
 - Dataset page: dataset loading, preprocessing, browsing, and validation entry actions
 - Training page: training start or resume, checkpoint management, and metrics dashboards
 - Inference page: filterable local model catalog and details, capability-aware study preparation, clinical context, generation profiles (editable after a draft exists), described run scopes, a report selector for per-image batches, and editable model-declared report sections with copy, regenerate, and export actions
-- Reports page: filterable persisted inference sessions, explicit loading/empty/error states, paginated summaries, and links to detail views
-- Report detail page: session metadata, reusable section-aware draft editor, original-output disclosure, atomic save, and destructive session deletion
+- Reports page: persisted inference sessions whose model-reference (debounced), status, and sort filters apply immediately, explicit loading/empty/error states, paginated summaries, and links to detail views
+- Report detail page: session metadata, reusable section-aware draft editor, original-output disclosure that bolds and underlines words removed or changed in the current draft, atomic save, and destructive session deletion
 - Dataset validation page: validation orchestration and report review
-- Settings page: one-column runtime settings screen with General, Data access,
-  Advanced, and Database sections. Non-database settings persist automatically
+- Settings page: one-column runtime settings screen with General, Advanced,
+  Model access, Storage, and Database sections. Non-database settings persist automatically
   with debounced numeric inputs; database settings remain drafts until the
   current candidate passes a connection test and the user confirms the switch.
 

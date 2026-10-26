@@ -1,6 +1,6 @@
 # Runtime Modes
 
-Last updated: 2026-10-21
+Last updated: 2026-10-26
 
 ## Supported Modes
 
@@ -44,7 +44,7 @@ Last updated: 2026-10-21
 - Long-running ML tasks are job-based and poll-driven through the generic
   `/api/jobs` resource. No production WebSocket API routes are currently
   exposed.
-- Local filesystem browsing is feature-gated by `features.allow_local_filesystem_access`.
+- Local filesystem access is limited only by operating-system permissions; there is no application-level access setting.
 - External inference uses the embedded Hugging Face Transformers provider; no Ollama, llama.cpp, vLLM, or separate model server is required.
 - Each Hugging Face entry requires a previously cached snapshot and the exact
   commit declared in the typed catalogue at

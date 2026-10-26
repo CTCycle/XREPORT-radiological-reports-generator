@@ -139,8 +139,7 @@ and incompatible model/data shapes report `checkpoint_input_mismatch`.
 - `POST /api/settings/reset`
 
 The Settings API exposes only the runtime-managed application values:
-`global.seed`, `features.allow_local_filesystem_access`,
-`jobs.polling_interval`, `inference.model_timeout`, and
+`global.seed`, `jobs.polling_interval`, `inference.model_timeout`, and
 `theme_preference`. PATCH requests are
 nested partial updates and are validated by the backend before the authoritative
 `application_settings` row is updated transactionally. Reset restores those

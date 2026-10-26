@@ -343,7 +343,6 @@ def test_concurrent_feature_job_starts_are_atomically_rejected(
     settings = SimpleNamespace(
         global_settings=SimpleNamespace(seed=42),
         jobs=SimpleNamespace(polling_interval=0.25),
-        features=SimpleNamespace(allow_local_filesystem_access=True),
     )
     runner_started = Event()
     release_runner = Event()

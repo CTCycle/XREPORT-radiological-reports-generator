@@ -1305,16 +1305,6 @@
               }
             ]
           },
-          "features": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/FeatureSettingsPatch"
-              },
-              {
-                "type": "null"
-              }
-            ]
-          },
           "jobs": {
             "anyOf": [
               {
@@ -2137,10 +2127,6 @@
             "type": "integer",
             "title": "Row Count"
           },
-          "allow_server_browse": {
-            "type": "boolean",
-            "title": "Allow Server Browse"
-          },
           "message": {
             "type": "string",
             "title": "Message"
@@ -2150,7 +2136,6 @@
         "required": [
           "has_data",
           "row_count",
-          "allow_server_browse",
           "message"
         ],
         "title": "DatasetStatusResponse"
@@ -2269,24 +2254,6 @@
           "checkpoint"
         ],
         "title": "ExportRequest"
-      },
-      "FeatureSettingsPatch": {
-        "properties": {
-          "allow_local_filesystem_access": {
-            "anyOf": [
-              {
-                "type": "boolean"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Allow Local Filesystem Access"
-          }
-        },
-        "additionalProperties": false,
-        "type": "object",
-        "title": "FeatureSettingsPatch"
       },
       "GlobalSettingsPatch": {
         "properties": {
@@ -2884,9 +2851,6 @@
           "global": {
             "$ref": "#/components/schemas/RuntimeGlobalSettings"
           },
-          "features": {
-            "$ref": "#/components/schemas/RuntimeFeatureSettings"
-          },
           "jobs": {
             "$ref": "#/components/schemas/RuntimeJobSettings"
           },
@@ -2914,26 +2878,11 @@
         "type": "object",
         "required": [
           "global",
-          "features",
           "jobs",
           "inference",
           "theme_preference"
         ],
         "title": "RuntimeApplicationSettings"
-      },
-      "RuntimeFeatureSettings": {
-        "properties": {
-          "allow_local_filesystem_access": {
-            "type": "boolean",
-            "title": "Allow Local Filesystem Access"
-          }
-        },
-        "additionalProperties": false,
-        "type": "object",
-        "required": [
-          "allow_local_filesystem_access"
-        ],
-        "title": "RuntimeFeatureSettings"
       },
       "RuntimeGlobalSettings": {
         "properties": {

@@ -54,7 +54,6 @@ export interface DatabaseSwitchResult {
 
 export interface EditableSettings {
   global: { seed: number };
-  features: { allow_local_filesystem_access: boolean };
   jobs: { polling_interval: number };
   inference: { model_timeout: number };
 }

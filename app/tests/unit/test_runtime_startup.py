@@ -16,7 +16,7 @@ from server.common import model_cache
 from server.common.runtime_layout import RuntimeLayout
 from fastapi import Request
 from tests.conftest import run_async_in_thread
-from server.configurations.settings import DatabaseSettings, FeatureSettings, GlobalSettings, InferenceSettings, JobsSettings, ServerSettings
+from server.configurations.settings import DatabaseSettings, GlobalSettings, InferenceSettings, JobsSettings, ServerSettings
 
 
 
@@ -796,7 +796,6 @@ def _server_settings(database: DatabaseSettings) -> ServerSettings:
     return ServerSettings(
         database=database,
         global_settings=GlobalSettings(seed=42),
-        features=FeatureSettings(allow_local_filesystem_access=True),
         jobs=JobsSettings(polling_interval=1.0),
         inference=InferenceSettings(
             hf_local_only=True,

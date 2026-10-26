@@ -7,12 +7,9 @@ from types import SimpleNamespace
 import pandas as pd
 import pytest
 from server.domain.training import LoadDatasetRequest
-from server.services.errors import BadRequestError, ForbiddenError, PayloadTooLargeError
+from server.services.errors import BadRequestError, PayloadTooLargeError
 from server.services.preparation import PreparationService, count_image_files, count_images_in_folder, scan_image_folder
 from server.repositories.serialization.dataset import DatasetIntegrityError, DatasetRepository
-
-
-
 
 ###############################################################################
 def test_checkpoint_names_reject_path_separators_cross_platform() -> None:
@@ -33,26 +30,6 @@ def test_upload_sanitizes_windows_style_filename() -> None:
 
     assert response.filename == "dataset.csv"
     assert response.dataset_name == "dataset"
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 ###############################################################################
 def test_image_scanning_counts_recursively_and_filters_required_stems(
@@ -79,7 +56,6 @@ def test_image_scanning_counts_recursively_and_filters_required_stems(
 ###############################################################################
 def _preparation_service(upload_state: UploadState, repository) -> PreparationService:
     service = PreparationService.__new__(PreparationService)
-    service.allow_local_filesystem_access = True
     service.server_settings = SimpleNamespace(
         global_settings=SimpleNamespace(seed=42),
     )
@@ -329,34 +305,6 @@ def test_validate_img_paths_fails_closed_for_deleted_images(tmp_path: Path) -> N
         repository.validate_img_paths(
             pd.DataFrame({"path": [str(tmp_path / "does-not-exist.png")]})
         )
-
-###############################################################################
-def test_preparation_reads_filesystem_permission_from_current_settings() -> None:
-    settings = SimpleNamespace(
-        global_settings=SimpleNamespace(seed=42),
-        features=SimpleNamespace(allow_local_filesystem_access=True),
-        jobs=SimpleNamespace(polling_interval=1.0),
-    )
-    service = PreparationService.__new__(PreparationService)
-    service.server_settings = settings
-    service.settings_provider = lambda: settings
-    service.allow_local_filesystem_access = True
-
-    service.ensure_local_filesystem_access()
-    settings.features.allow_local_filesystem_access = False
-
-    with pytest.raises(ForbiddenError, match="Local filesystem endpoints"):
-        service.ensure_local_filesystem_access()
-
-
-
-
-
-
-
-
-
-
 
 ###############################################################################
 def test_upload_accepts_exact_payload_limit(monkeypatch: pytest.MonkeyPatch) -> None:

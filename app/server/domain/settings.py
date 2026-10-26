@@ -13,10 +13,6 @@ class RuntimeGlobalSettings(_StrictSettingsModel):
     seed: int
 
 ###############################################################################
-class RuntimeFeatureSettings(_StrictSettingsModel):
-    allow_local_filesystem_access: bool
-
-###############################################################################
 class RuntimeJobSettings(_StrictSettingsModel):
     polling_interval: float
 
@@ -27,7 +23,6 @@ class RuntimeInferenceSettings(_StrictSettingsModel):
 ###############################################################################
 class RuntimeApplicationSettings(_StrictSettingsModel):
     global_settings: RuntimeGlobalSettings = Field(alias="global")
-    features: RuntimeFeatureSettings
     jobs: RuntimeJobSettings
     inference: RuntimeInferenceSettings
     theme_preference: Literal["light", "dark", "system"] | None
@@ -61,10 +56,6 @@ class GlobalSettingsPatch(_PatchModel):
     seed: int | None = Field(default=None, ge=0, le=4_294_967_295)
 
 ###############################################################################
-class FeatureSettingsPatch(_PatchModel):
-    allow_local_filesystem_access: bool | None = None
-
-###############################################################################
 class JobSettingsPatch(_PatchModel):
     polling_interval: float | None = Field(
         default=None,
@@ -80,7 +71,6 @@ class InferenceSettingsPatch(_PatchModel):
 ###############################################################################
 class ApplicationSettingsPatch(_StrictSettingsModel):
     global_settings: GlobalSettingsPatch | None = Field(default=None, alias="global")
-    features: FeatureSettingsPatch | None = None
     jobs: JobSettingsPatch | None = None
     inference: InferenceSettingsPatch | None = None
     theme_preference: Literal["light", "dark", "system"] | None = None

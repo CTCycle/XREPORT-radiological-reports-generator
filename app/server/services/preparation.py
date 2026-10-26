@@ -8,7 +8,6 @@ import pandas as pd
 from server.services.errors import (
     BadRequestError,
     ConflictError,
-    ForbiddenError,
     InternalServiceError,
     NotFoundError,
 )
@@ -49,9 +48,6 @@ from server.common.constants import (
 from server.configurations import ServerSettings
 
 DATASET_NAME_EMPTY_ERROR = "Dataset name cannot be empty"
-LOCAL_FILESYSTEM_DISABLED_ERROR = (
-    "Local filesystem endpoints are disabled by server configuration"
-)
 
 ###############################################################################
 def _iter_image_paths(folder_path: str) -> Iterator[Path]:
@@ -128,9 +124,6 @@ class PreparationService:
         self.upload_state = upload_state
         self.server_settings = server_settings
         self.settings_provider = settings_provider
-        self.allow_local_filesystem_access = (
-            self.server_settings.features.allow_local_filesystem_access
-        )
 
     # -------------------------------------------------------------------------
     def _current_settings(self) -> ServerSettings:
@@ -138,22 +131,6 @@ class PreparationService:
         if provider is not None:
             return provider()
         return self.server_settings
-
-    # -------------------------------------------------------------------------
-    def _local_filesystem_access_enabled(self) -> bool:
-        settings = self._current_settings()
-        features = getattr(settings, "features", None)
-        if features is None:
-            return getattr(self, "allow_local_filesystem_access", True)
-        return features.allow_local_filesystem_access
-
-    # -------------------------------------------------------------------------
-    def ensure_local_filesystem_access(self) -> None:
-        if self._local_filesystem_access_enabled():
-            return
-        raise ForbiddenError(
-            detail=LOCAL_FILESYSTEM_DISABLED_ERROR,
-        )
 
     # -------------------------------------------------------------------------
     def get_image_column_name(self, columns: list[str]) -> str | None:
@@ -207,7 +184,6 @@ class PreparationService:
         return DatasetStatusResponse(
             has_data=row_count > 0,
             row_count=row_count,
-            allow_server_browse=self._local_filesystem_access_enabled(),
             message=f"Found {row_count} records in {DATASET_RECORDS_TABLE}"
             if row_count > 0
             else f"No data found in {DATASET_RECORDS_TABLE} table",
@@ -312,7 +288,6 @@ class PreparationService:
 
     # -------------------------------------------------------------------------
     def validate_image_path(self, request: ImagePathRequest) -> ImagePathResponse:
-        self.ensure_local_filesystem_access()
         folder_path = request.folder_path.strip()
 
         if not folder_path:
@@ -361,7 +336,6 @@ class PreparationService:
 
     # -------------------------------------------------------------------------
     def load_dataset(self, request: LoadDatasetRequest) -> LoadDatasetResponse:  # noqa: C901
-        self.ensure_local_filesystem_access()
         folder_path = request.image_folder_path.strip()
         sample_size = request.sample_size
         seed = self._current_settings().global_settings.seed
@@ -549,7 +523,6 @@ class PreparationService:
         path: str = "",
     ) -> BrowseResponse:
         """Browse directories on the server filesystem."""
-        self.ensure_local_filesystem_access()
 
         # If no path provided or path is empty, return drives (Windows)
         if not path or path.strip() == "":
@@ -631,7 +604,6 @@ class PreparationService:
         self, dataset_name: str, index: int
     ) -> ImageMetadataResponse:
         """Get metadata for a specific image by 1-based index (id)."""
-        self.ensure_local_filesystem_access()
         dataset_name = dataset_name.strip()
         if index < 1:
             raise BadRequestError(
@@ -668,7 +640,6 @@ class PreparationService:
     # -------------------------------------------------------------------------
     def get_dataset_image_content(self, dataset_name: str, index: int) -> str:
         """Get absolute image file path for endpoint response handling."""
-        self.ensure_local_filesystem_access()
         dataset_name = dataset_name.strip()
         if index < 1:
             raise BadRequestError(

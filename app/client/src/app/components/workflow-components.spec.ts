@@ -23,7 +23,7 @@ function apiResult<T>(result: T) {
 
 function emptyDatasetApi() {
   return {
-    getStatus: () => apiResult({ has_data: false, row_count: 0, allow_server_browse: true, message: 'No data' }),
+    getStatus: () => apiResult({ has_data: false, row_count: 0, message: 'No data' }),
     getNames: () => apiResult({ datasets: [], count: 0 }),
     getProcessedNames: () => apiResult({ datasets: [], count: 0 }),
   };
@@ -69,7 +69,7 @@ describe('DatasetTrainingJourneyComponent', () => {
 
   it('recognizes a processed dataset and exposes the checkpoint branch', async () => {
     const datasetApi = {
-      getStatus: () => apiResult({ has_data: true, row_count: 12, allow_server_browse: true, message: 'Found 12 records' }),
+      getStatus: () => apiResult({ has_data: true, row_count: 12, message: 'Found 12 records' }),
       getNames: () => apiResult({ datasets: [{ name: 'source', folder_path: 'images', row_count: 12, has_validation_report: false }], count: 1 }),
       getProcessedNames: () => apiResult({ datasets: [{ name: 'source', folder_path: 'processed', row_count: 10, has_validation_report: false }], count: 1 }),
     };

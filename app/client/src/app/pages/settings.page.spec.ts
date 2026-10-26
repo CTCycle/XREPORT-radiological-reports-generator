@@ -7,13 +7,11 @@ import { SettingsPage } from './settings.page';
 const settingsResponse = () => ({
   values: {
     global: { seed: 42 },
-    features: { allow_local_filesystem_access: true },
     jobs: { polling_interval: 1 },
     inference: { model_timeout: 600 },
   },
   defaults: {
     global: { seed: 42 },
-    features: { allow_local_filesystem_access: true },
     jobs: { polling_interval: 1 },
     inference: { model_timeout: 600 },
   },
@@ -65,9 +63,6 @@ describe('SettingsPage', () => {
     api.updateSettings.mockReset().mockImplementation(async (patch: ApplicationSettingsPatch) => {
       const result = settingsResponse();
       if (patch.global?.seed != null) result.values.global.seed = patch.global.seed;
-      if (patch.features?.allow_local_filesystem_access != null) {
-        result.values.features.allow_local_filesystem_access = patch.features.allow_local_filesystem_access;
-      }
       if (patch.jobs?.polling_interval != null) result.values.jobs.polling_interval = patch.jobs.polling_interval;
       if (patch.inference?.model_timeout != null) result.values.inference.model_timeout = patch.inference.model_timeout;
       return { result, error: null };
@@ -155,7 +150,7 @@ describe('SettingsPage', () => {
       .mockImplementationOnce(() => new Promise((resolve) => { completeFirst = resolve; }))
       .mockImplementationOnce(async () => {
         const result = settingsResponse();
-        result.values.features.allow_local_filesystem_access = true;
+        result.values.global.seed = 200;
         return { result, error: null };
       });
     const fixture = TestBed.createComponent(SettingsPage);
@@ -163,20 +158,20 @@ describe('SettingsPage', () => {
     await fixture.whenStable();
     const page = fixture.componentInstance;
 
-    page.updateFilesystemAccess(false);
+    page.updateSeed(100);
+    const first = page.flushSettingsPersistence();
     await Promise.resolve();
     await Promise.resolve();
-    page.updateFilesystemAccess(true);
-    const completed = page.flushSettingsPersistence();
-    completeFirst({
-      result: { ...settingsResponse(), values: { ...settingsResponse().values, features: { allow_local_filesystem_access: false } } },
-      error: null,
-    });
-    await completed;
+    page.updateSeed(200);
+    const second = page.flushSettingsPersistence();
+    const firstResult = settingsResponse();
+    firstResult.values.global.seed = 100;
+    completeFirst({ result: firstResult, error: null });
+    await Promise.all([first, second]);
 
-    expect(api.updateSettings).toHaveBeenNthCalledWith(1, { features: { allow_local_filesystem_access: false } });
-    expect(api.updateSettings).toHaveBeenNthCalledWith(2, { features: { allow_local_filesystem_access: true } });
-    expect(page.draft()?.features.allow_local_filesystem_access).toBe(true);
+    expect(api.updateSettings).toHaveBeenNthCalledWith(1, { global: { seed: 100 } });
+    expect(api.updateSettings).toHaveBeenNthCalledWith(2, { global: { seed: 200 } });
+    expect(page.draft()?.global.seed).toBe(200);
     expect(page.dirty()).toBe(false);
   });
 
@@ -187,10 +182,10 @@ describe('SettingsPage', () => {
     await fixture.whenStable();
     const page = fixture.componentInstance;
 
-    page.updateFilesystemAccess(false);
+    page.updateSeed(7);
     await page.flushSettingsPersistence();
 
-    expect(page.draft()?.features.allow_local_filesystem_access).toBe(true);
+    expect(page.draft()?.global.seed).toBe(42);
     expect(page.saveError()).toContain('backend offline');
     expect(page.saveError()).toContain('reverted');
   });
@@ -205,13 +200,6 @@ describe('SettingsPage', () => {
 
     expect(page.activeTab()).toBe('general');
     expect(element.querySelector('#default-seed')).not.toBeNull();
-    expect(element.querySelector('#local-filesystem-access')).toBeNull();
-
-    (element.querySelector('#settings-tab-data') as HTMLButtonElement).click();
-    fixture.detectChanges();
-    expect(page.activeTab()).toBe('data');
-    expect(element.querySelector('#default-seed')).toBeNull();
-    expect(element.querySelector('#local-filesystem-access')).not.toBeNull();
 
     (element.querySelector('#settings-tab-advanced') as HTMLButtonElement).click();
     fixture.detectChanges();
@@ -330,12 +318,12 @@ describe('SettingsPage', () => {
     const page = fixture.componentInstance;
     const element = fixture.nativeElement as HTMLElement;
     const generalTab = element.querySelector('#settings-tab-general') as HTMLButtonElement;
-    const dataTab = element.querySelector('#settings-tab-data') as HTMLButtonElement;
+    const advancedTab = element.querySelector('#settings-tab-advanced') as HTMLButtonElement;
 
     generalTab.focus();
     page.onTabKeydown(new KeyboardEvent('keydown', { key: 'ArrowRight' }), 'general');
 
-    expect(document.activeElement).toBe(dataTab);
+    expect(document.activeElement).toBe(advancedTab);
     expect(page.activeTab()).toBe('general');
   });
 

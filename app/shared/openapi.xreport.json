@@ -967,16 +967,6 @@
               }
             ]
           },
-          "features": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/FeatureSettingsPatch"
-              },
-              {
-                "type": "null"
-              }
-            ]
-          },
           "jobs": {
             "anyOf": [
               {
@@ -1480,24 +1470,6 @@
           "settings"
         ],
         "title": "DatabaseSwitchResponse"
-      },
-      "FeatureSettingsPatch": {
-        "properties": {
-          "allow_local_filesystem_access": {
-            "anyOf": [
-              {
-                "type": "boolean"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Allow Local Filesystem Access"
-          }
-        },
-        "additionalProperties": false,
-        "type": "object",
-        "title": "FeatureSettingsPatch"
       },
       "GlobalSettingsPatch": {
         "properties": {
@@ -2960,9 +2932,6 @@
           "global": {
             "$ref": "#/components/schemas/RuntimeGlobalSettings"
           },
-          "features": {
-            "$ref": "#/components/schemas/RuntimeFeatureSettings"
-          },
           "jobs": {
             "$ref": "#/components/schemas/RuntimeJobSettings"
           },
@@ -2990,26 +2959,11 @@
         "type": "object",
         "required": [
           "global",
-          "features",
           "jobs",
           "inference",
           "theme_preference"
         ],
         "title": "RuntimeApplicationSettings"
-      },
-      "RuntimeFeatureSettings": {
-        "properties": {
-          "allow_local_filesystem_access": {
-            "type": "boolean",
-            "title": "Allow Local Filesystem Access"
-          }
-        },
-        "additionalProperties": false,
-        "type": "object",
-        "required": [
-          "allow_local_filesystem_access"
-        ],
-        "title": "RuntimeFeatureSettings"
       },
       "RuntimeGlobalSettings": {
         "properties": {

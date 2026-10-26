@@ -9,7 +9,6 @@ export type ClientOptions = {
  */
 export type ApplicationSettingsPatch = {
     global?: GlobalSettingsPatch | null;
-    features?: FeatureSettingsPatch | null;
     jobs?: JobSettingsPatch | null;
     inference?: InferenceSettingsPatch | null;
     /**
@@ -442,10 +441,6 @@ export type DatasetStatusResponse = {
      */
     row_count: number;
     /**
-     * Allow Server Browse
-     */
-    allow_server_browse: boolean;
-    /**
      * Message
      */
     message: string;
@@ -537,16 +532,6 @@ export type ExportRequest = {
      * Include Encoder
      */
     include_encoder?: boolean;
-};
-
-/**
- * FeatureSettingsPatch
- */
-export type FeatureSettingsPatch = {
-    /**
-     * Allow Local Filesystem Access
-     */
-    allow_local_filesystem_access?: boolean | null;
 };
 
 /**
@@ -968,23 +953,12 @@ export type ResumeTrainingRequest = {
  */
 export type RuntimeApplicationSettings = {
     global: RuntimeGlobalSettings;
-    features: RuntimeFeatureSettings;
     jobs: RuntimeJobSettings;
     inference: RuntimeInferenceSettings;
     /**
      * Theme Preference
      */
     theme_preference: 'light' | 'dark' | 'system' | null;
-};
-
-/**
- * RuntimeFeatureSettings
- */
-export type RuntimeFeatureSettings = {
-    /**
-     * Allow Local Filesystem Access
-     */
-    allow_local_filesystem_access: boolean;
 };
 
 /**

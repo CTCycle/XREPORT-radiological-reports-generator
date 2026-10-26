@@ -25,9 +25,9 @@ describe('DatasetPage filesystem access', () => {
   };
   let appState: AppStateService;
 
-  async function renderPage(allowServerBrowse: boolean) {
+  async function renderPage() {
     api.getStatus.mockResolvedValue({
-      result: { allow_server_browse: allowServerBrowse, has_data: false, row_count: 0 },
+      result: { has_data: false, row_count: 0 },
       error: null,
     });
     api.getNames.mockResolvedValue({ result: { datasets: [], count: 0 }, error: null });
@@ -37,7 +37,6 @@ describe('DatasetPage filesystem access', () => {
     appState.updateDataset((state) => ({
       ...state,
       dbStatus: {
-        allow_server_browse: allowServerBrowse,
         has_data: false,
         row_count: 0,
         message: 'Filesystem access fixture',
@@ -75,20 +74,8 @@ describe('DatasetPage filesystem access', () => {
     api.getNames.mockReset();
   });
 
-  it('disables the folder control when server browsing is disabled', async () => {
-    const fixture = await renderPage(false);
-    const folderButton = fixture.nativeElement.querySelector(
-      '.row-datasource .upload-card',
-    ) as HTMLButtonElement;
-
-    expect(folderButton.disabled).toBe(true);
-    expect(folderButton.textContent).toContain('Disabled by server configuration');
-    expect(fixture.componentInstance.canBrowse()).toBe(false);
-    fixture.destroy();
-  });
-
   it('recovers from a browse error and selects a valid image folder', async () => {
-    const fixture = await renderPage(true);
+    const fixture = await renderPage();
     const page = fixture.componentInstance;
     const folderButton = fixture.nativeElement.querySelector(
       '.row-datasource .upload-card',
@@ -177,7 +164,7 @@ describe('DatasetPage filesystem access', () => {
     } as DatasetInfo;
     appState = new AppStateService();
     api.getStatus.mockResolvedValue({
-      result: { allow_server_browse: true, has_data: false, row_count: 0 },
+      result: { has_data: false, row_count: 0 },
       error: null,
     });
     api.getNames.mockResolvedValue({ result: { datasets: [dataset], count: 1 }, error: null });

@@ -5,7 +5,6 @@ from typing import Any
 
 from sqlalchemy import (
     BigInteger,
-    Boolean,
     CheckConstraint,
     Float,
     ForeignKey,
@@ -32,9 +31,6 @@ class ApplicationSettingsRecord(Base):
     __tablename__ = "application_settings"
     settings_id: Mapped[int] = mapped_column(Integer, primary_key=True)
     global_seed: Mapped[int] = mapped_column(BigInteger, nullable=False)
-    allow_local_filesystem_access: Mapped[bool] = mapped_column(
-        Boolean, nullable=False
-    )
     job_polling_interval: Mapped[float] = mapped_column(Float, nullable=False)
     inference_model_timeout: Mapped[int] = mapped_column(BigInteger, nullable=False)
     theme_preference: Mapped[str | None] = mapped_column(

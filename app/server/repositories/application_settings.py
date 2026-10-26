@@ -15,7 +15,6 @@ _SETTINGS_ID = 1
 _PUBLIC_COLUMNS = frozenset(
     {
         "global_seed",
-        "allow_local_filesystem_access",
         "job_polling_interval",
         "inference_model_timeout",
         "theme_preference",
@@ -65,7 +64,6 @@ class ApplicationSettingsRepository:
                 raise RuntimeError("Application settings row is missing")
             candidate = {
                 "global_seed": record.global_seed,
-                "allow_local_filesystem_access": record.allow_local_filesystem_access,
                 "job_polling_interval": record.job_polling_interval,
                 "inference_model_timeout": record.inference_model_timeout,
                 "theme_preference": record.theme_preference,
@@ -85,9 +83,6 @@ class ApplicationSettingsRepository:
         return self.update_public_settings(
             {
                 "global_seed": defaults.global_seed,
-                "allow_local_filesystem_access": (
-                    defaults.allow_local_filesystem_access
-                ),
                 "job_polling_interval": defaults.job_polling_interval,
                 "inference_model_timeout": defaults.inference_model_timeout,
                 "theme_preference": defaults.theme_preference,
@@ -102,7 +97,6 @@ class ApplicationSettingsRepository:
         return ApplicationSettingsValues.model_validate(
             {
                 "global_seed": record.global_seed,
-                "allow_local_filesystem_access": record.allow_local_filesystem_access,
                 "job_polling_interval": record.job_polling_interval,
                 "inference_model_timeout": record.inference_model_timeout,
                 "theme_preference": record.theme_preference,

@@ -76,7 +76,6 @@ Database section or the startup recovery screen to configure a backend.
 The application-settings record contains the following owned values:
 
 - `global.seed`
-- `features.allow_local_filesystem_access`
 - `jobs.polling_interval`
 - `inference.model_timeout`
 - `theme_preference` (the global theme selector)
@@ -110,7 +109,6 @@ also persisted immediately.
 Only these values are user-editable through Settings:
 
 - `global.seed` (`0` through `4,294,967,295`)
-- `features.allow_local_filesystem_access`
 - `jobs.polling_interval` (`0.25` through `60` seconds)
 - `inference.model_timeout` (at least `1` second)
 - `theme_preference` (`light`, `dark`, or `system`)

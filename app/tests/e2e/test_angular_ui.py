@@ -520,20 +520,8 @@ def test_settings_route_persists_and_resets_runtime_values(
     expect(page).to_have_url(f"{base_url}/settings")
     expect(page.get_by_role("heading", name="Settings")).to_be_visible()
     expect(page.get_by_role("heading", name="General")).to_be_visible()
-    expect(page.get_by_role("heading", name="Data access")).not_to_be_visible()
-    expect(page.get_by_role("tab", name="Data access")).to_be_visible()
+    expect(page.get_by_role("tab", name="Data access")).to_have_count(0)
     expect(page.get_by_role("tab", name="Advanced")).to_be_visible()
-
-    page.get_by_role("tab", name="Data access").click()
-    expect(page.get_by_role("heading", name="Data access")).to_be_visible()
-    expect(page.get_by_role("checkbox", name="Enabled")).to_be_visible()
-    filesystem_access = page.get_by_role("checkbox", name="Enabled", exact=True)
-    previous_access = filesystem_access.is_checked()
-    with page.expect_response(
-        lambda item: item.url.endswith("/api/settings") and item.request.method == "PATCH"
-    ) as filesystem_save:
-        filesystem_access.set_checked(not previous_access)
-    assert filesystem_save.value.ok
 
     page.get_by_role("tab", name="Advanced").click()
     expect(page.get_by_role("heading", name="Advanced")).to_be_visible()
@@ -564,8 +552,6 @@ def test_settings_route_persists_and_resets_runtime_values(
 
         page.reload()
         expect(seed).to_have_value("123")
-        page.get_by_role("tab", name="Data access").click()
-        expect(filesystem_access).to_be_checked(checked=not previous_access)
         page.get_by_role("tab", name="Advanced").click()
         expect(polling).to_have_value("2.5")
         expect(timeout).to_have_value("901")
@@ -699,7 +685,7 @@ def test_affected_pages_render_responsive_layouts_and_capture_qa_evidence(
     page.goto(f"{base_url}/settings")
     expect(page.get_by_role("tab", name="General")).to_be_visible()
     page.screenshot(path=str(qa_dir / "xreport-settings-narrow-dark.png"), full_page=False)
-    for tab_name, heading_name in (("General", "General"), ("Data access", "Data access"), ("Advanced", "Advanced")):
+    for tab_name, heading_name in (("General", "General"), ("Advanced", "Advanced")):
         page.get_by_role("tab", name=tab_name).click()
         expect(page.get_by_role("heading", name=heading_name, level=2)).to_be_visible()
         assert page.locator(".settings-field").count() > 0
@@ -1024,17 +1010,17 @@ def test_s52_semantic_metadata_and_keyboard_only_smoke(
     _assert_s52_semantic_route_metadata(page, "settings")
 
     general_tab = page.get_by_role("tab", name="General")
-    data_tab = page.get_by_role("tab", name="Data access")
+    advanced_tab = page.get_by_role("tab", name="Advanced")
     _focus_s52_with_tab(page, general_tab)
     page.keyboard.press("ArrowRight")
-    expect(data_tab).to_be_focused()
+    expect(advanced_tab).to_be_focused()
     page.keyboard.press("Enter")
-    expect(data_tab).to_have_attribute("aria-selected", "true")
-    data_panel = page.get_by_role("tabpanel")
-    data_tab_id = data_tab.get_attribute("id")
-    assert data_tab_id
-    expect(data_panel).to_have_attribute("aria-labelledby", data_tab_id)
-    expect(data_panel.get_by_role("heading", name="Data access")).to_be_visible()
+    expect(advanced_tab).to_have_attribute("aria-selected", "true")
+    advanced_panel = page.get_by_role("tabpanel")
+    advanced_tab_id = advanced_tab.get_attribute("id")
+    assert advanced_tab_id
+    expect(advanced_panel).to_have_attribute("aria-labelledby", advanced_tab_id)
+    expect(advanced_panel.get_by_role("heading", name="Advanced")).to_be_visible()
 
 ###############################################################################
 def _assert_s52_semantic_route_metadata(page: Page, route_name: str) -> None:

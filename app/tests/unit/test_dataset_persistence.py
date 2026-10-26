@@ -86,12 +86,7 @@ def _preparation_service(database: DatasetDatabase) -> PreparationService:
         processing_service=cast(DatasetProcessingService, None),
         job_manager=cast(JobManager, None),
         upload_state=cast(UploadState, None),
-        server_settings=cast(
-            ServerSettings,
-            SimpleNamespace(
-                features=SimpleNamespace(allow_local_filesystem_access=False)
-            ),
-        ),
+        server_settings=cast(ServerSettings, SimpleNamespace()),
     )
 
 ###############################################################################

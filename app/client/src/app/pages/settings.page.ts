@@ -26,7 +26,7 @@ interface ValidationErrors {
   model_timeout?: string;
 }
 
-type SettingsTab = 'general' | 'data' | 'advanced' | 'models' | 'storage' | 'database';
+type SettingsTab = 'general' | 'advanced' | 'models' | 'storage' | 'database';
 
 @Component({
   selector: 'app-settings-page',
@@ -78,23 +78,6 @@ type SettingsTab = 'general' | 'data' | 'advanced' | 'models' | 'storage' | 'dat
                       (blur)="flushSettingsPersistence()" />
                     <span id="seed-help" class="settings-help">Running jobs keep the seed they started with.</span>
                     @if (validationErrors().seed; as error) { <span id="seed-error" class="settings-error">{{ error }}</span> }
-                  </div>
-                </div>
-              </div>
-            } @else if (activeTab() === 'data') {
-              <div class="settings-section-heading">
-                <h2>Data access</h2>
-                <p>Control whether dataset workflows may access local paths.</p>
-              </div>
-              <div class="settings-fields">
-                <div class="settings-field">
-                  <div class="settings-field-copy"><h3 id="local-filesystem-access-title">Allow local filesystem access</h3><p>Allow dataset workflows to read and write configured local paths.</p></div>
-                  <div class="settings-field-control">
-                    <label class="settings-checkbox-control" for="local-filesystem-access"><input id="local-filesystem-access" type="checkbox"
-                      [ngModel]="values.features.allow_local_filesystem_access" (ngModelChange)="updateFilesystemAccess($event)"
-                      name="allow_local_filesystem_access" [disabled]="resetting() || databaseSwitching()"
-                      aria-describedby="filesystem-access-help" /><span>Enabled</span></label>
-                    <span id="filesystem-access-help" class="settings-help">Turning this off blocks new local filesystem operations but does not remove data already imported into XREPORT.</span>
                   </div>
                 </div>
               </div>
@@ -424,7 +407,6 @@ export class SettingsPage implements OnInit, OnDestroy {
   readonly defaults = signal<EditableSettings | null>(null);
   readonly tabs = [
     { id: 'general' as const, label: 'General' },
-    { id: 'data' as const, label: 'Data access' },
     { id: 'advanced' as const, label: 'Advanced' },
     { id: 'models' as const, label: 'Model access' },
     { id: 'storage' as const, label: 'Storage' },
@@ -796,10 +778,6 @@ export class SettingsPage implements OnInit, OnDestroy {
     this.updateDraft((draft) => ({ ...draft, global: { seed: value ?? Number.NaN } }));
   }
 
-  updateFilesystemAccess(value: boolean): void {
-    this.updateDraft((draft) => ({ ...draft, features: { allow_local_filesystem_access: value } }), 0);
-  }
-
   updatePollingInterval(value: number | null): void {
     this.updateDraft((draft) => ({ ...draft, jobs: { polling_interval: value ?? Number.NaN } }));
   }
@@ -909,7 +887,6 @@ export class SettingsPage implements OnInit, OnDestroy {
   private toEditable(values: ApplicationSettingsResponse['values']): EditableSettings {
     return {
       global: { seed: values.global.seed },
-      features: { allow_local_filesystem_access: values.features.allow_local_filesystem_access },
       jobs: { polling_interval: values.jobs.polling_interval },
       inference: { model_timeout: values.inference.model_timeout },
     };
@@ -920,9 +897,6 @@ export class SettingsPage implements OnInit, OnDestroy {
     if (current.global.seed !== original.global.seed && Number.isInteger(current.global.seed)
       && current.global.seed >= 0 && current.global.seed <= 4_294_967_295) {
       patch.global = { seed: current.global.seed };
-    }
-    if (current.features.allow_local_filesystem_access !== original.features.allow_local_filesystem_access) {
-      patch.features = { allow_local_filesystem_access: current.features.allow_local_filesystem_access };
     }
     if (current.jobs.polling_interval !== original.jobs.polling_interval && Number.isFinite(current.jobs.polling_interval)
       && current.jobs.polling_interval >= 0.25 && current.jobs.polling_interval <= 60) {
@@ -936,7 +910,7 @@ export class SettingsPage implements OnInit, OnDestroy {
   }
 
   private hasPatch(patch: ApplicationSettingsPatch): boolean {
-    return patch.global !== undefined || patch.features !== undefined || patch.jobs !== undefined || patch.inference !== undefined;
+    return patch.global !== undefined || patch.jobs !== undefined || patch.inference !== undefined;
   }
 
   private mergePersistedPatch(
@@ -946,7 +920,6 @@ export class SettingsPage implements OnInit, OnDestroy {
   ): EditableSettings {
     return {
       global: patch.global ? { seed: persisted.global.seed } : current.global,
-      features: patch.features ? { allow_local_filesystem_access: persisted.features.allow_local_filesystem_access } : current.features,
       jobs: patch.jobs ? { polling_interval: persisted.jobs.polling_interval } : current.jobs,
       inference: patch.inference ? { model_timeout: persisted.inference.model_timeout } : current.inference,
     };
