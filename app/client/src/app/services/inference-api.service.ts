@@ -11,6 +11,7 @@ import {
   InferenceModelsResponse,
   ModelMaintenanceAction,
   ModelUpdateCheckResponse,
+  RuntimeReleaseResponse,
 } from '../types/inferenceApi';
 import { JobStartResponse } from '../types/jobs';
 
@@ -20,6 +21,7 @@ export class InferenceApiService {
 
   getModels() { return this.request.request<InferenceModelsResponse>('GET', '/api/inference/models'); }
   checkModelUpdate(modelRef: string) { return this.request.request<ModelUpdateCheckResponse>('POST', '/api/inference/models/check-update', { model_ref: modelRef }); }
+  releaseRuntime() { return this.request.request<RuntimeReleaseResponse>('POST', '/api/inference/runtime/release'); }
   maintainModel(modelRef: string, action: ModelMaintenanceAction, revision?: string) {
     return this.request.request<JobStartResponse>('POST', '/api/inference/models/maintenance', { model_ref: modelRef, action, revision });
   }

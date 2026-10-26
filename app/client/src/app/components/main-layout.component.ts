@@ -58,7 +58,7 @@ import { SystemStatusService } from '../services/system-status.service';
       </div>
       <div #content class="main-layout-content" (scroll)="onContentScroll($event)"><router-outlet /></div>
       </div>
-      <app-system-status-bar />
+      <app-system-status-bar [studio]="studio" />
       <app-toast-host />
       @if (tipsOpen()) { <app-tips-and-tricks [open]="true" [studio]="studio" (closed)="tipsOpen.set(false)" /> }
       @if (activeTour(); as tour) { <app-guided-tour [definition]="tour" [open]="true" (closed)="activeTour.set(null)" /> }

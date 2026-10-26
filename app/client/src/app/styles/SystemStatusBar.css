@@ -59,6 +59,33 @@
     color: var(--text-primary);
 }
 
+.system-status-action {
+    padding: 0.15rem 0.55rem;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    color: var(--text-primary);
+    background: transparent;
+    font: inherit;
+    font-weight: 600;
+    white-space: nowrap;
+    cursor: pointer;
+}
+
+.system-status-action:hover:not(:disabled) {
+    border-color: var(--accent-color);
+    color: var(--accent-color);
+}
+
+.system-status-action:focus-visible {
+    outline: 2px solid var(--accent-color);
+    outline-offset: 1px;
+}
+
+.system-status-action:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
 .visually-hidden {
     position: absolute;
     width: 1px;

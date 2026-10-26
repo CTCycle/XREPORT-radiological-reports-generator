@@ -11,6 +11,7 @@ import type {
   ModelAvailability as ApiModelAvailability,
   ModelMaintenanceRequest as ApiModelMaintenanceRequest,
   ModelUpdateCheckResponse as ApiModelUpdateCheckResponse,
+  RuntimeReleaseResponse as ApiRuntimeReleaseResponse,
 } from './generated/xreport/types.gen';
 
 export type GenerationProfile = GenerateReportsBody['generation_profile'];
@@ -20,6 +21,7 @@ export type ValidationStatus = ApiModelAvailability['validation_status'];
 export type ModelAvailability = ApiModelAvailability;
 export type InferenceModelsResponse = ApiInferenceModelsResponse;
 export type ModelUpdateCheckResponse = ApiModelUpdateCheckResponse;
+export type RuntimeReleaseResponse = ApiRuntimeReleaseResponse;
 export type ModelMaintenanceAction = ApiModelMaintenanceRequest['action'];
 export type InferenceHistoryStatus = ApiInferenceHistorySummary['status'];
 export type InferenceHistorySort = 'newest' | 'oldest';

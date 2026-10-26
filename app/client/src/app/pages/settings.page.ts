@@ -1,6 +1,7 @@
 import { CommonModule } from '@angular/common';
 import { Component, computed, EventEmitter, HostListener, inject, Input, OnDestroy, OnInit, Output, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { ActivatedRoute } from '@angular/router';
 import type { Subscription } from 'rxjs';
 import { JobPollingService } from '../services/job-polling.service';
 import { JobsApiService } from '../services/jobs-api.service';
@@ -24,6 +25,7 @@ interface ValidationErrors {
   seed?: string;
   polling_interval?: string;
   model_timeout?: string;
+  model_idle_timeout?: string;
 }
 
 type SettingsTab = 'general' | 'advanced' | 'models' | 'storage' | 'database';
@@ -113,6 +115,21 @@ type SettingsTab = 'general' | 'advanced' | 'models' | 'storage' | 'database';
                     @if (validationErrors().model_timeout; as error) { <span id="timeout-error" class="settings-error">{{ error }}</span> }
                   </div>
                 </div>
+                @if (!studio) {
+                  <div class="settings-field">
+                    <div class="settings-field-copy"><h3 id="idle-unload-title">Unload idle models after <span class="settings-unit">seconds</span></h3><p>Releases a loaded model's RAM and VRAM once no inference has used it for this long.</p></div>
+                    <div class="settings-field-control">
+                      <input id="idle-unload" type="number" inputmode="numeric" step="1" min="0"
+                        [ngModel]="values.inference.model_idle_timeout" (ngModelChange)="updateModelIdleTimeout($event)" name="model_idle_timeout"
+                        [disabled]="resetting() || databaseSwitching()" [attr.aria-labelledby]="'idle-unload-title'"
+                        [attr.aria-invalid]="validationErrors().model_idle_timeout ? 'true' : null"
+                        [attr.aria-describedby]="validationErrors().model_idle_timeout ? 'idle-unload-help idle-unload-error' : 'idle-unload-help'"
+                        (blur)="flushSettingsPersistence()" />
+                      <span id="idle-unload-help" class="settings-help">0 keeps the model loaded. Inference studies are never cleared.</span>
+                      @if (validationErrors().model_idle_timeout; as error) { <span id="idle-unload-error" class="settings-error">{{ error }}</span> }
+                    </div>
+                  </div>
+                }
               </div>
             } @else if (activeTab() === 'models') {
               <div class="settings-section-heading">
@@ -375,6 +392,8 @@ type SettingsTab = 'general' | 'advanced' | 'models' | 'storage' | 'database';
 export class SettingsPage implements OnInit, OnDestroy {
   private readonly api = inject(SettingsApiService);
   private readonly theme = inject(ThemeService);
+  // Idle model release is an XREPORT inference control; Studio shares this page without it
+  readonly studio = inject(ActivatedRoute, { optional: true })?.snapshot.pathFromRoot.some((route) => route.data['application'] === 'studio') ?? false;
   @Input() databaseOnly = false;
   @Output() readonly databaseActivated = new EventEmitter<void>();
   readonly loading = signal(true);
@@ -444,6 +463,9 @@ export class SettingsPage implements OnInit, OnDestroy {
     }
     if (!Number.isInteger(values.inference.model_timeout) || values.inference.model_timeout < 1) {
       errors.model_timeout = 'Enter an integer of at least 1 second.';
+    }
+    if (!Number.isInteger(values.inference.model_idle_timeout) || values.inference.model_idle_timeout < 0) {
+      errors.model_idle_timeout = 'Enter an integer of at least 0 seconds.';
     }
     return errors;
   });
@@ -795,7 +817,11 @@ export class SettingsPage implements OnInit, OnDestroy {
   }
 
   updateModelTimeout(value: number | null): void {
-    this.updateDraft((draft) => ({ ...draft, inference: { model_timeout: value ?? Number.NaN } }));
+    this.updateDraft((draft) => ({ ...draft, inference: { ...draft.inference, model_timeout: value ?? Number.NaN } }));
+  }
+
+  updateModelIdleTimeout(value: number | null): void {
+    this.updateDraft((draft) => ({ ...draft, inference: { ...draft.inference, model_idle_timeout: value ?? Number.NaN } }));
   }
 
   async reset(): Promise<void> {
@@ -900,7 +926,7 @@ export class SettingsPage implements OnInit, OnDestroy {
     return {
       global: { seed: values.global.seed },
       jobs: { polling_interval: values.jobs.polling_interval },
-      inference: { model_timeout: values.inference.model_timeout },
+      inference: { model_timeout: values.inference.model_timeout, model_idle_timeout: values.inference.model_idle_timeout },
     };
   }
 
@@ -914,10 +940,16 @@ export class SettingsPage implements OnInit, OnDestroy {
       && current.jobs.polling_interval >= 0.25 && current.jobs.polling_interval <= 60) {
       patch.jobs = { polling_interval: current.jobs.polling_interval };
     }
+    const inference: NonNullable<ApplicationSettingsPatch['inference']> = {};
     if (current.inference.model_timeout !== original.inference.model_timeout && Number.isInteger(current.inference.model_timeout)
       && current.inference.model_timeout >= 1) {
-      patch.inference = { model_timeout: current.inference.model_timeout };
+      inference.model_timeout = current.inference.model_timeout;
     }
+    if (current.inference.model_idle_timeout !== original.inference.model_idle_timeout && Number.isInteger(current.inference.model_idle_timeout)
+      && current.inference.model_idle_timeout >= 0) {
+      inference.model_idle_timeout = current.inference.model_idle_timeout;
+    }
+    if (Object.keys(inference).length) patch.inference = inference;
     return patch;
   }
 
@@ -933,7 +965,10 @@ export class SettingsPage implements OnInit, OnDestroy {
     return {
       global: patch.global ? { seed: persisted.global.seed } : current.global,
       jobs: patch.jobs ? { polling_interval: persisted.jobs.polling_interval } : current.jobs,
-      inference: patch.inference ? { model_timeout: persisted.inference.model_timeout } : current.inference,
+      inference: {
+        model_timeout: patch.inference?.model_timeout !== undefined ? persisted.inference.model_timeout : current.inference.model_timeout,
+        model_idle_timeout: patch.inference?.model_idle_timeout !== undefined ? persisted.inference.model_idle_timeout : current.inference.model_idle_timeout,
+      },
     };
   }
 }

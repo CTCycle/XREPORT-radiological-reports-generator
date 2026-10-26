@@ -55,7 +55,7 @@ export interface DatabaseSwitchResult {
 export interface EditableSettings {
   global: { seed: number };
   jobs: { polling_interval: number };
-  inference: { model_timeout: number };
+  inference: { model_timeout: number; model_idle_timeout: number };
 }
 
 export interface StorageFolder {

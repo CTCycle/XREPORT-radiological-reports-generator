@@ -8,12 +8,12 @@ const settingsResponse = () => ({
   values: {
     global: { seed: 42 },
     jobs: { polling_interval: 1 },
-    inference: { model_timeout: 600 },
+    inference: { model_timeout: 600, model_idle_timeout: 300 },
   },
   defaults: {
     global: { seed: 42 },
     jobs: { polling_interval: 1 },
-    inference: { model_timeout: 600 },
+    inference: { model_timeout: 600, model_idle_timeout: 300 },
   },
 });
 
@@ -65,6 +65,7 @@ describe('SettingsPage', () => {
       if (patch.global?.seed != null) result.values.global.seed = patch.global.seed;
       if (patch.jobs?.polling_interval != null) result.values.jobs.polling_interval = patch.jobs.polling_interval;
       if (patch.inference?.model_timeout != null) result.values.inference.model_timeout = patch.inference.model_timeout;
+      if (patch.inference?.model_idle_timeout != null) result.values.inference.model_idle_timeout = patch.inference.model_idle_timeout;
       return { result, error: null };
     });
     api.resetSettings.mockReset().mockResolvedValue({ result: settingsResponse(), error: null });
@@ -129,6 +130,7 @@ describe('SettingsPage', () => {
     page.updateSeed(124);
     page.updatePollingInterval(2.5);
     page.updateModelTimeout(900);
+    page.updateModelIdleTimeout(60);
     expect(api.updateSettings).not.toHaveBeenCalled();
     await new Promise((resolve) => setTimeout(resolve, 400));
 
@@ -136,11 +138,12 @@ describe('SettingsPage', () => {
     expect(api.updateSettings).toHaveBeenCalledWith({
       global: { seed: 124 },
       jobs: { polling_interval: 2.5 },
-      inference: { model_timeout: 900 },
+      inference: { model_timeout: 900, model_idle_timeout: 60 },
     });
     expect(page.draft()?.global.seed).toBe(124);
     expect(page.draft()?.jobs.polling_interval).toBe(2.5);
     expect(page.draft()?.inference.model_timeout).toBe(900);
+    expect(page.draft()?.inference.model_idle_timeout).toBe(60);
     expect(page.dirty()).toBe(false);
   });
 
