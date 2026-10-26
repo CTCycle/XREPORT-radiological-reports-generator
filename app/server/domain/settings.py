@@ -19,6 +19,7 @@ class RuntimeJobSettings(_StrictSettingsModel):
 ###############################################################################
 class RuntimeInferenceSettings(_StrictSettingsModel):
     model_timeout: int
+    model_idle_timeout: int
 
 ###############################################################################
 class RuntimeApplicationSettings(_StrictSettingsModel):
@@ -67,6 +68,7 @@ class JobSettingsPatch(_PatchModel):
 ###############################################################################
 class InferenceSettingsPatch(_PatchModel):
     model_timeout: int | None = Field(default=None, ge=1)
+    model_idle_timeout: int | None = Field(default=None, ge=0)
 
 ###############################################################################
 class ApplicationSettingsPatch(_StrictSettingsModel):

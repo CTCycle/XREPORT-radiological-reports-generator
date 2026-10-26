@@ -755,7 +755,7 @@ print(json.dumps({
     )
     payload = json.loads(completed.stdout.strip().splitlines()[-1])
 
-    assert payload["route_count"] == 30
+    assert payload["route_count"] == 32
     assert payload["loaded_heavy_modules"] == []
 
 
@@ -801,6 +801,7 @@ def _server_settings(database: DatabaseSettings) -> ServerSettings:
             hf_local_only=True,
             device="cpu",
             model_timeout=60,
+            model_idle_timeout=300,
         ),
     )
 

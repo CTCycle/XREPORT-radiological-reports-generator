@@ -1,7 +1,12 @@
 from __future__ import annotations
 
 from collections.abc import Callable
+import gc
+from pathlib import Path
+import sys
 import threading
+import time
+import traceback
 from typing import TYPE_CHECKING, Any
 
 from server.domain.inference import (
@@ -17,6 +22,7 @@ from server.services.model_installation import (
 )
 from server.services.model_storage import ModelStorageLifecycle
 from server.repositories.checkpoints import CheckpointRepository
+from server.common.utils.logger import logger
 
 if TYPE_CHECKING:
     from server.models.inference.providers.huggingface import HuggingFaceProvider
@@ -25,10 +31,33 @@ if TYPE_CHECKING:
 StopCallback = Callable[[], bool]
 LifecycleCallback = Callable[[dict[str, Any]], None]
 ProgressCallback = Callable[..., None]
+IdleTimeoutProvider = Callable[[], int]
+
+###############################################################################
+def release_framework_memory(*, keras_session: bool = False) -> None:
+    """Collect dropped model graphs and return cached CUDA blocks to the driver."""
+    if keras_session and "keras" in sys.modules:
+        import keras
+
+        keras.backend.clear_session(free_memory=True)
+    gc.collect()
+    import torch
+
+    if torch.cuda.is_available():
+        torch.cuda.empty_cache()
+        torch.cuda.ipc_collect()
 
 ###############################################################################
 class InferenceRuntimeCoordinator:
-    """Serializes resident model use across the supported inference providers."""
+    """Serializes resident model use across the supported inference providers.
+
+    At most one model is resident. It stays loaded between runs for reuse and
+    is released after the configured idle timeout or on explicit request. A
+    release only happens while the residency lock is free, so it never
+    interrupts an active run.
+    """
+
+    idle_check_interval = 5.0
 
     # -------------------------------------------------------------------------
     def __init__(
@@ -38,6 +67,7 @@ class InferenceRuntimeCoordinator:
         installation_manager: ModelInstallationManager,
         storage_lifecycle: ModelStorageLifecycle | None = None,
         checkpoint_repository: CheckpointRepository | None = None,
+        idle_timeout_provider: IdleTimeoutProvider | None = None,
     ) -> None:
         self.huggingface_provider = huggingface_provider
         self.installation_manager = installation_manager
@@ -45,10 +75,56 @@ class InferenceRuntimeCoordinator:
             installation_manager
         )
         self.checkpoint_repository = checkpoint_repository or CheckpointRepository()
+        self.idle_timeout_provider = idle_timeout_provider
         self.lock = threading.RLock()
+        self.last_used = time.monotonic()
+        self._xreport_ref: str | None = None
+        self._xreport_key: tuple[str, int] | None = None
+        self._xreport_model: Any = None
+        self._xreport_metadata: dict[str, Any] | None = None
+        self._watcher_lock = threading.Lock()
+        self._idle_watcher: threading.Thread | None = None
+
+    # -------------------------------------------------------------------------
+    @property
+    def resident_model(self) -> str | None:
+        if self._xreport_ref is not None:
+            return self._xreport_ref
+        repository_id = self.huggingface_provider.loaded_repository
+        return f"huggingface:{repository_id}" if repository_id else None
 
     # -------------------------------------------------------------------------
     def generate(
+        self,
+        *,
+        model_ref: str,
+        model_revision: str | None,
+        model_manifest: dict[str, Any] | None,
+        generation_profile: GenerationProfile,
+        clinical_context: str,
+        images: list[InferenceImage],
+        should_stop: StopCallback,
+        report_progress: ProgressCallback,
+        report_lifecycle: LifecycleCallback,
+    ) -> ProviderGenerationResult:
+        try:
+            return self._dispatch(
+                model_ref=model_ref,
+                model_revision=model_revision,
+                model_manifest=model_manifest,
+                generation_profile=generation_profile,
+                clinical_context=clinical_context,
+                images=images,
+                should_stop=should_stop,
+                report_progress=report_progress,
+                report_lifecycle=report_lifecycle,
+            )
+        finally:
+            self.last_used = time.monotonic()
+            self._ensure_idle_watcher()
+
+    # -------------------------------------------------------------------------
+    def _dispatch(
         self,
         *,
         model_ref: str,
@@ -98,7 +174,7 @@ class InferenceRuntimeCoordinator:
                 "The model is currently in use; wait for inference to finish before deleting local files."
             )
         try:
-            self.huggingface_provider.unload()
+            self._release_resident()
             return self.storage_lifecycle.delete_local(
                 repository_id,
                 processor_repository_id=(manifest or {}).get("processor_repository_id"),
@@ -106,6 +182,104 @@ class InferenceRuntimeCoordinator:
             )
         finally:
             self.lock.release()
+
+    # -------------------------------------------------------------------------
+    def release(self, *, blocking: bool = False) -> bool:
+        """Unload the resident model. Returns False while a run holds the lock."""
+        if not self.lock.acquire(blocking=blocking):
+            return False
+        try:
+            if self.resident_model is None:
+                # Still return cached blocks left by earlier or failed runs.
+                release_framework_memory()
+            else:
+                self._release_resident()
+        finally:
+            self.lock.release()
+        return True
+
+    # -------------------------------------------------------------------------
+    def _release_resident(self) -> None:
+        self.huggingface_provider.unload()
+        self._drop_xreport()
+
+    # -------------------------------------------------------------------------
+    def _drop_xreport(self) -> None:
+        if self._xreport_key is None:
+            return
+        self._xreport_ref = None
+        self._xreport_key = None
+        self._xreport_model = None
+        self._xreport_metadata = None
+        release_framework_memory(keras_session=True)
+
+    # -------------------------------------------------------------------------
+    def _ensure_idle_watcher(self) -> None:
+        if self.idle_timeout_provider is None or self.resident_model is None:
+            return
+        with self._watcher_lock:
+            if self._idle_watcher is not None:
+                return
+            self._idle_watcher = threading.Thread(
+                target=self._watch_idle,
+                name="inference-idle-release",
+                daemon=True,
+            )
+            self._idle_watcher.start()
+
+    # -------------------------------------------------------------------------
+    def _watch_idle(self) -> None:
+        # Exits once nothing is resident; the next run starts a new watcher.
+        while True:
+            with self._watcher_lock:
+                if self.resident_model is None:
+                    self._idle_watcher = None
+                    return
+            time.sleep(self.idle_check_interval)
+            try:
+                timeout = int(self.idle_timeout_provider())  # type: ignore[misc]
+            except Exception as exc:  # noqa: BLE001
+                logger.warning("Idle model timeout unavailable: %s", exc)
+                continue
+            if timeout <= 0 or time.monotonic() - self.last_used < timeout:
+                continue
+            model_ref = self.resident_model
+            if model_ref is not None and self.release(blocking=False):
+                logger.info(
+                    "Released idle inference model %s after %s s", model_ref, timeout
+                )
+
+    # -------------------------------------------------------------------------
+    def _load_xreport(
+        self, model_ref: str, checkpoint_path: str
+    ) -> tuple[Any, dict[str, Any]]:
+        """Reuse the resident checkpoint model, loading it only when it changed."""
+        from server.repositories.serialization.model import ModelSerializer
+
+        weights = Path(checkpoint_path) / "saved_model.keras"
+        key = (
+            str(checkpoint_path),
+            weights.stat().st_mtime_ns if weights.exists() else 0,
+        )
+        if self._xreport_key == key and self._xreport_model is not None:
+            return self._xreport_model, self._xreport_metadata or {}
+        self._release_resident()
+        try:
+            model, _, model_metadata, _, _ = ModelSerializer().load_checkpoint(
+                checkpoint_path
+            )
+        except Exception as exc:  # noqa: BLE001
+            # Clear the failed loader frames so partial weights can be collected.
+            traceback.clear_frames(exc.__traceback__)
+            release_framework_memory(keras_session=True)
+            raise RuntimeError(
+                f"Checkpoint not found: {model_ref.removeprefix('xreport:')}"
+            ) from exc
+        self._xreport_ref = model_ref
+        self._xreport_key = key
+        self._xreport_model = model
+        self._xreport_metadata = model_metadata
+        return model, model_metadata
 
     # -------------------------------------------------------------------------
     @staticmethod
@@ -179,15 +353,10 @@ class InferenceRuntimeCoordinator:
             from server.models.inference.providers.xreport import (
                 XReportCheckpointProvider,
             )
-            from server.repositories.serialization.model import ModelSerializer
 
-            self.huggingface_provider.unload()
-            try:
-                model, _, model_metadata, _, _ = ModelSerializer().load_checkpoint(
-                    checkpoint_record.path
-                )
-            except Exception as exc:  # noqa: BLE001
-                raise RuntimeError(f"Checkpoint not found: {checkpoint}") from exc
+            model, model_metadata = self._load_xreport(
+                model_ref, checkpoint_record.path
+            )
             provenance["runtime"] = self._xreport_runtime_metadata(
                 model,
                 self.huggingface_provider.settings.device,
@@ -205,7 +374,6 @@ class InferenceRuntimeCoordinator:
                 should_stop=should_stop,
                 report_progress=report_progress,
             )
-            del model
 
         display_sections = {
             filename: {"raw_report": report} for filename, report in reports.items()
@@ -259,6 +427,7 @@ class InferenceRuntimeCoordinator:
                     "local_path": self.installation_manager.relative_path(target.path),
                 }
             )
+            self._drop_xreport()
             generation = self.huggingface_provider.generate(
                 repository_id=repository_id,
                 manifest=effective_manifest,

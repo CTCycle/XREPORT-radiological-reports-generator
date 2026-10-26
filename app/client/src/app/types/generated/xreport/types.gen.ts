@@ -561,6 +561,10 @@ export type InferenceSettingsPatch = {
      * Model Timeout
      */
     model_timeout?: number | null;
+    /**
+     * Model Idle Timeout
+     */
+    model_idle_timeout?: number | null;
 };
 
 /**
@@ -1077,6 +1081,10 @@ export type RuntimeInferenceSettings = {
      * Model Timeout
      */
     model_timeout: number;
+    /**
+     * Model Idle Timeout
+     */
+    model_idle_timeout: number;
 };
 
 /**
@@ -1087,6 +1095,20 @@ export type RuntimeJobSettings = {
      * Polling Interval
      */
     polling_interval: number;
+};
+
+/**
+ * RuntimeReleaseResponse
+ */
+export type RuntimeReleaseResponse = {
+    /**
+     * Released
+     */
+    released: boolean;
+    /**
+     * Model Ref
+     */
+    model_ref?: string | null;
 };
 
 /**
@@ -1243,6 +1265,22 @@ export type GetModelsApiInferenceModelsGetResponses = {
 };
 
 export type GetModelsApiInferenceModelsGetResponse = GetModelsApiInferenceModelsGetResponses[keyof GetModelsApiInferenceModelsGetResponses];
+
+export type ReleaseRuntimeApiInferenceRuntimeReleasePostData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/api/inference/runtime/release';
+};
+
+export type ReleaseRuntimeApiInferenceRuntimeReleasePostResponses = {
+    /**
+     * Successful Response
+     */
+    200: RuntimeReleaseResponse;
+};
+
+export type ReleaseRuntimeApiInferenceRuntimeReleasePostResponse = ReleaseRuntimeApiInferenceRuntimeReleasePostResponses[keyof ReleaseRuntimeApiInferenceRuntimeReleasePostResponses];
 
 export type CheckModelUpdateApiInferenceModelsCheckUpdatePostData = {
     body: ModelUpdateCheckRequest;

@@ -40,6 +40,7 @@ class InferenceSettings:
     hf_local_only: bool
     device: str
     model_timeout: int
+    model_idle_timeout: int
 
 ###############################################################################
 @dataclass(frozen=True)
@@ -62,6 +63,7 @@ class ApplicationSettingsValues(BaseModel):
         allow_inf_nan=False,
     )
     inference_model_timeout: int = Field(ge=1)
+    inference_model_idle_timeout: int = Field(ge=0)
     theme_preference: Literal["light", "dark", "system"] | None = None
 
 
@@ -69,6 +71,7 @@ DEFAULT_APPLICATION_SETTINGS = ApplicationSettingsValues(
     global_seed=42,
     job_polling_interval=1.0,
     inference_model_timeout=600,
+    inference_model_idle_timeout=300,
     theme_preference=None,
 )
 
@@ -86,5 +89,6 @@ def application_settings_to_server_settings(
             hf_local_only=runtime.inference_hf_local_only,
             device=runtime.inference_device,
             model_timeout=values.inference_model_timeout,
+            model_idle_timeout=values.inference_model_idle_timeout,
         ),
     )

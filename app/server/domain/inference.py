@@ -276,6 +276,11 @@ class InferenceModelsResponse(BaseModel):
     providers: dict[str, ProviderAvailability]
 
 ###############################################################################
+class RuntimeReleaseResponse(BaseModel):
+    released: bool
+    model_ref: str | None = None
+
+###############################################################################
 class ModelUpdateCheckResponse(BaseModel):
     model_ref: str
     repository_id: str

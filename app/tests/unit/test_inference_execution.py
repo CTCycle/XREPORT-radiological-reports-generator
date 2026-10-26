@@ -830,3 +830,30 @@ def test_generation_allows_a_ready_gated_public_model() -> None:
     )
 
     job_manager.start_job.assert_called_once()
+
+###############################################################################
+@pytest.mark.parametrize("job_type", ["inference", "model_maintenance"])
+def test_runtime_release_is_refused_while_inference_or_download_runs(job_type: str) -> None:
+    job_manager = JobManager()
+    job_manager.jobs["active"] = JobState(job_id="active", job_type=job_type, status="running")
+    runtime = MagicMock()
+    service = InferenceService(
+        job_manager=job_manager,
+        inference_image_store=InferenceImageStore(),
+        server_settings=cast(ServerSettings, SimpleNamespace()),
+        model_catalog=cast(InferenceModelCatalog, MagicMock()),
+        installation_manager=cast(ModelInstallationManager, MagicMock()),
+        runtime=cast(InferenceRuntimeCoordinator, runtime),
+        repository=MagicMock(),
+    )
+
+    with pytest.raises(ConflictError):
+        service.release_runtime_memory()
+    runtime.release.assert_not_called()
+
+    job_manager.jobs["active"].update(status="completed")
+    runtime.resident_model = "huggingface:model-a"
+    runtime.release.return_value = True
+    response = service.release_runtime_memory()
+    assert response.released is True
+    assert response.model_ref == "huggingface:model-a"

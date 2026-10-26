@@ -92,6 +92,7 @@ def test_fresh_upgrade_uses_typed_defaults(
         "global_seed": 42,
         "job_polling_interval": 1.0,
         "inference_model_timeout": 600,
+        "inference_model_idle_timeout": 300,
         "theme_preference": None,
     }
 
@@ -104,13 +105,13 @@ def test_public_projection_contains_only_application_settings(tmp_path, monkeypa
     assert payload["values"] == {
         "global": {"seed": 123},
         "jobs": {"polling_interval": 2.5},
-        "inference": {"model_timeout": 120},
+        "inference": {"model_timeout": 120, "model_idle_timeout": 300},
         "theme_preference": None,
     }
     assert payload["defaults"] == {
         "global": {"seed": 42},
         "jobs": {"polling_interval": 1.0},
-        "inference": {"model_timeout": 600},
+        "inference": {"model_timeout": 600, "model_idle_timeout": 300},
         "theme_preference": None,
     }
 
@@ -122,15 +123,17 @@ def test_update_and_reset_change_application_settings(tmp_path, monkeypatch) -> 
 
     updated = service.update_settings(
         ApplicationSettingsPatch.model_validate(
-            {"global": {"seed": 987}, "inference": {"model_timeout": 901}}
+            {"global": {"seed": 987}, "inference": {"model_timeout": 901, "model_idle_timeout": 0}}
         )
     )
     assert updated.values.global_settings.seed == 987
     assert updated.values.inference.model_timeout == 901
+    assert updated.values.inference.model_idle_timeout == 0
 
     reset = service.reset_settings()
     assert reset.values.global_settings.seed == 42
     assert reset.values.inference.model_timeout == 600
+    assert reset.values.inference.model_idle_timeout == 300
     persisted = repository.get_settings()
     assert persisted.theme_preference is None
 
@@ -538,15 +541,15 @@ def test_policy_migration_from_baseline_preserves_user_settings_and_records(
         with engine.connect() as connection:
             assert connection.exec_driver_sql(
                 "SELECT global_seed, "
-                "job_polling_interval, inference_model_timeout, theme_preference "
-                "FROM application_settings WHERE settings_id = 1"
-            ).one() == (909, 2.5, 901, "dark")
+                "job_polling_interval, inference_model_timeout, inference_model_idle_timeout, "
+                "theme_preference FROM application_settings WHERE settings_id = 1"
+            ).one() == (909, 2.5, 901, 300, "dark")
             assert connection.exec_driver_sql(
                 "SELECT name FROM datasets WHERE name_key = 'retained-dataset'"
             ).scalar_one() == "Retained dataset"
             assert connection.exec_driver_sql(
                 "SELECT version_num FROM alembic_version"
-            ).scalar_one() == initializer.HEAD_REVISION == "7d3f9a1c5e82"
+            ).scalar_one() == initializer.HEAD_REVISION == "c3b8e5d1a7f4"
     finally:
         engine.dispose()
 

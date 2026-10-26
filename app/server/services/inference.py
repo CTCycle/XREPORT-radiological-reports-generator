@@ -32,6 +32,7 @@ from server.domain.inference import (
     ModelAvailability,
     ModelUpdateCheckResponse,
     ProviderGenerationResult,
+    RuntimeReleaseResponse,
 )
 from server.domain.jobs import (
     JobStartResponse,
@@ -166,6 +167,7 @@ def get_inference_runtime() -> InferenceRuntimeCoordinator:
         huggingface_provider=get_huggingface_provider(),
         installation_manager=get_model_installation_manager(),
         checkpoint_repository=CheckpointRepository(),
+        idle_timeout_provider=lambda: get_server_settings().inference.model_idle_timeout,
     )
 
 ###############################################################################
@@ -279,7 +281,9 @@ def generate_per_image(
             )
         except Exception as exc:  # noqa: BLE001
             logger.exception("Inference failed for image %s in job %s", image.filename, job_id)
-            first_error = first_error or exc
+            # Keep the error without its traceback: the failed frames hold
+            # device tensors that must not outlive this image.
+            first_error = first_error or exc.with_traceback(None)
             errors[image.filename] = str(exc).split("\n")[0][:300]
         else:
             reports.update(result.reports)
@@ -535,6 +539,28 @@ class InferenceService:
         if self._runtime is None:
             self._runtime = get_inference_runtime()
         return self._runtime
+
+    # -------------------------------------------------------------------------
+    def release_runtime_memory(self) -> RuntimeReleaseResponse:
+        """Unload the resident model unless inference or model maintenance is active."""
+        if self.job_manager.is_job_running(self.JOB_TYPE) or self.job_manager.is_job_running(
+            "model_maintenance"
+        ):
+            raise ConflictError(
+                detail="Model memory cannot be released while inference or a model download is running."
+            )
+        if self._runtime is None and get_inference_runtime.cache_info().currsize == 0:
+            # No model was ever loaded; avoid importing the model runtimes.
+            from server.services.inference_runtime import release_framework_memory
+
+            release_framework_memory()
+            return RuntimeReleaseResponse(released=False)
+        model_ref = self.runtime.resident_model
+        if not self.runtime.release(blocking=False):
+            raise ConflictError(
+                detail="Model memory cannot be released while inference is running."
+            )
+        return RuntimeReleaseResponse(released=model_ref is not None, model_ref=model_ref)
 
     # -------------------------------------------------------------------------
     def _current_settings(self) -> ServerSettings:

@@ -5,6 +5,8 @@ from types import SimpleNamespace
 from unittest.mock import MagicMock
 from PIL import Image
 import pytest
+import threading
+import time
 import torch
 import json
 import zipfile
@@ -56,6 +58,7 @@ def _huggingface_settings() -> InferenceSettings:
         hf_local_only=True,
         device="cpu",
         model_timeout=600,
+        model_idle_timeout=300,
     )
 
 ###############################################################################
@@ -426,6 +429,147 @@ def test_switching_models_and_unload_clear_resident_provider_state(
     assert provider._adapter is None
 
 ###############################################################################
+def test_failed_model_load_leaves_no_resident_state(monkeypatch, tmp_path) -> None:
+    monkeypatch.setattr(
+        huggingface_module,
+        "is_within_allowed_roots",
+        lambda path: path.resolve().is_relative_to(tmp_path.resolve()),
+    )
+    monkeypatch.setattr(
+        "server.models.inference.providers.adapters.AutoProcessor.from_pretrained",
+        lambda _path, **_kwargs: MagicMock(),
+    )
+
+    def fail_load(_path, **_kwargs):
+        raise RuntimeError("CUDA out of memory")
+
+    monkeypatch.setattr(
+        "server.models.inference.providers.adapters.AutoModelForImageTextToText.from_pretrained",
+        fail_load,
+    )
+    released = MagicMock()
+    monkeypatch.setattr(HuggingFaceProvider, "_release_memory", staticmethod(released))
+    snapshot = tmp_path / "snapshot"
+    snapshot.mkdir()
+    provider = HuggingFaceProvider(_huggingface_settings())
+
+    with pytest.raises(RuntimeError, match="out of memory"):
+        provider._load(
+            {
+                **_huggingface_manifest(),
+                "repository_id": "model-a",
+                "local_snapshot_path": str(snapshot),
+            }
+        )
+
+    released.assert_called_once()
+    assert provider.loaded_repository is None
+    assert provider._model is None
+
+###############################################################################
+def _resident_coordinator(**kwargs: Any) -> tuple[InferenceRuntimeCoordinator, MagicMock]:
+    provider = MagicMock()
+    provider.loaded_repository = "model-a"
+    provider.unload.side_effect = lambda: setattr(provider, "loaded_repository", None)
+    coordinator = InferenceRuntimeCoordinator(
+        huggingface_provider=provider,
+        installation_manager=MagicMock(),
+        storage_lifecycle=MagicMock(),
+        checkpoint_repository=MagicMock(),
+        **kwargs,
+    )
+    return coordinator, provider
+
+###############################################################################
+def test_release_never_interrupts_a_run_holding_the_residency_lock() -> None:
+    coordinator, provider = _resident_coordinator()
+    run_started = threading.Event()
+    finish_run = threading.Event()
+
+    def active_run() -> None:
+        with coordinator.lock:
+            run_started.set()
+            finish_run.wait(5)
+
+    run = threading.Thread(target=active_run)
+    run.start()
+    run_started.wait(5)
+    try:
+        assert coordinator.release(blocking=False) is False
+        provider.unload.assert_not_called()
+        assert coordinator.resident_model == "huggingface:model-a"
+    finally:
+        finish_run.set()
+        run.join(5)
+
+    assert coordinator.release(blocking=False) is True
+    assert coordinator.resident_model is None
+
+###############################################################################
+def test_idle_watcher_releases_only_after_timeout_and_when_lock_is_free() -> None:
+    coordinator, provider = _resident_coordinator(idle_timeout_provider=lambda: 1)
+    coordinator.idle_check_interval = 0.01
+    coordinator.last_used = time.monotonic() - 10
+    with coordinator.lock:
+        coordinator._ensure_idle_watcher()
+        watcher = coordinator._idle_watcher
+        time.sleep(0.1)
+        provider.unload.assert_not_called()
+
+    assert watcher is not None
+    watcher.join(5)
+    provider.unload.assert_called_once()
+    assert coordinator.resident_model is None
+    assert coordinator._idle_watcher is None
+
+###############################################################################
+def test_idle_watcher_keeps_model_when_timeout_is_disabled() -> None:
+    coordinator, provider = _resident_coordinator(idle_timeout_provider=lambda: 0)
+    coordinator.idle_check_interval = 0.01
+    coordinator.last_used = time.monotonic() - 10
+    coordinator._ensure_idle_watcher()
+    watcher = coordinator._idle_watcher
+    time.sleep(0.1)
+    provider.unload.assert_not_called()
+
+    assert coordinator.release(blocking=True) is True
+    assert watcher is not None
+    watcher.join(5)
+    assert coordinator._idle_watcher is None
+
+###############################################################################
+def test_xreport_checkpoint_stays_resident_until_released(monkeypatch, tmp_path) -> None:
+    from server.repositories.serialization import model as serializer_module
+    from server.services import inference_runtime as runtime_module
+
+    framework_release = MagicMock()
+    monkeypatch.setattr(runtime_module, "release_framework_memory", framework_release)
+    loaded = MagicMock()
+    load_checkpoint = MagicMock(return_value=(loaded, {}, {"max_report_size": 10}, {}, ""))
+    monkeypatch.setattr(
+        serializer_module.ModelSerializer,
+        "load_checkpoint",
+        lambda self, path: load_checkpoint(path),
+    )
+    checkpoint = tmp_path / "checkpoint"
+    checkpoint.mkdir()
+    (checkpoint / "saved_model.keras").write_bytes(b"weights")
+    coordinator, provider = _resident_coordinator()
+
+    first = coordinator._load_xreport("xreport:checkpoint", str(checkpoint))
+    second = coordinator._load_xreport("xreport:checkpoint", str(checkpoint))
+
+    assert first[0] is second[0] is loaded
+    load_checkpoint.assert_called_once()
+    provider.unload.assert_called_once()
+    assert coordinator.resident_model == "xreport:checkpoint"
+
+    assert coordinator.release() is True
+    assert coordinator.resident_model is None
+    assert coordinator._xreport_model is None
+    framework_release.assert_called_once_with(keras_session=True)
+
+###############################################################################
 def test_generation_reads_timeout_provider_once_for_start_deadline(monkeypatch) -> None:
     timeout_reads = 0
 
@@ -542,13 +686,13 @@ def test_study_generation_runs_in_inference_mode_and_receives_stopping_criteria(
 def test_device_policy_and_dtype_selection(monkeypatch) -> None:
     assert HuggingFaceProvider(_huggingface_settings())._device_map() == "cpu"
     assert HuggingFaceProvider(
-        InferenceSettings(hf_local_only=True, device="auto", model_timeout=600)
+        InferenceSettings(hf_local_only=True, device="auto", model_timeout=600, model_idle_timeout=300)
     )._device_map() == "auto"
 
     monkeypatch.setattr(huggingface_module.torch.cuda, "is_available", lambda: False)
     with pytest.raises(RuntimeError, match="CUDA.*unavailable"):
         HuggingFaceProvider(
-            InferenceSettings(hf_local_only=True, device="cuda", model_timeout=600)
+            InferenceSettings(hf_local_only=True, device="cuda", model_timeout=600, model_idle_timeout=300)
         )._device_map()
     assert HuggingFaceProvider._dtype("auto") is torch.float32
 
@@ -750,6 +894,7 @@ def _catalog_settings(*, hf_local_only: bool = True) -> InferenceSettings:
         hf_local_only=hf_local_only,
         device="auto",
         model_timeout=600,
+        model_idle_timeout=300,
     )
 
 ###############################################################################

@@ -17,6 +17,7 @@ _PUBLIC_COLUMNS = frozenset(
         "global_seed",
         "job_polling_interval",
         "inference_model_timeout",
+        "inference_model_idle_timeout",
         "theme_preference",
     }
 )
@@ -66,6 +67,7 @@ class ApplicationSettingsRepository:
                 "global_seed": record.global_seed,
                 "job_polling_interval": record.job_polling_interval,
                 "inference_model_timeout": record.inference_model_timeout,
+                "inference_model_idle_timeout": record.inference_model_idle_timeout,
                 "theme_preference": record.theme_preference,
                 **changes,
             }
@@ -85,6 +87,7 @@ class ApplicationSettingsRepository:
                 "global_seed": defaults.global_seed,
                 "job_polling_interval": defaults.job_polling_interval,
                 "inference_model_timeout": defaults.inference_model_timeout,
+                "inference_model_idle_timeout": defaults.inference_model_idle_timeout,
                 "theme_preference": defaults.theme_preference,
             }
         )
@@ -99,6 +102,7 @@ class ApplicationSettingsRepository:
                 "global_seed": record.global_seed,
                 "job_polling_interval": record.job_polling_interval,
                 "inference_model_timeout": record.inference_model_timeout,
+                "inference_model_idle_timeout": record.inference_model_idle_timeout,
                 "theme_preference": record.theme_preference,
             }
         )

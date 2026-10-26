@@ -27,6 +27,27 @@
         }
       }
     },
+    "/api/inference/runtime/release": {
+      "post": {
+        "tags": [
+          "inference"
+        ],
+        "summary": "Release Runtime",
+        "operationId": "release_runtime_api_inference_runtime_release_post",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RuntimeReleaseResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/inference/models/check-update": {
       "post": {
         "tags": [
@@ -1999,6 +2020,18 @@
               }
             ],
             "title": "Model Timeout"
+          },
+          "model_idle_timeout": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Model Idle Timeout"
           }
         },
         "additionalProperties": false,
@@ -2984,12 +3017,17 @@
           "model_timeout": {
             "type": "integer",
             "title": "Model Timeout"
+          },
+          "model_idle_timeout": {
+            "type": "integer",
+            "title": "Model Idle Timeout"
           }
         },
         "additionalProperties": false,
         "type": "object",
         "required": [
-          "model_timeout"
+          "model_timeout",
+          "model_idle_timeout"
         ],
         "title": "RuntimeInferenceSettings"
       },
@@ -3006,6 +3044,30 @@
           "polling_interval"
         ],
         "title": "RuntimeJobSettings"
+      },
+      "RuntimeReleaseResponse": {
+        "properties": {
+          "released": {
+            "type": "boolean",
+            "title": "Released"
+          },
+          "model_ref": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Model Ref"
+          }
+        },
+        "type": "object",
+        "required": [
+          "released"
+        ],
+        "title": "RuntimeReleaseResponse"
       },
       "StorageApplyRequest": {
         "properties": {

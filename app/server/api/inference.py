@@ -19,6 +19,7 @@ from server.domain.inference import (
     ModelMaintenanceRequest,
     ModelUpdateCheckRequest,
     ModelUpdateCheckResponse,
+    RuntimeReleaseResponse,
 )
 from server.domain.jobs import JobStartResponse
 from server.common.constants import MAX_TOTAL_IMAGE_BYTES
@@ -65,6 +66,10 @@ class InferenceEndpoint:
     # -------------------------------------------------------------------------
     def get_models(self) -> InferenceModelsResponse:
         return self.service.get_models()
+
+    # -------------------------------------------------------------------------
+    def release_runtime(self) -> RuntimeReleaseResponse:
+        return self.service.release_runtime_memory()
 
     # -------------------------------------------------------------------------
     def check_model_update(
@@ -167,6 +172,13 @@ class InferenceEndpoint:
             self.get_models,
             methods=["GET"],
             response_model=InferenceModelsResponse,
+            status_code=status.HTTP_200_OK,
+        )
+        self.router.add_api_route(
+            "/runtime/release",
+            self.release_runtime,
+            methods=["POST"],
+            response_model=RuntimeReleaseResponse,
             status_code=status.HTTP_200_OK,
         )
         self.router.add_api_route(

@@ -2446,6 +2446,18 @@
               }
             ],
             "title": "Model Timeout"
+          },
+          "model_idle_timeout": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Model Idle Timeout"
           }
         },
         "additionalProperties": false,
@@ -2903,12 +2915,17 @@
           "model_timeout": {
             "type": "integer",
             "title": "Model Timeout"
+          },
+          "model_idle_timeout": {
+            "type": "integer",
+            "title": "Model Idle Timeout"
           }
         },
         "additionalProperties": false,
         "type": "object",
         "required": [
-          "model_timeout"
+          "model_timeout",
+          "model_idle_timeout"
         ],
         "title": "RuntimeInferenceSettings"
       },

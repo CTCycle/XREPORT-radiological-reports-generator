@@ -7,6 +7,7 @@ import re
 import shutil
 import threading
 import time
+import traceback
 from collections.abc import Callable, Iterable, Mapping
 from typing import Any, cast
 
@@ -472,21 +473,29 @@ class HuggingFaceProvider:
                     revision,
                     manifest.get("required_files", []),
                 )
-            processor = adapter.load_processor(
-                str(snapshot_path),
-                processor_loader=processor_loader,
-                load_options=load_options,
-            )
-            model = adapter.load_model(
-                str(snapshot_path),
-                model_loader=model_loader,
-                load_options={
-                    **load_options,
-                    "torch_dtype": self._dtype(str(manifest["preferred_dtype"])),
-                    "device_map": self._device_map(),
-                },
-            )
-            model.eval()
+            try:
+                processor = adapter.load_processor(
+                    str(snapshot_path),
+                    processor_loader=processor_loader,
+                    load_options=load_options,
+                )
+                model = adapter.load_model(
+                    str(snapshot_path),
+                    model_loader=model_loader,
+                    load_options={
+                        **load_options,
+                        "torch_dtype": self._dtype(str(manifest["preferred_dtype"])),
+                        "device_map": self._device_map(),
+                    },
+                )
+                model.eval()
+            except Exception as exc:
+                # Clear the failed loader frames so partially placed weights
+                # are collected now rather than when the error is discarded.
+                traceback.clear_frames(exc.__traceback__)
+                processor = model = None
+                self._release_memory()
+                raise
             self._loaded_key = key
             self._model = model
             self._processor = processor
@@ -544,15 +553,29 @@ class HuggingFaceProvider:
                 shutil.copyfile(source, destination)
 
     # -------------------------------------------------------------------------
+    @property
+    def loaded_repository(self) -> str | None:
+        key = self._loaded_key
+        return key[0] if key is not None else None
+
+    # -------------------------------------------------------------------------
     def unload(self) -> None:
         with self._lock:
+            if self._model is None and self._processor is None and self._adapter is None:
+                return
             self._model = None
             self._processor = None
             self._adapter = None
             self._loaded_key = None
-            gc.collect()
-            if torch.cuda.is_available():
-                torch.cuda.empty_cache()
+            self._release_memory()
+
+    # -------------------------------------------------------------------------
+    @staticmethod
+    def _release_memory() -> None:
+        gc.collect()
+        if torch.cuda.is_available():
+            torch.cuda.empty_cache()
+            torch.cuda.ipc_collect()
 
     # -------------------------------------------------------------------------
     def _device_map(self) -> str:

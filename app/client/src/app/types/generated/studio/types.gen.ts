@@ -676,6 +676,10 @@ export type InferenceSettingsPatch = {
      * Model Timeout
      */
     model_timeout?: number | null;
+    /**
+     * Model Idle Timeout
+     */
+    model_idle_timeout?: number | null;
 };
 
 /**
@@ -979,6 +983,10 @@ export type RuntimeInferenceSettings = {
      * Model Timeout
      */
     model_timeout: number;
+    /**
+     * Model Idle Timeout
+     */
+    model_idle_timeout: number;
 };
 
 /**

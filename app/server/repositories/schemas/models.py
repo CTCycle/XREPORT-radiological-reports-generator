@@ -33,6 +33,9 @@ class ApplicationSettingsRecord(Base):
     global_seed: Mapped[int] = mapped_column(BigInteger, nullable=False)
     job_polling_interval: Mapped[float] = mapped_column(Float, nullable=False)
     inference_model_timeout: Mapped[int] = mapped_column(BigInteger, nullable=False)
+    inference_model_idle_timeout: Mapped[int] = mapped_column(
+        BigInteger, nullable=False, default=300
+    )
     theme_preference: Mapped[str | None] = mapped_column(
         String(8), nullable=True, default=None
     )
@@ -54,6 +57,10 @@ class ApplicationSettingsRecord(Base):
         CheckConstraint(
             "inference_model_timeout >= 1",
             name="ck_application_settings_model_timeout",
+        ),
+        CheckConstraint(
+            "inference_model_idle_timeout >= 0",
+            name="ck_application_settings_model_idle_timeout",
         ),
         CheckConstraint(
             "theme_preference IS NULL OR theme_preference IN ('light', 'dark', 'system')",
