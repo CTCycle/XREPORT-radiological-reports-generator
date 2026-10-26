@@ -20,10 +20,7 @@ import { TipsAndTricksComponent } from './tips-and-tricks.component';
         <nav class="app-nav-bar" aria-label="Primary navigation">
           <div class="app-nav-brand">
             <img class="app-nav-logo" src="/favicon.png" alt="XREPORT logo" />
-            <div class="app-nav-titles">
-              <h1 class="app-nav-title">{{ studio ? 'XREPORT Studio' : 'XREPORT' }}</h1>
-              <p class="app-nav-subtitle">{{ studio ? 'Model development' : 'Radiological Reports Generator' }}</p>
-            </div>
+            <h1 class="app-nav-title">{{ studio ? 'XREPORT Studio' : 'XREPORT' }}</h1>
           </div>
           <div class="app-nav-list">
             @if (studio) {

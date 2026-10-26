@@ -57,29 +57,14 @@
     flex: 0 0 auto;
 }
 
-.app-nav-titles {
-    display: flex;
-    flex-direction: column;
-    min-width: 0;
-}
-
 .app-nav-title {
     margin: 0;
+    white-space: nowrap;
     font-size: 1.1rem;
     line-height: 1.1;
     color: var(--text-primary);
     letter-spacing: 0.08em;
     text-transform: uppercase;
-}
-
-.app-nav-subtitle {
-    margin: 0.12rem 0 0;
-    font-size: 0.72rem;
-    line-height: 1.1;
-    color: var(--text-secondary);
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
 }
 
 .app-nav-list {
@@ -228,10 +213,6 @@
 
     .app-nav-group-label {
         font-size: 0.68rem;
-    }
-
-    .app-nav-subtitle {
-        display: none;
     }
 
     .app-nav-footer {
