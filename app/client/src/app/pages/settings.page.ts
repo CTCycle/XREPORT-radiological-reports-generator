@@ -55,7 +55,7 @@ type SettingsTab = 'general' | 'advanced' | 'models' | 'storage' | 'database';
       } @else if (draft(); as values) {
         <div class="settings-form">
           <nav class="settings-tabs" role="tablist" aria-label="Settings categories">
-            @for (tab of tabs; track tab.id) {
+            @for (tab of tabs(); track tab.id) {
               <button type="button" class="settings-tab" [class.active]="activeTab() === tab.id" role="tab"
                 [id]="'settings-tab-' + tab.id" [attr.aria-selected]="activeTab() === tab.id"
                 [attr.aria-controls]="'settings-panel-' + tab.id" [attr.tabindex]="activeTab() === tab.id ? 0 : -1"
@@ -68,11 +68,11 @@ type SettingsTab = 'general' | 'advanced' | 'models' | 'storage' | 'database';
             @if (activeTab() === 'general') {
               <div class="settings-section-heading">
                 <h2>General</h2>
-                <p>Defaults used when new work starts without an explicit value.</p>
+                <p>{{ values.inference ? 'Defaults used when new work starts without an explicit value.' : 'Defaults applied to new dataset preparation and training runs.' }}</p>
               </div>
               <div class="settings-fields">
                 <div class="settings-field">
-                  <div class="settings-field-copy"><h3 id="default-seed-title">Default random seed</h3><p>Controls repeatability for new preparation, training, or validation work.</p></div>
+                  <div class="settings-field-copy"><h3 id="default-seed-title">Default random seed</h3><p>{{ values.inference ? 'Controls repeatability for new preparation, training, or validation work.' : 'Seeds dataset sampling, train/validation splits and training for new jobs.' }}</p></div>
                   <div class="settings-field-control">
                     <input id="default-seed" type="number" inputmode="numeric" step="1" min="0" max="4294967295"
                       [ngModel]="values.global.seed" (ngModelChange)="updateSeed($event)" name="seed"
@@ -87,12 +87,12 @@ type SettingsTab = 'general' | 'advanced' | 'models' | 'storage' | 'database';
               </div>
             } @else if (activeTab() === 'advanced') {
               <div class="settings-section-heading">
-                <h2>Advanced</h2>
+                <h2>{{ values.inference ? 'Advanced' : 'Jobs' }}</h2>
                 <p>{{ values.inference ? 'Fine-tune polling and local inference operation limits.' : 'Fine-tune job status polling.' }}</p>
               </div>
               <div class="settings-fields">
                 <div class="settings-field">
-                  <div class="settings-field-copy"><h3 id="polling-interval-title">Job status polling interval <span class="settings-unit">seconds</span></h3><p>How often the UI checks newly started long-running jobs.</p></div>
+                  <div class="settings-field-copy"><h3 id="polling-interval-title">Job status polling interval <span class="settings-unit">seconds</span></h3><p>{{ values.inference ? 'How often the UI checks newly started long-running jobs.' : 'How often the UI checks progress of newly started preparation and training jobs.' }}</p></div>
                   <div class="settings-field-control">
                     <input id="polling-interval" type="number" inputmode="decimal" step="0.25" min="0.25" max="60"
                       [ngModel]="values.jobs.polling_interval" (ngModelChange)="updatePollingInterval($event)" name="polling_interval"
@@ -456,13 +456,20 @@ export class SettingsPage implements OnInit, OnDestroy {
   readonly draft = signal<EditableSettings | null>(null);
   private readonly baseline = signal<EditableSettings | null>(null);
   readonly defaults = signal<EditableSettings | null>(null);
-  readonly tabs = [
-    { id: 'general' as const, label: 'General' },
-    { id: 'advanced' as const, label: 'Advanced' },
-    { id: 'models' as const, label: 'Model access' },
-    { id: 'storage' as const, label: 'Storage' },
-    { id: 'database' as const, label: 'Database' },
-  ];
+  // Studio has no inference settings, model access or storage relocation (the storage root is shared with Inference).
+  readonly tabs = computed<{ id: SettingsTab; label: string }[]>(() => this.draft()?.inference
+    ? [
+        { id: 'general', label: 'General' },
+        { id: 'advanced', label: 'Advanced' },
+        { id: 'models', label: 'Model access' },
+        { id: 'storage', label: 'Storage' },
+        { id: 'database', label: 'Database' },
+      ]
+    : [
+        { id: 'general', label: 'General' },
+        { id: 'advanced', label: 'Jobs' },
+        { id: 'database', label: 'Database' },
+      ]);
   readonly activeTab = signal<SettingsTab>('general');
   private readonly autosaveDelayMs = 350;
   private autosaveTimer: ReturnType<typeof setTimeout> | null = null;
@@ -503,8 +510,6 @@ export class SettingsPage implements OnInit, OnDestroy {
   ngOnInit(): void {
     if (!this.databaseOnly) void this.load();
     void this.loadDatabaseStatus();
-    if (!this.databaseOnly) void this.loadHuggingFaceStatus();
-    if (!this.databaseOnly) void this.loadStorageStatus();
   }
 
   async loadStorageStatus(): Promise<void> {
@@ -813,23 +818,23 @@ export class SettingsPage implements OnInit, OnDestroy {
   }
 
   onTabKeydown(event: KeyboardEvent, tab: SettingsTab): void {
-    const currentIndex = this.tabs.findIndex((candidate) => candidate.id === tab);
+    const currentIndex = this.tabs().findIndex((candidate) => candidate.id === tab);
     if (currentIndex < 0) return;
 
     let nextIndex: number | null = null;
     if (event.key === 'ArrowRight' || event.key === 'ArrowDown') {
-      nextIndex = (currentIndex + 1) % this.tabs.length;
+      nextIndex = (currentIndex + 1) % this.tabs().length;
     } else if (event.key === 'ArrowLeft' || event.key === 'ArrowUp') {
-      nextIndex = (currentIndex - 1 + this.tabs.length) % this.tabs.length;
+      nextIndex = (currentIndex - 1 + this.tabs().length) % this.tabs().length;
     } else if (event.key === 'Home') {
       nextIndex = 0;
     } else if (event.key === 'End') {
-      nextIndex = this.tabs.length - 1;
+      nextIndex = this.tabs().length - 1;
     }
 
     if (nextIndex === null) return;
     event.preventDefault();
-    const nextTab = this.tabs[nextIndex];
+    const nextTab = this.tabs()[nextIndex];
     document.getElementById(`settings-tab-${nextTab.id}`)?.focus();
   }
 
@@ -839,6 +844,10 @@ export class SettingsPage implements OnInit, OnDestroy {
     const response = await this.api.getSettings();
     if (response.result) {
       this.applyResponse(response.result);
+      if (response.result.values.inference) {
+        void this.loadHuggingFaceStatus();
+        void this.loadStorageStatus();
+      }
     } else {
       this.loadError.set(response.error ?? 'Unable to load application settings.');
     }

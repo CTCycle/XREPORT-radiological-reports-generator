@@ -1,35 +1,56 @@
 import { CommonModule } from '@angular/common';
-import { Component, EventEmitter, Input, Output } from '@angular/core';
+import { AfterViewChecked, AfterViewInit, Component, DestroyRef, ElementRef, EventEmitter, inject, Input, Output, signal, ViewChild } from '@angular/core';
 import { NgIcon, provideIcons } from '@ng-icons/core';
-import {
-  lucideActivity,
-  lucideClock,
-  lucidePercent,
-  lucideSquare,
-  lucideTarget,
-  lucideTrendingDown,
-} from '@ng-icons/lucide';
+import { lucideActivity, lucideClock, lucideSquare, lucideTarget, lucideTrendingDown } from '@ng-icons/lucide';
 import type { TrainingDashboardState } from '../types';
 
-interface ChartSeries {
-  key: string;
-  label: string;
-  color: string;
-  values: { batch: number; value: number }[];
+export type TrainingSessionState = 'idle' | 'initializing' | 'running' | 'completed' | 'failed' | 'interrupted';
+type LogLevel = 'info' | 'warning' | 'error';
+
+interface ChartPoint { batch: number; value: number; }
+interface SeriesModel { key: string; label: string; role: 'train' | 'validation'; color: string; dashed: boolean; values: ChartPoint[]; path: string; markers: { x: number; y: number }[]; latest: number; }
+interface ChartModel {
+  title: string;
+  unit: 'loss' | 'accuracy';
+  yAxisLabel: string;
+  xMax: number;
+  yMax: number;
+  series: SeriesModel[];
+  yTicks: { y: number; label: string }[];
+  xTicks: { x: number; label: string }[];
+  epochXs: number[];
+}
+interface MetricCard { label: string; value: string | null; tone: 'neutral' | 'loss' | 'accuracy'; icon?: string; }
+interface LogLine { time: string | null; level: LogLevel; message: string; }
+
+const CHART_HEIGHT = 232;
+const MARGIN = { left: 56, right: 16, top: 12, bottom: 42 };
+const LOG_TIMESTAMP = /^\[?(\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}:\d{2}(?:\.\d+)?Z?|\d{2}:\d{2}:\d{2})\]?\s*[-:]?\s*(.*)$/s;
+const RUNNING_PHASES = new Set(['fit_entered', 'first_batch_entered', 'first_batch_completed', 'epoch_completed', 'training_fit_completed']);
+
+function niceScale(max: number, target: number): { step: number; max: number } {
+  const raw = Math.max(max, Number.EPSILON) / target;
+  const magnitude = 10 ** Math.floor(Math.log10(raw));
+  const normalized = raw / magnitude;
+  const step = (normalized <= 1 ? 1 : normalized <= 2 ? 2 : normalized <= 5 ? 5 : 10) * magnitude;
+  return { step, max: Math.ceil(max / step - 1e-9) * step };
 }
 
-interface ChartGroup {
-  title: string;
-  maxBatch: number;
-  maxValue: number;
-  series: ChartSeries[];
+function tickValues(max: number, step: number): number[] {
+  const ticks: number[] = [];
+  for (let value = 0; value <= max + step * 1e-6; value += step) ticks.push(Number(value.toPrecision(10)));
+  return ticks;
+}
+
+function compact(value: number): string {
+  return value >= 10000 ? `${Number((value / 1000).toFixed(1))}k` : String(value);
 }
 
 @Component({
   standalone: true,
   selector: 'app-training-dashboard',
   imports: [CommonModule, NgIcon],
-  providers: [provideIcons({ lucideActivity, lucideClock, lucidePercent, lucideSquare, lucideTarget, lucideTrendingDown })],
+  providers: [provideIcons({ lucideActivity, lucideClock, lucideSquare, lucideTarget, lucideTrendingDown })],
   template: `
     <section class="training-dashboard" aria-labelledby="training-dashboard-title">
       <header class="dashboard-header">
@@ -40,135 +61,209 @@ interface ChartGroup {
             <h2 id="training-dashboard-title">Training Dashboard</h2>
           </div>
         </div>
-        <div class="dashboard-status" [class.training]="statusKind === 'training'" [class.complete]="statusKind === 'complete'" [class.error]="statusKind === 'error'" [class.idle]="statusKind === 'idle'" role="status" aria-live="polite">
-          <span class="status-indicator" [class.training]="statusKind === 'training'" [class.complete]="statusKind === 'complete'" [class.error]="statusKind === 'error'" [class.idle]="statusKind === 'idle'" aria-hidden="true"></span>
-          {{ statusLabel }}
+        <div class="dashboard-controls">
+          <div class="dashboard-status" [ngClass]="sessionState" role="status" aria-live="polite">
+            <span class="status-indicator" aria-hidden="true"></span>
+            {{ statusLabel }}
+          </div>
+          <button type="button" class="btn-stop" (click)="stopRequested.emit()" [disabled]="!dashboardState.isTraining">
+            <ng-icon name="lucideSquare" aria-hidden="true"/>Stop training
+          </button>
         </div>
       </header>
 
-      <div class="dashboard-metrics-row">
-        <div class="dashboard-metrics-grid">
-          <div class="dashboard-metric-card">
-            <div class="metric-label">Epoch</div>
-            <div class="metric-value">{{ dashboardState.currentEpoch }} / {{ dashboardState.totalEpochs || '--' }}</div>
+      <section class="session-progress" aria-label="Training progress">
+        <div class="session-progress-head">
+          <div class="training-phase" aria-live="polite" aria-label="Worker status">
+            <span class="training-phase-label">Current phase</span>
+            <strong class="training-phase-value">{{ phaseLabel }}</strong>
+            @if (showPhaseTime) {
+              <span class="training-phase-time">{{ formatTime(dashboardState.workerPhaseElapsedSeconds ?? 0) }} in phase</span>
+            }
           </div>
-          <div class="dashboard-metric-card">
-            <div class="metric-label"><ng-icon name="lucideTrendingDown" aria-hidden="true"/>Train Loss</div>
-            <div class="metric-value loss">{{ dashboardState.loss | number:'1.3-3' }}</div>
-          </div>
-          <div class="dashboard-metric-card">
-            <div class="metric-label"><ng-icon name="lucideTrendingDown" aria-hidden="true"/>Val Loss</div>
-            <div class="metric-value loss">{{ dashboardState.valLoss | number:'1.3-3' }}</div>
-          </div>
-          <div class="dashboard-metric-card">
-            <div class="metric-label"><ng-icon name="lucideTarget" aria-hidden="true"/>Train Acc</div>
-            <div class="metric-value accuracy">{{ dashboardState.accuracy * 100 | number:'1.3-3' }}%</div>
-          </div>
-          <div class="dashboard-metric-card">
-            <div class="metric-label"><ng-icon name="lucideTarget" aria-hidden="true"/>Val Acc</div>
-            <div class="metric-value accuracy">{{ dashboardState.valAccuracy * 100 | number:'1.3-3' }}%</div>
+          <div class="session-progress-stats">
+            <span class="session-percent">{{ progressLabel }}</span>
+            <span class="session-elapsed" title="Elapsed time"><ng-icon name="lucideClock" aria-hidden="true"/>{{ elapsedLabel }}</span>
           </div>
         </div>
-        <button type="button" class="btn-stop" (click)="stopRequested.emit()" [disabled]="!dashboardState.isTraining">
-          <ng-icon name="lucideSquare" aria-hidden="true"/>Stop training
-        </button>
-      </div>
-
-      <section class="progress-section" aria-label="Training progress">
-        <div class="progress-header">
-          <span class="progress-label"><ng-icon name="lucidePercent" aria-hidden="true"/>Progress: {{ clampedProgress | number:'1.0-0' }}%</span>
-          <span class="progress-time"><ng-icon name="lucideClock" aria-hidden="true"/>{{ formatTime(dashboardState.elapsedSeconds) }}</span>
+        <div class="progress-bar-container" role="progressbar" aria-valuemin="0" aria-valuemax="100" [attr.aria-valuenow]="clampedProgress" [attr.aria-label]="'Training progress: ' + clampedProgress + ' percent'">
+          <div class="progress-bar" [ngClass]="sessionState" [class.indeterminate]="sessionState === 'initializing'" [style.width.%]="sessionState === 'initializing' ? null : clampedProgress"></div>
         </div>
-        <div class="progress-bar-row">
-          <div class="progress-bar-container" role="progressbar" [attr.aria-valuenow]="clampedProgress" aria-valuemin="0" aria-valuemax="100" [attr.aria-label]="'Training progress: ' + clampedProgress + ' percent'">
-            <div class="progress-bar" [style.width.%]="clampedProgress"></div>
-          </div>
-        </div>
-      </section>
-
-      <section class="training-phase" aria-live="polite" aria-label="Worker status">
-        <div class="training-phase-label">Current phase</div>
-        <div class="training-phase-value">{{ phaseLabel }}</div>
-        @if (dashboardState.workerPhaseElapsedSeconds !== undefined) {
-          <div class="training-phase-time">{{ formatTime(dashboardState.workerPhaseElapsedSeconds) }} in phase</div>
-        }
       </section>
 
       @if (error) {
         <div class="training-error" role="alert">{{ error }}</div>
       }
 
+      <div class="dashboard-metrics-grid">
+        @for (card of metricCards; track card.label) {
+          <div class="dashboard-metric-card">
+            <div class="metric-label">
+              @if (card.icon) { <ng-icon [name]="card.icon" aria-hidden="true"/> }{{ card.label }}
+            </div>
+            @if (card.value !== null) {
+              <div class="metric-value" [ngClass]="card.tone">{{ card.value }}</div>
+            } @else {
+              <div class="metric-value unavailable" title="Not available yet">—<span class="sr-only">Not available</span></div>
+            }
+          </div>
+        }
+      </div>
+
       <div class="training-charts-container">
-        @if (chartGroups.length) {
-          @for (chart of chartGroups; track chart.title) {
-            <div class="chart-section">
-              <div class="chart-title">{{ chart.title }}</div>
-              <svg class="training-chart" viewBox="0 0 640 240" role="img" [attr.aria-labelledby]="chartId(chart.title)">
-                <title [attr.id]="chartId(chart.title)">{{ chart.title }} training chart</title>
-                <line x1="48" y1="24" x2="48" y2="210" stroke="currentColor" opacity=".25"/>
-                <line x1="48" y1="210" x2="620" y2="210" stroke="currentColor" opacity=".25"/>
-                @for (tick of chartTicks(chart.maxValue); track tick) {
-                  <line class="chart-y-grid-line" x1="48" [attr.y1]="chartTickY(tick, chart.maxValue)" x2="620" [attr.y2]="chartTickY(tick, chart.maxValue)"/>
-                  <text class="chart-y-axis-label" x="42" [attr.y]="chartTickY(tick, chart.maxValue) + 4" text-anchor="end">{{ chartTickLabel(chart.title, tick) }}</text>
-                }
-                @for (boundary of dashboardState.epochBoundaries; track boundary) {
-                  <line [attr.x1]="chartX(boundary, chart.maxBatch)" y1="24" [attr.x2]="chartX(boundary, chart.maxBatch)" y2="210" stroke="currentColor" opacity=".25" stroke-dasharray="4 4"/>
-                }
-                @for (series of chart.series; track series.key) {
-                  <polyline [attr.points]="chartPoints(series.values, chart.maxValue, chart.maxBatch)" fill="none" [attr.stroke]="series.color" stroke-width="2" [attr.aria-label]="series.label"/>
-                }
-                @for (tick of chartXTicks(chart.maxBatch); track tick) {
-                  <line class="chart-x-tick" [attr.x1]="chartX(tick, chart.maxBatch)" y1="210" [attr.x2]="chartX(tick, chart.maxBatch)" y2="214"/>
-                  <text class="chart-x-axis-label" [attr.x]="chartX(tick, chart.maxBatch)" y="232" text-anchor="middle">{{ tick }}</text>
-                }
-              </svg>
+        @for (chart of chartModels; track chart.title) {
+          <div class="chart-section">
+            <div class="chart-heading">
+              <h3 class="chart-title">{{ chart.title }}</h3>
               <div class="chart-legend" aria-label="Chart legend">
                 @for (series of chart.series; track series.key) {
-                  <span><i [style.background]="series.color" aria-hidden="true"></i>{{ series.label }}</span>
+                  <span class="legend-item">
+                    <svg class="legend-swatch" width="22" height="8" viewBox="0 0 22 8" aria-hidden="true"><line x1="0" y1="4" x2="22" y2="4" [attr.stroke]="series.color" stroke-width="2" [attr.stroke-dasharray]="series.dashed ? '5 3' : null"/></svg>
+                    {{ series.label }}<b>{{ formatValue(chart.unit, series.latest) }}</b>
+                  </span>
+                }
+                @if (chart.epochXs.length) {
+                  <span class="legend-item muted"><svg class="legend-swatch" width="22" height="8" viewBox="0 0 22 8" aria-hidden="true"><line x1="11" y1="0" x2="11" y2="8" stroke="currentColor" stroke-width="1" stroke-dasharray="2 2"/></svg>Epoch end</span>
                 }
               </div>
             </div>
-          }
-        } @else {
-          @for (title of emptyChartTitles; track title) {
-            <div class="chart-section">
-              <div class="chart-title">{{ title }}</div>
-              <div class="chart-placeholder">Waiting for training data...</div>
+            <div class="chart-frame">
+              <svg class="training-chart" tabindex="0" role="img" [attr.width]="chartWidth()" [attr.height]="chartHeight" [attr.viewBox]="'0 0 ' + chartWidth() + ' ' + chartHeight" [attr.aria-label]="chartLabel(chart)"
+                (mousemove)="onChartMove($event, chart)" (mouseleave)="hover.set(null)" (keydown)="onChartKey($event, chart)" (blur)="hover.set(null)">
+                @for (tick of chart.yTicks; track tick.y) {
+                  <line class="chart-y-grid-line" [attr.x1]="plotLeft" [attr.y1]="tick.y" [attr.x2]="plotRight()" [attr.y2]="tick.y"/>
+                  <text class="chart-axis-label" [attr.x]="plotLeft - 8" [attr.y]="tick.y + 4" text-anchor="end">{{ tick.label }}</text>
+                }
+                <line class="chart-axis-line" [attr.x1]="plotLeft" [attr.y1]="plotBottom" [attr.x2]="plotRight()" [attr.y2]="plotBottom"/>
+                @for (tick of chart.xTicks; track tick.x) {
+                  <line class="chart-axis-line" [attr.x1]="tick.x" [attr.y1]="plotBottom" [attr.x2]="tick.x" [attr.y2]="plotBottom + 4"/>
+                  <text class="chart-axis-label" [attr.x]="tick.x" [attr.y]="plotBottom + 17" text-anchor="middle">{{ tick.label }}</text>
+                }
+                <text class="chart-axis-title" [attr.x]="(plotLeft + plotRight()) / 2" [attr.y]="chartHeight - 4" text-anchor="middle">Training step (batch)</text>
+                <text class="chart-axis-title" text-anchor="middle" [attr.transform]="'translate(12 ' + ((plotTop + plotBottom) / 2) + ') rotate(-90)'">{{ chart.yAxisLabel }}</text>
+                @for (x of chart.epochXs; track x) {
+                  <line class="chart-epoch-line" [attr.x1]="x" [attr.y1]="plotTop" [attr.x2]="x" [attr.y2]="plotBottom"/>
+                }
+                @for (series of chart.series; track series.key) {
+                  @if (series.values.length > 1) {
+                    <path class="chart-series-line" [attr.d]="series.path" [attr.stroke]="series.color" [attr.stroke-dasharray]="series.dashed ? '6 4' : null"/>
+                  }
+                  @for (marker of series.markers; track $index) {
+                    <circle class="chart-marker" [attr.cx]="marker.x" [attr.cy]="marker.y" [attr.r]="3" [attr.fill]="series.color"/>
+                  }
+                }
+                @if (hoverBatch(chart); as batch) {
+                  <line class="chart-crosshair" [attr.x1]="batchX(batch.value, chart)" [attr.y1]="plotTop" [attr.x2]="batchX(batch.value, chart)" [attr.y2]="plotBottom"/>
+                  @for (row of hoverRows(chart, batch.value); track row.label) {
+                    <circle class="chart-hover-dot" [attr.cx]="batchX(row.batch, chart)" [attr.cy]="valueY(row.value, chart)" r="4.5" [attr.stroke]="row.color"/>
+                  }
+                }
+              </svg>
+              @if (hoverBatch(chart); as batch) {
+                <div class="chart-tooltip" [class.flip]="batchX(batch.value, chart) > chartWidth() * 0.6" [style.left.px]="batchX(batch.value, chart)" role="presentation">
+                  <div class="chart-tooltip-title">Step {{ batch.value | number }}</div>
+                  @for (row of hoverRows(chart, batch.value); track row.label) {
+                    <div class="chart-tooltip-row"><i [style.background]="row.color" aria-hidden="true"></i><span>{{ row.label }}</span><b>{{ formatValue(chart.unit, row.value) }}</b>@if (row.batch !== batch.value) { <small>step {{ row.batch | number }}</small> }</div>
+                  }
+                </div>
+              }
+              @if (!chart.series.length) {
+                <div class="chart-empty">{{ emptyChartMessage }}</div>
+              }
             </div>
-          }
+          </div>
         }
       </div>
 
       <section class="dashboard-logs" aria-labelledby="training-log-title">
-        <div class="log-header" id="training-log-title">Training log</div>
-        @if (dashboardState.logEntries.length) {
-          <pre class="log-body">{{ dashboardState.logEntries.join('\n') }}</pre>
+        <div class="log-header">
+          <h3 class="section-heading" id="training-log-title">Training log</h3>
+          @if (logLines.length) { <span class="log-count">{{ logLines.length }} {{ logLines.length === 1 ? 'entry' : 'entries' }}</span> }
+        </div>
+        @if (logLines.length) {
+          <ol #logList class="log-list" role="log" aria-labelledby="training-log-title" tabindex="0" (scroll)="onLogScroll()">
+            @for (line of logLines; track $index) {
+              <li class="log-line" [ngClass]="line.level">
+                <time class="log-time">{{ line.time ?? '' }}</time>
+                <span class="log-level">{{ line.level === 'info' ? '' : line.level === 'warning' ? 'WARN' : 'ERROR' }}</span>
+                <span class="log-message">{{ line.message }}</span>
+              </li>
+            }
+          </ol>
         } @else {
-          <div class="log-empty">No training output yet.</div>
+          <div class="log-empty">{{ sessionState === 'idle' ? 'Training output appears here once a run starts.' : 'Waiting for training output…' }}</div>
         }
       </section>
     </section>
   `,
   styleUrl: '../styles/TrainingDashboard.css',
 })
-export class TrainingDashboardComponent {
+export class TrainingDashboardComponent implements AfterViewInit, AfterViewChecked {
   @Input({ required: true }) dashboardState!: TrainingDashboardState;
   @Input() error: string | null = null;
   @Output() readonly stopRequested = new EventEmitter<void>();
+  @ViewChild('logList') private logList?: ElementRef<HTMLElement>;
 
-  readonly emptyChartTitles = ['Loss', 'Accuracy'];
+  private readonly host = inject<ElementRef<HTMLElement>>(ElementRef);
+  private readonly destroyRef = inject(DestroyRef);
+  readonly chartHeight = CHART_HEIGHT;
+  readonly plotLeft = MARGIN.left;
+  readonly plotTop = MARGIN.top;
+  readonly plotBottom = CHART_HEIGHT - MARGIN.bottom;
+  readonly chartWidth = signal(640);
+  readonly hover = signal<{ title: string; batch: number } | null>(null);
+  private modelCache: { data: unknown; metrics: unknown; epochs: unknown; width: number; models: ChartModel[] } | null = null;
+  private logCache: { entries: string[]; lines: LogLine[] } | null = null;
+  private stickToLogEnd = true;
+  private renderedLogCount = 0;
 
-  get statusKind(): 'training' | 'complete' | 'error' | 'idle' {
-    if (this.dashboardState.isTraining) return 'training';
-    if (this.error) return 'error';
-    return this.dashboardState.currentEpoch > 0 ? 'complete' : 'idle';
+  ngAfterViewInit(): void {
+    if (typeof ResizeObserver === 'undefined') return;
+    const observer = new ResizeObserver(() => {
+      const frame = this.host.nativeElement.querySelector<HTMLElement>('.chart-frame');
+      const width = frame ? Math.floor(frame.clientWidth) : 0;
+      if (width >= 240 && width !== this.chartWidth()) this.chartWidth.set(width);
+    });
+    observer.observe(this.host.nativeElement);
+    this.destroyRef.onDestroy(() => observer.disconnect());
+  }
+
+  ngAfterViewChecked(): void {
+    const list = this.logList?.nativeElement;
+    if (!list || this.renderedLogCount === this.logLines.length) return;
+    this.renderedLogCount = this.logLines.length;
+    if (this.stickToLogEnd) list.scrollTop = list.scrollHeight;
+  }
+
+  onLogScroll(): void {
+    const list = this.logList?.nativeElement;
+    if (list) this.stickToLogEnd = list.scrollTop + list.clientHeight >= list.scrollHeight - 8;
+  }
+
+  /** Session lifecycle: the polled job status wins, with a fallback inferred from the dashboard fields. */
+  get sessionState(): TrainingSessionState {
+    const state = this.dashboardState;
+    switch (state.sessionStatus) {
+      case 'cancelled': return 'interrupted';
+      case 'failed': return 'failed';
+      case 'completed': return 'completed';
+      case 'pending': return 'initializing';
+      case 'running': return this.hasStartedFitting ? 'running' : 'initializing';
+      default: break;
+    }
+    if (state.isTraining) return this.hasStartedFitting ? 'running' : 'initializing';
+    if (this.error) return 'failed';
+    return state.currentEpoch > 0 ? 'completed' : 'idle';
+  }
+
+  private get hasStartedFitting(): boolean {
+    const state = this.dashboardState;
+    return state.currentEpoch > 0 || state.chartData.length > 0 || RUNNING_PHASES.has(state.workerPhase ?? '');
   }
 
   get statusLabel(): string {
-    if (this.statusKind === 'training') return 'Training in progress';
-    if (this.statusKind === 'error') return 'Failed';
-    if (this.statusKind === 'complete') return 'Complete';
-    return 'Idle';
+    const labels: Record<TrainingSessionState, string> = { idle: 'Idle', initializing: 'Initializing', running: 'Running', completed: 'Completed', failed: 'Failed', interrupted: 'Interrupted' };
+    return labels[this.sessionState];
   }
 
   get phaseLabel(): string {
@@ -206,29 +301,182 @@ export class TrainingDashboardComponent {
     return labels[phase] ?? phase.replaceAll('_', ' ');
   }
 
+  get showPhaseTime(): boolean {
+    return this.sessionState === 'initializing' || this.sessionState === 'running';
+  }
+
   get clampedProgress(): number {
     return Math.max(0, Math.min(100, this.dashboardState.progressPercent || 0));
   }
 
-  get chartGroups(): ChartGroup[] {
-    const data = this.dashboardState.chartData;
-    if (!data.length) return [];
-    const groups = [
-      { title: 'Loss', keys: this.dashboardState.availableMetrics.filter((key) => key.toLowerCase().includes('loss')), fallback: ['loss', 'val_loss'] },
-      { title: 'Accuracy', keys: this.dashboardState.availableMetrics.filter((key) => key.toLowerCase().includes('accuracy')), fallback: ['MaskedAccuracy', 'val_MaskedAccuracy'] },
+  get progressLabel(): string {
+    const state = this.sessionState;
+    if (state === 'idle') return 'Not started';
+    if (state === 'initializing') return 'Initializing…';
+    return `${Number(this.clampedProgress.toFixed(1))}%`;
+  }
+
+  get elapsedLabel(): string {
+    return this.sessionState === 'idle' ? '—' : this.formatTime(this.dashboardState.elapsedSeconds);
+  }
+
+  private hasMetric(key: string): boolean {
+    const state = this.dashboardState;
+    return state.currentEpoch > 0 || state.chartData.some((point) => typeof point[key] === 'number');
+  }
+
+  get metricCards(): MetricCard[] {
+    const state = this.dashboardState;
+    const loss = (value: number, key: string) => this.hasMetric(key) ? value.toFixed(4) : null;
+    const accuracy = (value: number, key: string) => this.hasMetric(key) ? `${(value * 100).toFixed(2)}%` : null;
+    const total = state.totalEpochs > 0 ? String(state.totalEpochs) : '—';
+    return [
+      { label: 'Epoch', value: this.sessionState === 'idle' ? null : `${state.currentEpoch} / ${total}`, tone: 'neutral' },
+      { label: 'Train loss', value: loss(state.loss, 'loss'), tone: 'loss', icon: 'lucideTrendingDown' },
+      { label: 'Val loss', value: loss(state.valLoss, 'val_loss'), tone: 'loss', icon: 'lucideTrendingDown' },
+      { label: 'Train acc', value: accuracy(state.accuracy, 'MaskedAccuracy'), tone: 'accuracy', icon: 'lucideTarget' },
+      { label: 'Val acc', value: accuracy(state.valAccuracy, 'val_MaskedAccuracy'), tone: 'accuracy', icon: 'lucideTarget' },
     ];
-    return groups.map((group) => {
-      const keys = group.keys.length ? group.keys : group.fallback.filter((key) => data.some((point) => typeof point[key] === 'number'));
-      const series = keys.map((key, index) => ({
-        key,
-        label: key.replaceAll('_', ' '),
-        color: index === 0 ? 'var(--chart-primary)' : 'var(--chart-secondary)',
-        values: data.flatMap((point) => typeof point[key] === 'number' ? [{ batch: point.batch, value: point[key] as number }] : []),
-      })).filter((item) => item.values.length);
-      const maxBatch = Math.max(...data.map((point) => point.batch), 1);
-      const maxValue = Math.max(...series.flatMap((item) => item.values.map((point) => point.value)), 1);
-      return { title: group.title, maxBatch, maxValue, series };
-    }).filter((group) => group.series.length);
+  }
+
+  get emptyChartMessage(): string {
+    switch (this.sessionState) {
+      case 'idle': return 'Charts appear once a training run starts.';
+      case 'initializing': return 'Preparing the run. Metrics appear after the first batch.';
+      case 'running': return 'Waiting for the first batch to complete…';
+      case 'failed': return 'The run failed before any metrics were recorded.';
+      case 'interrupted': return 'The run was stopped before any metrics were recorded.';
+      default: return 'No metrics were recorded for this run.';
+    }
+  }
+
+  plotRight(): number {
+    return this.chartWidth() - MARGIN.right;
+  }
+
+  get chartModels(): ChartModel[] {
+    const { chartData, availableMetrics, epochBoundaries } = this.dashboardState;
+    const width = this.chartWidth();
+    const cached = this.modelCache;
+    if (cached && cached.data === chartData && cached.metrics === availableMetrics && cached.epochs === epochBoundaries && cached.width === width) return cached.models;
+    const xMax = Math.max(...chartData.map((point) => point.batch), 1);
+    const models = (['loss', 'accuracy'] as const).map((unit) => this.buildChart(unit, xMax, width));
+    this.modelCache = { data: chartData, metrics: availableMetrics, epochs: epochBoundaries, width, models };
+    return models;
+  }
+
+  private buildChart(unit: 'loss' | 'accuracy', xMax: number, width: number): ChartModel {
+    const { chartData, availableMetrics, epochBoundaries } = this.dashboardState;
+    const needle = unit === 'loss' ? 'loss' : 'accuracy';
+    const fallback = unit === 'loss' ? ['loss', 'val_loss'] : ['MaskedAccuracy', 'val_MaskedAccuracy'];
+    const named = availableMetrics.filter((key) => key.toLowerCase().includes(needle));
+    const keys = (named.length ? named : fallback).filter((key) => chartData.some((point) => typeof point[key] === 'number'));
+    const scale = unit === 'accuracy' ? 100 : 1;
+    const raw = keys.map((key) => ({
+      key,
+      role: key.toLowerCase().startsWith('val') ? 'validation' as const : 'train' as const,
+      values: chartData.flatMap((point) => { const value = point[key]; return typeof value === 'number' && Number.isFinite(value) && Number.isFinite(point.batch) ? [{ batch: point.batch, value: value * scale }] : []; }).sort((a, b) => a.batch - b.batch),
+    })).filter((item) => item.values.length).sort((a, b) => Number(a.role === 'validation') - Number(b.role === 'validation'));
+    const dataMax = Math.max(...raw.flatMap((item) => item.values.map((point) => point.value)), 0);
+    const scaled = raw.length ? niceScale(Math.max(dataMax * 1.05, unit === 'accuracy' ? 1 : 0.1), 4) : niceScale(unit === 'accuracy' ? 100 : 1, 4);
+    const yMax = unit === 'accuracy' && dataMax <= 100 ? Math.min(scaled.max, 100) : scaled.max;
+    const decimals = scaled.step >= 1 ? 0 : Math.min(4, Math.ceil(-Math.log10(scaled.step)));
+    const px = (batch: number) => MARGIN.left + (batch / xMax) * (width - MARGIN.left - MARGIN.right);
+    const py = (value: number) => this.plotBottom - (Math.min(value, yMax) / yMax) * (this.plotBottom - MARGIN.top);
+    const xScale = niceScale(xMax, 6);
+    const roleCounts = raw.reduce<Record<string, number>>((counts, item) => ({ ...counts, [item.role]: (counts[item.role] ?? 0) + 1 }), {});
+    const series: SeriesModel[] = raw.map((item) => {
+      const base = item.role === 'train' ? 'Training' : 'Validation';
+      const validation = item.role === 'validation';
+      return {
+        key: item.key,
+        label: roleCounts[item.role] > 1 ? `${base} (${item.key.replaceAll('_', ' ')})` : base,
+        role: item.role,
+        color: validation ? 'var(--chart-secondary)' : 'var(--chart-primary)',
+        dashed: validation,
+        values: item.values,
+        path: item.values.map((point, index) => `${index ? 'L' : 'M'}${px(point.batch).toFixed(1)} ${py(point.value).toFixed(1)}`).join(' '),
+        markers: (validation || item.values.length <= 30 ? item.values : item.values.slice(-1)).map((point) => ({ x: px(point.batch), y: py(point.value) })),
+        latest: item.values[item.values.length - 1].value,
+      };
+    });
+    return {
+      title: unit === 'loss' ? 'Loss' : 'Accuracy',
+      unit,
+      yAxisLabel: unit === 'loss' ? 'Loss' : 'Accuracy (%)',
+      xMax,
+      yMax,
+      series,
+      yTicks: tickValues(yMax, scaled.step).map((value) => ({ y: py(value), label: unit === 'accuracy' ? `${value}%` : value.toFixed(decimals) })),
+      xTicks: raw.length ? tickValues(xMax, xScale.step).filter((value) => value <= xMax).map((value) => ({ x: px(value), label: compact(value) })) : [],
+      epochXs: series.length ? epochBoundaries.filter((boundary) => boundary > 0 && boundary < xMax).map(px) : [],
+    };
+  }
+
+  formatValue(unit: 'loss' | 'accuracy', value: number): string {
+    return unit === 'loss' ? value.toFixed(4) : `${value.toFixed(2)}%`;
+  }
+
+  chartLabel(chart: ChartModel): string {
+    if (!chart.series.length) return `${chart.title} chart. ${this.emptyChartMessage}`;
+    return `${chart.title} chart over ${chart.xMax} training steps. ${chart.series.map((series) => `${series.label} latest ${this.formatValue(chart.unit, series.latest)}`).join('; ')}. Use left and right arrow keys to inspect values.`;
+  }
+
+  batchX(batch: number, chart: ChartModel): number {
+    return MARGIN.left + (batch / chart.xMax) * (this.chartWidth() - MARGIN.left - MARGIN.right);
+  }
+
+  valueY(value: number, chart: ChartModel): number {
+    return this.plotBottom - (Math.min(value, chart.yMax) / chart.yMax) * (this.plotBottom - MARGIN.top);
+  }
+
+  hoverBatch(chart: ChartModel): { value: number } | null {
+    const hover = this.hover();
+    return hover && hover.title === chart.title && chart.series.length ? { value: hover.batch } : null;
+  }
+
+  hoverRows(chart: ChartModel, batch: number): { label: string; color: string; value: number; batch: number }[] {
+    return chart.series.map((series) => {
+      const point = series.values.reduce((best, candidate) => Math.abs(candidate.batch - batch) < Math.abs(best.batch - batch) ? candidate : best);
+      return { label: series.label, color: series.color, value: point.value, batch: point.batch };
+    });
+  }
+
+  private chartBatches(chart: ChartModel): number[] {
+    return [...new Set(chart.series.flatMap((series) => series.values.map((point) => point.batch)))].sort((a, b) => a - b);
+  }
+
+  onChartMove(event: MouseEvent, chart: ChartModel): void {
+    if (!chart.series.length) return;
+    const rect = (event.currentTarget as SVGSVGElement).getBoundingClientRect();
+    const x = (event.clientX - rect.left) * (this.chartWidth() / Math.max(rect.width, 1));
+    const target = ((x - MARGIN.left) / (this.chartWidth() - MARGIN.left - MARGIN.right)) * chart.xMax;
+    const batch = this.chartBatches(chart).reduce((best, candidate) => Math.abs(candidate - target) < Math.abs(best - target) ? candidate : best);
+    this.hover.set({ title: chart.title, batch });
+  }
+
+  onChartKey(event: KeyboardEvent, chart: ChartModel): void {
+    const batches = this.chartBatches(chart);
+    if (!batches.length) return;
+    if (event.key === 'Escape') { this.hover.set(null); return; }
+    const current = this.hover()?.title === chart.title ? batches.indexOf(this.hover()!.batch) : -1;
+    const index = event.key === 'ArrowRight' ? Math.min(batches.length - 1, current + 1) : event.key === 'ArrowLeft' ? Math.max(0, current < 0 ? batches.length - 1 : current - 1) : event.key === 'Home' ? 0 : event.key === 'End' ? batches.length - 1 : -2;
+    if (index === -2) return;
+    event.preventDefault();
+    this.hover.set({ title: chart.title, batch: batches[index] });
+  }
+
+  get logLines(): LogLine[] {
+    const entries = this.dashboardState.logEntries;
+    if (this.logCache?.entries === entries) return this.logCache.lines;
+    const lines = entries.map((entry): LogLine => {
+      const match = LOG_TIMESTAMP.exec(entry);
+      const message = match ? match[2] : entry;
+      const level: LogLevel = /\b(error|failed|failure|exception|traceback|fatal)\b/i.test(message) ? 'error' : /\b(warn(?:ing)?|deprecated|cancel(?:l)?ed)\b/i.test(message) ? 'warning' : 'info';
+      return { time: match ? match[1] : null, level, message };
+    });
+    this.logCache = { entries, lines };
+    return lines;
   }
 
   formatTime(seconds: number): string {
@@ -239,48 +487,5 @@ export class TrainingDashboardComponent {
     if (hrs > 0) return `${hrs}h ${mins}m ${secs}s`;
     if (mins > 0) return `${mins}m ${secs}s`;
     return `${secs}s`;
-  }
-
-  chartId(title: string): string {
-    return `training-chart-${title.toLowerCase()}`;
-  }
-
-  chartX(batch: number, maxBatch: number): number {
-    return 48 + Math.max(0, Math.min(1, batch / Math.max(maxBatch, 1))) * 572;
-  }
-
-  chartXTicks(maxBatch: number): number[] {
-    const safeMax = Math.max(1, Math.ceil(maxBatch));
-    const step = safeMax <= 12 ? 1 : safeMax <= 24 ? 2 : safeMax <= 60 ? 5 : safeMax <= 120 ? 10 : this.scaledChartXTickStep(safeMax);
-    const ticks = [0];
-    for (let value = step; value < safeMax; value += step) ticks.push(value);
-    if (ticks[ticks.length - 1] !== safeMax) ticks.push(safeMax);
-    return ticks;
-  }
-
-  private scaledChartXTickStep(maxBatch: number): number {
-    const rawStep = maxBatch / 12;
-    const magnitude = 10 ** Math.floor(Math.log10(rawStep));
-    const normalized = rawStep / magnitude;
-    const niceStep = normalized <= 1 ? 1 : normalized <= 2 ? 2 : normalized <= 5 ? 5 : 10;
-    return niceStep * magnitude;
-  }
-
-  chartTicks(maxValue: number): number[] {
-    const safeMax = Math.max(maxValue, 1);
-    return [safeMax, safeMax / 2, 0];
-  }
-
-  chartTickY(value: number, maxValue: number): number {
-    return 210 - (Math.max(0, Math.min(1, value / Math.max(maxValue, 1))) * 186);
-  }
-
-  chartTickLabel(title: string, value: number): string {
-    if (title === 'Accuracy') return `${Math.round(value * 100)}%`;
-    return value.toFixed(value >= 10 ? 0 : 2);
-  }
-
-  chartPoints(values: { batch: number; value: number }[], maxValue: number, maxBatch: number): string {
-    return values.map((point) => `${this.chartX(point.batch, maxBatch)},${210 - Math.max(0, Math.min(1, point.value / Math.max(maxValue, 1))) * 186}`).join(' ');
   }
 }

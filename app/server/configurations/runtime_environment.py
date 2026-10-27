@@ -21,6 +21,20 @@ class RuntimeEnvironmentSettings:
     inference_hf_local_only: bool
     inference_device: InferenceDevice
     cors: CorsSettings
+    dataset_upload_max_bytes: int
+
+
+def _environment_positive_int(name: str, default: int) -> int:
+    value = os.getenv(name)
+    if value is None or not value.strip():
+        return default
+    try:
+        parsed = int(value.strip())
+    except ValueError:
+        raise ValueError(f"{name} must be a positive integer") from None
+    if parsed < 1:
+        raise ValueError(f"{name} must be a positive integer")
+    return parsed
 
 
 def _environment_bool(name: str, default: bool) -> bool:
@@ -70,4 +84,9 @@ def get_runtime_environment_settings() -> RuntimeEnvironmentSettings:
                 "Authorization,Content-Type,X-XREPORT-Desktop-Token",
             ),
         ),
+        dataset_upload_max_bytes=_environment_positive_int(
+            "DATASET_UPLOAD_MAX_MB", 512
+        )
+        * 1024
+        * 1024,
     )

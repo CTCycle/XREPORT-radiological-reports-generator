@@ -238,10 +238,33 @@ describe('SettingsPage', () => {
     expect(element.querySelector('#database-sqlite-path')).not.toBeNull();
   });
 
+  it('shows only Studio-relevant tabs and skips inference-only requests for Studio', async () => {
+    const studio = settingsResponse() as { values: Record<string, unknown>; defaults: Record<string, unknown> };
+    studio.values['inference'] = null;
+    studio.defaults['inference'] = null;
+    api.getSettings.mockResolvedValue({ result: studio, error: null });
+    const fixture = TestBed.createComponent(SettingsPage);
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges();
+    const element = fixture.nativeElement as HTMLElement;
+
+    const labels = Array.from(element.querySelectorAll('.settings-tab')).map((tab) => tab.textContent?.trim());
+    expect(labels).toEqual(['General', 'Jobs', 'Database']);
+    expect(api.getHuggingFaceAccess).not.toHaveBeenCalled();
+    expect(api.getStorage).not.toHaveBeenCalled();
+
+    (element.querySelector('#settings-tab-advanced') as HTMLButtonElement).click();
+    fixture.detectChanges();
+    expect(element.querySelector('#polling-interval')).not.toBeNull();
+    expect(element.querySelector('#inference-timeout')).toBeNull();
+  });
+
   it('saves the Hugging Face token once, clears the field, and offers removal', async () => {
     const fixture = TestBed.createComponent(SettingsPage);
     fixture.detectChanges();
     await fixture.whenStable();
+    await new Promise((resolve) => setTimeout(resolve));
     fixture.detectChanges();
     const page = fixture.componentInstance;
     const element = fixture.nativeElement as HTMLElement;
@@ -266,6 +289,7 @@ describe('SettingsPage', () => {
     const fixture = TestBed.createComponent(SettingsPage);
     fixture.detectChanges();
     await fixture.whenStable();
+    await new Promise((resolve) => setTimeout(resolve));
     fixture.detectChanges();
     const page = fixture.componentInstance;
     const element = fixture.nativeElement as HTMLElement;

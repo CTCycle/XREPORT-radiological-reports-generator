@@ -97,6 +97,26 @@ describe('DatasetTrainingJourneyComponent', () => {
     openCheckpoint.click();
     expect(fixture.componentInstance.route).toBe('/training');
   });
+
+  it('shows a short unavailable state with locked steps when a status call fails', async () => {
+    const datasetApi = { ...emptyDatasetApi(), getStatus: () => Promise.resolve({ result: null, error: '0 Unknown Error: {}' }) };
+
+    await TestBed.configureTestingModule({
+      imports: [JourneyHostComponent],
+      providers: [{ provide: DatasetApiService, useValue: datasetApi }, { provide: TrainingApiService, useValue: emptyTrainingApi() }, { provide: JobsApiService, useValue: emptyJobsApi() }],
+    }).compileComponents();
+
+    const fixture = TestBed.createComponent(JourneyHostComponent);
+    fixture.detectChanges();
+    await fixture.whenStable();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    fixture.detectChanges();
+
+    const text = fixture.nativeElement.textContent as string;
+    expect(text).toContain('Live status unavailable');
+    expect(text).not.toContain('Unknown Error');
+    expect(fixture.nativeElement.querySelector('.guidance-journey-step.is-current')).toBeTruthy();
+  });
 });
 
 const dashboardState = (): TrainingDashboardState => ({
@@ -130,16 +150,61 @@ class DashboardHostComponent {
 }
 
 describe('TrainingDashboardComponent', () => {
-  it('shows a distinct zero-progress initialization phase and keeps stop disabled', async () => {
+  it('shows unavailable metrics as placeholders rather than zeros while idle and keeps stop disabled', async () => {
     await TestBed.configureTestingModule({ imports: [DashboardHostComponent] }).compileComponents();
 
     const fixture = TestBed.createComponent(DashboardHostComponent);
     fixture.detectChanges();
 
-    expect(fixture.nativeElement.textContent).toContain('Waiting to start');
-    expect(fixture.nativeElement.textContent).toContain('0s in phase');
+    const text = fixture.nativeElement.textContent as string;
+    expect(text).toContain('Waiting to start');
+    expect(text).toContain('Idle');
+    expect(text).not.toContain('0.0000');
+    expect(fixture.nativeElement.querySelectorAll('.metric-value.unavailable').length).toBe(5);
     expect(fixture.nativeElement.querySelector('[role="progressbar"]').getAttribute('aria-valuenow')).toBe('0');
     expect((fixture.nativeElement.querySelector('.btn-stop') as HTMLButtonElement).disabled).toBe(true);
+  });
+
+  it.each([
+    ['pending', 'Initializing'],
+    ['failed', 'Failed'],
+    ['cancelled', 'Interrupted'],
+    ['completed', 'Completed'],
+  ] as const)('labels a %s job as %s', async (sessionStatus, label) => {
+    await TestBed.configureTestingModule({ imports: [DashboardHostComponent] }).compileComponents();
+
+    const fixture = TestBed.createComponent(DashboardHostComponent);
+    fixture.componentInstance.state = { ...dashboardState(), sessionStatus, isTraining: sessionStatus === 'pending' };
+    fixture.detectChanges();
+
+    expect(fixture.nativeElement.querySelector('.dashboard-status').textContent).toContain(label);
+  });
+
+  it('renders real zero-valued metrics once training data exists and plots both series', async () => {
+    await TestBed.configureTestingModule({ imports: [DashboardHostComponent] }).compileComponents();
+
+    const fixture = TestBed.createComponent(DashboardHostComponent);
+    fixture.componentInstance.state = {
+      ...dashboardState(),
+      isTraining: true,
+      sessionStatus: 'running',
+      currentEpoch: 1,
+      totalEpochs: 3,
+      loss: 0,
+      accuracy: 0.5,
+      chartData: [{ batch: 1, loss: 2, val_loss: 2.5 }, { batch: 2, loss: 1.5 }, { batch: 3, loss: 1.2, val_loss: 1.4 }],
+      availableMetrics: ['loss', 'val_loss'],
+      logEntries: ['10:00:01 Epoch started', 'WARNING: slow dataloader', 'Training failed: out of memory'],
+    };
+    fixture.detectChanges();
+
+    const text = fixture.nativeElement.textContent as string;
+    expect(text).toContain('0.0000');
+    expect(text).toContain('50.00%');
+    expect(fixture.nativeElement.querySelectorAll('.chart-series-line').length).toBe(2);
+    expect(fixture.nativeElement.querySelector('.log-line.warning')).toBeTruthy();
+    expect(fixture.nativeElement.querySelector('.log-line.error')).toBeTruthy();
+    expect(fixture.nativeElement.querySelector('.log-time').textContent).toBe('10:00:01');
   });
 
   it('renders the active worker phase and a terminal error accessibly', async () => {

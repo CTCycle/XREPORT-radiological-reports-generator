@@ -1,3 +1,4 @@
+import type { JobLifecycleStatus } from './types/jobs';
 import {
     DatasetNamesResponse,
     DatasetStatusResponse,
@@ -90,6 +91,7 @@ export interface ChartDataPoint {
 
 export interface TrainingDashboardState {
     isTraining: boolean;
+    sessionStatus?: JobLifecycleStatus;
     currentEpoch: number;
     totalEpochs: number;
     loss: number;

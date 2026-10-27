@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 from server.common.utils.security import validate_checkpoint_name
-from server.services.upload import UploadService, UploadState, MAX_DATASET_UPLOAD_BYTES
+from server.services.upload import UploadService, UploadState
+
+MAX_DATASET_UPLOAD_BYTES = 1024 * 1024
 from pathlib import Path
 from types import SimpleNamespace
 import pandas as pd
@@ -307,6 +309,7 @@ def test_validate_img_paths_fails_closed_for_deleted_images(tmp_path: Path) -> N
 
 ###############################################################################
 def test_upload_accepts_exact_payload_limit(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("DATASET_UPLOAD_MAX_MB", "1")
     state = UploadState()
     service = UploadService(state)
     parser_called = False
@@ -329,6 +332,7 @@ def test_upload_accepts_exact_payload_limit(monkeypatch: pytest.MonkeyPatch) -> 
 def test_upload_rejects_payload_over_limit_before_parsing(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    monkeypatch.setenv("DATASET_UPLOAD_MAX_MB", "1")
     parser_called = False
 
     def fake_read_csv(*args: object, **kwargs: object) -> pd.DataFrame:

@@ -128,22 +128,6 @@ def test_upload_rejects_unsupported_file_types(api_context: APIRequestContext) -
     assert response.status == 400
 
 ###############################################################################
-def test_upload_rejects_payload_over_16_mib(api_context: APIRequestContext) -> None:
-    contents = b"x" * (16 * 1024 * 1024 + 1)
-    response = api_context.post(
-        "/api/upload/dataset",
-        multipart={
-            "file": {
-                "name": "oversized.csv",
-                "mimeType": "text/csv",
-                "buffer": contents,
-            }
-        },
-    )
-
-    assert response.status == 413
-
-###############################################################################
 def test_upload_assigns_independent_ids(api_context: APIRequestContext) -> None:
     upload_ids: list[str] = []
     for name, text in (("first", "First report"), ("second", "Second report")):

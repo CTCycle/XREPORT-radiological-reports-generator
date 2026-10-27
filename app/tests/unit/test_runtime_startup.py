@@ -371,6 +371,7 @@ def _clear_runtime_environment(monkeypatch: pytest.MonkeyPatch) -> None:
         "CORS_ALLOW_CREDENTIALS",
         "CORS_ALLOW_METHODS",
         "CORS_ALLOW_HEADERS",
+        "DATASET_UPLOAD_MAX_MB",
     ):
         monkeypatch.delenv(name, raising=False)
 
@@ -391,7 +392,19 @@ def test_runtime_environment_defaults(monkeypatch: pytest.MonkeyPatch) -> None:
                 "X-XREPORT-Desktop-Token",
             ),
         ),
+        dataset_upload_max_bytes=512 * 1024 * 1024,
     )
+
+
+@pytest.mark.parametrize("value", ["0", "-1", "abc"])
+def test_dataset_upload_max_mb_rejects_invalid_values(
+    value: str, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _clear_runtime_environment(monkeypatch)
+    monkeypatch.setenv("DATASET_UPLOAD_MAX_MB", value)
+
+    with pytest.raises(ValueError, match="DATASET_UPLOAD_MAX_MB"):
+        get_runtime_environment_settings()
 
 
 @pytest.mark.parametrize("value", ["1", "true", "YES", " on "])

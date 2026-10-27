@@ -2,7 +2,7 @@ import { CommonModule } from '@angular/common';
 import { Component, EventEmitter, Input, Output, Type, ViewContainerRef, ViewChild, AfterViewInit, inject, signal, InjectionToken } from '@angular/core';
 import { Router } from '@angular/router';
 import { NgIcon, provideIcons } from '@ng-icons/core';
-import { lucideAlertTriangle, lucideBarChart2, lucideBrainCircuit, lucideFileSearch, lucideFileStack, lucideX } from '@ng-icons/lucide';
+import { lucideAlertTriangle, lucideBarChart2, lucideBrainCircuit, lucideFileSearch, lucideX } from '@ng-icons/lucide';
 import { DATA_TRAINING_TOUR_ID, GuidanceService, INFERENCE_TOUR_ID } from '../services/guidance.service';
 import { ModalFocusDirective } from './modal-focus.directive';
 
@@ -27,7 +27,7 @@ export const TIPS_JOURNEY = new InjectionToken<Type<TipsJourneyComponent>>('TIPS
   standalone: true,
   selector: 'app-tips-and-tricks',
   imports: [CommonModule, NgIcon, ModalFocusDirective],
-  providers: [provideIcons({ lucideAlertTriangle, lucideBarChart2, lucideBrainCircuit, lucideFileSearch, lucideFileStack, lucideX })],
+  providers: [provideIcons({ lucideAlertTriangle, lucideBarChart2, lucideBrainCircuit, lucideFileSearch, lucideX })],
   template: `
     @if (open) {
       <div class="guidance-modal-backdrop" role="presentation" (click)="closed.emit()">
@@ -35,7 +35,7 @@ export const TIPS_JOURNEY = new InjectionToken<Type<TipsJourneyComponent>>('TIPS
           <header class="guidance-modal-header">
             <div>
               <h2 id="tips-and-tricks-title">Tips &amp; Tricks</h2>
-              <p class="guidance-modal-subtitle">Short reminders for the workflows you use most.</p>
+              <p class="guidance-modal-subtitle">{{ studio ? 'Build a dataset, then train.' : 'Quick reminders for generating reports.' }}</p>
             </div>
             <button type="button" class="guidance-close-button" aria-label="Close Tips and Tricks" (click)="closed.emit()">
               <ng-icon name="lucideX" size="17" aria-hidden="true" />
@@ -44,7 +44,7 @@ export const TIPS_JOURNEY = new InjectionToken<Type<TipsJourneyComponent>>('TIPS
 
           <div class="guidance-modal-body">
             <ng-container #journeyHost></ng-container>
-            <h3 class="guidance-section-heading">Quick reminders</h3>
+            <h3 class="guidance-section-heading">Good to know</h3>
             <div class="guidance-tips-grid">
               @for (tip of visibleTips(); track tip.title) {
                 <article class="guidance-tip-card" [class.guidance-tip-card-warning]="tip.tone === 'warning'">
@@ -68,7 +68,7 @@ export const TIPS_JOURNEY = new InjectionToken<Type<TipsJourneyComponent>>('TIPS
                   <ng-icon name="lucideFileSearch" size="17" aria-hidden="true" />
                   <h3>Inference walkthrough</h3>
                 </div>
-                <p>Use the walkthrough for a guided pass through model selection, image setup, generation, and draft review.</p>
+                <p>A guided pass through model selection, image setup, generation and review.</p>
                 <div class="guidance-tip-card-actions">
                   <button type="button" class="guidance-button guidance-button-primary" (click)="startInferenceTour()">Show walkthrough</button>
                 </div>
@@ -111,31 +111,23 @@ export class TipsAndTricksComponent implements AfterViewInit {
     {
       icon: 'lucideFileSearch',
       title: 'Read the model contract',
-      body: 'Model cards show anatomy, image limits, supported context, output sections, and readiness before you generate.',
+      body: 'Model cards show anatomy, image limits, context and readiness before you generate.',
       route: '/inference',
       routeLabel: 'Open Inference',
       scope: 'xreport',
     },
     {
-      icon: 'lucideFileStack',
-      title: 'Build in order',
-      body: 'Load the image folder and CSV/XLSX report file first. Then select exactly one source row before building a processed training dataset.',
-      route: '/dataset',
-      routeLabel: 'Open Dataset',
-      scope: 'studio',
-    },
-    {
       icon: 'lucideBrainCircuit',
-      title: 'Use checkpoints deliberately',
-      body: 'Start new training from a processed dataset. Enable checkpoint saving when you want to continue later with Resume or inspect it with Evaluate Model.',
+      title: 'Save checkpoints',
+      body: 'Enable checkpoint saving to resume later or run Evaluate Model.',
       route: '/training',
       routeLabel: 'Open Training',
       scope: 'studio',
     },
     {
       icon: 'lucideBarChart2',
-      title: 'Sample validation while exploring',
-      body: 'Use a fraction for quick checks and the full dataset for final validation decisions.',
+      title: 'Sample while exploring',
+      body: 'Use a fraction for quick checks; use the full dataset for final decisions.',
       route: '/dataset',
       routeLabel: 'Open Dataset',
       scope: 'studio',
@@ -143,7 +135,7 @@ export class TipsAndTricksComponent implements AfterViewInit {
     {
       icon: 'lucideAlertTriangle',
       title: 'Treat output as a draft',
-      body: 'Generated text remains an editable research-use draft. Inspect the returned provenance before copying or exporting it.',
+      body: 'Generated text is an editable research-use draft. Check its provenance before copying or exporting.',
       tone: 'warning',
       scope: 'both',
     },

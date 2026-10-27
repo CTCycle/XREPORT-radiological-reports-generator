@@ -1,6 +1,6 @@
 # UI Components And Patterns
 
-Last updated: 2026-10-26
+Last updated: 2026-10-27
 
 ## Reusable Patterns
 
@@ -61,6 +61,7 @@ shell-level lifecycle component, not a feature-page loading state.
 - centered modal layout
 - explicit close actions
 - keyboard-focus-safe controls
+- Studio metadata dialogs (dataset and checkpoint) open in a grouped "Human-readable" view by default, with a "JSON" toggle and a "Copy JSON" action that always copies the original metadata unchanged. Grouping and labels come from `common/metadata-view.ts`; unknown keys stay visible under "Other".
 
 ### Contextual Guidance
 
@@ -69,7 +70,7 @@ shell-level lifecycle component, not a feature-page loading state.
 - `app-help-popover` provides short, local explanations for model contracts, dataset processing, checkpoint actions, and validation configuration.
 - Keep short contextual help in the relevant section title or field label; do not reserve a separate helper row for a lone information control.
 - `app-guided-tour` consumes declarative `GuidanceDefinition` and `TourStep` data. Tours can be closed before completion, navigated backward and forward, and replayed from Help & tips.
-- `app-tips-and-tricks` is the low-priority manual entry point for concise workflow reminders and the lightweight inference demonstration.
+- `app-tips-and-tricks` is the low-priority manual entry point for concise workflow reminders and the lightweight inference demonstration. In Studio it hosts a compact five-step dataset-to-training list with status chips; a failed live-status call collapses to one short unavailable line.
 - Guidance anchors use `data-guidance-target` attributes and must remain attached to the relevant control or region when templates change.
 
 ### Data Views
@@ -79,6 +80,9 @@ shell-level lifecycle component, not a feature-page loading state.
 - progress bars
 - report history cards and detail editors
 - report modals
+- Studio Training page lists are tables (header, fixed-height rows, in-table italic empty row, matching the Dataset page); action buttons never wrap their labels and wrap to a new line instead.
+- Studio training dashboard states: idle, initializing, running, completed, failed, interrupted. They derive from the polled job status (`sessionStatus`) plus worker phase. Unavailable metrics render as `—`, never as zero; real zeros appear only after training data exists.
+- Dashboard charts are inline SVG with train (solid) and validation (dashed) series, labelled axes, a hover/keyboard tooltip, and a width that follows the container. The log marks warnings and errors with a label as well as colour and keeps the latest entry in view unless scrolled up.
 
 ## Route-Level Page Structure
 
@@ -88,8 +92,9 @@ shell-level lifecycle component, not a feature-page loading state.
 - Reports page: persisted inference sessions whose model-reference (debounced), status, and sort filters apply immediately, explicit loading/empty/error states, paginated summaries, and links to detail views
 - Report detail page: session metadata, reusable section-aware draft editor, original-output disclosure that bolds and underlines words removed or changed in the current draft, atomic save, and destructive session deletion
 - Dataset validation page: validation orchestration and report review
-- Settings page: one-column runtime settings screen with General, Advanced,
-  Model access, Storage, and Database sections. Non-database settings persist automatically
+- Settings page: one-column runtime settings screen. Inference shows General, Advanced,
+  Model access, Storage, and Database; Studio shows only General, Jobs, and Database
+  (the storage root is shared with Inference, so it is not offered there). Non-database settings persist automatically
   with debounced numeric inputs; database settings remain drafts until the
   current candidate passes a connection test and the user confirms the switch.
 

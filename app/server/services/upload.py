@@ -14,12 +14,13 @@ from server.services.errors import (
     ServiceError,
 )
 
+from server.configurations.runtime_environment import (
+    get_runtime_environment_settings,
+)
 from server.common.utils.logger import logger
 from server.common.utils.security import sanitize_dataset_name
 from server.domain.training import DatasetUploadResponse
 
-
-MAX_DATASET_UPLOAD_BYTES = 16 * 1024 * 1024
 
 ###############################################################################
 class UploadState:
@@ -77,11 +78,12 @@ class UploadService:
             )
 
         try:
-            if len(contents) > MAX_DATASET_UPLOAD_BYTES:
+            max_bytes = get_runtime_environment_settings().dataset_upload_max_bytes
+            if len(contents) > max_bytes:
                 raise PayloadTooLargeError(
                     detail=(
                         "Dataset payload exceeds "
-                        f"{MAX_DATASET_UPLOAD_BYTES // (1024 * 1024)} MB limit"
+                        f"{max_bytes // (1024 * 1024)} MB limit"
                     ),
                 )
 

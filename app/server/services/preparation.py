@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+import subprocess
 from collections.abc import Callable, Iterator
 from functools import lru_cache
 from pathlib import Path
@@ -494,19 +495,32 @@ class PreparationService:
 
     # -------------------------------------------------------------------------
     def select_image_folder(self) -> FolderSelectionResponse:
-        """Open the operating system folder dialog on the local machine."""
-        import tkinter
-        from tkinter import filedialog
-
-        root = tkinter.Tk()
-        root.withdraw()
-        root.attributes("-topmost", True)
+        """Open the Windows folder dialog on the local machine."""
+        script = (
+            "Add-Type -AssemblyName System.Windows.Forms;"
+            "$o = New-Object System.Windows.Forms.Form;"
+            "$o.TopMost = $true; $o.ShowInTaskbar = $false; $o.Opacity = 0;"
+            "$o.StartPosition = 'CenterScreen';"
+            "$o.Size = New-Object System.Drawing.Size(1,1);"
+            "$o.Show(); $o.Activate();"
+            "$f = New-Object System.Windows.Forms.FolderBrowserDialog;"
+            "$f.Description = 'Select image folder';"
+            "if ($f.ShowDialog($o) -eq 'OK') { [Console]::Out.Write($f.SelectedPath) };"
+            "$o.Dispose()"
+        )
         try:
-            selected = filedialog.askdirectory(
-                title="Select image folder", mustexist=True, parent=root
+            completed = subprocess.run(
+                ["powershell", "-NoProfile", "-STA", "-Command", script],
+                capture_output=True,
+                text=True,
+                check=True,
             )
-        finally:
-            root.destroy()
+        except (OSError, subprocess.CalledProcessError) as exc:
+            logger.error("Native folder dialog failed: %s", exc)
+            raise InternalServiceError(
+                detail="The native folder dialog could not be opened."
+            ) from exc
+        selected = completed.stdout.strip()
         return FolderSelectionResponse(path=str(Path(selected)) if selected else None)
 
     # -------------------------------------------------------------------------

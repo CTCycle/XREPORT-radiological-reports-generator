@@ -51,6 +51,32 @@ def test_dataset_and_training_routes_render_workflow_surfaces(
 
 
 ###############################################################################
+def test_studio_settings_show_only_studio_categories(page: Page, base_url: str) -> None:
+    response = page.goto(f"{base_url}/settings")
+
+    assert response is not None and response.ok
+    tabs = page.get_by_role("tablist", name="Settings categories")
+    expect(tabs.get_by_role("tab")).to_have_text(["General", "Jobs", "Database"])
+    expect(page.get_by_label("Default random seed")).to_be_visible()
+    page.get_by_role("tab", name="Database").click()
+    expect(page.get_by_label("Database backend")).to_be_visible()
+
+
+###############################################################################
+def test_studio_tips_modal_lists_workflow_steps_and_closes_on_escape(
+    page: Page, base_url: str
+) -> None:
+    page.goto(f"{base_url}/dataset")
+
+    page.get_by_role("button", name="Help and tips").click()
+    dialog = page.get_by_role("dialog", name="Tips & Tricks")
+    expect(dialog.get_by_role("heading", name="Dataset to training")).to_be_visible()
+    expect(dialog.locator(".guidance-journey-step")).to_have_count(5)
+
+    page.keyboard.press("Escape")
+    expect(dialog).to_have_count(0)
+
+###############################################################################
 def test_validation_route_reports_missing_dataset_as_user_error(
     page: Page,
     base_url: str,

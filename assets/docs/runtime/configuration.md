@@ -51,6 +51,7 @@ downloads, tokenizers, templates, caches, and logs are all below the data root.
 - `CORS_ALLOW_HEADERS`
 - `INFERENCE_HF_LOCAL_ONLY`
 - `INFERENCE_DEVICE`
+- `DATASET_UPLOAD_MAX_MB` (maximum dataset file upload size in MB; default `512`)
 - `MPLBACKEND`
 - `KERAS_BACKEND`
 - `HF_TOKEN` (optional; required for gated Hugging Face models such as MedGemma)

@@ -233,6 +233,7 @@ describe('TrainingPage worker lifecycle state', () => {
     const dashboard = fixture.componentInstance.state().dashboardState;
     expect(poll).toHaveBeenCalledWith(expect.any(Function), 'training-phase', 1);
     expect(dashboard.isTraining).toBe(true);
+    expect(dashboard.sessionStatus).toBe('running');
     expect(dashboard.progressPercent).toBe(0);
     expect(dashboard.workerPhase).toBe('model_loading_started');
     expect(dashboard.workerPhaseElapsedSeconds).toBe(4);
