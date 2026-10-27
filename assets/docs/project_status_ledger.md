@@ -2,6 +2,46 @@
 
 Last updated: 2026-10-27
 
+Source change 2026-10-27 (not a release gate): Studio training pipeline audit (Keras 3.13.1 on torch 2.10 cu130), commits `af724c86`, `255610e7`, `680e80a4`.
+
+Fixed defects, each reproduced first:
+- The CPU choice trained on CUDA (Keras' torch backend defaults to CUDA). The worker now builds, loads and fits inside `keras.device`.
+- Mixed precision failed at model build (fp16 input against fp32 BEiT weights). BEiT now runs under torch autocast, with `mixed_bfloat16` where supported.
+- Dataloader workers > 0 crashed on Windows: the transform lambda could not be pickled.
+- Keras' symbolic build fell back to an eager 83-image BEiT trace on the default CUDA device. The BEiT layer now declares its output shape and has a meta-device path. This was also what still broke the CPU choice.
+- The torch compile option never took effect: `fit` ignored the wrapper. It was removed, together with the tf.data-era shuffle-buffer fields.
+- Save checkpoints wrote a full ~770 MB file per epoch that nothing read. It now rewrites the checkpoint atomically each epoch. A stopped or failed run keeps its last completed epoch as a registered, resumable checkpoint; otherwise its folder is removed (unregistered `data/studio/checkpoints/XREPORT_20261027T172509` from an earlier run shows the old behaviour and was left in place).
+- A duplicate custom checkpoint name overwrote an existing checkpoint; it now returns 409.
+
+Gradient accumulation was added, using Keras' native optimizer support. The Studio source entry forces `KERAS_BACKEND=torch`.
+
+Measurements: single runs, compact preset, 64 synthetic 1024 px images, batch 8, RTX 3060 Laptop 6 GB, steady-state epoch time.
+
+| Configuration | Epoch time | Peak VRAM |
+| --- | --- | --- |
+| fp32, 0 workers (before) | 3.11 s | 3273 MB |
+| fp32, 0 workers (after) | 2.67 s / 3.00 s | 2892 MB (after the shape fix) |
+| fp32, 4 workers | 2.06 s | — |
+| bf16, 4 workers | 1.92 s | — |
+| batch 4 × accumulation 2, 4 workers | 2.92 s | 2070 MB |
+
+The 0-worker after-change runs differ by about 12% between repeats, so the `verbose=0` change is not claimed as a speed-up. Each Windows loader worker re-imports torch, so the first batch of each loader starts several seconds later.
+
+Validation:
+- 329 backend unit/integration tests passed and 6 PostgreSQL cases were skipped. `test_packaging_boundary.py::test_xreport_import_closure_never_reaches_studio_modules` fails identically at the pre-change commit: `encoder.py` imports the Studio-only `models.training.architecture`, which was introduced by the Model-page change. It is unresolved.
+- Ruff and Pyright passed on the changed modules. The Studio build and lint passed, and 113 Angular tests passed.
+
+Live, against a source Studio on CUDA with the 6-row dataset:
+- Mixed + 2 workers + accumulation 2 trained and registered a checkpoint.
+- A duplicate name was refused with 409, and resume +1 epoch reached 3 epochs.
+- A stop requested during epoch 2 registered the last completed epoch (2), and that checkpoint resumed. A stop before the first epoch left no folder.
+- An invalid GPU index failed with a typed error and no folder. The CPU choice trained.
+- VRAM returned to 0 MiB after each run.
+- In the in-app browser, the wizard showed and sent gradient accumulation and had no compile controls. A 3-epoch bf16 run tracked the job API, and Stop during epoch 7 of a 50-epoch resume left the checkpoint at epoch 6.
+- In the Inference Python environment, the mixed-precision, CPU and a pre-existing checkpoint each loaded and produced finite outputs on CPU and CUDA.
+
+Not exercised: training the default preset (496.3M parameters, 410.6M trainable). Its baseline run filled the 6 GB GPU (5977 MiB, 100% utilisation) without finishing an epoch within minutes and was stopped; a failure after a saved epoch, live (covered by unit tests); import through a running XREPORT Inference server. QA working files are in `assets/QA/training-pipeline/`; the QA checkpoints were deleted.
+
 Source change 2026-10-27 (not a release gate): Studio has a Model page for configuring, visualizing and saving XREPORT architectures (built-in XREPORT default, compact, balanced and large presets; custom presets in the new Studio table `model_architecture_presets`, head `8071b092e5f8`). Training now takes an `architecture_preset`, and checkpoints store the resolved architecture and the measured parameter counts. The shared transformer layers gained backward-compatible `ffn_units`, `dropout` and `key_dim` arguments. BEiT stays the only image encoder. Backend unit and integration tests (323 passed, 6 PostgreSQL skips), Ruff and Pyright on the changed modules, Studio build and lint, and 113 Angular unit tests passed. Live, against a source Studio on CUDA: the migration applied to the existing database; the Model page was checked in light/dark at 1440/1024/375 (live update, split-head validation, save, update, reload, JSON import, duplicate-name refusal, delete). A 1-epoch training from a custom preset built exactly the previewed parameter counts. The saved checkpoint and a fresh build from its configuration matched in counts, weight shapes and block configs, and the Inference Python environment loaded it. Resume (+1 epoch) and export also completed. Not exercised live: a checkpoint trained before this change (covered by unit tests) and import into a running XREPORT Inference server. Evidence is under `assets/QA/model-architecture/`. The Studio initial bundle budget warning (500 kB) predates this change and now reads 506 kB.
 
 Source change 2026-10-27 (not a release gate): XREPORT Inference and XREPORT Studio now have fully separate database schemas. Each has its own ORM base, Alembic stream and version table (`xreport_inference_version` head `36d142391099`, `xreport_studio_version` head `9d4d3bce4ede`). Studio stores no inference settings (`inference: null` in its Settings API), and the dataset-record link was removed from inference reports. Each application rejects the other's database and the retired shared schema without modifying them. There is no conversion from the shared schema; the local development databases were recreated. Backend unit tests (305), Pyright on the changed modules, Angular build/lint for both projects, and 101 Angular unit tests passed. Against live source servers: Studio e2e passed 26/26; Inference e2e passed 21/26; 4 failures are pre-existing stale expectations (three browser cases expect 4 Settings tabs instead of the current 5, one API case expects a removed `features` settings field) and one font-request abort passed on rerun. Live checks then passed four flows. First, SQLite switching through the Studio Settings API: a new file was initialized, each database kept its own seed, and switching to the Inference database was refused with the previous configuration kept active. Second, both Settings → Database sections in the in-app browser (schema owner and revision, ownership error on the other app's file). Third, a real 1-epoch Studio training on synthetic images, then export, import into XREPORT Inference, and one deterministic generation saved to history. Fourth, a Studio restart, after which its checkpoint, datasets and settings persisted. PostgreSQL was not exercised: the user chose to skip it. The parametrized PostgreSQL contract (both schemas, cross-app refusal) is unrun. Evidence is under `assets/QA/database-separation/`.

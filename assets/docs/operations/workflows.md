@@ -60,6 +60,29 @@ BEiT revision, and Studio has no offline installer for other encoders.
    model initialization and shows elapsed time in the current phase.
 5. Stop or resume when needed.
 
+Training runs Keras 3 on the PyTorch backend in a spawned worker process, so
+the model, optimizer and VRAM are released when each run ends. Options that
+need care:
+
+- **Enable GPU** off trains on the CPU even when CUDA is present (the worker
+  builds and fits inside `keras.device`). A missing GPU falls back to the CPU;
+  a GPU index that does not exist fails the run.
+- **Mixed precision** applies on CUDA only: `mixed_bfloat16` where the GPU
+  supports bfloat16, otherwise `mixed_float16` with Keras loss scaling. The
+  frozen BEiT encoder runs under torch autocast.
+- **Gradient accumulation steps** applies one optimizer step every N batches
+  (Keras `gradient_accumulation_steps`), for an effective batch of
+  batch size × N. Scheduler warm-up steps count optimizer steps.
+- **Dataloader workers** decode and resize images in parallel processes; on
+  Windows each worker re-imports PyTorch, so the first batch of each loader
+  starts several seconds later. Use persistent workers to pay that once.
+  Pinned memory is applied only for CUDA runs.
+- **Save checkpoints** rewrites the run's checkpoint atomically after every
+  completed epoch (`saved_model.keras` plus the configuration, metadata and
+  history). A stopped or failed run then keeps its last completed epoch as a
+  registered, resumable checkpoint; without a completed epoch its folder is
+  removed. A custom checkpoint name that already exists is rejected (409).
+
 Expected result:
 
 - checkpoints are produced and listed for later inference and validation
