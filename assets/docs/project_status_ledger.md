@@ -28,7 +28,7 @@ Measurements: single runs, compact preset, 64 synthetic 1024 px images, batch 8,
 The 0-worker after-change runs differ by about 12% between repeats, so the `verbose=0` change is not claimed as a speed-up. Each Windows loader worker re-imports torch, so the first batch of each loader starts several seconds later.
 
 Validation:
-- 329 backend unit/integration tests passed and 6 PostgreSQL cases were skipped. `test_packaging_boundary.py::test_xreport_import_closure_never_reaches_studio_modules` fails identically at the pre-change commit: `encoder.py` imports the Studio-only `models.training.architecture`, which was introduced by the Model-page change. It is unresolved.
+- 329 backend unit/integration tests passed and 6 PostgreSQL cases were skipped. `test_packaging_boundary.py::test_xreport_import_closure_never_reaches_studio_modules` failed here and identically at the pre-change commit. The Model-page change had made the shared `encoder.py` import the pinned BEiT revision from the Studio-only `models.training.architecture`. Because the PyInstaller spec excludes that module, a packaged Inference build would have failed to import the encoder when loading an XREPORT checkpoint. The pin now lives in the shared `domain/checkpoint_exchange.py` (`ENCODER_REVISION`, next to `ENCODER_REPOSITORY`); after that fix the full unit/integration suites passed (330 passed, 6 skipped). No packaged build was rebuilt to confirm this.
 - Ruff and Pyright passed on the changed modules. The Studio build and lint passed, and 113 Angular tests passed.
 
 Live, against a source Studio on CUDA with the 6-row dataset:

@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any, Literal
 
+from server.domain.checkpoint_exchange import ENCODER_REVISION
 from server.domain.model_architecture import (
     BEIT_ENCODER_ID,
     ArchitectureCompatibility,
@@ -26,7 +27,7 @@ IMAGE_SHAPE = (224, 224, 3)
 FLOAT32_BYTES = 4
 
 DEFAULT_PRESET_KEY = "xreport-default"
-BEIT_REVISION = "f02e8f77db4703e3fbd3766e3375a4619c5a4863"
+BEIT_REVISION = ENCODER_REVISION
 
 # Effective settings that decide the shape of a weight tensor. Any other setting
 # (dropout, activations, epsilon, temperature, freezing) leaves every tensor

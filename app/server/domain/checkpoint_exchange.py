@@ -12,6 +12,9 @@ CUSTOM_OBJECTS_API = 1
 EXCHANGE_FILE_EXTENSION = ".xreportckpt"
 
 ENCODER_REPOSITORY = "microsoft/beit-base-patch16-224"
+# Pinned BEiT revision. Kept here, not in the Studio-only architecture module,
+# because the shared encoder that XREPORT Inference loads needs it.
+ENCODER_REVISION = "f02e8f77db4703e3fbd3766e3375a4619c5a4863"
 
 ###############################################################################
 class ManifestFile(BaseModel):

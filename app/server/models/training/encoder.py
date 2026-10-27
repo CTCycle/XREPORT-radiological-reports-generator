@@ -9,7 +9,7 @@ from keras.saving import register_keras_serializable
 from transformers import AutoModel
 
 from server.common.path import ENCODERS_DIR
-from server.models.training.architecture import BEIT_REVISION
+from server.domain.checkpoint_exchange import ENCODER_REVISION as BEIT_REVISION
 
 
 # [PRETRAINED IMAGE ENCODER]
