@@ -748,6 +748,255 @@
         }
       }
     },
+    "/api/model/encoders": {
+      "get": {
+        "tags": [
+          "model"
+        ],
+        "summary": "Get Encoders",
+        "operationId": "get_encoders_api_model_encoders_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EncodersResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/model/presets": {
+      "get": {
+        "tags": [
+          "model"
+        ],
+        "summary": "List Presets",
+        "operationId": "list_presets_api_model_presets_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ArchitecturePresetsResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "model"
+        ],
+        "summary": "Create Preset",
+        "operationId": "create_preset_api_model_presets_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ArchitecturePresetRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ArchitecturePreset"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/model/presets/{key}": {
+      "put": {
+        "tags": [
+          "model"
+        ],
+        "summary": "Update Preset",
+        "operationId": "update_preset_api_model_presets__key__put",
+        "parameters": [
+          {
+            "name": "key",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ArchitecturePresetRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ArchitecturePreset"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "model"
+        ],
+        "summary": "Delete Preset",
+        "operationId": "delete_preset_api_model_presets__key__delete",
+        "parameters": [
+          {
+            "name": "key",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Key"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/model/preview": {
+      "post": {
+        "tags": [
+          "model"
+        ],
+        "summary": "Preview",
+        "operationId": "preview_api_model_preview_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ArchitecturePreviewRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ArchitecturePreviewResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/model/checkpoints/{checkpoint}/architecture": {
+      "get": {
+        "tags": [
+          "model"
+        ],
+        "summary": "Get Checkpoint Architecture",
+        "operationId": "get_checkpoint_architecture_api_model_checkpoints__checkpoint__architecture_get",
+        "parameters": [
+          {
+            "name": "checkpoint",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Checkpoint"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CheckpointArchitectureResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/validation/run": {
       "post": {
         "tags": [
@@ -1339,6 +1588,439 @@
         ],
         "title": "ApplicationSettingsResponse"
       },
+      "ArchitectureCompatibility": {
+        "properties": {
+          "reference": {
+            "type": "string",
+            "title": "Reference"
+          },
+          "level": {
+            "type": "string",
+            "enum": [
+              "identical",
+              "weights_compatible",
+              "retrain_required"
+            ],
+            "title": "Level"
+          },
+          "changes": {
+            "items": {
+              "$ref": "#/components/schemas/FieldChange"
+            },
+            "type": "array",
+            "title": "Changes"
+          },
+          "message": {
+            "type": "string",
+            "title": "Message"
+          }
+        },
+        "type": "object",
+        "required": [
+          "reference",
+          "level",
+          "changes",
+          "message"
+        ],
+        "title": "ArchitectureCompatibility"
+      },
+      "ArchitectureEdge": {
+        "properties": {
+          "source": {
+            "type": "string",
+            "title": "Source"
+          },
+          "target": {
+            "type": "string",
+            "title": "Target"
+          },
+          "label": {
+            "type": "string",
+            "title": "Label",
+            "default": ""
+          }
+        },
+        "type": "object",
+        "required": [
+          "source",
+          "target"
+        ],
+        "title": "ArchitectureEdge"
+      },
+      "ArchitectureGraph": {
+        "properties": {
+          "nodes": {
+            "items": {
+              "$ref": "#/components/schemas/ArchitectureNode"
+            },
+            "type": "array",
+            "title": "Nodes"
+          },
+          "edges": {
+            "items": {
+              "$ref": "#/components/schemas/ArchitectureEdge"
+            },
+            "type": "array",
+            "title": "Edges"
+          }
+        },
+        "type": "object",
+        "required": [
+          "nodes",
+          "edges"
+        ],
+        "title": "ArchitectureGraph"
+      },
+      "ArchitectureIssue": {
+        "properties": {
+          "field": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Field"
+          },
+          "message": {
+            "type": "string",
+            "title": "Message"
+          }
+        },
+        "type": "object",
+        "required": [
+          "message"
+        ],
+        "title": "ArchitectureIssue"
+      },
+      "ArchitectureNode": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "kind": {
+            "type": "string",
+            "title": "Kind"
+          },
+          "label": {
+            "type": "string",
+            "title": "Label"
+          },
+          "detail": {
+            "type": "string",
+            "title": "Detail"
+          },
+          "lane": {
+            "type": "string",
+            "enum": [
+              "image",
+              "text",
+              "output"
+            ],
+            "title": "Lane"
+          },
+          "parameters": {
+            "type": "integer",
+            "title": "Parameters"
+          },
+          "trainable": {
+            "type": "boolean",
+            "title": "Trainable"
+          },
+          "repeat": {
+            "type": "integer",
+            "title": "Repeat",
+            "default": 1
+          },
+          "output_shape": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "type": "array",
+            "title": "Output Shape"
+          },
+          "properties": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Properties"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "kind",
+          "label",
+          "detail",
+          "lane",
+          "parameters",
+          "trainable",
+          "output_shape"
+        ],
+        "title": "ArchitectureNode"
+      },
+      "ArchitecturePreset": {
+        "properties": {
+          "key": {
+            "type": "string",
+            "title": "Key"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "description": {
+            "type": "string",
+            "title": "Description"
+          },
+          "builtin": {
+            "type": "boolean",
+            "title": "Builtin"
+          },
+          "architecture": {
+            "$ref": "#/components/schemas/ModelArchitecture"
+          },
+          "stats": {
+            "$ref": "#/components/schemas/ArchitectureStats"
+          },
+          "created_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created At"
+          },
+          "updated_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Updated At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "key",
+          "name",
+          "description",
+          "builtin",
+          "architecture",
+          "stats"
+        ],
+        "title": "ArchitecturePreset"
+      },
+      "ArchitecturePresetRequest": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 80,
+            "minLength": 1,
+            "title": "Name"
+          },
+          "description": {
+            "type": "string",
+            "maxLength": 500,
+            "title": "Description",
+            "default": ""
+          },
+          "architecture": {
+            "$ref": "#/components/schemas/ModelArchitecture"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "name",
+          "architecture"
+        ],
+        "title": "ArchitecturePresetRequest"
+      },
+      "ArchitecturePresetsResponse": {
+        "properties": {
+          "presets": {
+            "items": {
+              "$ref": "#/components/schemas/ArchitecturePreset"
+            },
+            "type": "array",
+            "title": "Presets"
+          }
+        },
+        "type": "object",
+        "required": [
+          "presets"
+        ],
+        "title": "ArchitecturePresetsResponse"
+      },
+      "ArchitecturePreviewRequest": {
+        "properties": {
+          "architecture": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Architecture"
+          },
+          "dataset_name": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 128,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Dataset Name"
+          },
+          "reference": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 160,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reference",
+            "description": "Preset key or checkpoint:<name> to compare against"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "architecture"
+        ],
+        "title": "ArchitecturePreviewRequest"
+      },
+      "ArchitecturePreviewResponse": {
+        "properties": {
+          "valid": {
+            "type": "boolean",
+            "title": "Valid"
+          },
+          "issues": {
+            "items": {
+              "$ref": "#/components/schemas/ArchitectureIssue"
+            },
+            "type": "array",
+            "title": "Issues"
+          },
+          "architecture": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ModelArchitecture"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "graph": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ArchitectureGraph"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "stats": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ArchitectureStats"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "compatibility": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ArchitectureCompatibility"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "valid",
+          "issues"
+        ],
+        "title": "ArchitecturePreviewResponse"
+      },
+      "ArchitectureStats": {
+        "properties": {
+          "total_parameters": {
+            "type": "integer",
+            "title": "Total Parameters"
+          },
+          "trainable_parameters": {
+            "type": "integer",
+            "title": "Trainable Parameters"
+          },
+          "frozen_parameters": {
+            "type": "integer",
+            "title": "Frozen Parameters"
+          },
+          "weights_bytes": {
+            "type": "integer",
+            "title": "Weights Bytes"
+          },
+          "training_memory_bytes": {
+            "type": "integer",
+            "title": "Training Memory Bytes"
+          },
+          "depth": {
+            "type": "integer",
+            "title": "Depth"
+          },
+          "vocabulary_size": {
+            "type": "integer",
+            "title": "Vocabulary Size"
+          },
+          "sequence_length": {
+            "type": "integer",
+            "title": "Sequence Length"
+          }
+        },
+        "type": "object",
+        "required": [
+          "total_parameters",
+          "trainable_parameters",
+          "frozen_parameters",
+          "weights_bytes",
+          "training_memory_bytes",
+          "depth",
+          "vocabulary_size",
+          "sequence_length"
+        ],
+        "title": "ArchitectureStats"
+      },
       "Body_upload_dataset_api_upload_dataset_post": {
         "properties": {
           "file": {
@@ -1352,6 +2034,50 @@
           "file"
         ],
         "title": "Body_upload_dataset_api_upload_dataset_post"
+      },
+      "CheckpointArchitectureResponse": {
+        "properties": {
+          "checkpoint": {
+            "type": "string",
+            "title": "Checkpoint"
+          },
+          "architecture": {
+            "$ref": "#/components/schemas/ModelArchitecture"
+          },
+          "preset_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Preset Name"
+          },
+          "legacy": {
+            "type": "boolean",
+            "title": "Legacy"
+          },
+          "measured_parameters": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Measured Parameters"
+          }
+        },
+        "type": "object",
+        "required": [
+          "checkpoint",
+          "architecture",
+          "legacy"
+        ],
+        "title": "CheckpointArchitectureResponse"
       },
       "CheckpointEvaluationReportResponse": {
         "properties": {
@@ -2167,6 +2893,88 @@
         ],
         "title": "DeleteResponse"
       },
+      "EncoderOption": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "label": {
+            "type": "string",
+            "title": "Label"
+          },
+          "repository": {
+            "type": "string",
+            "title": "Repository"
+          },
+          "revision": {
+            "type": "string",
+            "title": "Revision"
+          },
+          "input_shape": {
+            "items": {
+              "type": "integer"
+            },
+            "type": "array",
+            "title": "Input Shape"
+          },
+          "output_tokens": {
+            "type": "integer",
+            "title": "Output Tokens"
+          },
+          "feature_dims": {
+            "type": "integer",
+            "title": "Feature Dims"
+          },
+          "parameters": {
+            "type": "integer",
+            "title": "Parameters"
+          },
+          "pretrained": {
+            "type": "boolean",
+            "title": "Pretrained"
+          },
+          "inference_compatible": {
+            "type": "boolean",
+            "title": "Inference Compatible"
+          },
+          "description": {
+            "type": "string",
+            "title": "Description"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "label",
+          "repository",
+          "revision",
+          "input_shape",
+          "output_tokens",
+          "feature_dims",
+          "parameters",
+          "pretrained",
+          "inference_compatible",
+          "description"
+        ],
+        "title": "EncoderOption"
+      },
+      "EncodersResponse": {
+        "properties": {
+          "encoders": {
+            "items": {
+              "$ref": "#/components/schemas/EncoderOption"
+            },
+            "type": "array",
+            "title": "Encoders"
+          }
+        },
+        "type": "object",
+        "required": [
+          "encoders"
+        ],
+        "title": "EncodersResponse"
+      },
       "ExportRequest": {
         "properties": {
           "checkpoint": {
@@ -2184,6 +2992,36 @@
           "checkpoint"
         ],
         "title": "ExportRequest"
+      },
+      "FieldChange": {
+        "properties": {
+          "field": {
+            "type": "string",
+            "title": "Field"
+          },
+          "before": {
+            "title": "Before"
+          },
+          "after": {
+            "title": "After"
+          },
+          "impact": {
+            "type": "string",
+            "enum": [
+              "weights_compatible",
+              "retrain_required"
+            ],
+            "title": "Impact"
+          }
+        },
+        "type": "object",
+        "required": [
+          "field",
+          "before",
+          "after",
+          "impact"
+        ],
+        "title": "FieldChange"
       },
       "FolderSelectionResponse": {
         "properties": {
@@ -2725,6 +3563,101 @@
         ],
         "title": "MemoryUsage"
       },
+      "ModelArchitecture": {
+        "properties": {
+          "image_encoder": {
+            "type": "string",
+            "const": "beit-base-patch16-224",
+            "title": "Image Encoder",
+            "description": "Pretrained image encoder from the registry",
+            "default": "beit-base-patch16-224"
+          },
+          "freeze_image_encoder": {
+            "type": "boolean",
+            "title": "Freeze Image Encoder",
+            "description": "Keep pretrained image encoder weights frozen",
+            "default": true
+          },
+          "embedding_dims": {
+            "type": "integer",
+            "maximum": 1024.0,
+            "minimum": 64.0,
+            "title": "Embedding Dims",
+            "description": "Model width shared by all transformer blocks",
+            "default": 768
+          },
+          "num_encoders": {
+            "type": "integer",
+            "maximum": 12.0,
+            "minimum": 1.0,
+            "title": "Num Encoders",
+            "description": "Transformer encoder layers",
+            "default": 6
+          },
+          "num_decoders": {
+            "type": "integer",
+            "maximum": 12.0,
+            "minimum": 1.0,
+            "title": "Num Decoders",
+            "description": "Transformer decoder layers",
+            "default": 6
+          },
+          "attention_heads": {
+            "type": "integer",
+            "maximum": 16.0,
+            "minimum": 1.0,
+            "title": "Attention Heads",
+            "description": "Attention heads per block",
+            "default": 8
+          },
+          "head_dim_mode": {
+            "type": "string",
+            "enum": [
+              "full",
+              "split"
+            ],
+            "title": "Head Dim Mode",
+            "description": "full: every head projects to the model width; split: width / heads",
+            "default": "full"
+          },
+          "ffn_units": {
+            "type": "integer",
+            "maximum": 4096.0,
+            "minimum": 64.0,
+            "title": "Ffn Units",
+            "description": "Hidden units of each feed-forward network",
+            "default": 768
+          },
+          "dropout": {
+            "type": "number",
+            "maximum": 0.5,
+            "minimum": 0.0,
+            "title": "Dropout",
+            "description": "Dropout rate",
+            "default": 0.2
+          },
+          "classifier_units": {
+            "type": "integer",
+            "maximum": 4096.0,
+            "minimum": 64.0,
+            "title": "Classifier Units",
+            "description": "Hidden units of the token classifier",
+            "default": 1024
+          },
+          "temperature": {
+            "type": "number",
+            "maximum": 2.0,
+            "minimum": 0.1,
+            "title": "Temperature",
+            "description": "Softmax temperature of the classifier",
+            "default": 1.0
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "ModelArchitecture",
+        "description": "Configurable, constrained XREPORT transformer architecture."
+      },
       "PixelDistribution": {
         "properties": {
           "bins": {
@@ -2992,45 +3925,12 @@
             "title": "Batch Size",
             "description": "Batch size for training"
           },
-          "num_encoders": {
-            "type": "integer",
-            "maximum": 12.0,
-            "minimum": 1.0,
-            "title": "Num Encoders",
-            "description": "Number of encoder layers"
-          },
-          "num_decoders": {
-            "type": "integer",
-            "maximum": 12.0,
-            "minimum": 1.0,
-            "title": "Num Decoders",
-            "description": "Number of decoder layers"
-          },
-          "embedding_dims": {
-            "type": "integer",
-            "maximum": 1024.0,
-            "minimum": 64.0,
-            "title": "Embedding Dims",
-            "description": "Embedding dimensions"
-          },
-          "attention_heads": {
-            "type": "integer",
-            "maximum": 16.0,
-            "minimum": 1.0,
-            "title": "Attention Heads",
-            "description": "Number of attention heads"
-          },
-          "train_temp": {
-            "type": "number",
-            "maximum": 2.0,
-            "minimum": 0.1,
-            "title": "Train Temp",
-            "description": "Training temperature"
-          },
-          "freeze_img_encoder": {
-            "type": "boolean",
-            "title": "Freeze Img Encoder",
-            "description": "Freeze image encoder weights"
+          "architecture_preset": {
+            "type": "string",
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "Architecture Preset",
+            "description": "Key of the built-in or saved model architecture preset"
           },
           "use_img_augmentation": {
             "type": "boolean",
@@ -3147,12 +4047,7 @@
           "dataset_name",
           "epochs",
           "batch_size",
-          "num_encoders",
-          "num_decoders",
-          "embedding_dims",
-          "attention_heads",
-          "train_temp",
-          "freeze_img_encoder",
+          "architecture_preset",
           "use_img_augmentation",
           "shuffle_with_buffer",
           "shuffle_size",

@@ -603,7 +603,10 @@ def run_training_process(  # noqa: PLR0915 - lifecycle boundaries are intentiona
     from server.models.callbacks import TrainingInterruptCallback, WorkerInterrupted
     from server.models.device import DeviceConfig
     from server.models.training.dataloader import XRAYDataLoader
-    from server.models.training.model import build_xreport_model
+    from server.models.training.model import (
+        build_xreport_model,
+        count_model_parameters,
+    )
     from server.models.training.trainer import ModelTrainer
     from server.repositories.serialization.model import ModelSerializer
 
@@ -659,6 +662,7 @@ def run_training_process(  # noqa: PLR0915 - lifecycle boundaries are intentiona
         logger.info("Building XREPORT Transformer model")
         worker.report_lifecycle("model_loading_started")
         model = build_xreport_model(metadata, configuration)
+        configuration["architecture_summary"] = count_model_parameters(model)
         worker.report_lifecycle("model_loading_completed")
         worker.report_lifecycle("model_compilation_completed")
 

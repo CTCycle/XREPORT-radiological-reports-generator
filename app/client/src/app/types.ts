@@ -52,12 +52,7 @@ export interface DatasetPageState {
 // Training Page State
 // ============================================================================
 export interface TrainingConfig {
-    numEncoders: number;
-    numDecoders: number;
-    embeddingDims: number;
-    attnHeads: number;
-    freezeImgEncoder: boolean;
-    trainTemp: number;
+    architecturePreset: string;
     useImgAugment: boolean;
     shuffleWithBuffer: boolean;
     shuffleBufferSize: number;

@@ -1,11 +1,14 @@
 from __future__ import annotations
 
+import math
 from typing import Any
 
 from keras import Model, layers, optimizers
 from torch import compile as torch_compile
 
 from server.common.utils.logger import logger
+from server.domain.model_architecture import ModelArchitecture
+from server.models.training.architecture import IMAGE_SHAPE, layer_kwargs
 from server.models.training.encoder import BeitXRayImageEncoder
 from server.models.training.layers import (
     PositionalEmbedding,
@@ -27,39 +30,41 @@ class XREPORTModel:
         self.seed = configuration.get("training_seed", 42)
         self.sequence_length = metadata.get("max_report_size", 200)
         self.vocabulary_size = metadata.get("vocabulary_size", 200)
-        self.img_shape = (224, 224, 3)
+        self.img_shape = IMAGE_SHAPE
 
-        self.embedding_dims = configuration.get("embedding_dims", 256)
-        self.num_heads = configuration.get("attention_heads", 8)
-        self.num_encoders = configuration.get("num_encoders", 4)
-        self.num_decoders = configuration.get("num_decoders", 4)
-        self.freeze_img_encoder = configuration.get("freeze_img_encoder", False)
+        self.architecture = ModelArchitecture.model_validate(
+            configuration["architecture"]
+        )
         self.jit_compile = configuration.get("jit_compile", False)
         self.jit_backend = configuration.get("jit_backend", "inductor")
-        self.temperature = configuration.get("train_temp", 1.0)
         self.configuration = configuration
         self.metadata = metadata
 
+        architecture = self.architecture
         self.img_input = layers.Input(shape=self.img_shape, name="image_input")
         self.seq_input = layers.Input(shape=(self.sequence_length,), name="seq_input")
 
+        # BEiT is the only registered image encoder (see ENCODER_REGISTRY)
         self.img_encoder = BeitXRayImageEncoder(
-            self.freeze_img_encoder, self.embedding_dims
+            architecture.freeze_image_encoder, architecture.embedding_dims
         )
 
+        block_kwargs = layer_kwargs(architecture)
         self.encoders = [
-            TransformerEncoder(self.embedding_dims, self.num_heads, self.seed)
-            for _ in range(self.num_encoders)
+            TransformerEncoder(seed=self.seed, **block_kwargs)
+            for _ in range(architecture.num_encoders)
         ]
         self.decoders = [
-            TransformerDecoder(self.embedding_dims, self.num_heads, self.seed)
-            for _ in range(self.num_decoders)
+            TransformerDecoder(seed=self.seed, **block_kwargs)
+            for _ in range(architecture.num_decoders)
         ]
         self.embeddings = PositionalEmbedding(
-            self.vocabulary_size, self.embedding_dims, self.sequence_length
+            self.vocabulary_size, architecture.embedding_dims, self.sequence_length
         )
         self.classifier = SoftMaxClassifier(
-            1024, self.vocabulary_size, self.temperature
+            architecture.classifier_units,
+            self.vocabulary_size,
+            architecture.temperature,
         )
 
     # -------------------------------------------------------------------------
@@ -121,13 +126,22 @@ def build_xreport_model(
     logger.info("Building XREPORT Transformer model")
     logger.info(f"  Vocabulary size: {metadata.get('vocabulary_size', 'unknown')}")
     logger.info(f"  Sequence length: {metadata.get('max_report_size', 'unknown')}")
-    logger.info(f"  Embedding dims: {configuration.get('embedding_dims', 256)}")
-    logger.info(f"  Attention heads: {configuration.get('attention_heads', 8)}")
-    logger.info(f"  Encoders: {configuration.get('num_encoders', 4)}")
-    logger.info(f"  Decoders: {configuration.get('num_decoders', 4)}")
+    logger.info(f"  Architecture: {configuration.get('architecture')}")
 
     captioner = XREPORTModel(metadata, configuration)
     model = captioner.get_model(model_summary=True)
 
-    logger.info("Model built successfully")
+    logger.info(
+        "Model built successfully (%d parameters, %d trainable)",
+        *count_model_parameters(model).values(),
+    )
     return model
+
+# -----------------------------------------------------------------------------
+def count_model_parameters(model: Model) -> dict[str, int]:
+    """Parameter counts of a built model, as stored with its checkpoint."""
+    trainable = sum(int(math.prod(weight.shape)) for weight in model.trainable_weights)
+    return {
+        "total_parameters": int(model.count_params()),
+        "trainable_parameters": trainable,
+    }

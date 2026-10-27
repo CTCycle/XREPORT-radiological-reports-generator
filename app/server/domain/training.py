@@ -79,14 +79,12 @@ class StartTrainingRequest(BaseModel):
     )
     epochs: int = Field(..., ge=1, le=1000, description="Number of training epochs")
     batch_size: int = Field(..., ge=1, le=256, description="Batch size for training")
-    num_encoders: int = Field(..., ge=1, le=12, description="Number of encoder layers")
-    num_decoders: int = Field(..., ge=1, le=12, description="Number of decoder layers")
-    embedding_dims: int = Field(..., ge=64, le=1024, description="Embedding dimensions")
-    attention_heads: int = Field(
-        ..., ge=1, le=16, description="Number of attention heads"
+    architecture_preset: str = Field(
+        ...,
+        min_length=1,
+        max_length=64,
+        description="Key of the built-in or saved model architecture preset",
     )
-    train_temp: float = Field(..., ge=0.1, le=2.0, description="Training temperature")
-    freeze_img_encoder: bool = Field(..., description="Freeze image encoder weights")
     use_img_augmentation: bool = Field(..., description="Enable image augmentation")
     shuffle_with_buffer: bool = Field(..., description="Enable shuffle with buffer")
     shuffle_size: int = Field(..., ge=1, description="Shuffle buffer size")

@@ -665,6 +665,24 @@ input[type="checkbox"] {
     gap: 2rem;
 }
 
+.wizard-preset-summary .wizard-summary {
+    flex-wrap: wrap;
+    gap: 1rem 2rem;
+    justify-content: flex-start;
+}
+
+.wizard-preset-summary p {
+    margin: 0.75rem 0 0;
+    color: var(--text-secondary);
+}
+
+.wizard-preset-link {
+    display: inline-block;
+    margin-top: 0.9rem;
+    color: var(--accent-color);
+    font-size: 0.875rem;
+}
+
 .wizard-summary div {
     display: flex;
     flex-direction: column;

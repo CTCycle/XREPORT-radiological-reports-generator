@@ -699,6 +699,20 @@ class TrainingService:
         configuration["polling_interval"] = server_settings.jobs.polling_interval
 
     # -------------------------------------------------------------------------
+    @staticmethod
+    def apply_architecture_preset(configuration: dict[str, Any]) -> None:
+        """Snapshot the selected preset so later preset edits never alter a run."""
+        from server.services.model_architecture import get_model_architecture_service
+
+        key = configuration.pop("architecture_preset")
+        try:
+            name, architecture = get_model_architecture_service().resolve_preset(key)
+        except NotFoundError as exc:
+            raise BadRequestError(detail=exc.detail) from exc
+        configuration["architecture"] = architecture.model_dump()
+        configuration["architecture_preset"] = {"key": key, "name": name}
+
+    # -------------------------------------------------------------------------
     def initialize_job_result(
         self, job_id: str, total_epochs: int, current_epoch: int = 0
     ) -> None:
@@ -890,6 +904,7 @@ class TrainingService:
 
         # Build configuration from request
         configuration = request.model_dump()
+        self.apply_architecture_preset(configuration)
 
         self.apply_runtime_training_configuration(configuration)
         poll_interval = float(configuration["polling_interval"])

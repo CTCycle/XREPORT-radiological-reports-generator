@@ -1,14 +1,17 @@
 import { CommonModule } from '@angular/common';
 import { Component, EventEmitter, Input, Output, signal } from '@angular/core';
 import { FormGroup, ReactiveFormsModule } from '@angular/forms';
+import { RouterLink } from '@angular/router';
 import { NgIcon, provideIcons } from '@ng-icons/core';
 import { lucideActivity, lucideChevronLeft, lucideChevronRight, lucideCpu, lucideInfo, lucideMonitor, lucidePlay, lucideSettings, lucideX } from '@ng-icons/lucide';
+import { formatParameters } from '../common/model-architecture';
+import type { ArchitecturePreset } from '../types/modelArchitectureApi';
 import { ModalFocusDirective } from './modal-focus.directive';
 
 @Component({
   standalone: true,
   selector: 'app-new-training-wizard',
-  imports: [CommonModule, ReactiveFormsModule, NgIcon, ModalFocusDirective],
+  imports: [CommonModule, ReactiveFormsModule, RouterLink, NgIcon, ModalFocusDirective],
   providers: [provideIcons({ lucideActivity, lucideChevronLeft, lucideChevronRight, lucideCpu, lucideInfo, lucideMonitor, lucidePlay, lucideSettings, lucideX })],
   styleUrl: '../styles/TrainingPage.css',
   template: `
@@ -24,10 +27,13 @@ import { ModalFocusDirective } from './modal-focus.directive';
           </nav>
           <div class="training-wizard-body" [formGroup]="form">
             @if (currentStep() === 0) {
-              <div class="wizard-page"><div class="wizard-section-title"><ng-icon name="lucideCpu"/><span>Model Architecture</span></div><div class="wizard-2col-panel">
-                <div class="wizard-col"><label class="form-group"><span class="form-label">Encoders</span><input class="form-input" type="number" min="1" formControlName="numEncoders"/></label><label class="form-group"><span class="form-label">Decoders</span><input class="form-input" type="number" min="1" formControlName="numDecoders"/></label><label class="form-group"><span class="form-label">Embedding dimensions</span><input class="form-input" type="number" min="1" step="8" formControlName="embeddingDims"/></label><label class="form-group"><span class="form-label">Attention heads</span><input class="form-input" type="number" min="1" formControlName="attnHeads"/></label></div>
-                <div class="wizard-col"><label class="form-group"><span class="form-label">Temperature</span><input class="form-input" type="number" min="0" step="0.05" formControlName="trainTemp"/></label><label class="checkbox-label"><input type="checkbox" formControlName="freezeImgEncoder"/><span class="checkbox-visual" aria-hidden="true"></span> Freeze image encoder</label></div>
-              </div></div>
+              <div class="wizard-page"><div class="wizard-section-title"><ng-icon name="lucideCpu"/><span>Model Architecture</span></div>
+                <label class="form-group"><span class="form-label">Architecture preset</span><select class="form-select" formControlName="architecturePreset">@for (preset of presets; track preset.key) { <option [value]="preset.key">{{ preset.name }}{{ preset.builtin ? '' : ' (custom)' }}</option> }</select></label>
+                @if (selectedPreset(); as preset) {
+                  <div class="wizard-preset-summary"><p>{{ preset.description || 'Custom architecture preset.' }}</p><div class="wizard-summary"><div><span>Parameters</span><strong>{{ formatParameters(preset.stats.total_parameters) }}</strong></div><div><span>Trainable</span><strong>{{ formatParameters(preset.stats.trainable_parameters) }}</strong></div><div><span>Encoder / decoder layers</span><strong>{{ preset.architecture.num_encoders }} / {{ preset.architecture.num_decoders }}</strong></div><div><span>Width / heads</span><strong>{{ preset.architecture.embedding_dims }} / {{ preset.architecture.attention_heads }}</strong></div><div><span>Image encoder</span><strong>{{ preset.architecture.freeze_image_encoder ? 'Frozen BEiT' : 'Trainable BEiT' }}</strong></div></div></div>
+                } @else { <div class="upload-status error">The selected preset no longer exists. Choose another preset.</div> }
+                <a class="wizard-preset-link" routerLink="/model" (click)="closed.emit()">Edit or create presets on the Model page</a>
+              </div>
             }
             @if (currentStep() === 1) {
               <div class="wizard-page"><div class="wizard-section-title"><ng-icon name="lucideSettings"/><span>Dataset Configuration</span></div><div class="wizard-2col-panel">
@@ -48,11 +54,11 @@ import { ModalFocusDirective } from './modal-focus.directive';
               </div></div>
             }
             @if (currentStep() === 4) {
-              <div class="wizard-page"><div class="wizard-section-title"><ng-icon name="lucideInfo"/><span>Training Summary</span></div><div class="wizard-summary-content"><div class="wizard-summary"><div class="summary-section"><h5>Model</h5><div class="summary-item"><span>Encoders</span><span>{{ form.get('numEncoders')?.value }}</span></div><div class="summary-item"><span>Decoders</span><span>{{ form.get('numDecoders')?.value }}</span></div><div class="summary-item"><span>Embedding</span><span>{{ form.get('embeddingDims')?.value }}</span></div><div class="summary-item"><span>Heads</span><span>{{ form.get('attnHeads')?.value }}</span></div></div><div class="summary-section"><h5>Training</h5><div class="summary-item"><span>Epochs</span><span>{{ form.get('epochs')?.value }}</span></div><div class="summary-item"><span>Batch size</span><span>{{ form.get('batchSize')?.value }}</span></div><div class="summary-item"><span>Scheduler</span><span>{{ form.get('useScheduler')?.value ? 'Yes' : 'No' }}</span></div><div class="summary-item"><span>Checkpoints</span><span>{{ form.get('saveCheckpoints')?.value ? 'Yes' : 'No' }}</span></div></div><div class="summary-section"><h5>Runtime</h5><div class="summary-item"><span>Device</span><span>{{ form.get('useGpu')?.value ? 'GPU ' + form.get('gpuId')?.value : 'CPU' }}</span></div><div class="summary-item"><span>Workers</span><span>{{ form.get('dataloaderWorkers')?.value }}</span></div><div class="summary-item"><span>Mixed precision</span><span>{{ form.get('useMixedPrecision')?.value ? 'Yes' : 'No' }}</span></div><div class="summary-item"><span>Torch compile</span><span>{{ form.get('jitCompile')?.value ? form.get('jitBackend')?.value : 'No' }}</span></div></div></div></div></div>
+              <div class="wizard-page"><div class="wizard-section-title"><ng-icon name="lucideInfo"/><span>Training Summary</span></div><div class="wizard-summary-content"><div class="wizard-summary"><div class="summary-section"><h5>Model</h5><div class="summary-item"><span>Preset</span><span>{{ selectedPreset()?.name ?? 'Missing' }}</span></div><div class="summary-item"><span>Parameters</span><span>{{ selectedPreset() ? formatParameters(selectedPreset()!.stats.total_parameters) : 'N/A' }}</span></div><div class="summary-item"><span>Layers</span><span>{{ selectedPreset() ? selectedPreset()!.architecture.num_encoders + ' + ' + selectedPreset()!.architecture.num_decoders : 'N/A' }}</span></div></div><div class="summary-section"><h5>Training</h5><div class="summary-item"><span>Epochs</span><span>{{ form.get('epochs')?.value }}</span></div><div class="summary-item"><span>Batch size</span><span>{{ form.get('batchSize')?.value }}</span></div><div class="summary-item"><span>Scheduler</span><span>{{ form.get('useScheduler')?.value ? 'Yes' : 'No' }}</span></div><div class="summary-item"><span>Checkpoints</span><span>{{ form.get('saveCheckpoints')?.value ? 'Yes' : 'No' }}</span></div></div><div class="summary-section"><h5>Runtime</h5><div class="summary-item"><span>Device</span><span>{{ form.get('useGpu')?.value ? 'GPU ' + form.get('gpuId')?.value : 'CPU' }}</span></div><div class="summary-item"><span>Workers</span><span>{{ form.get('dataloaderWorkers')?.value }}</span></div><div class="summary-item"><span>Mixed precision</span><span>{{ form.get('useMixedPrecision')?.value ? 'Yes' : 'No' }}</span></div><div class="summary-item"><span>Torch compile</span><span>{{ form.get('jitCompile')?.value ? form.get('jitBackend')?.value : 'No' }}</span></div></div></div></div></div>
             }
           </div>
           @if (error) { <div class="upload-status error">{{ error }}</div> }
-          <div class="modal-footer training-wizard-actions"><button type="button" class="btn btn-secondary" (click)="closed.emit()">Cancel</button>@if (currentStep() > 0) { <button type="button" class="btn btn-secondary" (click)="previousStep()"><ng-icon name="lucideChevronLeft"/>Back</button> }@if (currentStep() < steps.length - 1) { <button type="button" class="btn btn-primary" (click)="nextStep()">Next<ng-icon name="lucideChevronRight"/></button> }@else { <button type="button" class="btn btn-primary" (click)="submitted.emit()" [disabled]="isLoading || form.invalid"><ng-icon [name]="isLoading ? 'lucideActivity' : 'lucidePlay'"/>{{ isLoading ? 'Starting…' : 'Start training' }}</button> }</div>
+          <div class="modal-footer training-wizard-actions"><button type="button" class="btn btn-secondary" (click)="closed.emit()">Cancel</button>@if (currentStep() > 0) { <button type="button" class="btn btn-secondary" (click)="previousStep()"><ng-icon name="lucideChevronLeft"/>Back</button> }@if (currentStep() < steps.length - 1) { <button type="button" class="btn btn-primary" (click)="nextStep()">Next<ng-icon name="lucideChevronRight"/></button> }@else { <button type="button" class="btn btn-primary" (click)="submitted.emit()" [disabled]="isLoading || form.invalid || !selectedPreset()"><ng-icon [name]="isLoading ? 'lucideActivity' : 'lucidePlay'"/>{{ isLoading ? 'Starting…' : 'Start training' }}</button> }</div>
         </section>
       </div>
     }
@@ -67,10 +73,13 @@ export class NewTrainingWizardComponent {
   @Input() form!: FormGroup;
   @Input() isLoading = false;
   @Input() error: string | null = null;
+  @Input() presets: ArchitecturePreset[] = [];
   @Output() readonly closed = new EventEmitter<void>();
   @Output() readonly submitted = new EventEmitter<void>();
   readonly steps = ['Model', 'Dataset', 'Training', 'Device', 'Summary'];
   readonly currentStep = signal(0);
+  readonly formatParameters = formatParameters;
+  selectedPreset(): ArchitecturePreset | null { const key = this.form.get('architecturePreset')?.value; return this.presets.find((preset) => preset.key === key) ?? null; }
   nextStep() { this.currentStep.update((step) => Math.min(step + 1, this.steps.length - 1)); }
   previousStep() { this.currentStep.update((step) => Math.max(step - 1, 0)); }
   goToStep(step: number) { this.currentStep.set(Math.max(0, Math.min(step, this.steps.length - 1))); }

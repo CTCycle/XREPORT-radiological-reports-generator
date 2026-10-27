@@ -26,6 +26,257 @@ export type ApplicationSettingsResponse = {
 };
 
 /**
+ * ArchitectureCompatibility
+ */
+export type ArchitectureCompatibility = {
+    /**
+     * Reference
+     */
+    reference: string;
+    /**
+     * Level
+     */
+    level: 'identical' | 'weights_compatible' | 'retrain_required';
+    /**
+     * Changes
+     */
+    changes: Array<FieldChange>;
+    /**
+     * Message
+     */
+    message: string;
+};
+
+/**
+ * ArchitectureEdge
+ */
+export type ArchitectureEdge = {
+    /**
+     * Source
+     */
+    source: string;
+    /**
+     * Target
+     */
+    target: string;
+    /**
+     * Label
+     */
+    label?: string;
+};
+
+/**
+ * ArchitectureGraph
+ */
+export type ArchitectureGraph = {
+    /**
+     * Nodes
+     */
+    nodes: Array<ArchitectureNode>;
+    /**
+     * Edges
+     */
+    edges: Array<ArchitectureEdge>;
+};
+
+/**
+ * ArchitectureIssue
+ */
+export type ArchitectureIssue = {
+    /**
+     * Field
+     */
+    field?: string | null;
+    /**
+     * Message
+     */
+    message: string;
+};
+
+/**
+ * ArchitectureNode
+ */
+export type ArchitectureNode = {
+    /**
+     * Id
+     */
+    id: string;
+    /**
+     * Kind
+     */
+    kind: string;
+    /**
+     * Label
+     */
+    label: string;
+    /**
+     * Detail
+     */
+    detail: string;
+    /**
+     * Lane
+     */
+    lane: 'image' | 'text' | 'output';
+    /**
+     * Parameters
+     */
+    parameters: number;
+    /**
+     * Trainable
+     */
+    trainable: boolean;
+    /**
+     * Repeat
+     */
+    repeat?: number;
+    /**
+     * Output Shape
+     */
+    output_shape: Array<number | null>;
+    /**
+     * Properties
+     */
+    properties?: {
+        [key: string]: unknown;
+    };
+};
+
+/**
+ * ArchitecturePreset
+ */
+export type ArchitecturePreset = {
+    /**
+     * Key
+     */
+    key: string;
+    /**
+     * Name
+     */
+    name: string;
+    /**
+     * Description
+     */
+    description: string;
+    /**
+     * Builtin
+     */
+    builtin: boolean;
+    architecture: ModelArchitecture;
+    stats: ArchitectureStats;
+    /**
+     * Created At
+     */
+    created_at?: string | null;
+    /**
+     * Updated At
+     */
+    updated_at?: string | null;
+};
+
+/**
+ * ArchitecturePresetRequest
+ */
+export type ArchitecturePresetRequest = {
+    /**
+     * Name
+     */
+    name: string;
+    /**
+     * Description
+     */
+    description?: string;
+    architecture: ModelArchitecture;
+};
+
+/**
+ * ArchitecturePresetsResponse
+ */
+export type ArchitecturePresetsResponse = {
+    /**
+     * Presets
+     */
+    presets: Array<ArchitecturePreset>;
+};
+
+/**
+ * ArchitecturePreviewRequest
+ */
+export type ArchitecturePreviewRequest = {
+    /**
+     * Architecture
+     */
+    architecture: {
+        [key: string]: unknown;
+    };
+    /**
+     * Dataset Name
+     */
+    dataset_name?: string | null;
+    /**
+     * Reference
+     *
+     * Preset key or checkpoint:<name> to compare against
+     */
+    reference?: string | null;
+};
+
+/**
+ * ArchitecturePreviewResponse
+ */
+export type ArchitecturePreviewResponse = {
+    /**
+     * Valid
+     */
+    valid: boolean;
+    /**
+     * Issues
+     */
+    issues: Array<ArchitectureIssue>;
+    architecture?: ModelArchitecture | null;
+    graph?: ArchitectureGraph | null;
+    stats?: ArchitectureStats | null;
+    compatibility?: ArchitectureCompatibility | null;
+};
+
+/**
+ * ArchitectureStats
+ */
+export type ArchitectureStats = {
+    /**
+     * Total Parameters
+     */
+    total_parameters: number;
+    /**
+     * Trainable Parameters
+     */
+    trainable_parameters: number;
+    /**
+     * Frozen Parameters
+     */
+    frozen_parameters: number;
+    /**
+     * Weights Bytes
+     */
+    weights_bytes: number;
+    /**
+     * Training Memory Bytes
+     */
+    training_memory_bytes: number;
+    /**
+     * Depth
+     */
+    depth: number;
+    /**
+     * Vocabulary Size
+     */
+    vocabulary_size: number;
+    /**
+     * Sequence Length
+     */
+    sequence_length: number;
+};
+
+/**
  * Body_upload_dataset_api_upload_dataset_post
  */
 export type BodyUploadDatasetApiUploadDatasetPost = {
@@ -33,6 +284,29 @@ export type BodyUploadDatasetApiUploadDatasetPost = {
      * File
      */
     file: Blob | File;
+};
+
+/**
+ * CheckpointArchitectureResponse
+ */
+export type CheckpointArchitectureResponse = {
+    /**
+     * Checkpoint
+     */
+    checkpoint: string;
+    architecture: ModelArchitecture;
+    /**
+     * Preset Name
+     */
+    preset_name?: string | null;
+    /**
+     * Legacy
+     */
+    legacy: boolean;
+    /**
+     * Measured Parameters
+     */
+    measured_parameters?: number | null;
 };
 
 /**
@@ -489,6 +763,66 @@ export type DeleteResponse = {
 };
 
 /**
+ * EncoderOption
+ */
+export type EncoderOption = {
+    /**
+     * Id
+     */
+    id: string;
+    /**
+     * Label
+     */
+    label: string;
+    /**
+     * Repository
+     */
+    repository: string;
+    /**
+     * Revision
+     */
+    revision: string;
+    /**
+     * Input Shape
+     */
+    input_shape: Array<number>;
+    /**
+     * Output Tokens
+     */
+    output_tokens: number;
+    /**
+     * Feature Dims
+     */
+    feature_dims: number;
+    /**
+     * Parameters
+     */
+    parameters: number;
+    /**
+     * Pretrained
+     */
+    pretrained: boolean;
+    /**
+     * Inference Compatible
+     */
+    inference_compatible: boolean;
+    /**
+     * Description
+     */
+    description: string;
+};
+
+/**
+ * EncodersResponse
+ */
+export type EncodersResponse = {
+    /**
+     * Encoders
+     */
+    encoders: Array<EncoderOption>;
+};
+
+/**
  * ExportRequest
  */
 export type ExportRequest = {
@@ -500,6 +834,28 @@ export type ExportRequest = {
      * Include Encoder
      */
     include_encoder?: boolean;
+};
+
+/**
+ * FieldChange
+ */
+export type FieldChange = {
+    /**
+     * Field
+     */
+    field: string;
+    /**
+     * Before
+     */
+    before: unknown;
+    /**
+     * After
+     */
+    after: unknown;
+    /**
+     * Impact
+     */
+    impact: 'weights_compatible' | 'retrain_required';
 };
 
 /**
@@ -855,6 +1211,80 @@ export type MemoryUsage = {
 };
 
 /**
+ * ModelArchitecture
+ *
+ * Configurable, constrained XREPORT transformer architecture.
+ */
+export type ModelArchitecture = {
+    /**
+     * Image Encoder
+     *
+     * Pretrained image encoder from the registry
+     */
+    image_encoder?: 'beit-base-patch16-224';
+    /**
+     * Freeze Image Encoder
+     *
+     * Keep pretrained image encoder weights frozen
+     */
+    freeze_image_encoder?: boolean;
+    /**
+     * Embedding Dims
+     *
+     * Model width shared by all transformer blocks
+     */
+    embedding_dims?: number;
+    /**
+     * Num Encoders
+     *
+     * Transformer encoder layers
+     */
+    num_encoders?: number;
+    /**
+     * Num Decoders
+     *
+     * Transformer decoder layers
+     */
+    num_decoders?: number;
+    /**
+     * Attention Heads
+     *
+     * Attention heads per block
+     */
+    attention_heads?: number;
+    /**
+     * Head Dim Mode
+     *
+     * full: every head projects to the model width; split: width / heads
+     */
+    head_dim_mode?: 'full' | 'split';
+    /**
+     * Ffn Units
+     *
+     * Hidden units of each feed-forward network
+     */
+    ffn_units?: number;
+    /**
+     * Dropout
+     *
+     * Dropout rate
+     */
+    dropout?: number;
+    /**
+     * Classifier Units
+     *
+     * Hidden units of the token classifier
+     */
+    classifier_units?: number;
+    /**
+     * Temperature
+     *
+     * Softmax temperature of the classifier
+     */
+    temperature?: number;
+};
+
+/**
  * PixelDistribution
  *
  * Model for pixel intensity distribution.
@@ -1032,41 +1462,11 @@ export type StartTrainingRequest = {
      */
     batch_size: number;
     /**
-     * Num Encoders
+     * Architecture Preset
      *
-     * Number of encoder layers
+     * Key of the built-in or saved model architecture preset
      */
-    num_encoders: number;
-    /**
-     * Num Decoders
-     *
-     * Number of decoder layers
-     */
-    num_decoders: number;
-    /**
-     * Embedding Dims
-     *
-     * Embedding dimensions
-     */
-    embedding_dims: number;
-    /**
-     * Attention Heads
-     *
-     * Number of attention heads
-     */
-    attention_heads: number;
-    /**
-     * Train Temp
-     *
-     * Training temperature
-     */
-    train_temp: number;
-    /**
-     * Freeze Img Encoder
-     *
-     * Freeze image encoder weights
-     */
-    freeze_img_encoder: boolean;
+    architecture_preset: string;
     /**
      * Use Img Augmentation
      *
@@ -1793,6 +2193,178 @@ export type ResumeTrainingApiTrainingResumePostResponses = {
 };
 
 export type ResumeTrainingApiTrainingResumePostResponse = ResumeTrainingApiTrainingResumePostResponses[keyof ResumeTrainingApiTrainingResumePostResponses];
+
+export type GetEncodersApiModelEncodersGetData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/api/model/encoders';
+};
+
+export type GetEncodersApiModelEncodersGetResponses = {
+    /**
+     * Successful Response
+     */
+    200: EncodersResponse;
+};
+
+export type GetEncodersApiModelEncodersGetResponse = GetEncodersApiModelEncodersGetResponses[keyof GetEncodersApiModelEncodersGetResponses];
+
+export type ListPresetsApiModelPresetsGetData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/api/model/presets';
+};
+
+export type ListPresetsApiModelPresetsGetResponses = {
+    /**
+     * Successful Response
+     */
+    200: ArchitecturePresetsResponse;
+};
+
+export type ListPresetsApiModelPresetsGetResponse = ListPresetsApiModelPresetsGetResponses[keyof ListPresetsApiModelPresetsGetResponses];
+
+export type CreatePresetApiModelPresetsPostData = {
+    body: ArchitecturePresetRequest;
+    path?: never;
+    query?: never;
+    url: '/api/model/presets';
+};
+
+export type CreatePresetApiModelPresetsPostErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type CreatePresetApiModelPresetsPostError = CreatePresetApiModelPresetsPostErrors[keyof CreatePresetApiModelPresetsPostErrors];
+
+export type CreatePresetApiModelPresetsPostResponses = {
+    /**
+     * Successful Response
+     */
+    201: ArchitecturePreset;
+};
+
+export type CreatePresetApiModelPresetsPostResponse = CreatePresetApiModelPresetsPostResponses[keyof CreatePresetApiModelPresetsPostResponses];
+
+export type DeletePresetApiModelPresetsKeyDeleteData = {
+    body?: never;
+    path: {
+        /**
+         * Key
+         */
+        key: string;
+    };
+    query?: never;
+    url: '/api/model/presets/{key}';
+};
+
+export type DeletePresetApiModelPresetsKeyDeleteErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type DeletePresetApiModelPresetsKeyDeleteError = DeletePresetApiModelPresetsKeyDeleteErrors[keyof DeletePresetApiModelPresetsKeyDeleteErrors];
+
+export type DeletePresetApiModelPresetsKeyDeleteResponses = {
+    /**
+     * Successful Response
+     */
+    204: void;
+};
+
+export type DeletePresetApiModelPresetsKeyDeleteResponse = DeletePresetApiModelPresetsKeyDeleteResponses[keyof DeletePresetApiModelPresetsKeyDeleteResponses];
+
+export type UpdatePresetApiModelPresetsKeyPutData = {
+    body: ArchitecturePresetRequest;
+    path: {
+        /**
+         * Key
+         */
+        key: string;
+    };
+    query?: never;
+    url: '/api/model/presets/{key}';
+};
+
+export type UpdatePresetApiModelPresetsKeyPutErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type UpdatePresetApiModelPresetsKeyPutError = UpdatePresetApiModelPresetsKeyPutErrors[keyof UpdatePresetApiModelPresetsKeyPutErrors];
+
+export type UpdatePresetApiModelPresetsKeyPutResponses = {
+    /**
+     * Successful Response
+     */
+    200: ArchitecturePreset;
+};
+
+export type UpdatePresetApiModelPresetsKeyPutResponse = UpdatePresetApiModelPresetsKeyPutResponses[keyof UpdatePresetApiModelPresetsKeyPutResponses];
+
+export type PreviewApiModelPreviewPostData = {
+    body: ArchitecturePreviewRequest;
+    path?: never;
+    query?: never;
+    url: '/api/model/preview';
+};
+
+export type PreviewApiModelPreviewPostErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type PreviewApiModelPreviewPostError = PreviewApiModelPreviewPostErrors[keyof PreviewApiModelPreviewPostErrors];
+
+export type PreviewApiModelPreviewPostResponses = {
+    /**
+     * Successful Response
+     */
+    200: ArchitecturePreviewResponse;
+};
+
+export type PreviewApiModelPreviewPostResponse = PreviewApiModelPreviewPostResponses[keyof PreviewApiModelPreviewPostResponses];
+
+export type GetCheckpointArchitectureApiModelCheckpointsCheckpointArchitectureGetData = {
+    body?: never;
+    path: {
+        /**
+         * Checkpoint
+         */
+        checkpoint: string;
+    };
+    query?: never;
+    url: '/api/model/checkpoints/{checkpoint}/architecture';
+};
+
+export type GetCheckpointArchitectureApiModelCheckpointsCheckpointArchitectureGetErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type GetCheckpointArchitectureApiModelCheckpointsCheckpointArchitectureGetError = GetCheckpointArchitectureApiModelCheckpointsCheckpointArchitectureGetErrors[keyof GetCheckpointArchitectureApiModelCheckpointsCheckpointArchitectureGetErrors];
+
+export type GetCheckpointArchitectureApiModelCheckpointsCheckpointArchitectureGetResponses = {
+    /**
+     * Successful Response
+     */
+    200: CheckpointArchitectureResponse;
+};
+
+export type GetCheckpointArchitectureApiModelCheckpointsCheckpointArchitectureGetResponse = GetCheckpointArchitectureApiModelCheckpointsCheckpointArchitectureGetResponses[keyof GetCheckpointArchitectureApiModelCheckpointsCheckpointArchitectureGetResponses];
 
 export type RunValidationApiValidationRunPostData = {
     body: ValidationRequest;

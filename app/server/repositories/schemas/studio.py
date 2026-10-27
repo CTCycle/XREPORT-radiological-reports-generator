@@ -354,6 +354,32 @@ class CheckpointEvaluation(StudioBase):
     )
 
 ###############################################################################
+class ModelArchitecturePreset(StudioBase):
+    """User-defined model architecture preset."""
+
+    __tablename__ = "model_architecture_presets"
+    preset_id: Mapped[int] = mapped_column(
+        Integer, primary_key=True, autoincrement=True
+    )
+    name: Mapped[str] = mapped_column(String(80), nullable=False)
+    name_key: Mapped[str] = mapped_column(String(80), nullable=False)
+    description: Mapped[str] = mapped_column(Text, nullable=False, default="")
+    architecture_json: Mapped[Any] = mapped_column(JSONSequence, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        UTCDateTime(),
+        nullable=False,
+        default=lambda: datetime.now(timezone.utc),
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        UTCDateTime(),
+        nullable=False,
+        default=lambda: datetime.now(timezone.utc),
+    )
+    __table_args__ = (
+        UniqueConstraint("name_key", name="uq_model_architecture_presets_name_key"),
+    )
+
+###############################################################################
 @event.listens_for(Dataset, "before_insert")
 def _populate_dataset_name_key(_mapper: Any, _connection: Any, target: Dataset) -> None:
     target.name_key = normalize_key(target.name)
@@ -372,6 +398,7 @@ __all__ = [
     "Dataset",
     "DatasetRecord",
     "DatasetVersion",
+    "ModelArchitecturePreset",
     "ProcessingRun",
     "StudioBase",
     "StudioSettingsRecord",
