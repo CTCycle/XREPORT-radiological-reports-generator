@@ -170,6 +170,22 @@ def test_typed_job_failure_is_used_without_a_mapper() -> None:
 
 
 ###############################################################################
+def test_training_start_rejects_an_existing_checkpoint_name() -> None:
+    class CheckpointRepositoryStub:
+        def get_checkpoint(self, name: str) -> object | None:
+            return object() if name == "existing_run" else None
+
+    service = TrainingService(
+        job_manager=JobManager(),
+        training_runtime=TrainingRuntime(),
+        checkpoint_repository=CheckpointRepositoryStub(),  # type: ignore[arg-type]
+    )
+
+    with pytest.raises(ConflictError, match="existing_run"):
+        service.ensure_checkpoint_name_is_free("existing_run!")
+    service.ensure_checkpoint_name_is_free("new_run")
+
+###############################################################################
 def test_concurrent_training_starts_are_atomically_rejected(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -236,15 +252,12 @@ def test_concurrent_training_starts_are_atomically_rejected(
         dataset_name="concurrency-fixture",
         epochs=1,
         batch_size=1,
+        gradient_accumulation_steps=1,
         architecture_preset="compact",
         use_img_augmentation=False,
-        shuffle_with_buffer=False,
-        shuffle_size=1,
         save_checkpoints=True,
         use_device_GPU=False,
         device_ID=0,
-        jit_compile=False,
-        jit_backend="eager",
         use_mixed_precision=False,
         dataloader_workers=0,
         prefetch_factor=2,

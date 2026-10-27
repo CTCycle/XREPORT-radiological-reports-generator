@@ -54,12 +54,10 @@ export interface DatasetPageState {
 export interface TrainingConfig {
     architecturePreset: string;
     useImgAugment: boolean;
-    shuffleWithBuffer: boolean;
-    shuffleBufferSize: number;
     epochs: number;
     batchSize: number;
+    gradientAccumulationSteps: number;
     saveCheckpoints: boolean;
-    checkpointFreq: number;
     useScheduler: boolean;
     targetLR: number;
     warmupSteps: number;
@@ -69,8 +67,6 @@ export interface TrainingConfig {
     pinMemory: boolean;
     persistentWorkers: boolean;
     useMixedPrecision: boolean;
-    jitCompile: boolean;
-    jitBackend: string;
     useGpu: boolean;
     gpuId: number;
 }

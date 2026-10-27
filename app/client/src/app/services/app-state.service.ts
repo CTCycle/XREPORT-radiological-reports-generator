@@ -2,7 +2,7 @@ import { Injectable, signal } from '@angular/core';
 import { DatasetPageState, DatasetProcessingConfig, InferencePageState, InferenceStudy, TrainingConfig, TrainingDashboardState, TrainingPageState } from '../types';
 
 const defaultDatasetConfig: DatasetProcessingConfig = { datasetName: '', sampleSize: 1, validationSize: 0.2, maxReportSize: 200, tokenizer: 'distilbert-base-uncased', evalSampleSize: 0.1, imgStats: false, textStats: false, pixDist: false };
-const defaultTrainingConfig: TrainingConfig = { architecturePreset: 'xreport-default', useImgAugment: false, shuffleWithBuffer: true, shuffleBufferSize: 256, epochs: 100, batchSize: 32, saveCheckpoints: true, checkpointFreq: 1, useScheduler: false, targetLR: 0.001, warmupSteps: 1000, realTimePlot: true, dataloaderWorkers: 0, prefetchFactor: 1, pinMemory: true, persistentWorkers: false, useMixedPrecision: false, jitCompile: false, jitBackend: 'inductor', useGpu: true, gpuId: 0 };
+const defaultTrainingConfig: TrainingConfig = { architecturePreset: 'xreport-default', useImgAugment: false, epochs: 100, batchSize: 32, gradientAccumulationSteps: 1, saveCheckpoints: true, useScheduler: false, targetLR: 0.001, warmupSteps: 1000, realTimePlot: true, dataloaderWorkers: 0, prefetchFactor: 1, pinMemory: true, persistentWorkers: false, useMixedPrecision: false, useGpu: true, gpuId: 0 };
 const defaultDashboard: TrainingDashboardState = { isTraining: false, currentEpoch: 0, totalEpochs: 0, loss: 0, valLoss: 0, accuracy: 0, valAccuracy: 0, progressPercent: 0, elapsedSeconds: 0, workerPhase: 'idle', workerPhaseStatus: 'idle', workerPhaseElapsedSeconds: 0, workerElapsedSeconds: 0, chartData: [], availableMetrics: [], epochBoundaries: [], logEntries: [] };
 
 function freshDatasetState(): DatasetPageState {

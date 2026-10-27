@@ -4089,6 +4089,13 @@
             "title": "Batch Size",
             "description": "Batch size for training"
           },
+          "gradient_accumulation_steps": {
+            "type": "integer",
+            "maximum": 64.0,
+            "minimum": 1.0,
+            "title": "Gradient Accumulation Steps",
+            "description": "Batches whose gradients are accumulated before each optimizer step"
+          },
           "architecture_preset": {
             "type": "string",
             "maxLength": 64,
@@ -4100,17 +4107,6 @@
             "type": "boolean",
             "title": "Use Img Augmentation",
             "description": "Enable image augmentation"
-          },
-          "shuffle_with_buffer": {
-            "type": "boolean",
-            "title": "Shuffle With Buffer",
-            "description": "Enable shuffle with buffer"
-          },
-          "shuffle_size": {
-            "type": "integer",
-            "minimum": 1.0,
-            "title": "Shuffle Size",
-            "description": "Shuffle buffer size"
           },
           "save_checkpoints": {
             "type": "boolean",
@@ -4141,16 +4137,6 @@
             "minimum": 0.0,
             "title": "Device Id",
             "description": "GPU device ID"
-          },
-          "jit_compile": {
-            "type": "boolean",
-            "title": "Jit Compile",
-            "description": "Enable torch compile mode"
-          },
-          "jit_backend": {
-            "type": "string",
-            "title": "Jit Backend",
-            "description": "Torch compile backend"
           },
           "use_mixed_precision": {
             "type": "boolean",
@@ -4211,15 +4197,12 @@
           "dataset_name",
           "epochs",
           "batch_size",
+          "gradient_accumulation_steps",
           "architecture_preset",
           "use_img_augmentation",
-          "shuffle_with_buffer",
-          "shuffle_size",
           "save_checkpoints",
           "use_device_GPU",
           "device_ID",
-          "jit_compile",
-          "jit_backend",
           "use_mixed_precision",
           "dataloader_workers",
           "prefetch_factor",

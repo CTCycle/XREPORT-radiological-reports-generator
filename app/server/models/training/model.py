@@ -4,7 +4,6 @@ import math
 from typing import Any
 
 from keras import Model, layers, optimizers
-from torch import compile as torch_compile
 
 from server.common.utils.logger import logger
 from server.domain.model_architecture import ModelArchitecture
@@ -35,8 +34,6 @@ class XREPORTModel:
         self.architecture = ModelArchitecture.model_validate(
             configuration["architecture"]
         )
-        self.jit_compile = configuration.get("jit_compile", False)
-        self.jit_backend = configuration.get("jit_backend", "inductor")
         self.configuration = configuration
         self.metadata = metadata
 
@@ -73,20 +70,22 @@ class XREPORTModel:
         lr_schedule: float | WarmUpLRScheduler = target_lr
 
         if self.configuration.get("use_scheduler", False):
+            # The schedule advances once per optimizer step, i.e. once every
+            # `gradient_accumulation_steps` batches.
             warmup_steps = self.configuration.get("warmup_steps", 100)
             lr_schedule = WarmUpLRScheduler(target_lr, warmup_steps)
 
+        accumulation_steps = int(self.configuration.get("gradient_accumulation_steps", 1))
         loss = MaskedSparseCategoricalCrossentropy()
         metric = [MaskedAccuracy()]
-        opt = optimizers.AdamW(learning_rate=lr_schedule)  # type: ignore
+        opt = optimizers.AdamW(
+            learning_rate=lr_schedule,  # type: ignore[arg-type]
+            gradient_accumulation_steps=accumulation_steps if accumulation_steps > 1 else None,
+        )
         model.compile(loss=loss, optimizer=opt, metrics=metric, jit_compile=False)  # type: ignore
 
         if model_summary:
             model.summary(expand_nested=True)
-
-        if self.jit_compile:
-            logger.info(f"JIT compiling model with backend: {self.jit_backend}")
-            model = torch_compile(model, backend=self.jit_backend, mode="default")  # type: ignore
 
         return model
 

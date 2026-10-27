@@ -79,6 +79,12 @@ class StartTrainingRequest(BaseModel):
     )
     epochs: int = Field(..., ge=1, le=1000, description="Number of training epochs")
     batch_size: int = Field(..., ge=1, le=256, description="Batch size for training")
+    gradient_accumulation_steps: int = Field(
+        ...,
+        ge=1,
+        le=64,
+        description="Batches whose gradients are accumulated before each optimizer step",
+    )
     architecture_preset: str = Field(
         ...,
         min_length=1,
@@ -86,8 +92,6 @@ class StartTrainingRequest(BaseModel):
         description="Key of the built-in or saved model architecture preset",
     )
     use_img_augmentation: bool = Field(..., description="Enable image augmentation")
-    shuffle_with_buffer: bool = Field(..., description="Enable shuffle with buffer")
-    shuffle_size: int = Field(..., ge=1, description="Shuffle buffer size")
     save_checkpoints: bool = Field(..., description="Save checkpoints during training")
     checkpoint_id: str | None = Field(
         None,
@@ -97,8 +101,6 @@ class StartTrainingRequest(BaseModel):
     )
     use_device_GPU: bool = Field(..., description="Use GPU for training")
     device_ID: int = Field(..., ge=0, description="GPU device ID")
-    jit_compile: bool = Field(..., description="Enable torch compile mode")
-    jit_backend: str = Field(..., description="Torch compile backend")
     use_mixed_precision: bool = Field(
         ..., description="Enable mixed precision policy for GPU training"
     )

@@ -1552,6 +1552,12 @@ export type StartTrainingRequest = {
      */
     batch_size: number;
     /**
+     * Gradient Accumulation Steps
+     *
+     * Batches whose gradients are accumulated before each optimizer step
+     */
+    gradient_accumulation_steps: number;
+    /**
      * Architecture Preset
      *
      * Key of the built-in or saved model architecture preset
@@ -1563,18 +1569,6 @@ export type StartTrainingRequest = {
      * Enable image augmentation
      */
     use_img_augmentation: boolean;
-    /**
-     * Shuffle With Buffer
-     *
-     * Enable shuffle with buffer
-     */
-    shuffle_with_buffer: boolean;
-    /**
-     * Shuffle Size
-     *
-     * Shuffle buffer size
-     */
-    shuffle_size: number;
     /**
      * Save Checkpoints
      *
@@ -1599,18 +1593,6 @@ export type StartTrainingRequest = {
      * GPU device ID
      */
     device_ID: number;
-    /**
-     * Jit Compile
-     *
-     * Enable torch compile mode
-     */
-    jit_compile: boolean;
-    /**
-     * Jit Backend
-     *
-     * Torch compile backend
-     */
-    jit_backend: string;
     /**
      * Use Mixed Precision
      *

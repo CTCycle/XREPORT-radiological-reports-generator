@@ -894,6 +894,18 @@ class TrainingService:
         )
 
     # -------------------------------------------------------------------------
+    def ensure_checkpoint_name_is_free(self, checkpoint_id: str) -> None:
+        from server.common.path import CHECKPOINTS_DIR
+        from server.repositories.serialization.model import ModelSerializer
+
+        name = ModelSerializer().checkpoint_folder_name(checkpoint_id)
+        if (
+            self.checkpoint_repository.get_checkpoint(name) is not None
+            or (CHECKPOINTS_DIR / name).exists()
+        ):
+            raise ConflictError(detail=f"A checkpoint named '{name}' already exists")
+
+    # -------------------------------------------------------------------------
     def start_training(self, request: StartTrainingRequest) -> JobStartResponse:
         if self.job_manager.is_job_running("training"):
             raise ConflictError(
@@ -901,6 +913,8 @@ class TrainingService:
             )
 
         serializer = DatasetRepository()
+        if request.checkpoint_id:
+            self.ensure_checkpoint_name_is_free(request.checkpoint_id)
 
         # Build configuration from request
         configuration = request.model_dump()
