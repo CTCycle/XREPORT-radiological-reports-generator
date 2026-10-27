@@ -39,12 +39,11 @@ point fails if the two disagree. `desktop_entry` supports only `xreport`.
   (`layers`, `metrics`, `scheduler`, `encoder`, `processing`, `dataloader`)
   stay shared and in place, because Keras serialises their registered names.
 
-- Both profiles run the same Alembic stream and settings model, so each database
-  also holds the other application's empty tables (for example `inference_runs` in
-  Studio, `datasets` in XREPORT Inference) and exposes shared setting groups. This
-  is intentional: one schema keeps migrations and checkpoint registry code single.
-  Per-profile schemas were considered and rejected as too risky for existing user
-  databases.
+- Each profile has its own ORM schema, Alembic stream, version table, and
+  settings row (`repositories/schemas/{inference,studio}.py`,
+  `migrations/{inference,studio}`). A database is owned by exactly one
+  application; the other application refuses to open or migrate it. Studio
+  stores no inference settings. See [persistence](persistence.md).
 - Python dependencies are one lock file. `nltk` and `openpyxl` (evaluation and
   spreadsheet upload) and `opencv-python`/`matplotlib` live in the `studio` extra,
   so the XREPORT Inference environment does not install them. `huggingface-hub`
@@ -55,8 +54,10 @@ point fails if the two disagree. `desktop_entry` supports only `xreport`.
 
 ## Data ownership
 
-- XREPORT Inference keeps its existing database, reports, installed models, and
-  settings untouched; packaged upgrades therefore keep their history.
+- XREPORT Inference owns `<resources>/database.db` (or its configured
+  PostgreSQL database), reports, installed models, and settings. Databases
+  created with the retired shared schema (releases up to 3.3.1) are rejected
+  and must be recreated; their history is not carried forward.
 - Studio uses `<resources>/studio/` for its database, `database-config.json`,
   checkpoints, exports, and logs.
 - The pinned BEiT encoder and tokenizers (`<resources>/models`) are shared,

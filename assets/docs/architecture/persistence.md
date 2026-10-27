@@ -2,6 +2,10 @@
 
 Last updated: 2026-10-27
 
+XREPORT Inference and XREPORT Studio each own a separate database with its own
+schema, migration stream, and settings row. Neither application opens, migrates,
+or writes the other's database; `.xreportckpt` files are their only exchange.
+
 ## Database Backend Selection
 
 The sources of truth are deliberately separated:
@@ -13,8 +17,10 @@ The sources of truth are deliberately separated:
   backend and its connection parameters. It is independent of the database;
   PostgreSQL passwords are DPAPI-protected for the current Windows account.
 - The singleton `application_settings` database row owns only mutable
-  user-facing application behavior such as the global seed, job polling
-  interval, inference timeout, and theme preference.
+  user-facing application behavior. Both applications store the global seed,
+  job polling interval, and theme preference; only XREPORT Inference stores the
+  inference timeout, idle timeout, and generation limits. Studio's Settings API
+  returns `inference: null` and rejects inference patches.
 - `app/server/configurations/inference_models.py` owns the immutable, reviewed
   inference catalogue and its safety/runtime contract.
 
@@ -24,8 +30,11 @@ From `settings/.env`:
 
 The Settings → Database section supports SQLite and PostgreSQL (psycopg 3).
 SQLite paths, PostgreSQL connection/authentication fields, SSL options, timeout,
-and insert batch size are stored in `database-config.json`. All application
-settings and records remain in the currently selected database.
+and insert batch size are stored in each application's own
+`database-config.json` (`<resources>/` for XREPORT Inference,
+`<resources>/studio/` for Studio). All application settings and records remain
+in the currently selected database. The Database section also reports which
+application's schema it manages and the current and target schema revisions.
 
 ## Initialization And Compatibility
 
@@ -50,13 +59,30 @@ recovery rather than replaced from an old environment source. Changing
 process-level launch settings such as the resource root requires a restart;
 database switching does not.
 
-Alembic is the authoritative schema history. The migration stream starts at
-`b1e7a2c4d908` and has one head, `d4a9c6e2b3f1`. The baseline creates the
-schema and seeds the `application_settings` singleton; later revisions remove
-process-policy and filesystem settings and add the inference idle timeout and generation limits.
-Published revisions `f48a7c2e91b6` and `e91a4f6c2d73` are no longer supported:
-startup rejects them without modifying the database, which must be replaced or
-recreated. Re-creating starts with typed defaults and an empty checkpoint registry.
+Alembic is the authoritative schema history, with one independent stream per
+application:
+
+| Application | ORM base | Migration stream | Version table | Head |
+|---|---|---|---|---|
+| XREPORT Inference | `repositories/schemas/inference.py` (`InferenceBase`) | `server/migrations/inference` | `xreport_inference_version` | `36d142391099` |
+| XREPORT Studio | `repositories/schemas/studio.py` (`StudioBase`) | `server/migrations/studio` | `xreport_studio_version` | `9d4d3bce4ede` |
+
+`repositories/database/schema.py` binds the running profile (`XREPORT_APP`) to
+its schema; Studio's schema module is resolved by name, so the XREPORT Inference
+build never imports it. Each baseline creates its schema and seeds its
+`application_settings` singleton. `app/server/alembic.ini` has `[inference]`
+and `[studio]` sections (`alembic -n studio ...`); the CLI only targets the
+database of the matching `XREPORT_APP` profile unless `sqlalchemy.url` is set.
+The PostgreSQL migration advisory lock includes the profile.
+
+Ownership guard: before migrating, startup and the Settings probe reject a
+database that holds the other application's version table ("This database
+belongs to XREPORT Studio") or the retired shared `alembic_version` table from
+releases up to 3.3.1. Such databases are never modified; choose a separate
+database or recreate it. There is no conversion from the retired shared
+schema, and re-creating starts with typed defaults and an empty checkpoint
+registry. A database revision unknown to the application's stream is rejected
+the same way.
 
 The `generated_report` column of `inference_reports` remains the immutable
 model output; a nullable `edited_report`/`edited_at` pair stores a user draft
@@ -72,7 +98,7 @@ read and write it directly.
 
 - A missing database file is created by SQLAlchemy and upgraded from Alembic base to head.
 - Startup acquires an exclusive SQLite transaction before checking or applying migrations, so concurrent processes serialize safely.
-- A non-empty database without `alembic_version` is rejected. Existing data is
+- A non-empty database without the application's version table is rejected. Existing data is
   never silently stamped, rewritten, or inferred as a compatible legacy schema;
   use the explicit migration/initialization workflow after reviewing the
   database state.
@@ -95,6 +121,8 @@ read and write it directly.
 If `settings/.env` is missing, it is copied from `settings/.env.example`; an existing environment file is never overwritten. Additional startup validation ensures required resource directories exist.
 
 ## Persisted Entity Model
+
+### XREPORT Studio
 
 ```mermaid
 erDiagram
@@ -144,26 +172,10 @@ erDiagram
         int checkpoint_id FK
         datetime executed_at
     }
-    INFERENCE_RUNS {
-        int inference_run_id PK
-        int checkpoint_id FK
-        string request_id UK
-        string model_ref
-        string status
-    }
-    INFERENCE_REPORTS {
-        int inference_report_id PK
-        int inference_run_id FK
-        int record_id FK
-        int image_index
-        string edited_report
-        datetime edited_at
-    }
     APPLICATION_SETTINGS {
         int settings_id PK
         bigint global_seed
         float job_polling_interval
-        bigint inference_model_timeout
         string theme_preference
         datetime updated_at
     }
@@ -177,20 +189,57 @@ erDiagram
     DATASET_RECORDS ||--o{ TRAINING_SAMPLES : references
     DATASETS ||--o{ VALIDATION_RUNS : validates
     CHECKPOINTS ||--o{ CHECKPOINT_EVALUATIONS : evaluates
+```
+
+### XREPORT Inference
+
+```mermaid
+erDiagram
+    CHECKPOINTS {
+        int checkpoint_id PK
+        string name
+        string name_key UK
+        string path
+    }
+    INFERENCE_RUNS {
+        int inference_run_id PK
+        int checkpoint_id FK
+        string request_id UK
+        string model_ref
+        string status
+    }
+    INFERENCE_REPORTS {
+        int inference_report_id PK
+        int inference_run_id FK
+        int image_index
+        string edited_report
+        datetime edited_at
+    }
+    APPLICATION_SETTINGS {
+        int settings_id PK
+        bigint global_seed
+        float job_polling_interval
+        bigint inference_model_timeout
+        bigint inference_model_idle_timeout
+        string theme_preference
+        datetime updated_at
+    }
+
     CHECKPOINTS o|--o{ INFERENCE_RUNS : references
     INFERENCE_RUNS ||--o{ INFERENCE_REPORTS : contains
-    DATASET_RECORDS o|--o{ INFERENCE_REPORTS : links
 ```
 
 The tables below are owned by independent repositories:
 
-- `DatasetRepository`: datasets, dataset versions, records, processing runs, and training samples.
-- `CheckpointRepository`: registered checkpoint identity, canonical artifact
-  paths, artifact completeness, and safe deletion.
-- `ValidationRepository`: validation runs and checkpoint evaluations.
-- `InferenceRepository`: inference runs and generated reports.
+- `DatasetRepository` (Studio): datasets, dataset versions, records, processing runs, and training samples.
+- `ValidationRepository` (Studio): validation runs and checkpoint evaluations.
+- `InferenceRepository` (Inference): inference runs and generated reports.
+- `CheckpointRepository` (both, each against its own `checkpoints` table):
+  registered checkpoint identity, canonical artifact paths, artifact
+  completeness, and safe deletion. Deletion is restricted by evaluations in
+  Studio and by inference runs in XREPORT Inference.
 
-Foreign-key behavior is explicit: dataset-owned records and processing data cascade with their dataset or processing run; a source dataset is set to null when removed; checkpoint references restrict deletion while history exists; inference reports cascade with their inference run and set their optional dataset record link to null when that record is removed.
+Foreign-key behavior is explicit: dataset-owned records and processing data cascade with their dataset or processing run; a source dataset is set to null when removed; checkpoint references restrict deletion while history exists; inference reports cascade with their inference run. No foreign key crosses the two schemas.
 
 ## Constraints And Query Support
 
@@ -235,8 +284,10 @@ database preference, a user-editable setting, or a bundled JSON file.
 
 ## Application data separation
 
-XREPORT Inference and XREPORT Studio use separate databases and artifact folders (`<resources>/` and
-`<resources>/studio/`) with the same schema and migration stream, plus a per-folder process lock
-(`.xreport.lock`). Imported checkpoints are registered in XREPORT Inference's `checkpoints` table with an
-`exchange.json` record (content hash, manifest) next to the artifact; evaluation history stays in
-Studio. See [applications and checkpoint exchange](applications_and_checkpoint_exchange.md).
+XREPORT Inference and XREPORT Studio use separate databases and artifact folders
+(`<resources>/` and `<resources>/studio/`), separate schemas and migration
+streams, and a per-folder process lock (`.xreport.lock`). Imported checkpoints
+are registered in XREPORT Inference's own `checkpoints` table with an
+`exchange.json` record (content hash, manifest) next to the artifact;
+evaluation history stays in Studio. See
+[applications and checkpoint exchange](applications_and_checkpoint_exchange.md).

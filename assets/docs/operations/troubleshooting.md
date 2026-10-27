@@ -1,6 +1,6 @@
 # Troubleshooting And Initialization
 
-Last updated: 2026-10-21
+Last updated: 2026-10-27
 
 ## Troubleshooting Quick Guide
 
@@ -70,9 +70,14 @@ than suppressed with retries or broad exception handling.
 
 ## Database Initialization
 
+XREPORT Inference and XREPORT Studio each initialize and migrate only their own
+database. Launcher option `Initialize database` asks which application to
+prepare; the script equivalent is
+`python app/scripts/initialize_database.py --app xreport|studio`.
+
 ### SQLite
 
-- Select SQLite in Settings → Database and set an absolute database file path. The default is `<resource root>/database.db`; packaged mode defaults to `%LOCALAPPDATA%\XREPORT\data\database.db` and never writes into the immutable installation/runtime directory.
+- Select SQLite in Settings → Database and set an absolute database file path. The default is `<resource root>/database.db` for XREPORT Inference and `<resource root>/studio/database.db` for Studio; packaged mode defaults to `%LOCALAPPDATA%\XREPORT\data\database.db` and never writes into the immutable installation/runtime directory.
 - On later startups, existing data is not recreated, reset, or reseeded. Alembic checks the applied revision and upgrades to head under an exclusive SQLite transaction.
 - A non-empty database without a recognized Alembic revision, or with a partial or modified schema, fails closed and is not repaired automatically.
 
@@ -92,6 +97,8 @@ than suppressed with retries or broad exception handling.
 ### Schema compatibility failure
 
 - Read the startup error for the missing table/column, incompatible unversioned schema, unknown Alembic revision, multiple heads, or migration failure.
+- "This database belongs to XREPORT Studio" (or XREPORT Inference): the selected database was created by the other application. Choose a separate file or PostgreSQL database; the two applications never share one.
+- "This database uses the retired shared XREPORT schema": the database was created by release 3.3.1 or earlier, before the schemas were separated. It is not converted; delete it or select a new database, which starts with default settings and an empty history.
 - Preserve a copy of the database before any recovery action.
 - If the database is disposable, recreate it through the documented initialization path.
 - If the data is needed, preserve a backup and apply a reviewed supported migration. The current release intentionally fails fast on arbitrary schema changes.

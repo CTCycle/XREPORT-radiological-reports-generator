@@ -1,6 +1,6 @@
 # XREPORT System Overview
 
-Last updated: 2026-10-21
+Last updated: 2026-10-27
 
 XREPORT is a local-first client/server system for radiological report generation, dataset preparation, training, validation, and model lifecycle workflows.
 
@@ -114,9 +114,10 @@ The intended dependency rule is inward and explicit: transport adapts requests t
 checkpoint, validation, and inference persistence boundaries. Checkpoint
 identity is database-owned; the filesystem stores only the registered model
 artifacts. `app/server/models` contains model-training and inference
-implementation details; it is not the ORM model layer. ORM metadata lives in
-`repositories/schemas`; Alembic revisions and the migration environment live in
-`server/migrations`.
+implementation details; it is not the ORM model layer. Each application has its
+own ORM schema in `repositories/schemas/{inference,studio}.py` and its own
+Alembic stream in `server/migrations/{inference,studio}`; see
+[persistence](persistence.md).
 
 ## Frontend Boundaries
 

@@ -1,6 +1,22 @@
 # XREPORT Validation Campaign Ledger
 
-Last updated: 2026-10-24
+Last updated: 2026-10-27
+
+## Database separation (2026-10-27, `develop`)
+
+- Scope: per-application ORM schemas, Alembic streams, version tables and settings rows; ownership guard; profile-aware database initialization; Settings → Database schema status. There is no conversion of shared-schema databases.
+- PASSED (Windows, source mode):
+  - backend unit suite (305), Pyright on the changed backend modules, and Ruff with no new findings;
+  - both Angular builds, lint, and 101 Angular unit tests;
+  - Studio e2e 26/26 against a live Studio;
+  - Inference e2e passed 21/26; 4 failures are pre-existing stale expectations (three browser cases expect 4 Settings tabs instead of the current 5, one API case expects a removed `features` settings field) and one font-request abort passed on rerun against a live XREPORT Inference.
+- PASSED (live):
+  - each application created only its own tables at its own head;
+  - cross-application test and switch were refused with the active configuration retained;
+  - SQLite switching kept settings per database;
+  - a real 1-epoch Studio training was exported (553 MB), imported into XREPORT Inference, and generated one report that was saved to history;
+  - Studio data persisted across a restart.
+- NOT RUN: PostgreSQL (the user chose to skip it), the packaged desktop build with the narrowed migrations bundle, and the launcher's `Initialize database` menu path (`initialize_database.py --app xreport|studio` was run directly on a scratch resource root and refused a mismatched `XREPORT_APP`).
 
 ## Browser validation plan (2026-10-24, run `xr-20261024-01`)
 
