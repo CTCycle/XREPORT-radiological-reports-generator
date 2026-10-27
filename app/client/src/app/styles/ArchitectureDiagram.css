@@ -1,0 +1,105 @@
+/* Architecture diagram: SVG nodes, edges and stack chips. */
+
+:host {
+    display: block;
+}
+
+.arch-svg {
+    display: block;
+    max-width: 100%;
+    height: auto;
+    margin: 0 auto;
+    font-family: inherit;
+}
+
+.arch-lane-title {
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    fill: var(--text-muted);
+}
+
+.arch-edge {
+    fill: none;
+    stroke: var(--text-muted);
+    stroke-width: 1.5;
+}
+
+.arch-edge-cross {
+    stroke: var(--accent-color);
+    stroke-dasharray: 5 4;
+}
+
+.arch-arrow-head { fill: var(--text-muted); }
+
+.arch-edge-label {
+    font-size: 10.5px;
+    fill: var(--text-secondary);
+    font-variant-numeric: tabular-nums;
+}
+
+.arch-node { cursor: pointer; outline: none; }
+
+.arch-node-box {
+    fill: var(--surface-elevated);
+    stroke: var(--border-color);
+    stroke-width: 1;
+    transition: stroke var(--theme-transition-duration), fill var(--theme-transition-duration);
+}
+
+.arch-node-input .arch-node-box { stroke-dasharray: 4 3; fill: var(--bg-secondary); }
+.arch-node:hover .arch-node-box { stroke: var(--accent-color); }
+
+.arch-node:focus-visible .arch-node-box {
+    stroke: var(--accent-color);
+    stroke-width: 3;
+}
+
+.arch-node.selected .arch-node-box {
+    stroke: var(--accent-color);
+    stroke-width: 2;
+    fill: var(--selected-bg);
+}
+
+.arch-node-label {
+    font-size: 13px;
+    font-weight: 600;
+    fill: var(--text-primary);
+}
+
+.arch-node-repeat { fill: var(--accent-color); }
+
+.arch-node-params {
+    font-size: 12px;
+    font-weight: 600;
+    fill: var(--text-secondary);
+    font-variant-numeric: tabular-nums;
+}
+
+.arch-node-detail {
+    font-size: 11px;
+    fill: var(--text-secondary);
+}
+
+.arch-node-badge {
+    font-size: 10.5px;
+    font-weight: 600;
+    fill: var(--warning-color);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+
+.arch-chip {
+    fill: var(--accent-soft);
+    stroke: var(--accent-color);
+    stroke-width: 1;
+}
+
+.arch-chip-gap { fill: transparent; stroke: none; }
+
+.arch-chip-label {
+    font-size: 10.5px;
+    font-weight: 600;
+    fill: var(--accent-color-strong);
+}

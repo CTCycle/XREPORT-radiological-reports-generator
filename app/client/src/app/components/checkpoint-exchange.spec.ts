@@ -67,7 +67,7 @@ describe('application route sets', () => {
 
   it('keeps development pages out of the XREPORT routes and inference out of Studio', () => {
     expect(paths(routes)).toEqual(['', 'inference', 'reports', 'reports/:requestId', 'settings', '**']);
-    expect(paths(studioRoutes)).toEqual(['', 'dataset', 'dataset/validate/:datasetName', 'training', 'settings', '**']);
+    expect(paths(studioRoutes)).toEqual(['', 'dataset', 'dataset/validate/:datasetName', 'model', 'training', 'settings', '**']);
     expect(studioRoutes[0].data?.['application']).toBe('studio');
   });
 });

@@ -41,7 +41,7 @@ class ImageEncoderSpec:
 ENCODER_REGISTRY: dict[str, ImageEncoderSpec] = {
     BEIT_ENCODER_ID: ImageEncoderSpec(
         id=BEIT_ENCODER_ID,
-        label="BEiT Base (patch 16, 224)",
+        label="BEiT Base 16/224",
         repository="microsoft/beit-base-patch16-224",
         output_tokens=197,
         feature_dims=768,
@@ -241,7 +241,7 @@ def describe(
             id="image_encoder",
             kind="image_encoder",
             label=encoder.label,
-            detail=f"Pretrained, {tokens} patch tokens x {encoder.feature_dims}",
+            detail=f"Pretrained · {tokens} x {encoder.feature_dims}",
             lane="image",
             parameters=encoder.parameters,
             trainable=not architecture.freeze_image_encoder,
@@ -255,7 +255,7 @@ def describe(
             id="projection",
             kind="projection",
             label="Feature projection",
-            detail=f"Dense {encoder.feature_dims} -> {width}",
+            detail=f"Dense {encoder.feature_dims} → {width}",
             lane="image",
             parameters=projection_parameters(architecture),
             trainable=True,
@@ -264,7 +264,7 @@ def describe(
         ArchitectureNode(
             id="encoder_stack",
             kind="encoder_stack",
-            label="Transformer encoder",
+            label="Encoder stack",
             detail="Self-attention + feed-forward",
             lane="image",
             parameters=encoder_block * architecture.num_encoders,
@@ -286,8 +286,8 @@ def describe(
         ArchitectureNode(
             id="embedding",
             kind="embedding",
-            label="Token + positional embedding",
-            detail=f"Vocabulary {vocabulary_size}, learned positions",
+            label="Token embedding",
+            detail=f"{vocabulary_size} tokens + {sequence_length} positions",
             lane="text",
             parameters=embedding_parameters(architecture, vocabulary_size, sequence_length),
             trainable=True,
@@ -300,8 +300,8 @@ def describe(
         ArchitectureNode(
             id="decoder_stack",
             kind="decoder_stack",
-            label="Transformer decoder",
-            detail="Masked self-attention + cross-attention + feed-forward",
+            label="Decoder stack",
+            detail="Self- and cross-attention, FFN",
             lane="text",
             parameters=decoder_block * architecture.num_decoders,
             trainable=True,
@@ -314,8 +314,8 @@ def describe(
             kind="classifier",
             label="Token classifier",
             detail=(
-                f"Dense {width} -> {architecture.classifier_units} -> "
-                f"{vocabulary_size}, softmax / T={architecture.temperature:g}"
+                f"{width} → {architecture.classifier_units} → {vocabulary_size}, "
+                f"T={architecture.temperature:g}"
             ),
             lane="output",
             parameters=classifier_parameters(architecture, vocabulary_size),

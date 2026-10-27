@@ -3,7 +3,7 @@ import { ActivatedRoute, NavigationEnd, Router, RouterLink, RouterLinkActive, Ro
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { filter } from 'rxjs';
 import { NgIcon, provideIcons } from '@ng-icons/core';
-import { lucideBrainCircuit, lucideCircleHelp, lucideFileSearch, lucideFileStack, lucideFileText, lucideSettings } from '@ng-icons/lucide';
+import { lucideBrainCircuit, lucideCircleHelp, lucideFileSearch, lucideFileStack, lucideFileText, lucideNetwork, lucideSettings } from '@ng-icons/lucide';
 import { GuidanceService } from '../services/guidance.service';
 import type { GuidanceDefinition } from '../types/guidance';
 import { GuidedTourComponent } from './guided-tour.component';
@@ -17,7 +17,7 @@ import { SystemStatusService } from '../services/system-status.service';
 @Component({
   selector: 'app-main-layout',
   imports: [RouterLink, RouterLinkActive, RouterOutlet, NgIcon, GuidedTourComponent, NotificationCenterComponent, SystemStatusBarComponent, ThemeSelectorComponent, TipsAndTricksComponent, ToastHostComponent],
-  providers: [provideIcons({ lucideBrainCircuit, lucideCircleHelp, lucideFileSearch, lucideFileStack, lucideFileText, lucideSettings })],
+  providers: [provideIcons({ lucideBrainCircuit, lucideCircleHelp, lucideFileSearch, lucideFileStack, lucideFileText, lucideNetwork, lucideSettings })],
   template: `
     <div class="main-layout">
       <div class="main-layout-body">
@@ -31,6 +31,9 @@ import { SystemStatusService } from '../services/system-status.service';
             @if (studio) {
               <a routerLink="/dataset" routerLinkActive="active" class="app-nav-button app-nav-button-primary" title="Dataset" aria-label="Dataset">
                 <ng-icon name="lucideFileStack" size="16" /> <span>Dataset</span>
+              </a>
+              <a routerLink="/model" routerLinkActive="active" class="app-nav-button" title="Model" aria-label="Model">
+                <ng-icon name="lucideNetwork" size="16" /> <span>Model</span>
               </a>
               <a routerLink="/training" routerLinkActive="active" class="app-nav-button" title="Training" aria-label="Training">
                 <ng-icon name="lucideBrainCircuit" size="16" /> <span>Training</span>
