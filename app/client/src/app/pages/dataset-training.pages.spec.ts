@@ -20,7 +20,7 @@ describe('DatasetPage filesystem access', () => {
   const api = {
     getStatus: vi.fn(),
     getNames: vi.fn(),
-    browseDirectory: vi.fn(),
+    selectImageFolder: vi.fn(),
     validateImagePath: vi.fn(),
   };
   let appState: AppStateService;
@@ -31,7 +31,7 @@ describe('DatasetPage filesystem access', () => {
       error: null,
     });
     api.getNames.mockResolvedValue({ result: { datasets: [], count: 0 }, error: null });
-    api.browseDirectory.mockReset();
+    api.selectImageFolder.mockReset();
     api.validateImagePath.mockReset();
     appState = new AppStateService();
     appState.updateDataset((state) => ({
@@ -74,37 +74,13 @@ describe('DatasetPage filesystem access', () => {
     api.getNames.mockReset();
   });
 
-  it('recovers from a browse error and selects a valid image folder', async () => {
+  it('selects an image folder through the native dialog endpoint', async () => {
     const fixture = await renderPage();
-    const page = fixture.componentInstance;
     const folderButton = fixture.nativeElement.querySelector(
       '.row-datasource .upload-card',
     ) as HTMLButtonElement;
-    folderButton.click();
-    fixture.detectChanges();
-    expect(fixture.nativeElement.querySelector('[role="dialog"]')).not.toBeNull();
 
-    api.browseDirectory
-      .mockResolvedValueOnce({ result: null, error: 'Path not found: missing-folder' })
-      .mockResolvedValueOnce({
-        result: {
-          current_path: 'C:\\fixtures\\images',
-          parent_path: 'C:\\fixtures',
-          items: [],
-          drives: ['C:\\'],
-        },
-        error: null,
-      });
-    page.browsePath = 'C:\\fixtures\\missing-folder';
-    await page.browse();
-    fixture.detectChanges();
-    expect(fixture.nativeElement.textContent).toContain('Path not found: missing-folder');
-
-    page.browsePath = 'C:\\fixtures\\images';
-    await page.browse();
-    fixture.detectChanges();
-    expect(page.browseError()).toBeNull();
-
+    api.selectImageFolder.mockResolvedValue({ result: { path: 'C:\\fixtures\\images' }, error: null });
     api.validateImagePath.mockResolvedValue({
       result: {
         valid: true,
@@ -114,7 +90,8 @@ describe('DatasetPage filesystem access', () => {
       },
       error: null,
     });
-    await page.selectFolder();
+    folderButton.click();
+    await fixture.whenStable();
     fixture.detectChanges();
 
     expect(fixture.nativeElement.querySelector('[role="dialog"]')).toBeNull();

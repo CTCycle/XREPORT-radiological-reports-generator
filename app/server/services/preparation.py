@@ -14,11 +14,10 @@ from server.services.errors import (
 
 from server.repositories.database import get_database
 from server.domain.training import (
-    BrowseResponse,
     DatasetInfo,
     DatasetNamesResponse,
+    FolderSelectionResponse,
     DatasetStatusResponse,
-    DirectoryItem,
     ImagePathRequest,
     ImagePathResponse,
     LoadDatasetRequest,
@@ -75,30 +74,6 @@ def scan_image_folder(
 ###############################################################################
 def count_image_files(folder_path: str) -> int:
     return sum(1 for _ in _iter_image_paths(folder_path))
-
-###############################################################################
-def get_windows_drives() -> list[str]:
-    """Get list of available Windows drives."""
-    drives = []
-    for letter in "ABCDEFGHIJKLMNOPQRSTUVWXYZ":
-        drive = Path(f"{letter}:\\")
-        if drive.exists():
-            drives.append(str(drive))
-    return drives
-
-###############################################################################
-def count_images_in_folder(folder_path: str) -> int:
-    """Quick count of image files in a folder (non-recursive for speed)."""
-    try:
-        with os.scandir(folder_path) as entries:
-            return sum(
-                1
-                for entry in entries
-                if entry.is_file()
-                and Path(entry.name).suffix.lower() in VALID_IMAGE_EXTENSIONS
-            )
-    except OSError:
-        return 0
 
 ###############################################################################
 class PreparationService:
@@ -518,73 +493,21 @@ class PreparationService:
         )
 
     # -------------------------------------------------------------------------
-    def browse_directory(
-        self,
-        path: str = "",
-    ) -> BrowseResponse:
-        """Browse directories on the server filesystem."""
+    def select_image_folder(self) -> FolderSelectionResponse:
+        """Open the operating system folder dialog on the local machine."""
+        import tkinter
+        from tkinter import filedialog
 
-        # If no path provided or path is empty, return drives (Windows)
-        if not path or path.strip() == "":
-            drives = get_windows_drives()
-            return BrowseResponse(
-                current_path="",
-                parent_path=None,
-                items=[
-                    DirectoryItem(name=d, path=d, is_dir=True, image_count=0)
-                    for d in drives
-                ],
-                drives=drives,
-            )
-
-        path = path.strip()
-
-        # Validate path exists
-        directory_path = Path(path)
-        if not directory_path.exists():
-            raise NotFoundError(
-                detail=f"Path not found: {path}",
-            )
-
-        if not directory_path.is_dir():
-            raise NotFoundError(
-                detail=f"Path is not a directory: {path}",
-            )
-
-        # Get parent path
-        parent = directory_path.parent
-        parent_path = str(parent)
-        if parent == directory_path:  # At drive root
-            parent_path = ""  # Return to drives list
-
-        # List directory contents
-        items: list[DirectoryItem] = []
+        root = tkinter.Tk()
+        root.withdraw()
+        root.attributes("-topmost", True)
         try:
-            for item_path in sorted(
-                directory_path.iterdir(), key=lambda item: item.name
-            ):
-                is_dir = item_path.is_dir()
-
-                # Only include directories (not files) for navigation
-                if is_dir:
-                    image_count = count_images_in_folder(str(item_path))
-                    items.append(
-                        DirectoryItem(
-                            name=item_path.name,
-                            path=str(item_path),
-                            is_dir=True,
-                            image_count=image_count,
-                        )
-                    )
-        except PermissionError as exc:
-            logger.warning("Permission denied accessing %s: %s", path, exc)
-
-        return BrowseResponse(
-            current_path=path,
-            parent_path=parent_path if parent_path else None,
-            items=items,
-            drives=get_windows_drives(),
-        )
+            selected = filedialog.askdirectory(
+                title="Select image folder", mustexist=True, parent=root
+            )
+        finally:
+            root.destroy()
+        return FolderSelectionResponse(path=str(Path(selected)) if selected else None)
 
     # -------------------------------------------------------------------------
     def get_dataset_image_count(self, dataset_name: str) -> ImageCountResponse:

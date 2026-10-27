@@ -66,18 +66,8 @@ class LoadDatasetResponse(BaseModel):
     message: str
 
 ###############################################################################
-class DirectoryItem(BaseModel):
-    name: str
-    path: str
-    is_dir: bool
-    image_count: int = 0
-
-###############################################################################
-class BrowseResponse(BaseModel):
-    current_path: str
-    parent_path: str | None = None
-    items: list[DirectoryItem]
-    drives: list[str] = Field(default_factory=list)
+class FolderSelectionResponse(BaseModel):
+    path: str | None = None
 
 ###############################################################################
 class StartTrainingRequest(BaseModel):

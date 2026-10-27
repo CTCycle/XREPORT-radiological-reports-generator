@@ -756,20 +756,6 @@ input[type="checkbox"] {
     z-index: 1100;
 }
 
-.folder-browser-modal {
-    position: relative;
-    z-index: 1;
-    background: var(--bg-secondary);
-    border: 1px solid var(--border-color);
-    border-radius: 12px;
-    width: 600px;
-    max-width: 90vw;
-    max-height: 80vh;
-    display: flex;
-    flex-direction: column;
-    box-shadow: var(--shadow-md);
-}
-
 .modal-header {
     display: flex;
     justify-content: space-between;
@@ -787,33 +773,6 @@ input[type="checkbox"] {
     margin: 0;
     font-size: 1.1rem;
     color: var(--text-primary);
-}
-
-.folder-path {
-    padding: 0.75rem 1.25rem;
-    display: flex;
-    gap: 0.5rem;
-    border-bottom: 1px solid var(--border-color);
-}
-
-.folder-path .form-input {
-    flex: 1;
-    min-width: 0;
-}
-
-.folder-items {
-    flex: 1;
-    overflow-y: auto;
-    min-height: 180px;
-    max-height: 400px;
-    padding: 0.5rem;
-}
-
-.folder-items > p {
-    padding: 2rem;
-    margin: 0;
-    text-align: center;
-    color: var(--text-secondary);
 }
 
 .modal-footer {
@@ -965,14 +924,6 @@ input[type="checkbox"] {
     .dataset-container > .header h1 {
         font-size: var(--text-page-title);
         overflow-wrap: anywhere;
-    }
-
-    .folder-path {
-        flex-direction: column;
-    }
-
-    .folder-path .btn {
-        width: 100%;
     }
 
     .modal-footer {

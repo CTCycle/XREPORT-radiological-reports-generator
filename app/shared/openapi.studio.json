@@ -540,44 +540,20 @@
         }
       }
     },
-    "/api/preparation/browse": {
-      "get": {
+    "/api/preparation/folder/select": {
+      "post": {
         "tags": [
           "preparation"
         ],
-        "summary": "Browse Directory",
-        "operationId": "browse_directory_api_preparation_browse_get",
-        "parameters": [
-          {
-            "name": "path",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "type": "string",
-              "description": "Directory path to browse. Empty returns drives.",
-              "default": "",
-              "title": "Path"
-            },
-            "description": "Directory path to browse. Empty returns drives."
-          }
-        ],
+        "summary": "Select Image Folder",
+        "operationId": "select_image_folder_api_preparation_folder_select_post",
         "responses": {
           "200": {
             "description": "Successful Response",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/BrowseResponse"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
+                  "$ref": "#/components/schemas/FolderSelectionResponse"
                 }
               }
             }
@@ -1376,45 +1352,6 @@
           "file"
         ],
         "title": "Body_upload_dataset_api_upload_dataset_post"
-      },
-      "BrowseResponse": {
-        "properties": {
-          "current_path": {
-            "type": "string",
-            "title": "Current Path"
-          },
-          "parent_path": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Parent Path"
-          },
-          "items": {
-            "items": {
-              "$ref": "#/components/schemas/DirectoryItem"
-            },
-            "type": "array",
-            "title": "Items"
-          },
-          "drives": {
-            "items": {
-              "type": "string"
-            },
-            "type": "array",
-            "title": "Drives"
-          }
-        },
-        "type": "object",
-        "required": [
-          "current_path",
-          "items"
-        ],
-        "title": "BrowseResponse"
       },
       "CheckpointEvaluationReportResponse": {
         "properties": {
@@ -2230,34 +2167,6 @@
         ],
         "title": "DeleteResponse"
       },
-      "DirectoryItem": {
-        "properties": {
-          "name": {
-            "type": "string",
-            "title": "Name"
-          },
-          "path": {
-            "type": "string",
-            "title": "Path"
-          },
-          "is_dir": {
-            "type": "boolean",
-            "title": "Is Dir"
-          },
-          "image_count": {
-            "type": "integer",
-            "title": "Image Count",
-            "default": 0
-          }
-        },
-        "type": "object",
-        "required": [
-          "name",
-          "path",
-          "is_dir"
-        ],
-        "title": "DirectoryItem"
-      },
       "ExportRequest": {
         "properties": {
           "checkpoint": {
@@ -2275,6 +2184,23 @@
           "checkpoint"
         ],
         "title": "ExportRequest"
+      },
+      "FolderSelectionResponse": {
+        "properties": {
+          "path": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Path"
+          }
+        },
+        "type": "object",
+        "title": "FolderSelectionResponse"
       },
       "GlobalSettingsPatch": {
         "properties": {

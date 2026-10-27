@@ -8,7 +8,7 @@ import pandas as pd
 import pytest
 from server.domain.training import LoadDatasetRequest
 from server.services.errors import BadRequestError, PayloadTooLargeError
-from server.services.preparation import PreparationService, count_image_files, count_images_in_folder, scan_image_folder
+from server.services.preparation import PreparationService, count_image_files, scan_image_folder
 from server.repositories.serialization.dataset import DatasetIntegrityError, DatasetRepository
 
 ###############################################################################
@@ -43,7 +43,6 @@ def test_image_scanning_counts_recursively_and_filters_required_stems(
     (nested_folder / "two.PNG").write_bytes(b"image")
     (nested_folder / "three.bmp").write_bytes(b"image")
 
-    assert count_images_in_folder(str(image_folder)) == 1
     assert count_image_files(str(image_folder)) == 3
 
     matched = scan_image_folder(

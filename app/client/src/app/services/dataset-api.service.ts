@@ -1,11 +1,11 @@
 import { Injectable, inject } from '@angular/core';
 import { readBoolean, readNumber, readString } from '../common/parsers';
 import {
-  BrowseResponse,
   DatasetNamesResponse,
   DatasetStatusResponse,
   DatasetUploadResponse,
   DeleteResponse,
+  FolderSelectionResponse,
   ImageCountResponse,
   ImageMetadataResponse,
   ImagePathResponse,
@@ -34,7 +34,7 @@ export class DatasetApiService {
     return this.request.request<DatasetUploadResponse>('POST', '/api/upload/dataset', form);
   }
   loadDataset(request: LoadDatasetRequest) { return this.request.request<LoadDatasetResponse>('POST', '/api/preparation/dataset/load', request); }
-  browseDirectory(path = '') { return this.request.request<BrowseResponse>('GET', path ? `/api/preparation/browse?path=${encodeURIComponent(path)}` : '/api/preparation/browse'); }
+  selectImageFolder() { return this.request.request<FolderSelectionResponse>('POST', '/api/preparation/folder/select'); }
   processDataset(config: ProcessDatasetRequest) { return this.request.request<JobStartResponse>('POST', '/api/preparation/dataset/process', config); }
   getImageCount(datasetName: string) { return this.request.request<ImageCountResponse>('GET', `/api/preparation/dataset/${encodeURIComponent(datasetName)}/images/count`); }
   getImageMetadata(datasetName: string, index: number) { return this.request.request<ImageMetadataResponse>('GET', `/api/preparation/dataset/${encodeURIComponent(datasetName)}/images/${index}`); }

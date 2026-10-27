@@ -1,5 +1,4 @@
 import type {
-  BrowseResponse as ApiBrowseResponse,
   CheckpointInfo as ApiCheckpointInfo,
   CheckpointMetadataResponse as ApiCheckpointMetadataResponse,
   CheckpointsResponse as ApiCheckpointsResponse,
@@ -8,7 +7,7 @@ import type {
   DatasetStatusResponse as ApiDatasetStatusResponse,
   DatasetUploadResponse as ApiDatasetUploadResponse,
   DeleteResponse as ApiDeleteResponse,
-  DirectoryItem as ApiDirectoryItem,
+  FolderSelectionResponse as ApiFolderSelectionResponse,
   ImageCountResponse as ApiImageCountResponse,
   ImageMetadataResponse as ApiImageMetadataResponse,
   ImagePathResponse as ApiImagePathResponse,
@@ -23,8 +22,7 @@ export type ImagePathResponse = ApiImagePathResponse;
 export type DatasetUploadResponse = ApiDatasetUploadResponse;
 export type LoadDatasetRequest = ApiLoadDatasetRequest;
 export type LoadDatasetResponse = ApiLoadDatasetResponse;
-export type DirectoryItem = ApiDirectoryItem;
-export type BrowseResponse = ApiBrowseResponse;
+export type FolderSelectionResponse = ApiFolderSelectionResponse;
 export type DatasetStatusResponse = ApiDatasetStatusResponse;
 export type DatasetInfo = ApiDatasetInfo;
 export type ProcessingMetadataResponse = ApiProcessingMetadataResponse;

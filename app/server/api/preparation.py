@@ -2,12 +2,12 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from fastapi import APIRouter, Query, status
+from fastapi import APIRouter, status
 from fastapi.responses import FileResponse
 
 from server.domain.training import (
-    BrowseResponse,
     DatasetNamesResponse,
+    FolderSelectionResponse,
     DatasetStatusResponse,
     ImagePathRequest,
     ImagePathResponse,
@@ -80,13 +80,8 @@ class PreparationEndpoint:
         return self.service.process_dataset(request)
 
     # -------------------------------------------------------------------------
-    def browse_directory(
-        self,
-        path: str = Query(
-            "", description="Directory path to browse. Empty returns drives."
-        ),
-    ) -> BrowseResponse:
-        return self.service.browse_directory(path)
+    def select_image_folder(self) -> FolderSelectionResponse:
+        return self.service.select_image_folder()
 
     # -------------------------------------------------------------------------
     def get_dataset_image_count(self, dataset_name: str) -> ImageCountResponse:
@@ -182,10 +177,10 @@ class PreparationEndpoint:
             status_code=status.HTTP_200_OK,
         )
         self.router.add_api_route(
-            "/browse",
-            self.browse_directory,
-            methods=["GET"],
-            response_model=BrowseResponse,
+            "/folder/select",
+            self.select_image_folder,
+            methods=["POST"],
+            response_model=FolderSelectionResponse,
             status_code=status.HTTP_200_OK,
         )
 

@@ -1,6 +1,6 @@
 # XREPORT Backend API
 
-Last updated: 2026-10-26
+Last updated: 2026-10-27
 
 Each application has a checked-in OpenAPI snapshot, `app/shared/openapi.xreport.json` and
 `app/shared/openapi.studio.json`, generated from `create_app(profile).openapi()`. Regenerate both
@@ -54,7 +54,7 @@ endpoint.
 - `GET /api/preparation/dataset/{dataset_name}/images/count`
 - `GET /api/preparation/dataset/{dataset_name}/images/{index}`
 - `GET /api/preparation/dataset/{dataset_name}/images/{index}/content`
-- `GET /api/preparation/browse`
+- `POST /api/preparation/folder/select`
 
 `POST /api/preparation/dataset/load` requires the uploaded table to contain
 `text` and a recognized image column (`image`, `filename`, `file`, `img`, or

@@ -27,7 +27,7 @@ _API_ONE_PIXEL_PNG = (
 )
 
 ###############################################################################
-def test_s15_filesystem_browse_and_validation(
+def test_s15_filesystem_validation(
     api_context: APIRequestContext,
     tmp_path: Path,
 ) -> None:
@@ -40,14 +40,6 @@ def test_s15_filesystem_browse_and_validation(
     file_path = accessible_root / "not-a-folder.txt"
     file_path.write_text("fixture", encoding="utf-8")
     missing_path = accessible_root / "missing"
-
-    browse_response = api_context.get(
-        "/api/preparation/browse", params={"path": str(accessible_root)}
-    )
-    assert browse_response.ok
-    items = {item["name"]: item for item in browse_response.json()["items"]}
-    assert items["images"]["image_count"] == 1
-    assert items["empty"]["image_count"] == 0
 
     valid_response = api_context.post(
         "/api/preparation/images/validate",
@@ -64,15 +56,6 @@ def test_s15_filesystem_browse_and_validation(
     assert empty_response.ok
     assert empty_response.json()["valid"] is False
     assert empty_response.json()["image_count"] == 0
-
-    missing_browse = api_context.get(
-        "/api/preparation/browse", params={"path": str(missing_path)}
-    )
-    assert missing_browse.status == 404
-    file_browse = api_context.get(
-        "/api/preparation/browse", params={"path": str(file_path)}
-    )
-    assert file_browse.status == 404
 
     for invalid_path in (missing_path, file_path):
         invalid_response = api_context.post(
@@ -113,30 +96,17 @@ def test_s15_dataset_folder_access_and_recovery(
         "button", name="Upload Image Folder", exact=False
     )
     expect(folder_button).to_be_enabled()
+    selected = {"path": str(empty_folder)}
+    page.route(
+        "**/api/preparation/folder/select",
+        lambda route: route.fulfill(json=selected),
+    )
     folder_button.click()
-    dialog = page.get_by_role("dialog", name="Select image folder")
-    path_input = dialog.get_by_placeholder("Server folder path")
-
-    missing_path = str(fixture_root / "missing")
-    path_input.fill(missing_path)
-    dialog.get_by_role("button", name="Browse", exact=True).click()
-    page.get_by_text("Path not found", exact=False).wait_for(state="visible")
-    page.screenshot(path=str(evidence_dir / "s15-invalid-path.png"), full_page=True)
-
-    path_input.fill(str(fixture_root))
-    dialog.get_by_role("button", name="Browse", exact=True).click()
-    page.get_by_text("Path not found", exact=False).wait_for(state="hidden")
-    empty_item = dialog.locator(".folder-item").filter(has_text="empty")
-    empty_item.click()
-    dialog.get_by_role("button", name="Use this folder").click()
     page.get_by_text("No valid images found", exact=False).wait_for(state="visible")
-    assert dialog.is_visible()
     page.screenshot(path=str(evidence_dir / "s15-empty-folder.png"), full_page=True)
 
-    path_input.fill(str(image_folder))
-    dialog.get_by_role("button", name="Browse", exact=True).click()
-    dialog.get_by_role("button", name="Use this folder").click()
-    dialog.wait_for(state="hidden")
+    selected["path"] = str(image_folder)
+    folder_button.click()
     page.get_by_role(
         "button", name=re.compile(r"Upload Image Folder.*1 images", re.S)
     ).wait_for(state="visible")

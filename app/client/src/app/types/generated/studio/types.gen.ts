@@ -36,28 +36,6 @@ export type BodyUploadDatasetApiUploadDatasetPost = {
 };
 
 /**
- * BrowseResponse
- */
-export type BrowseResponse = {
-    /**
-     * Current Path
-     */
-    current_path: string;
-    /**
-     * Parent Path
-     */
-    parent_path?: string | null;
-    /**
-     * Items
-     */
-    items: Array<DirectoryItem>;
-    /**
-     * Drives
-     */
-    drives?: Array<string>;
-};
-
-/**
  * CheckpointEvaluationReportResponse
  *
  * Response model for a persisted checkpoint evaluation report.
@@ -511,28 +489,6 @@ export type DeleteResponse = {
 };
 
 /**
- * DirectoryItem
- */
-export type DirectoryItem = {
-    /**
-     * Name
-     */
-    name: string;
-    /**
-     * Path
-     */
-    path: string;
-    /**
-     * Is Dir
-     */
-    is_dir: boolean;
-    /**
-     * Image Count
-     */
-    image_count?: number;
-};
-
-/**
  * ExportRequest
  */
 export type ExportRequest = {
@@ -544,6 +500,16 @@ export type ExportRequest = {
      * Include Encoder
      */
     include_encoder?: boolean;
+};
+
+/**
+ * FolderSelectionResponse
+ */
+export type FolderSelectionResponse = {
+    /**
+     * Path
+     */
+    path?: string | null;
 };
 
 /**
@@ -1686,37 +1652,21 @@ export type GetDatasetImageContentApiPreparationDatasetDatasetNameImagesIndexCon
     200: unknown;
 };
 
-export type BrowseDirectoryApiPreparationBrowseGetData = {
+export type SelectImageFolderApiPreparationFolderSelectPostData = {
     body?: never;
     path?: never;
-    query?: {
-        /**
-         * Path
-         *
-         * Directory path to browse. Empty returns drives.
-         */
-        path?: string;
-    };
-    url: '/api/preparation/browse';
+    query?: never;
+    url: '/api/preparation/folder/select';
 };
 
-export type BrowseDirectoryApiPreparationBrowseGetErrors = {
-    /**
-     * Validation Error
-     */
-    422: HttpValidationError;
-};
-
-export type BrowseDirectoryApiPreparationBrowseGetError = BrowseDirectoryApiPreparationBrowseGetErrors[keyof BrowseDirectoryApiPreparationBrowseGetErrors];
-
-export type BrowseDirectoryApiPreparationBrowseGetResponses = {
+export type SelectImageFolderApiPreparationFolderSelectPostResponses = {
     /**
      * Successful Response
      */
-    200: BrowseResponse;
+    200: FolderSelectionResponse;
 };
 
-export type BrowseDirectoryApiPreparationBrowseGetResponse = BrowseDirectoryApiPreparationBrowseGetResponses[keyof BrowseDirectoryApiPreparationBrowseGetResponses];
+export type SelectImageFolderApiPreparationFolderSelectPostResponse = SelectImageFolderApiPreparationFolderSelectPostResponses[keyof SelectImageFolderApiPreparationFolderSelectPostResponses];
 
 export type GetCheckpointsApiTrainingCheckpointsGetData = {
     body?: never;

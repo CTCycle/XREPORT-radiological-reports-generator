@@ -180,12 +180,11 @@ def test_s21_dataset_page_shows_and_confirms_partial_import(
         page.set_viewport_size({"width": 1440, "height": 1000})
         page.goto(f"{base_url.rstrip('/')}/dataset")
 
+        page.route(
+            "**/api/preparation/folder/select",
+            lambda route: route.fulfill(json={"path": str(image_folder)}),
+        )
         page.get_by_role("button", name="Upload Image Folder").click()
-        dialog = page.get_by_role("dialog", name="Select image folder")
-        dialog.get_by_placeholder("Server folder path").fill(str(image_folder))
-        dialog.get_by_role("button", name="Browse", exact=True).click()
-        dialog.get_by_role("button", name="Use this folder").click()
-        dialog.wait_for(state="hidden")
 
         page.locator("input[type='file']").set_input_files(str(csv_path))
         page.get_by_text("2 rows, 2 cols", exact=True).wait_for(state="visible")
