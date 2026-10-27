@@ -1,6 +1,8 @@
 # Project-specific generated/runtime artifacts
 data/models/**
 data/checkpoints/**
+data/studio/checkpoints/**
+data/studio/exports/**
 data/database/**
 database-config.json
 data/logs/**
