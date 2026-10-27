@@ -176,7 +176,7 @@ pub fn run() {
         Ok(Some(instance)) => instance,
         Ok(None) => return,
         Err(error) => {
-            eprintln!("Unable to acquire XREPORT desktop instance guard: {error}");
+            eprintln!("Unable to acquire XREPORT Inference desktop instance guard: {error}");
             return;
         }
     };
@@ -188,7 +188,7 @@ pub fn run() {
         .setup(move |app| {
             let window = app
                 .get_webview_window("main")
-                .ok_or_else(|| "configured XREPORT main window is missing".to_string())?;
+                .ok_or_else(|| "configured XREPORT Inference main window is missing".to_string())?;
             if cfg!(debug_assertions) && env::var("XREPORT_DESKTOP_DEV").is_ok() {
                 let _ = window.show();
                 return Ok(());
@@ -205,7 +205,7 @@ pub fn run() {
             }
         })
         .run(tauri::generate_context!())
-        .expect("error while running XREPORT desktop application");
+        .expect("error while running XREPORT Inference desktop application");
 }
 
 #[cfg(test)]

@@ -2658,7 +2658,7 @@ function Invoke-RemoveDesktopRelease {
 function Read-InstallationType {
     Clear-LauncherProgress
     Write-Host '  [1] Development - include test, Studio, and desktop build dependencies'
-    Write-Host '  [2] Standard    - install XREPORT runtime dependencies only'
+    Write-Host '  [2] Standard    - install XREPORT Inference runtime dependencies only'
     $selection = (Read-Host '  Select installation profile [1-2]').Trim()
     switch ($selection) {
         '1' { Clear-LauncherProgress; return 'Development' }
@@ -2775,12 +2775,12 @@ function Remove-XReportUserDataTargets {
 
 function Get-AppLabel {
     if ($App -eq 'Studio') { return 'XREPORT Studio' }
-    return 'XREPORT'
+    return 'XREPORT Inference'
 }
 
 function Select-LauncherApplication {
     if ($AppExplicit -or -not $script:LauncherInteractive) { return }
-    $answer = ([string](Read-Host 'Which application? [1] XREPORT  [2] XREPORT Studio')).Trim()
+    $answer = ([string](Read-Host 'Which application? [1] XREPORT Inference  [2] XREPORT Studio')).Trim()
     $script:App = if ($answer -eq '2') { 'Studio' } else { 'Xreport' }
 }
 
@@ -3073,9 +3073,9 @@ function Wait-ForMenu {
 
 function Get-LauncherMenuEntries {
     @(
-        [pscustomobject]@{ Section = 'APPLICATION'; Key = 'Launch'; Label = 'Launch XREPORT'; Description = 'Start the inference application'; Destructive = $false }
+        [pscustomobject]@{ Section = 'APPLICATION'; Key = 'Launch'; Label = 'Launch XREPORT Inference'; Description = 'Start the inference application'; Destructive = $false }
         [pscustomobject]@{ Section = 'APPLICATION'; Key = 'LaunchStudio'; Label = 'Launch XREPORT Studio'; Description = 'Start dataset and training workspace'; Destructive = $false }
-        [pscustomobject]@{ Section = 'APPLICATION'; Key = 'KillProcesses'; Label = 'Kill app processes'; Description = 'Stop XREPORT, Studio and desktop shells'; Destructive = $false }
+        [pscustomobject]@{ Section = 'APPLICATION'; Key = 'KillProcesses'; Label = 'Kill app processes'; Description = 'Stop XREPORT Inference, Studio and desktop shells'; Destructive = $false }
         [pscustomobject]@{ Section = 'SETUP & VALIDATION'; Key = 'Install'; Label = 'Install / update dependencies'; Description = 'Sync runtimes and packages'; Destructive = $false }
         [pscustomobject]@{ Section = 'SETUP & VALIDATION'; Key = 'InstallStudio'; Label = 'Install / update Studio'; Description = 'Choose Standard CPU or CUDA dependencies'; Destructive = $false }
         [pscustomobject]@{ Section = 'SETUP & VALIDATION'; Key = 'Rebuild'; Label = 'Rebuild frontend'; Description = 'Build client without launching services'; Destructive = $false }

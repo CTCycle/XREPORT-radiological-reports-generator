@@ -158,7 +158,7 @@ fn open_runtime_archive(
             return archive_from_file(&resource_archive);
         }
     }
-    Err("no XREPORT runtime archive was found beside the desktop executable".to_string())
+    Err("no XREPORT Inference runtime archive was found beside the desktop executable".to_string())
 }
 
 #[derive(Debug, Deserialize)]

@@ -57,8 +57,8 @@ impl Drop for SingleInstance {
 #[cfg(windows)]
 fn show_already_running_message() {
     focus_existing_window();
-    let title: Vec<u16> = "XREPORT is already running\0".encode_utf16().collect();
-    let message: Vec<u16> = "The existing XREPORT desktop window is being used. Close it before starting another CPU or CUDA instance.\0"
+    let title: Vec<u16> = "XREPORT Inference is already running\0".encode_utf16().collect();
+    let message: Vec<u16> = "The existing XREPORT Inference desktop window is being used. Close it before starting another CPU or CUDA instance.\0"
         .encode_utf16()
         .collect();
     unsafe {
@@ -75,9 +75,9 @@ fn show_already_running_message() {
 #[cfg(windows)]
 fn focus_existing_window() {
     for caption in [
-        "XREPORT — Radiological Reports (CPU)",
-        "XREPORT — Radiological Reports (CUDA)",
-        "XREPORT — Radiological Reports",
+        "XREPORT Inference (CPU)",
+        "XREPORT Inference (CUDA)",
+        "XREPORT Inference",
     ] {
         let caption: Vec<u16> = format!("{caption}\0").encode_utf16().collect();
         let window = unsafe {

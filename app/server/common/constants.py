@@ -17,7 +17,7 @@ def _application_version() -> str:
         version = os.getenv("XREPORT_RELEASE_VERSION", "").strip()
         if not version:
             raise RuntimeError(
-                "Packaged XREPORT requires XREPORT_RELEASE_VERSION before startup"
+                "Packaged XREPORT Inference requires XREPORT_RELEASE_VERSION before startup"
             )
         return version
 
@@ -42,7 +42,7 @@ FASTAPI_API_PREFIX = "/api"
 
 # [FASTAPI METADATA]
 ###############################################################################
-FASTAPI_TITLE = "XREPORT Backend"
+FASTAPI_TITLE = "XREPORT Inference"
 FASTAPI_DESCRIPTION = "FastAPI backend"
 FASTAPI_VERSION = _application_version()
 

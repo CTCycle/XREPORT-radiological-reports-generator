@@ -1,7 +1,7 @@
 {
   "openapi": "3.1.0",
   "info": {
-    "title": "XREPORT Backend",
+    "title": "XREPORT Inference",
     "description": "FastAPI backend",
     "version": "3.3.1"
   },

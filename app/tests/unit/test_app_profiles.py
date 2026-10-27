@@ -53,7 +53,7 @@ def _probe(profile: str, resources: Path) -> dict:
 ###############################################################################
 def test_xreport_profile_has_no_development_endpoints(tmp_path: Path) -> None:
     probe = _probe("xreport", tmp_path)
-    assert probe["title"] == "XREPORT Backend"
+    assert probe["title"] == "XREPORT Inference"
     assert not set(probe["areas"]) & set(DEV_PREFIXES)
     assert "/api/exchange/import" in probe["paths"]
     assert "/api/exchange/export" not in probe["paths"]
