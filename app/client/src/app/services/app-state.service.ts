@@ -15,7 +15,7 @@ function freshInferenceStudy(): InferenceStudy {
   return { images: [], currentIndex: 0, generatedReport: '', runScope: 'selected', runIndices: [], studyReport: false, requestId: null, generationProfile: 'deterministic', clinicalContext: '', reports: {}, drafts: {}, baselineDrafts: {}, persistedHistory: null };
 }
 function freshInferenceState(): InferencePageState {
-  return { ...freshInferenceStudy(), isGenerating: false, activeJobId: null, isCopied: false, selectedModelRef: '', modelAvailability: [], isLoadingModels: false, streamingTokens: '', currentStreamingIndex: -1, validationMetrics: { evaluationReport: true, bleuScore: false }, numBleuSamples: 10, isEvaluating: false, evaluationResults: null, evaluationError: null };
+  return { ...freshInferenceStudy(), isGenerating: false, activeJobId: null, isCopied: false, selectedModelRef: '', modelAvailability: [], isLoadingModels: false, streamingTokens: '', currentStreamingIndex: -1 };
 }
 function studyOf(state: InferencePageState): InferenceStudy {
   const { images, currentIndex, generatedReport, runScope, runIndices, studyReport, requestId, generationProfile, clinicalContext, reports, drafts, baselineDrafts, persistedHistory } = state;

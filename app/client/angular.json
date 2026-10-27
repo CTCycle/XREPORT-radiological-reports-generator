@@ -161,7 +161,7 @@
         "serve": {
           "builder": "@angular/build:dev-server",
           "options": {
-            "proxyConfig": "src/proxy.conf.cjs",
+            "proxyConfig": "src/proxy.studio.conf.cjs",
             "port": 8013
           },
           "configurations": {
