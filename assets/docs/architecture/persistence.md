@@ -65,7 +65,7 @@ application:
 | Application | ORM base | Migration stream | Version table | Head |
 |---|---|---|---|---|
 | XREPORT Inference | `repositories/schemas/inference.py` (`InferenceBase`) | `server/migrations/inference` | `xreport_inference_version` | `36d142391099` |
-| XREPORT Studio | `repositories/schemas/studio.py` (`StudioBase`) | `server/migrations/studio` | `xreport_studio_version` | `9d4d3bce4ede` |
+| XREPORT Studio | `repositories/schemas/studio.py` (`StudioBase`) | `server/migrations/studio` | `xreport_studio_version` | `8071b092e5f8` |
 
 `repositories/database/schema.py` binds the running profile (`XREPORT_APP`) to
 its schema; Studio's schema module is resolved by name, so the XREPORT Inference
@@ -189,7 +189,18 @@ erDiagram
     DATASET_RECORDS ||--o{ TRAINING_SAMPLES : references
     DATASETS ||--o{ VALIDATION_RUNS : validates
     CHECKPOINTS ||--o{ CHECKPOINT_EVALUATIONS : evaluates
+    MODEL_ARCHITECTURE_PRESETS {
+        int preset_id PK
+        string name
+        string name_key UK
+        json architecture_json
+    }
 ```
+
+`model_architecture_presets` (revision `8071b092e5f8`) stores custom model
+architecture presets and has no foreign keys: a training run copies the
+resolved architecture into its checkpoint configuration, so deleting or
+editing a preset never affects existing checkpoints.
 
 ### XREPORT Inference
 

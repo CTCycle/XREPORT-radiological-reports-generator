@@ -4,7 +4,7 @@ Last updated: 2026-10-27
 
 ## Reusable Patterns
 
-- All seven routed screens render inside `MainLayout` and use `.page-container` for the shared 1400px page cap and responsive gutter. Page styles should define internal grids, not route-specific content origins.
+- All eight routed screens render inside `MainLayout` and use `.page-container` for the shared 1400px page cap and responsive gutter. Page styles should define internal grids, not route-specific content origins.
 - `MainLayout` keeps the 208px desktop navigation and a stable routed-content scroll area. Keep shell dimensions independent of the active route.
 - `.btn`, `.primary-button`, `.secondary-button`, `.danger-button`, `.form-input`, and `.form-select` are global shared patterns; extend them with layout-specific classes instead of restating their base dimensions and colors.
 - Buttons, cards, forms, modal shells, dashboards, and navigation all follow tokenized spacing, color, radius, and shadow rules.
@@ -87,7 +87,8 @@ shell-level lifecycle component, not a feature-page loading state.
 ## Route-Level Page Structure
 
 - Dataset page: dataset loading, preprocessing, browsing, and validation entry actions
-- Training page: training start or resume, checkpoint management, and metrics dashboards
+- Model page (Studio): three zones — preset library, architecture canvas (statistics, dataset sizing, SVG diagram from the backend graph; two lanes when there is room, one stacked column otherwise), and a contextual inspector for the selected component with help, impact badges, an Advanced disclosure, inline validation and a compatibility card. Edits preview through a debounced, latest-wins request; invalid drafts dim the last valid diagram and cannot be saved.
+- Training page: training start or resume, checkpoint management, and metrics dashboards. The wizard's Model step selects an architecture preset.
 - Inference page: filterable local model catalog and details, capability-aware study preparation, clinical context, generation profiles (editable after a draft exists), described run scopes, a report selector for per-image batches, and editable model-declared report sections with copy, regenerate, and export actions
 - Reports page: persisted inference sessions whose model-reference (debounced), status, and sort filters apply immediately, explicit loading/empty/error states, paginated summaries, and links to detail views
 - Report detail page: session metadata, reusable section-aware draft editor, original-output disclosure that bolds and underlines words removed or changed in the current draft, atomic save, and destructive session deletion

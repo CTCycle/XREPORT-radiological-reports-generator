@@ -1,6 +1,6 @@
 # Operations Workflows
 
-Last updated: 2026-10-26
+Last updated: 2026-10-27
 
 ## Prepare A Dataset
 
@@ -27,10 +27,25 @@ Expected result:
 - deleting a source dataset with processed dependents returns a conflict that
   names those dependents; delete the processed datasets first
 
+## Configure A Model Architecture (Studio)
+
+1. Open the Model page. Built-in presets are read-only; the XREPORT default
+   reproduces the original architecture.
+2. Select a component in the diagram and adjust its parameters, optionally
+   sizing against a processed dataset and comparing with a preset or checkpoint.
+3. Save as a custom preset, or export/import it as JSON
+   (`xreport-model-architecture`, version 1).
+
+Changing dropout, temperature or encoder freezing keeps weight shapes; every
+other change requires training the transformer from scratch. The pinned BEiT
+encoder weights are always reused. Other image encoders were evaluated but are
+not offered: XREPORT Inference only imports checkpoints built on the pinned
+BEiT revision, and Studio has no offline installer for other encoders.
+
 ## Train A Model
 
 1. Open the Training page.
-2. Choose dataset, checkpoint, and training parameter options.
+2. Choose the dataset, an architecture preset, and training options.
 3. Start training.
 4. Monitor the independent worker phase and numeric progress. Before the first
    batch, the phase identifies preparation such as dataset, device, loader, or

@@ -38,6 +38,15 @@ point fails if the two disagree. `desktop_entry` supports only `xreport`.
 - Modules under `server/models/training/` that checkpoints need at load time
   (`layers`, `metrics`, `scheduler`, `encoder`, `processing`, `dataloader`)
   stay shared and in place, because Keras serialises their registered names.
+  `TransformerEncoder`/`TransformerDecoder` serialise `ffn_units`, `dropout`
+  and `key_dim`; configurations saved before these keys existed fall back to
+  the original values (model width, 0.2, model width), so older checkpoints
+  load unchanged and new ones load in XREPORT Inference without code changes.
+- Studio checkpoints store the resolved architecture in
+  `configuration/configuration.json` (`architecture`, `architecture_preset`,
+  and the measured `architecture_summary`). The manifest architecture id is
+  unchanged because every configurable architecture keeps the BEiT encoder and
+  the same layer types.
 
 - Each profile has its own ORM schema, Alembic stream, version table, and
   settings row (`repositories/schemas/{inference,studio}.py`,

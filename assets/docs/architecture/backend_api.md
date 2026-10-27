@@ -12,7 +12,7 @@ from the repository root with:
 
 then run `npm run generate:api` in `app/client`. The XREPORT Inference application mounts the inference,
 jobs, settings, and database-settings routers plus `POST /api/exchange/import`; XREPORT Studio mounts
-upload, preparation, training, validation, jobs, settings, database settings, `POST /api/exchange/export`,
+upload, preparation, model, training, validation, jobs, settings, database settings, `POST /api/exchange/export`,
 and `GET /api/exchange/exports/{filename}`. Endpoint groups below that belong to the other
 application return 404 (see [applications and checkpoint exchange](applications_and_checkpoint_exchange.md)).
 
@@ -65,12 +65,34 @@ and unmatched counts without writing records. A repeat request with
 `confirm_unmatched=true` imports only the matched rows and returns
 `partial_import=true`; an empty match is rejected.
 
+## Model architecture (Studio)
+
+- `GET /api/model/encoders`: registered pretrained image encoders (BEiT only).
+- `GET /api/model/presets`: built-in presets (`xreport-default`, `compact`,
+  `balanced`, `large`) followed by custom presets (`custom-<id>`), each with
+  analytic parameter and memory statistics.
+- `POST /api/model/presets`, `PUT /api/model/presets/{key}`,
+  `DELETE /api/model/presets/{key}`: custom presets only. Built-in names are
+  reserved and names are unique case-insensitively (409).
+- `POST /api/model/preview`: validates a raw architecture and returns field
+  issues instead of a 422, plus the architecture graph, statistics sized
+  against an optional processed dataset, and compatibility with an optional
+  `reference` (a preset key or `checkpoint:<name>`).
+- `GET /api/model/checkpoints/{checkpoint}/architecture`: the architecture a
+  checkpoint was trained with, reconstructed from its configuration (legacy
+  flat keys are flagged with `legacy: true`).
+
+The graph and parameter counts come from `server/models/training/architecture.py`,
+the same module the training builder uses; unit tests compare the analytic
+counts with built Keras layers.
+
 ## Training
 
 - `GET /api/training/checkpoints`
 - `GET /api/training/checkpoints/{checkpoint}/metadata`
 - `DELETE /api/training/checkpoints/{checkpoint}`
-- `POST /api/training/start`
+- `POST /api/training/start`: takes `architecture_preset` (a preset key) instead
+  of individual architecture fields; an unknown key returns 400.
 - `POST /api/training/resume`
 
 ## Validation
