@@ -29,6 +29,7 @@ from server.common.inference_manifest import (
 )
 from server.models.inference.providers.adapters import (
     ADAPTERS,
+    GenerationLimits,
     StandardImageTextAdapter,
     StudyGeneration,
     StudyImage,
@@ -69,9 +70,11 @@ class HuggingFaceProvider:
         self,
         settings: InferenceSettings,
         timeout_provider: Callable[[], int] | None = None,
+        settings_provider: Callable[[], InferenceSettings] | None = None,
     ) -> None:
         self.settings = settings
         self.timeout_provider = timeout_provider
+        self.settings_provider = settings_provider
         self._lock = threading.RLock()
         self._loaded_key: tuple[str, str, str, str, str] | None = None
         self._model: Any = None
@@ -109,6 +112,13 @@ class HuggingFaceProvider:
                     clinical_context,
                 )
             model, processor, adapter = self._load(normalized)
+            current = self.settings_provider() if self.settings_provider else self.settings
+            adapter.generation_limits = GenerationLimits(
+                max_new_tokens_deterministic=current.max_new_tokens_deterministic,
+                max_new_tokens_concise=current.max_new_tokens_concise,
+                max_new_tokens_detailed=current.max_new_tokens_detailed,
+                detailed_num_beams=current.detailed_num_beams,
+            )
             self._check_deadline(repository_id, deadline)
             reports: dict[str, str] = {}
             display_sections: dict[str, dict[str, str]] = {}

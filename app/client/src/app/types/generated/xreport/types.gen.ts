@@ -565,6 +565,22 @@ export type InferenceSettingsPatch = {
      * Model Idle Timeout
      */
     model_idle_timeout?: number | null;
+    /**
+     * Max New Tokens Deterministic
+     */
+    max_new_tokens_deterministic?: number | null;
+    /**
+     * Max New Tokens Concise
+     */
+    max_new_tokens_concise?: number | null;
+    /**
+     * Max New Tokens Detailed
+     */
+    max_new_tokens_detailed?: number | null;
+    /**
+     * Detailed Num Beams
+     */
+    detailed_num_beams?: number | null;
 };
 
 /**
@@ -1085,6 +1101,22 @@ export type RuntimeInferenceSettings = {
      * Model Idle Timeout
      */
     model_idle_timeout: number;
+    /**
+     * Max New Tokens Deterministic
+     */
+    max_new_tokens_deterministic: number;
+    /**
+     * Max New Tokens Concise
+     */
+    max_new_tokens_concise: number;
+    /**
+     * Max New Tokens Detailed
+     */
+    max_new_tokens_detailed: number;
+    /**
+     * Detailed Num Beams
+     */
+    detailed_num_beams: number;
 };
 
 /**

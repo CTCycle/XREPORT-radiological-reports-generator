@@ -51,9 +51,9 @@ process-level launch settings such as the resource root requires a restart;
 database switching does not.
 
 Alembic is the authoritative schema history. The migration stream starts at
-`b1e7a2c4d908` and has one head, `c3b8e5d1a7f4`. The baseline creates the
+`b1e7a2c4d908` and has one head, `d4a9c6e2b3f1`. The baseline creates the
 schema and seeds the `application_settings` singleton; later revisions remove
-process-policy and filesystem settings and add the inference idle timeout.
+process-policy and filesystem settings and add the inference idle timeout and generation limits.
 Published revisions `f48a7c2e91b6` and `e91a4f6c2d73` are no longer supported:
 startup rejects them without modifying the database, which must be replaced or
 recreated. Re-creating starts with typed defaults and an empty checkpoint registry.

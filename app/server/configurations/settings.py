@@ -41,6 +41,10 @@ class InferenceSettings:
     device: str
     model_timeout: int
     model_idle_timeout: int
+    max_new_tokens_deterministic: int = 0
+    max_new_tokens_concise: int = 0
+    max_new_tokens_detailed: int = 0
+    detailed_num_beams: int = 0
 
 ###############################################################################
 @dataclass(frozen=True)
@@ -64,6 +68,11 @@ class ApplicationSettingsValues(BaseModel):
     )
     inference_model_timeout: int = Field(ge=1)
     inference_model_idle_timeout: int = Field(ge=0)
+    # 0 defers to the selected model adapter's own profile default.
+    inference_max_new_tokens_deterministic: int = Field(default=0, ge=0, le=4096)
+    inference_max_new_tokens_concise: int = Field(default=0, ge=0, le=4096)
+    inference_max_new_tokens_detailed: int = Field(default=0, ge=0, le=4096)
+    inference_detailed_num_beams: int = Field(default=0, ge=0, le=8)
     theme_preference: Literal["light", "dark", "system"] | None = None
 
 
@@ -72,6 +81,10 @@ DEFAULT_APPLICATION_SETTINGS = ApplicationSettingsValues(
     job_polling_interval=1.0,
     inference_model_timeout=600,
     inference_model_idle_timeout=300,
+    inference_max_new_tokens_deterministic=0,
+    inference_max_new_tokens_concise=0,
+    inference_max_new_tokens_detailed=0,
+    inference_detailed_num_beams=0,
     theme_preference=None,
 )
 
@@ -90,5 +103,9 @@ def application_settings_to_server_settings(
             device=runtime.inference_device,
             model_timeout=values.inference_model_timeout,
             model_idle_timeout=values.inference_model_idle_timeout,
+            max_new_tokens_deterministic=values.inference_max_new_tokens_deterministic,
+            max_new_tokens_concise=values.inference_max_new_tokens_concise,
+            max_new_tokens_detailed=values.inference_max_new_tokens_detailed,
+            detailed_num_beams=values.inference_detailed_num_beams,
         ),
     )

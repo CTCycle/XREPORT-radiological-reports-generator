@@ -20,6 +20,10 @@ class RuntimeJobSettings(_StrictSettingsModel):
 class RuntimeInferenceSettings(_StrictSettingsModel):
     model_timeout: int
     model_idle_timeout: int
+    max_new_tokens_deterministic: int
+    max_new_tokens_concise: int
+    max_new_tokens_detailed: int
+    detailed_num_beams: int
 
 ###############################################################################
 class RuntimeApplicationSettings(_StrictSettingsModel):
@@ -69,6 +73,10 @@ class JobSettingsPatch(_PatchModel):
 class InferenceSettingsPatch(_PatchModel):
     model_timeout: int | None = Field(default=None, ge=1)
     model_idle_timeout: int | None = Field(default=None, ge=0)
+    max_new_tokens_deterministic: int | None = Field(default=None, ge=0, le=4096)
+    max_new_tokens_concise: int | None = Field(default=None, ge=0, le=4096)
+    max_new_tokens_detailed: int | None = Field(default=None, ge=0, le=4096)
+    detailed_num_beams: int | None = Field(default=None, ge=0, le=8)
 
 ###############################################################################
 class ApplicationSettingsPatch(_StrictSettingsModel):

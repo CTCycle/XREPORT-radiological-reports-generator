@@ -5,7 +5,7 @@ import pytest
 import torch
 from server.domain.inference import InferenceImage, ProviderGenerationResult
 from server.models.inference.providers import adapters as adapters_module
-from server.models.inference.providers.adapters import CheXOneAdapter, CXRMate2Adapter, CXRMateMultiAdapter, MedGemmaAdapter, StudyImage, _ensure_cxrmate2_generation_dtype
+from server.models.inference.providers.adapters import GenerationLimits, CheXOneAdapter, CXRMate2Adapter, CXRMateMultiAdapter, MedGemmaAdapter, StudyImage, _ensure_cxrmate2_generation_dtype
 from typing import Any, cast
 from unittest.mock import MagicMock
 from server.services.inference import InferenceImageStore, run_inference_job, InferenceService
@@ -53,11 +53,11 @@ def _study_images() -> list[StudyImage]:
 
 ###############################################################################
 @pytest.mark.parametrize(
-    ("profile", "max_length", "num_beams"),
+    ("profile", "max_new_tokens", "num_beams"),
     (("deterministic", 256, 1), ("concise", 160, 1), ("detailed", 256, 4)),
 )
 def test_cxrmate_multi_uses_all_images_profile_and_stopping_criteria(
-    profile: str, max_length: int, num_beams: int
+    profile: str, max_new_tokens: int, num_beams: int
 ) -> None:
 
     ###############################################################################
@@ -109,7 +109,8 @@ def test_cxrmate_multi_uses_all_images_profile_and_stopping_criteria(
     assert isinstance(pixel_values, torch.Tensor)
     assert pixel_values.shape == (1, 2, 3, 4, 4)
     assert not torch.equal(pixel_values[0, 0], pixel_values[0, 1])
-    assert model.generate_call["max_length"] == max_length
+    assert model.generate_call["max_new_tokens"] == max_new_tokens
+    assert "max_length" not in model.generate_call
     assert model.generate_call["num_beams"] == num_beams
     assert model.generate_call["do_sample"] is False
     assert model.generate_call["stopping_criteria"] is stopping_criteria
@@ -120,11 +121,11 @@ def test_cxrmate_multi_uses_all_images_profile_and_stopping_criteria(
 
 ###############################################################################
 @pytest.mark.parametrize(
-    ("profile", "max_length", "num_beams"),
+    ("profile", "max_new_tokens", "num_beams"),
     (("deterministic", 256, 1), ("concise", 160, 1), ("detailed", 256, 4)),
 )
 def test_cxrmate2_forwards_study_and_profile_to_published_processor(
-    profile: str, max_length: int, num_beams: int
+    profile: str, max_new_tokens: int, num_beams: int
 ) -> None:
 
     ###############################################################################
@@ -174,7 +175,8 @@ def test_cxrmate2_forwards_study_and_profile_to_published_processor(
 
     assert processor.process_call["images"] == [[item.image for item in _study_images()]]
     assert processor.process_call["indication"] == "portable chest"
-    assert model.generate_call["max_length"] == max_length
+    assert model.generate_call["max_new_tokens"] == max_new_tokens
+    assert "max_length" not in model.generate_call
     assert model.generate_call["num_beams"] == num_beams
     assert model.generate_call["do_sample"] is False
     assert model.generate_call["stopping_criteria"] is stopping_criteria
@@ -182,6 +184,17 @@ def test_cxrmate2_forwards_study_and_profile_to_published_processor(
         "findings": "finding",
         "impression": "impression",
     }
+
+###############################################################################
+def test_generation_limits_override_profile_without_max_length() -> None:
+    adapter = CXRMate2Adapter()
+    adapter.generation_limits = GenerationLimits(max_new_tokens_detailed=512, detailed_num_beams=2)
+
+    detailed = adapter.resolve_generation("detailed", {**adapter.generation_profiles["detailed"], "max_length": 99})
+    concise = adapter.resolve_generation("concise", adapter.generation_profiles["concise"])
+
+    assert detailed == {"max_new_tokens": 512, "num_beams": 2, "do_sample": False}
+    assert concise["max_new_tokens"] == 160 and concise["num_beams"] == 1
 
 ###############################################################################
 def test_cxrmate2_casts_generation_time_deltas_to_model_dtype() -> None:

@@ -2032,6 +2032,58 @@
               }
             ],
             "title": "Model Idle Timeout"
+          },
+          "max_new_tokens_deterministic": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 4096.0,
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max New Tokens Deterministic"
+          },
+          "max_new_tokens_concise": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 4096.0,
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max New Tokens Concise"
+          },
+          "max_new_tokens_detailed": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 4096.0,
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max New Tokens Detailed"
+          },
+          "detailed_num_beams": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 8.0,
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Detailed Num Beams"
           }
         },
         "additionalProperties": false,
@@ -3021,13 +3073,33 @@
           "model_idle_timeout": {
             "type": "integer",
             "title": "Model Idle Timeout"
+          },
+          "max_new_tokens_deterministic": {
+            "type": "integer",
+            "title": "Max New Tokens Deterministic"
+          },
+          "max_new_tokens_concise": {
+            "type": "integer",
+            "title": "Max New Tokens Concise"
+          },
+          "max_new_tokens_detailed": {
+            "type": "integer",
+            "title": "Max New Tokens Detailed"
+          },
+          "detailed_num_beams": {
+            "type": "integer",
+            "title": "Detailed Num Beams"
           }
         },
         "additionalProperties": false,
         "type": "object",
         "required": [
           "model_timeout",
-          "model_idle_timeout"
+          "model_idle_timeout",
+          "max_new_tokens_deterministic",
+          "max_new_tokens_concise",
+          "max_new_tokens_detailed",
+          "detailed_num_beams"
         ],
         "title": "RuntimeInferenceSettings"
       },

@@ -380,7 +380,14 @@ def test_settings_api_allowlist_patch_and_reset(api_context: APIRequestContext) 
     initial = initial_response.json()
     values = initial["values"]
     assert set(values) == {"global", "features", "jobs", "inference", "theme_preference"}
-    assert set(values["inference"]) == {"model_timeout", "model_idle_timeout"}
+    assert set(values["inference"]) == {
+        "model_timeout",
+        "model_idle_timeout",
+        "max_new_tokens_deterministic",
+        "max_new_tokens_concise",
+        "max_new_tokens_detailed",
+        "detailed_num_beams",
+    }
     original_seed = values["global"]["seed"]
 
     try:

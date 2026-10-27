@@ -91,8 +91,16 @@ def test_fresh_upgrade_uses_typed_defaults(
         "job_polling_interval": 1.0,
         "inference_model_timeout": 600,
         "inference_model_idle_timeout": 300,
+        **{f"inference_{name}": 0 for name in _GENERATION_DEFAULTS},
         "theme_preference": None,
     }
+
+_GENERATION_DEFAULTS = {
+    "max_new_tokens_deterministic": 0,
+    "max_new_tokens_concise": 0,
+    "max_new_tokens_detailed": 0,
+    "detailed_num_beams": 0,
+}
 
 ###############################################################################
 def test_public_projection_contains_only_application_settings(tmp_path, monkeypatch) -> None:
@@ -103,15 +111,30 @@ def test_public_projection_contains_only_application_settings(tmp_path, monkeypa
     assert payload["values"] == {
         "global": {"seed": 123},
         "jobs": {"polling_interval": 2.5},
-        "inference": {"model_timeout": 120, "model_idle_timeout": 300},
+        "inference": {"model_timeout": 120, "model_idle_timeout": 300, **_GENERATION_DEFAULTS},
         "theme_preference": None,
     }
     assert payload["defaults"] == {
         "global": {"seed": 42},
         "jobs": {"polling_interval": 1.0},
-        "inference": {"model_timeout": 600, "model_idle_timeout": 300},
+        "inference": {"model_timeout": 600, "model_idle_timeout": 300, **_GENERATION_DEFAULTS},
         "theme_preference": None,
     }
+
+###############################################################################
+def test_generation_limits_persist_and_reject_out_of_range(tmp_path, monkeypatch) -> None:
+    service = SettingsService(ApplicationSettingsRepository(_database(tmp_path, monkeypatch)))
+
+    updated = service.update_settings(
+        ApplicationSettingsPatch.model_validate(
+            {"inference": {"max_new_tokens_concise": 200, "detailed_num_beams": 3}}
+        )
+    )
+    assert updated.values.inference.max_new_tokens_concise == 200
+    assert updated.values.inference.detailed_num_beams == 3
+    for patch in ({"max_new_tokens_detailed": 4097}, {"detailed_num_beams": 9}):
+        with pytest.raises(ValueError):
+            ApplicationSettingsPatch.model_validate({"inference": patch})
 
 ###############################################################################
 def test_update_and_reset_change_application_settings(tmp_path, monkeypatch) -> None:
@@ -547,7 +570,7 @@ def test_policy_migration_from_baseline_preserves_user_settings_and_records(
             ).scalar_one() == "Retained dataset"
             assert connection.exec_driver_sql(
                 "SELECT version_num FROM alembic_version"
-            ).scalar_one() == initializer.HEAD_REVISION == "c3b8e5d1a7f4"
+            ).scalar_one() == initializer.HEAD_REVISION == "d4a9c6e2b3f1"
     finally:
         engine.dispose()
 

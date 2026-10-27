@@ -120,10 +120,21 @@ def _ensure_cxrmate2_generation_dtype(model: Any, move_inputs: MoveInputs) -> No
     model._xreport_cxrmate2_dtype_compat = True
 
 ###############################################################################
+@dataclass(frozen=True)
+class GenerationLimits:
+    """User generation limits; 0 keeps the adapter's own profile default."""
+
+    max_new_tokens_deterministic: int = 0
+    max_new_tokens_concise: int = 0
+    max_new_tokens_detailed: int = 0
+    detailed_num_beams: int = 0
+
+###############################################################################
 class StandardImageTextAdapter:
     """Adapter for standard Transformers multimodal chat-style models."""
 
     supports_study = False
+    generation_limits = GenerationLimits()
 
     # -------------------------------------------------------------------------
     def generate_study(
@@ -229,14 +240,32 @@ class StandardImageTextAdapter:
         )
 
     # -------------------------------------------------------------------------
-    @staticmethod
-    def generation_kwargs(profile: GenerationProfile) -> dict[str, Any]:
-        return {
-            "max_new_tokens": {"deterministic": 768, "concise": 384, "detailed": 1536}[
-                profile
-            ],
-            "do_sample": False,
-        }
+    def generation_kwargs(self, profile: GenerationProfile) -> dict[str, Any]:
+        return self.resolve_generation(
+            profile,
+            {
+                "max_new_tokens": {
+                    "deterministic": 768,
+                    "concise": 384,
+                    "detailed": 1536,
+                }[profile],
+                "do_sample": False,
+            },
+        )
+
+    # -------------------------------------------------------------------------
+    def resolve_generation(
+        self, profile: GenerationProfile, base: Mapping[str, Any]
+    ) -> dict[str, Any]:
+        """Merge user limits into a profile without ever passing max_length."""
+        resolved = {key: value for key, value in base.items() if key != "max_length"}
+        limits = self.generation_limits
+        max_new_tokens = getattr(limits, f"max_new_tokens_{profile}")
+        if max_new_tokens:
+            resolved["max_new_tokens"] = max_new_tokens
+        if profile == "detailed" and "num_beams" in resolved and limits.detailed_num_beams:
+            resolved["num_beams"] = limits.detailed_num_beams
+        return resolved
 
     # -------------------------------------------------------------------------
     @staticmethod
@@ -408,10 +437,17 @@ class CheXOneAdapter(ChatVisionStudyAdapter):
         inputs = move_inputs(inputs, model)
         output = model.generate(
             **inputs,
-            max_new_tokens={"deterministic": 768, "concise": 384, "detailed": 1024}[
-                profile
-            ],
-            do_sample=False,
+            **self.resolve_generation(
+                profile,
+                {
+                    "max_new_tokens": {
+                        "deterministic": 768,
+                        "concise": 384,
+                        "detailed": 1024,
+                    }[profile],
+                    "do_sample": False,
+                },
+            ),
             stopping_criteria=stopping_criteria,
         )
         generated_ids = [out_ids[input_length:] for out_ids in output]
@@ -433,17 +469,17 @@ class CXRMateMultiAdapter(StandardImageTextAdapter):
     supports_study = True
     generation_profiles: dict[GenerationProfile, dict[str, Any]] = {
         "deterministic": {
-            "max_length": 256,
+            "max_new_tokens": 256,
             "num_beams": 1,
             "do_sample": False,
         },
         "concise": {
-            "max_length": 160,
+            "max_new_tokens": 160,
             "num_beams": 1,
             "do_sample": False,
         },
         "detailed": {
-            "max_length": 256,
+            "max_new_tokens": 256,
             "num_beams": 4,
             "do_sample": False,
         },
@@ -507,7 +543,9 @@ class CXRMateMultiAdapter(StandardImageTextAdapter):
         batch = torch.stack(tensors, dim=0).unsqueeze(0)
         moved = move_inputs({"pixel_values": batch}, model)
         _ensure_legacy_decoder_cache_compatibility(model)
-        generation_kwargs = self.generation_profiles[profile]
+        generation_kwargs = self.resolve_generation(
+            profile, self.generation_profiles[profile]
+        )
         output = model.generate(
             pixel_values=moved["pixel_values"],
             special_token_ids=[tokenizer.sep_token_id],
@@ -555,17 +593,17 @@ class CXRMate2Adapter(StandardImageTextAdapter):
     supports_study = True
     generation_profiles: dict[GenerationProfile, dict[str, Any]] = {
         "deterministic": {
-            "max_length": 256,
+            "max_new_tokens": 256,
             "num_beams": 1,
             "do_sample": False,
         },
         "concise": {
-            "max_length": 160,
+            "max_new_tokens": 160,
             "num_beams": 1,
             "do_sample": False,
         },
         "detailed": {
-            "max_length": 256,
+            "max_new_tokens": 256,
             "num_beams": 4,
             "do_sample": False,
         },
@@ -593,7 +631,9 @@ class CXRMate2Adapter(StandardImageTextAdapter):
         )
         processed = move_inputs(processed, model)
         _ensure_cxrmate2_generation_dtype(model, move_inputs)
-        generation_kwargs = self.generation_profiles[profile]
+        generation_kwargs = self.resolve_generation(
+            profile, self.generation_profiles[profile]
+        )
         generated_ids = model.generate(
             **processed,
             **generation_kwargs,

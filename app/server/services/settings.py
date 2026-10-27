@@ -15,6 +15,13 @@ from server.domain.settings import (
 from server.repositories.application_settings import ApplicationSettingsRepository
 from server.services.errors import InternalServiceError
 
+_GENERATION_FIELDS = (
+    "max_new_tokens_deterministic",
+    "max_new_tokens_concise",
+    "max_new_tokens_detailed",
+    "detailed_num_beams",
+)
+
 ###############################################################################
 class SettingsService:
     """Public projection and persistence boundary for application settings."""
@@ -74,6 +81,10 @@ class SettingsService:
                 changes["inference_model_idle_timeout"] = (
                     patch.inference.model_idle_timeout
                 )
+            for name in _GENERATION_FIELDS:
+                value = getattr(patch.inference, name)
+                if value is not None:
+                    changes[f"inference_{name}"] = value
         changes.update(
             patch.model_dump(include={"theme_preference"}, exclude_none=True)
         )
@@ -105,6 +116,10 @@ class SettingsService:
                 "inference": RuntimeInferenceSettings(
                     model_timeout=values.inference_model_timeout,
                     model_idle_timeout=values.inference_model_idle_timeout,
+                    **{
+                        name: getattr(values, f"inference_{name}")
+                        for name in _GENERATION_FIELDS
+                    },
                 ),
                 "theme_preference": values.theme_preference,
             }

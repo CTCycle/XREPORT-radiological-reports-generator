@@ -4,16 +4,18 @@ import { SettingsApiService } from '../services/settings-api.service';
 import type { ApplicationSettingsPatch } from '../types/settingsApi';
 import { SettingsPage } from './settings.page';
 
+const generationDefaults = { max_new_tokens_deterministic: 0, max_new_tokens_concise: 0, max_new_tokens_detailed: 0, detailed_num_beams: 0 };
+
 const settingsResponse = () => ({
   values: {
     global: { seed: 42 },
     jobs: { polling_interval: 1 },
-    inference: { model_timeout: 600, model_idle_timeout: 300 },
+    inference: { model_timeout: 600, model_idle_timeout: 300, ...generationDefaults },
   },
   defaults: {
     global: { seed: 42 },
     jobs: { polling_interval: 1 },
-    inference: { model_timeout: 600, model_idle_timeout: 300 },
+    inference: { model_timeout: 600, model_idle_timeout: 300, ...generationDefaults },
   },
 });
 
@@ -66,6 +68,7 @@ describe('SettingsPage', () => {
       if (patch.jobs?.polling_interval != null) result.values.jobs.polling_interval = patch.jobs.polling_interval;
       if (patch.inference?.model_timeout != null) result.values.inference.model_timeout = patch.inference.model_timeout;
       if (patch.inference?.model_idle_timeout != null) result.values.inference.model_idle_timeout = patch.inference.model_idle_timeout;
+      Object.assign(result.values.inference, patch.inference);
       return { result, error: null };
     });
     api.resetSettings.mockReset().mockResolvedValue({ result: settingsResponse(), error: null });
@@ -145,6 +148,21 @@ describe('SettingsPage', () => {
     expect(page.draft()?.inference.model_timeout).toBe(900);
     expect(page.draft()?.inference.model_idle_timeout).toBe(60);
     expect(page.dirty()).toBe(false);
+  });
+
+  it('persists valid generation limits and blocks out-of-range values', async () => {
+    const fixture = TestBed.createComponent(SettingsPage);
+    fixture.detectChanges();
+    await fixture.whenStable();
+    const page = fixture.componentInstance;
+
+    page.updateGeneration('max_new_tokens_concise', 200);
+    page.updateGeneration('detailed_num_beams', 9);
+    expect(page.validationErrors().detailed_num_beams).toBeTruthy();
+    expect(page.validationErrors().max_new_tokens_concise).toBeUndefined();
+    await page.flushSettingsPersistence();
+
+    expect(api.updateSettings).toHaveBeenCalledWith({ inference: { max_new_tokens_concise: 200 } });
   });
 
   it('serializes rapid updates so an older response cannot overwrite the latest value', async () => {

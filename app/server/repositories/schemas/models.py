@@ -36,6 +36,18 @@ class ApplicationSettingsRecord(Base):
     inference_model_idle_timeout: Mapped[int] = mapped_column(
         BigInteger, nullable=False, default=300
     )
+    inference_max_new_tokens_deterministic: Mapped[int] = mapped_column(
+        BigInteger, nullable=False, default=0
+    )
+    inference_max_new_tokens_concise: Mapped[int] = mapped_column(
+        BigInteger, nullable=False, default=0
+    )
+    inference_max_new_tokens_detailed: Mapped[int] = mapped_column(
+        BigInteger, nullable=False, default=0
+    )
+    inference_detailed_num_beams: Mapped[int] = mapped_column(
+        BigInteger, nullable=False, default=0
+    )
     theme_preference: Mapped[str | None] = mapped_column(
         String(8), nullable=True, default=None
     )
@@ -61,6 +73,16 @@ class ApplicationSettingsRecord(Base):
         CheckConstraint(
             "inference_model_idle_timeout >= 0",
             name="ck_application_settings_model_idle_timeout",
+        ),
+        CheckConstraint(
+            "inference_max_new_tokens_deterministic >= 0 AND inference_max_new_tokens_deterministic <= 4096"
+            " AND inference_max_new_tokens_concise >= 0 AND inference_max_new_tokens_concise <= 4096"
+            " AND inference_max_new_tokens_detailed >= 0 AND inference_max_new_tokens_detailed <= 4096",
+            name="ck_application_settings_max_new_tokens",
+        ),
+        CheckConstraint(
+            "inference_detailed_num_beams >= 0 AND inference_detailed_num_beams <= 8",
+            name="ck_application_settings_detailed_num_beams",
         ),
         CheckConstraint(
             "theme_preference IS NULL OR theme_preference IN ('light', 'dark', 'system')",

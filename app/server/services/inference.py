@@ -151,6 +151,7 @@ def get_huggingface_provider() -> HuggingFaceProvider:
     return HuggingFaceProvider(
         get_server_settings().inference,
         timeout_provider=lambda: get_server_settings().inference.model_timeout,
+        settings_provider=lambda: get_server_settings().inference,
     )
 
 ###############################################################################

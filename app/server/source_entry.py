@@ -46,6 +46,8 @@ def main() -> None:
             port=port,
             log_level="info",
             access_log=True,
+            # Route uvicorn records through the central XREPORT logging config.
+            log_config=None,
         )
     )
     app.state.desktop_server = server

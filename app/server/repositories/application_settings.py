@@ -18,6 +18,10 @@ _PUBLIC_COLUMNS = frozenset(
         "job_polling_interval",
         "inference_model_timeout",
         "inference_model_idle_timeout",
+        "inference_max_new_tokens_deterministic",
+        "inference_max_new_tokens_concise",
+        "inference_max_new_tokens_detailed",
+        "inference_detailed_num_beams",
         "theme_preference",
     }
 )
@@ -68,6 +72,10 @@ class ApplicationSettingsRepository:
                 "job_polling_interval": record.job_polling_interval,
                 "inference_model_timeout": record.inference_model_timeout,
                 "inference_model_idle_timeout": record.inference_model_idle_timeout,
+                "inference_max_new_tokens_deterministic": record.inference_max_new_tokens_deterministic,
+                "inference_max_new_tokens_concise": record.inference_max_new_tokens_concise,
+                "inference_max_new_tokens_detailed": record.inference_max_new_tokens_detailed,
+                "inference_detailed_num_beams": record.inference_detailed_num_beams,
                 "theme_preference": record.theme_preference,
                 **changes,
             }
@@ -88,6 +96,10 @@ class ApplicationSettingsRepository:
                 "job_polling_interval": defaults.job_polling_interval,
                 "inference_model_timeout": defaults.inference_model_timeout,
                 "inference_model_idle_timeout": defaults.inference_model_idle_timeout,
+                "inference_max_new_tokens_deterministic": defaults.inference_max_new_tokens_deterministic,
+                "inference_max_new_tokens_concise": defaults.inference_max_new_tokens_concise,
+                "inference_max_new_tokens_detailed": defaults.inference_max_new_tokens_detailed,
+                "inference_detailed_num_beams": defaults.inference_detailed_num_beams,
                 "theme_preference": defaults.theme_preference,
             }
         )
@@ -103,6 +115,10 @@ class ApplicationSettingsRepository:
                 "job_polling_interval": record.job_polling_interval,
                 "inference_model_timeout": record.inference_model_timeout,
                 "inference_model_idle_timeout": record.inference_model_idle_timeout,
+                "inference_max_new_tokens_deterministic": record.inference_max_new_tokens_deterministic,
+                "inference_max_new_tokens_concise": record.inference_max_new_tokens_concise,
+                "inference_max_new_tokens_detailed": record.inference_max_new_tokens_detailed,
+                "inference_detailed_num_beams": record.inference_detailed_num_beams,
                 "theme_preference": record.theme_preference,
             }
         )

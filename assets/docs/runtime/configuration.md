@@ -1,6 +1,6 @@
 # Runtime Configuration
 
-Last updated: 2026-10-26
+Last updated: 2026-10-27
 
 ## Shared Configuration Sources
 
@@ -79,6 +79,7 @@ The application-settings record contains the following owned values:
 - `jobs.polling_interval`
 - `inference.model_timeout`
 - `inference.model_idle_timeout`
+- `inference.max_new_tokens_{deterministic,concise,detailed}` and `inference.detailed_num_beams`
 - `theme_preference` (the global theme selector)
 
 `INFERENCE_HF_LOCAL_ONLY` and `INFERENCE_DEVICE` are process-level inference
@@ -113,13 +114,17 @@ Only these values are user-editable through Settings:
 - `jobs.polling_interval` (`0.25` through `60` seconds)
 - `inference.model_timeout` (at least `1` second)
 - `inference.model_idle_timeout` (`0` or more seconds; default `300`; `0` keeps the model loaded; XREPORT Inference only in the UI)
+- `inference.max_new_tokens_deterministic|concise|detailed` (`0` through `4096`; default `0` keeps the model adapter's own profile limit) and `inference.detailed_num_beams` (`0` through `8`; default `0` keeps the adapter default; only applied to beam-capable adapters; XREPORT Inference only in the UI)
 - `theme_preference` (`light`, `dark`, or `system`)
 
 Changing a seed, polling interval, or inference timeout applies to newly started
 work. Running jobs and generations keep the value captured at their start.
 The idle timeout is read by the resident-model watcher on every check (about
 every 5 seconds), so a change applies to the currently loaded model without a
-restart. It never interrupts a running generation.
+restart. It never interrupts a running generation. Generation limits are
+merged over the adapter profile for each new generation and are always sent as
+`max_new_tokens`; `max_length` is never passed, so it cannot conflict with a
+checkpoint's own generation config.
 `INFERENCE_DEVICE`, `INFERENCE_HF_LOCAL_ONLY`, and the static model catalogue
 remain runtime policy and are not exposed by the Settings API. A prior browser
 theme preference is imported into the active database once; later theme
