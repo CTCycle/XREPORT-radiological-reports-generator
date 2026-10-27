@@ -126,16 +126,22 @@ class FeedForward(layers.Layer):
 
     # -------------------------------------------------------------------------
     def __init__(
-        self, dense_units: int, dropout: float = 0.2, seed: int = 42, **kwargs
+        self,
+        dense_units: int,
+        dropout: float = 0.2,
+        seed: int = 42,
+        output_units: int | None = None,
+        **kwargs,
     ) -> None:
         super(FeedForward, self).__init__(**kwargs)
         self.dense_units = dense_units
+        self.output_units = output_units or dense_units
         self.dropout_rate = dropout
         self.dense1 = layers.Dense(
             dense_units, activation="relu", kernel_initializer="he_uniform"
         )
         self.dense2 = layers.Dense(
-            dense_units, activation="relu", kernel_initializer="he_uniform"
+            self.output_units, activation="relu", kernel_initializer="he_uniform"
         )
         self.dropout = layers.Dropout(rate=dropout, seed=seed)
         self.seed = seed
@@ -159,7 +165,8 @@ class FeedForward(layers.Layer):
         config.update(
             {
                 "dense_units": self.dense_units,
-                "dropout_rate": self.dropout_rate,
+                "output_units": self.output_units,
+                "dropout": self.dropout_rate,
                 "seed": self.seed,
             }
         )
@@ -229,18 +236,32 @@ class TransformerEncoder(layers.Layer):
 
     # -------------------------------------------------------------------------
     def __init__(
-        self, embedding_dims: int, num_heads: int, seed: int, **kwargs
+        self,
+        embedding_dims: int,
+        num_heads: int,
+        seed: int,
+        ffn_units: int | None = None,
+        dropout: float = 0.2,
+        key_dim: int | None = None,
+        **kwargs,
     ) -> None:
         super(TransformerEncoder, self).__init__(**kwargs)
         self.embedding_dims = embedding_dims
         self.num_heads = num_heads
         self.seed = seed
+        # defaults reproduce the original architecture (full-width heads and
+        # feed forward), so checkpoints saved without these keys load unchanged
+        self.ffn_units = ffn_units or embedding_dims
+        self.dropout = dropout
+        self.key_dim = key_dim or embedding_dims
         self.attention = layers.MultiHeadAttention(
-            num_heads=self.num_heads, key_dim=self.embedding_dims, seed=self.seed
+            num_heads=self.num_heads, key_dim=self.key_dim, seed=self.seed
         )
         self.addnorm1 = AddNorm()
         self.addnorm2 = AddNorm()
-        self.ffn1 = FeedForward(self.embedding_dims, 0.2, seed)
+        self.ffn1 = FeedForward(
+            self.ffn_units, self.dropout, seed, output_units=self.embedding_dims
+        )
         # set mask supports to True but mask propagation is handled
         # through the attention layer call
         self.supports_masking: bool = True
@@ -286,6 +307,9 @@ class TransformerEncoder(layers.Layer):
                 "embedding_dims": self.embedding_dims,
                 "num_heads": self.num_heads,
                 "seed": self.seed,
+                "ffn_units": self.ffn_units,
+                "dropout": self.dropout,
+                "key_dim": self.key_dim,
             }
         )
         return config
@@ -303,28 +327,40 @@ class TransformerDecoder(layers.Layer):
 
     # -------------------------------------------------------------------------
     def __init__(
-        self, embedding_dims: int, num_heads: int, seed: int, **kwargs
+        self,
+        embedding_dims: int,
+        num_heads: int,
+        seed: int,
+        ffn_units: int | None = None,
+        dropout: float = 0.2,
+        key_dim: int | None = None,
+        **kwargs,
     ) -> None:
         super(TransformerDecoder, self).__init__(**kwargs)
         self.embedding_dims = embedding_dims
         self.num_heads = num_heads
         self.seed = seed
+        self.ffn_units = ffn_units or embedding_dims
+        self.dropout = dropout
+        self.key_dim = key_dim or embedding_dims
         self.self_attention = layers.MultiHeadAttention(
             num_heads=self.num_heads,
-            key_dim=self.embedding_dims,
-            dropout=0.2,
+            key_dim=self.key_dim,
+            dropout=self.dropout,
             seed=self.seed,
         )
         self.cross_attention = layers.MultiHeadAttention(
             num_heads=self.num_heads,
-            key_dim=self.embedding_dims,
-            dropout=0.2,
+            key_dim=self.key_dim,
+            dropout=self.dropout,
             seed=self.seed,
         )
         self.addnorm1 = AddNorm()
         self.addnorm2 = AddNorm()
         self.addnorm3 = AddNorm()
-        self.ffn1 = FeedForward(self.embedding_dims, 0.2, seed)
+        self.ffn1 = FeedForward(
+            self.ffn_units, self.dropout, seed, output_units=self.embedding_dims
+        )
         # set mask supports to True but mask propagation is handled
         # through the attention layer call
         self.supports_masking: bool = True
@@ -407,6 +443,9 @@ class TransformerDecoder(layers.Layer):
                 "embedding_dims": self.embedding_dims,
                 "num_heads": self.num_heads,
                 "seed": self.seed,
+                "ffn_units": self.ffn_units,
+                "dropout": self.dropout,
+                "key_dim": self.key_dim,
             }
         )
         return config
