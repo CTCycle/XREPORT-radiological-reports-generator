@@ -387,7 +387,7 @@ def test_startup_gate_holds_inference_until_backend_health(
 
     assert response is not None and response.ok
     expect(page.locator("#startup-title")).to_be_visible()
-    startup_progress = page.get_by_role("progressbar", name="Initializing XREPORT")
+    startup_progress = page.get_by_role("progressbar", name="Initializing XREPORT Inference")
     expect(startup_progress).to_be_visible()
     expect(startup_progress).to_have_attribute("aria-valuemin", "0")
     expect(startup_progress).to_have_attribute("aria-valuemax", "100")
@@ -444,7 +444,7 @@ def test_startup_timing_retry_and_post_ready_feature_error(
 
     assert response is not None and response.ok
     expect(page.locator("#startup-title")).to_be_visible()
-    startup_progress = page.get_by_role("progressbar", name="Initializing XREPORT")
+    startup_progress = page.get_by_role("progressbar", name="Initializing XREPORT Inference")
     expect(startup_progress).to_be_visible()
     expect(
         page.get_by_role("heading", name="Turn a radiograph into a draft report")

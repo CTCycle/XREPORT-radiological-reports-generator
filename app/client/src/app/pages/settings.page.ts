@@ -168,7 +168,7 @@ type SettingsTab = 'general' | 'advanced' | 'models' | 'storage' | 'database';
             } @else if (activeTab() === 'storage') {
               <div class="settings-section-heading">
                 <h2>Storage location</h2>
-                <p>Downloaded models, checkpoints, the application database, templates and logs live under one folder. Changes take effect after XREPORT restarts.</p>
+                <p>Downloaded models, checkpoints, the application database, templates and logs live under one folder. Changes take effect after the application restarts.</p>
               </div>
               <div class="storage-layout">
                 @if (storageLoadError(); as error) {
@@ -179,7 +179,7 @@ type SettingsTab = 'general' | 'advanced' | 'models' | 'storage' | 'database';
                       <h3 id="storage-root-title">Current location</h3>
                       <code id="storage-active-root" class="storage-path">{{ storage.active_root }}</code>
                       @if (storage.restart_required) {
-                        <span class="settings-help" role="status">Restart required: XREPORT will use {{ storage.pending_root }} after it restarts.</span>
+                        <span class="settings-help" role="status">Restart required: the application will use {{ storage.pending_root }} after it restarts.</span>
                       }
                       @if (storage.locked) {
                         <span class="settings-help" role="status">The location is set by XREPORT_RESOURCES_DIR in the environment or settings/.env and can only be changed there.</span>
@@ -256,7 +256,7 @@ type SettingsTab = 'general' | 'advanced' | 'models' | 'storage' | 'database';
         <section class="database-panel" aria-labelledby="database-settings-title">
           <div class="settings-section-heading">
             <h2 id="database-settings-title">Database</h2>
-            <p>Choose where XREPORT stores application data. Each database keeps its own settings and records.</p>
+            <p>Choose where the application stores application data. Each database keeps its own settings and records.</p>
           </div>
           <div class="database-status" [class.database-status-error]="databaseStatus()?.state !== 'ready'" role="status">
             <span class="database-status-indicator" aria-hidden="true"></span>

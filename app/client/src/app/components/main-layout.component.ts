@@ -24,8 +24,8 @@ import { SystemStatusService } from '../services/system-status.service';
       <div class="main-layout-chrome">
         <nav class="app-nav-bar" aria-label="Primary navigation">
           <div class="app-nav-brand">
-            <img class="app-nav-logo" src="/favicon.png" alt="XREPORT logo" />
-            <h1 class="app-nav-title">{{ studio ? 'XREPORT Studio' : 'XREPORT' }}</h1>
+            <img class="app-nav-logo" src="/favicon.png" alt="{{ studio ? 'XREPORT Studio' : 'XREPORT Inference' }} logo" />
+            <h1 class="app-nav-title">{{ studio ? 'XREPORT Studio' : 'XREPORT Inference' }}</h1>
           </div>
           <div class="app-nav-list">
             @if (studio) {

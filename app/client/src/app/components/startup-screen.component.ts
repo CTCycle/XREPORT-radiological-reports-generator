@@ -1,7 +1,9 @@
-import { Component, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges, signal } from '@angular/core';
+import { Component, EventEmitter, InjectionToken, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges, inject, signal } from '@angular/core';
 import type { StartupPhase } from '../services/startup-readiness.service';
 
 const READY_TRANSITION_MS = 320;
+
+export const APP_NAME = new InjectionToken<string>('APP_NAME', { factory: () => 'XREPORT Inference' });
 
 // The backend does not expose per-step percentages; it only reports `ok`
 // once fully ready. The frontend drives the bar from the real elapsed
@@ -18,7 +20,7 @@ const STARTUP_STEPS = [
   { label: 'Validating local data store', min: 0 },
   { label: 'Preparing runtime resources', min: 25 },
   { label: 'Starting local services', min: 50 },
-  { label: 'Connecting to XREPORT service', min: 80 },
+  { label: 'Connecting to local service', min: 80 },
 ];
 
 function progressForElapsed(elapsedMs: number): number {
@@ -47,7 +49,7 @@ function stepForProgress(progress: number): string {
       <div class="startup-shell">
         <header class="startup-brand">
           <img class="startup-logo" src="favicon.png" alt="" aria-hidden="true" />
-          <p class="startup-kicker" id="startup-title">XREPORT</p>
+          <p class="startup-kicker" id="startup-title">{{ appName }}</p>
         </header>
 
         <p class="startup-status-line" role="status" aria-live="polite">{{ statusLine }}</p>
@@ -55,7 +57,7 @@ function stepForProgress(progress: number): string {
         <div
           class="startup-progress"
           role="progressbar"
-          aria-label="Initializing XREPORT"
+          [attr.aria-label]="'Initializing ' + appName"
           aria-valuemin="0"
           aria-valuemax="100"
           [attr.aria-valuenow]="progress()"
@@ -71,6 +73,7 @@ function stepForProgress(progress: number): string {
   `,
 })
 export class StartupScreenComponent implements OnInit, OnChanges, OnDestroy {
+  readonly appName = inject(APP_NAME);
   @Input() phase: StartupPhase = 'starting';
   @Input() startedAt: number | null = null;
   @Output() readonly retryRequested = new EventEmitter<void>();

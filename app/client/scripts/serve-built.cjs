@@ -264,7 +264,7 @@ function proxyApiRequest(request, response, options) {
       return;
     }
     sendJson(response, 502, {
-      detail: 'The XREPORT backend is not available yet.',
+      detail: 'The backend is not available yet.',
       error: error.code || 'backend_unavailable',
     });
   });
@@ -305,11 +305,11 @@ function start() {
   const server = createBuiltServer(options);
   server.listen(options.port, options.host, () => {
     console.log(
-      `XREPORT built frontend listening on http://${options.host}:${options.port} (backend ${options.backendHost}:${options.backendPort})`,
+      `Built frontend listening on http://${options.host}:${options.port} (backend ${options.backendHost}:${options.backendPort})`,
     );
   });
   server.on('error', (error) => {
-    console.error(`XREPORT built frontend failed to listen: ${error.message}`);
+    console.error(`Built frontend failed to listen: ${error.message}`);
     process.exitCode = 1;
   });
 }

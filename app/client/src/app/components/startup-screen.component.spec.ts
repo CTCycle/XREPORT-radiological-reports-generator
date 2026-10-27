@@ -18,11 +18,11 @@ describe('StartupScreenComponent', () => {
     return fixture;
   }
 
-  it('renders the XREPORT logo and an accessible progress bar without extra copy', async () => {
+  it('renders the XREPORT Inference logo and an accessible progress bar without extra copy', async () => {
     const fixture = await createComponent();
     const element = fixture.nativeElement as HTMLElement;
 
-    expect(element.textContent).toContain('XREPORT');
+    expect(element.textContent).toContain('XREPORT Inference');
     expect(element.textContent).not.toMatch(/Radiological Reports Generator|pneumonia|fracture|mass|effusion|FINDINGS|IMPRESSION/i);
     const logo = element.querySelector<HTMLImageElement>('.startup-logo');
     expect(logo?.getAttribute('src')).toBe('favicon.png');
@@ -30,7 +30,7 @@ describe('StartupScreenComponent', () => {
     expect(logo?.getAttribute('aria-hidden')).toBe('true');
     const progress = element.querySelector<HTMLElement>('.startup-progress');
     expect(progress?.getAttribute('role')).toBe('progressbar');
-    expect(progress?.getAttribute('aria-label')).toBe('Initializing XREPORT');
+    expect(progress?.getAttribute('aria-label')).toBe('Initializing XREPORT Inference');
     expect(progress?.getAttribute('aria-valuemin')).toBe('0');
     expect(progress?.getAttribute('aria-valuemax')).toBe('100');
     expect(element.querySelector('.startup-progress-fill')).not.toBeNull();

@@ -1,4 +1,4 @@
-# XREPORT Angular client
+# XREPORT Angular clients (Inference and Studio)
 
 Last updated: 2026-09-07
 
