@@ -61,7 +61,7 @@ class ModelTrainer:
             epochs=total_epochs,
             validation_data=validation_data,
             callbacks=callbacks_list,
-            verbose=0,
+            verbose=0,  # type: ignore[arg-type]  # Keras infers str from "auto"
         )
 
         history = {"history": session.history, "epochs": session.epoch[-1] + 1}
@@ -103,7 +103,7 @@ class ModelTrainer:
             epochs=total_epochs,
             validation_data=validation_data,
             callbacks=callbacks_list,
-            verbose=0,
+            verbose=0,  # type: ignore[arg-type]  # Keras infers str from "auto"
             initial_epoch=from_epoch,
         )
 
