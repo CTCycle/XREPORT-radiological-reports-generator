@@ -1,6 +1,6 @@
 # Runtime Startup
 
-Last updated: 2026-10-26
+Last updated: 2026-10-27
 
 ## Windows Local Launcher
 
@@ -130,6 +130,16 @@ launches reuse the installed profile; pass `-StudioProfile Cuda` or
 switch profiles. The explicit **Install / update Studio** action also asks for
 a profile when run interactively and can be given `-StudioProfile` for direct
 selection.
+
+Before each Studio launch, the launcher runs a runtime probe. It imports the
+Studio packages from `app/server/.venv-studio` with `KERAS_BACKEND=torch` and
+checks that the Torch build matches the recorded profile (`+cpu` for Standard;
+`+cu130` with CUDA for CUDA). When the probe fails, the launcher prints its
+complete output, including any Python traceback, and synchronizes the
+environment again. If the probe still fails after that synchronization, the
+launch stops and `runtimes/studio-install-state.json` is removed. The next
+launch then rebuilds `.venv-studio`. That launch uses Standard unless it is
+interactive or receives `-StudioProfile`.
 
 If the project virtual environment was created by an older pinned Python
 patch release, the launcher recreates that disposable environment before

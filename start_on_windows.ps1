@@ -783,8 +783,12 @@ function Test-StudioPythonEnvironment {
     $pythonVersionOutput = (& $StudioVenvPython --version 2>&1 | Out-String).Trim()
     if ($pythonVersionOutput -ne "Python $PythonVersion") { return $false }
 
+    # Windows PowerShell strips embedded double quotes from native arguments,
+    # so the probe source must use single-quoted Python strings only.
     $probeScript = @'
 import json
+import os
+os.environ['KERAS_BACKEND'] = 'torch'
 import cv2
 import fastapi
 import keras
@@ -793,22 +797,41 @@ import torch
 import torchvision
 import uvicorn
 
-print(json.dumps({"torch": torch.__version__, "torchvision": torchvision.__version__, "cuda": torch.version.cuda}))
+print(json.dumps({'torch': torch.__version__, 'torchvision': torchvision.__version__, 'cuda': torch.version.cuda}))
 '@
-    $probeOutput = (& $StudioVenvPython -s -c $probeScript 2>&1 | Out-String).Trim()
-    if ($LASTEXITCODE -ne 0) { return $false }
+    # Native stderr must not become a terminating error under 'Stop'.
+    $probeErrorActionPreference = $ErrorActionPreference
+    try {
+        $ErrorActionPreference = 'Continue'
+        $probeOutput = (& $StudioVenvPython -s -c $probeScript 2>&1 | ForEach-Object { [string]$_ } | Out-String).Trim()
+        $probeExitCode = $LASTEXITCODE
+    }
+    finally {
+        $ErrorActionPreference = $probeErrorActionPreference
+    }
+    if ($probeExitCode -ne 0) {
+        Write-Warn "XREPORT Studio $Profile runtime probe failed with exit code ${probeExitCode}:`n$probeOutput"
+        return $false
+    }
     try {
         $probeLine = @($probeOutput -split "`r?`n" | Where-Object { -not [string]::IsNullOrWhiteSpace($_) })[-1]
         $probe = $probeLine | ConvertFrom-Json
     }
     catch {
+        Write-Warn "XREPORT Studio $Profile runtime probe returned unreadable output:`n$probeOutput"
         return $false
     }
 
-    if ($Profile -eq 'Standard') {
-        return ([string]$probe.torch).EndsWith('+cpu') -and ([string]$probe.torchvision).EndsWith('+cpu') -and $null -eq $probe.cuda
+    $profileMatches = if ($Profile -eq 'Standard') {
+        ([string]$probe.torch).EndsWith('+cpu') -and ([string]$probe.torchvision).EndsWith('+cpu') -and $null -eq $probe.cuda
     }
-    return ([string]$probe.torch).EndsWith('+cu130') -and ([string]$probe.torchvision).EndsWith('+cu130') -and $null -ne $probe.cuda
+    else {
+        ([string]$probe.torch).EndsWith('+cu130') -and ([string]$probe.torchvision).EndsWith('+cu130') -and $null -ne $probe.cuda
+    }
+    if (-not $profileMatches) {
+        Write-Warn "XREPORT Studio environment does not match the $Profile profile: $probeLine"
+    }
+    return $profileMatches
 }
 
 function Test-StudioBackendDependenciesReady {

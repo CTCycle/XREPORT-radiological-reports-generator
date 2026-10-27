@@ -185,6 +185,19 @@ def test_studio_profile_defaults_and_failure_retry_are_explicit() -> None:
 
 
 ###############################################################################
+def test_studio_runtime_probe_survives_windows_powershell_argument_passing() -> None:
+    probe = _function_body("Test-StudioPythonEnvironment")
+    source = re.search(r"\$probeScript = @'\n(.*?)\n'@", probe, re.DOTALL)
+    assert source
+    # Windows PowerShell 5.1 strips embedded double quotes from native arguments.
+    assert '"' not in source.group(1)
+    assert "os.environ['KERAS_BACKEND'] = 'torch'" in source.group(1)
+    assert source.group(1).index("KERAS_BACKEND") < source.group(1).index("import keras")
+    assert "$ErrorActionPreference = 'Continue'" in probe
+    assert "Write-Warn" in probe and "$probeOutput" in probe
+
+
+###############################################################################
 def test_live_suite_uses_the_separate_studio_backend_environment() -> None:
     assert 'set "STUDIO_VENV_PYTHON=%SERVER_DIR%\\.venv-studio\\Scripts\\python.exe"' in TEST_RUNNER
     assert '"%STUDIO_VENV_PYTHON%" -m uvicorn' in TEST_RUNNER
