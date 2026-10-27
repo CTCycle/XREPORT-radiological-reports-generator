@@ -42,12 +42,16 @@ from server.domain.jobs import JobStartResponse
 from server.repositories.checkpoint_archive import (
     CORE_FILES,
     MANIFEST_NAME,
+    MAX_ENTRIES,
+    MAX_ENTRY_BYTES,
     MAX_MANIFEST_BYTES,
+    MAX_TOTAL_BYTES,
     ArchiveCancelled,
     ArchiveError,
     content_digest,
     extract_member,
     inspect_archive,
+    is_allowed_member,
     sha256_file,
     write_archive,
 )
@@ -219,6 +223,7 @@ class CheckpointExchangeService:
                 )
                 for relative, path in members
             ]
+            self._assert_exportable(files)
             self._progress(job_id, 30)
             manifest = ExchangeManifest(
                 format_version=EXCHANGE_FORMAT_VERSION,
@@ -254,6 +259,27 @@ class CheckpointExchangeService:
             content_sha256=manifest.content_sha256,
         )
         return {"export": result.model_dump()}
+
+    # -------------------------------------------------------------------------
+    @staticmethod
+    def _assert_exportable(files: list[ManifestFile]) -> None:
+        """Refuse to build an archive that the import limits would reject."""
+        rejected = next((item.path for item in files if not is_allowed_member(item.path)), None)
+        if rejected is not None:
+            raise JobExecutionError(
+                f"'{rejected}' cannot be exported in a checkpoint archive.",
+                code="export_member_unsupported",
+            )
+        if (
+            len(files) + 1 > MAX_ENTRIES
+            or max(item.size for item in files) > MAX_ENTRY_BYTES
+            or sum(item.size for item in files) > MAX_TOTAL_BYTES
+        ):
+            raise JobExecutionError(
+                "The checkpoint is too large to export as a single archive; "
+                "export it without the encoder or reduce its size.",
+                code="export_too_large",
+            )
 
     # -------------------------------------------------------------------------
     def resolve_export_path(self, filename: str) -> Path:
@@ -372,6 +398,15 @@ class CheckpointExchangeService:
             raise BadRequestError(
                 "Checkpoint was built with an incompatible custom-layer version "
                 f"({manifest.custom_objects_api}); this XREPORT expects {CUSTOM_OBJECTS_API}."
+            )
+        if (
+            manifest.encoder.repository != ENCODER_REPOSITORY
+            or manifest.encoder.revision != pinned_encoder_revision()
+        ):
+            raise BadRequestError(
+                "Checkpoint was built with a different image encoder "
+                f"({manifest.encoder.repository}@{manifest.encoder.revision[:8]}); this "
+                f"XREPORT requires {ENCODER_REPOSITORY}@{pinned_encoder_revision()[:8]}."
             )
         try:
             validate_checkpoint_name(manifest.checkpoint_name)
@@ -522,6 +557,7 @@ class CheckpointExchangeService:
                 source, plan, staging, should_stop, job_id
             )
             self._stop_check(should_stop)
+            self._assert_metadata(manifest, staging)
             installed = self._install_shared_resources(manifest, staging)
             self._progress(job_id, 80)
             self._smoke_test(staging)
@@ -680,6 +716,35 @@ class CheckpointExchangeService:
                 phase="compatibility",
             )
         return created
+
+    # -------------------------------------------------------------------------
+    @staticmethod
+    def _assert_metadata(manifest: ExchangeManifest, staging: Path) -> None:
+        """Check the extracted metadata agrees with the manifest before anything is installed."""
+        try:
+            metadata = json.loads(
+                (staging / "checkpoint" / "configuration" / "metadata.json").read_text("utf-8")
+            )
+            tokenizer = metadata["tokenizer"]
+            max_report_size = metadata["max_report_size"]
+        except (OSError, ValueError, KeyError, TypeError) as exc:
+            raise JobExecutionError(
+                "The checkpoint metadata must define 'tokenizer' and 'max_report_size'.",
+                code="metadata_invalid",
+                phase="verify",
+            ) from exc
+        if tokenizer != manifest.tokenizer.name:
+            raise JobExecutionError(
+                "The checkpoint metadata names a different tokenizer than the manifest.",
+                code="metadata_invalid",
+                phase="verify",
+            )
+        if isinstance(max_report_size, bool) or not isinstance(max_report_size, int) or max_report_size < 1:
+            raise JobExecutionError(
+                "The checkpoint metadata has an invalid 'max_report_size'.",
+                code="metadata_invalid",
+                phase="verify",
+            )
 
     # -------------------------------------------------------------------------
     @staticmethod

@@ -316,6 +316,60 @@ def test_incompatible_versions_and_lone_keras_are_rejected(
         consumer.service.assess_archive(lone)
 
 
+
+###############################################################################
+def test_archive_built_with_a_different_encoder_revision_is_rejected(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, stub_ml
+) -> None:
+    producer = Node(tmp_path / "studio", monkeypatch)
+    producer.install_encoder()
+    producer.create_checkpoint("run1")
+    good = _export(producer, "run1")
+    consumer = Node(tmp_path / "xreport", monkeypatch)
+    consumer.install_encoder()
+    edited = tmp_path / "other_encoder.xreportckpt"
+    with zipfile.ZipFile(good) as source, zipfile.ZipFile(edited, "w") as target:
+        for info in source.infolist():
+            data = source.read(info.filename)
+            if info.filename == "manifest.json":
+                manifest = json.loads(data)
+                manifest["encoder"]["revision"] = "b" * 40
+                data = json.dumps(manifest).encode()
+            target.writestr(info.filename, data)
+    with pytest.raises(BadRequestError, match="different image encoder"):
+        consumer.service.assess_archive(edited)
+
+
+###############################################################################
+def test_import_rejects_metadata_without_max_report_size(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, stub_ml
+) -> None:
+    producer = Node(tmp_path / "studio", monkeypatch)
+    producer.install_encoder()
+    path = producer.create_checkpoint("run1")
+    (path / "configuration" / "metadata.json").write_text(json.dumps({"tokenizer": "org/tok"}))
+    archive = _export(producer, "run1")
+    consumer = Node(tmp_path / "xreport", monkeypatch)
+    consumer.install_encoder()
+    with pytest.raises(JobExecutionError, match="max_report_size"):
+        _import(consumer, archive)
+    assert consumer.repository.records == {}
+    assert not (consumer.checkpoints_dir / "run1").exists()
+
+
+###############################################################################
+def test_export_refuses_archives_the_import_limits_would_reject(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, stub_ml
+) -> None:
+    producer = Node(tmp_path / "studio", monkeypatch)
+    producer.install_encoder()
+    producer.create_checkpoint("run1")
+    monkeypatch.setattr(exchange, "MAX_ENTRIES", 4)
+    with pytest.raises(JobExecutionError, match="too large"):
+        producer.service.run_export("run1", False)
+    assert not (producer.exports_dir / "run1.xreportckpt").exists()
+    assert not list(producer.exports_dir.glob(".export-*"))
+
 ###############################################################################
 def test_manifestless_four_file_archive_is_rejected(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, stub_ml
