@@ -68,6 +68,30 @@ def test_xreport_import_closure_never_reaches_studio_modules() -> None:
     assert "server.services.inference_runtime" in reachable  # sanity: walk is real
 
 
+
+###############################################################################
+def test_studio_import_closure_never_reaches_inference_workflows() -> None:
+    studio_routers = tuple(
+        name for name in STUDIO_ONLY_MODULES if name.startswith("server.api.")
+    )
+    reachable = _closure(
+        (*studio_routers, "server.api.jobs", "server.api.settings", "server.api.system", "server.api.checkpoint_exchange")
+    )
+    forbidden = {
+        "server.api.inference",
+        "server.api.huggingface_access",
+        "server.services.inference",
+        "server.services.inference_catalog",
+        "server.services.inference_runtime",
+        "server.services.model_installation",
+        "server.services.huggingface_access",
+        "server.models.inference.providers",
+    }
+    leaked = sorted(forbidden & reachable)
+
+    assert not leaked, f"Studio would load inference workflow modules: {leaked}"
+    assert "server.services.training" in reachable  # sanity: walk is real
+
 ###############################################################################
 def test_desktop_build_excludes_studio_modules_and_assets() -> None:
     build = APP_ROOT / "desktop" / "build"
