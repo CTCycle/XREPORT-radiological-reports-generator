@@ -1,21 +1,32 @@
 <p align="center"><img src="app/client/public/favicon.png" alt="" width="80"></p>
 
-# XREPORT
+<h1 align="center">XREPORT</h1>
 
-XREPORT is a local research suite for radiological report generation. It contains **two separate applications**:
+<p align="center">A local research suite for generating, reviewing, and training radiological report models.</p>
 
-- **XREPORT Inference** generates and reviews draft reports using public models or imported checkpoints. It is available as a Windows desktop package or from source.
-- **XREPORT Studio** prepares datasets and trains and evaluates models. It runs from source and exports checkpoints for use in Inference.
+<p align="center">
+  <a href="#xreport-inference">Inference</a> ·
+  <a href="#xreport-studio">Studio</a> ·
+  <a href="#configuration">Configuration</a> ·
+  <a href="assets/docs/project_index.md">Documentation</a>
+</p>
 
-The applications have separate environments and data folders. You can use Inference without Studio; Studio is needed only when you want to prepare data or train your own model.
+<p align="center"><img src="assets/figures/inference-draft.jpg" alt="XREPORT Inference with a chest radiograph loaded and an editable generated draft with Findings and Impression sections" width="760"></p>
+
+XREPORT contains **two separate applications**:
+
+| Application | Purpose | Distribution |
+| --- | --- | --- |
+| **XREPORT Inference** | Generate and review draft reports with public models or imported checkpoints. | Windows desktop package, or from source |
+| **XREPORT Studio** | Prepare datasets, then train and evaluate models. Exports checkpoints for Inference. | From source |
+
+The applications have separate environments and data folders. Inference works without Studio; you need Studio only to prepare data or train your own model.
 
 > **Research use only.** XREPORT and its models are not clinically approved. Generated text can omit findings or contain plausible errors. A qualified reviewer must check every draft against the source images and relevant context.
 
 ## XREPORT Inference
 
 Use Inference to select a model, add supported images, generate a draft, and review its output. The model catalogue shows each model's input requirements, output sections, installation state, and revision. You can edit, save, copy, or export a report; saved reports retain the original output and generation metadata.
-
-![XREPORT Inference model catalogue and model details](assets/figures/readme-inference.jpg)
 
 Public model weights may require a first download, and some models require provider approval and credentials. Anatomy, image limits, hardware needs, and access terms vary; consult the catalogue and [model documentation](assets/docs/runtime/local_inference_models.md). Metrics and successful generation do not establish clinical accuracy.
 
@@ -41,9 +52,11 @@ The launcher prepares dependencies, initializes the database, builds the fronten
 
 Use Studio to build and evaluate models. Import an image folder and a report table, review matched and unmatched records, and process the dataset for training. You can start or resume training, monitor jobs, and evaluate checkpoints against their associated processed datasets.
 
-![XREPORT Studio dataset source and processing configuration](assets/figures/readme-studio.jpg)
+<p align="center"><img src="assets/figures/studio-dataset.jpg" alt="XREPORT Studio Dataset page with data source upload and processing configuration" width="760"></p>
 
-The screenshot shows a new Studio workspace before a dataset has been imported.
+<p align="center"><img src="assets/figures/studio-training.jpg" alt="XREPORT Studio Training page with dataset and checkpoint selection and the live training dashboard" width="760"></p>
+
+The screenshots show the Dataset and Training pages with a small test dataset and checkpoint; the training dashboard is idle.
 
 ### Start Studio
 
