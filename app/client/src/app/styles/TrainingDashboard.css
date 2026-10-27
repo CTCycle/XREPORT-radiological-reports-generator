@@ -311,6 +311,21 @@
     gap: 1.25rem;
 }
 
+.chart-toolbar {
+    display: flex;
+    justify-content: flex-end;
+    margin-bottom: -0.5rem;
+}
+
+.chart-smooth-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    color: var(--text-secondary);
+    font-size: 0.78rem;
+    cursor: pointer;
+}
+
 .chart-section {
     display: flex;
     flex-direction: column;
@@ -389,6 +404,8 @@
 .chart-axis-label { fill: var(--text-secondary); font-size: 11px; font-variant-numeric: tabular-nums; }
 .chart-axis-title { fill: var(--text-muted); font-size: 11px; }
 .chart-series-line { fill: none; stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
+.chart-series-line.raw { stroke-width: 1.25; opacity: 0.28; }
+.chart-series-area { stroke: none; fill-opacity: 0.1; }
 .chart-marker { stroke: var(--bg-primary); stroke-width: 1.5; }
 .chart-crosshair { stroke: var(--text-secondary); stroke-width: 1; opacity: 0.6; }
 .chart-hover-dot { fill: var(--bg-primary); stroke-width: 2; }
@@ -440,7 +457,7 @@
 
 .chart-empty {
     position: absolute;
-    inset: 12px 16px 42px 56px;
+    inset: 14px 16px 42px 56px;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -458,6 +475,24 @@
     justify-content: space-between;
     gap: 1rem;
     margin-bottom: 0.5rem;
+}
+
+.log-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0.15rem 0.25rem;
+    margin-left: -0.25rem;
+    border: 0;
+    border-radius: 6px;
+    background: transparent;
+    color: var(--text-primary);
+    cursor: pointer;
+}
+
+.log-toggle:focus-visible {
+    outline: 2px solid var(--accent-color);
+    outline-offset: 2px;
 }
 
 .log-count {

@@ -1,14 +1,14 @@
 import { CommonModule } from '@angular/common';
 import { AfterViewChecked, AfterViewInit, Component, DestroyRef, ElementRef, EventEmitter, inject, Input, Output, signal, ViewChild } from '@angular/core';
 import { NgIcon, provideIcons } from '@ng-icons/core';
-import { lucideActivity, lucideClock, lucideSquare, lucideTarget, lucideTrendingDown } from '@ng-icons/lucide';
+import { lucideActivity, lucideChevronDown, lucideChevronRight, lucideClock, lucideSquare, lucideTarget, lucideTrendingDown } from '@ng-icons/lucide';
 import type { TrainingDashboardState } from '../types';
 
 export type TrainingSessionState = 'idle' | 'initializing' | 'running' | 'completed' | 'failed' | 'interrupted';
 type LogLevel = 'info' | 'warning' | 'error';
 
 interface ChartPoint { batch: number; value: number; }
-interface SeriesModel { key: string; label: string; role: 'train' | 'validation'; color: string; dashed: boolean; values: ChartPoint[]; path: string; markers: { x: number; y: number }[]; latest: number; }
+interface SeriesModel { key: string; label: string; role: 'train' | 'validation'; color: string; dashed: boolean; values: ChartPoint[]; path: string; rawPath: string | null; areaPath: string | null; markers: { x: number; y: number }[]; latest: number; }
 interface ChartModel {
   title: string;
   unit: 'loss' | 'accuracy';
@@ -23,8 +23,10 @@ interface ChartModel {
 interface MetricCard { label: string; value: string | null; tone: 'neutral' | 'loss' | 'accuracy'; icon?: string; }
 interface LogLine { time: string | null; level: LogLevel; message: string; }
 
-const CHART_HEIGHT = 232;
-const MARGIN = { left: 56, right: 16, top: 12, bottom: 42 };
+const CHART_HEIGHT = 288;
+const MARGIN = { left: 56, right: 16, top: 14, bottom: 42 };
+const SMOOTHING_MIN_POINTS = 20;
+const SMOOTHING_WEIGHT = 0.9;
 const LOG_TIMESTAMP = /^\[?(\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}:\d{2}(?:\.\d+)?Z?|\d{2}:\d{2}:\d{2})\]?\s*[-:]?\s*(.*)$/s;
 const RUNNING_PHASES = new Set(['fit_entered', 'first_batch_entered', 'first_batch_completed', 'epoch_completed', 'training_fit_completed']);
 
@@ -42,6 +44,15 @@ function tickValues(max: number, step: number): number[] {
   return ticks;
 }
 
+/** Bias-corrected exponential moving average, so the first points are not dragged toward zero. */
+function smoothSeries(values: ChartPoint[]): ChartPoint[] {
+  let average = 0;
+  return values.map((point, index) => {
+    average = average * SMOOTHING_WEIGHT + point.value * (1 - SMOOTHING_WEIGHT);
+    return { batch: point.batch, value: average / (1 - SMOOTHING_WEIGHT ** (index + 1)) };
+  });
+}
+
 function compact(value: number): string {
   return value >= 10000 ? `${Number((value / 1000).toFixed(1))}k` : String(value);
 }
@@ -50,7 +61,7 @@ function compact(value: number): string {
   standalone: true,
   selector: 'app-training-dashboard',
   imports: [CommonModule, NgIcon],
-  providers: [provideIcons({ lucideActivity, lucideClock, lucideSquare, lucideTarget, lucideTrendingDown })],
+  providers: [provideIcons({ lucideActivity, lucideChevronDown, lucideChevronRight, lucideClock, lucideSquare, lucideTarget, lucideTrendingDown })],
   template: `
     <section class="training-dashboard" aria-labelledby="training-dashboard-title">
       <header class="dashboard-header">
@@ -110,6 +121,13 @@ function compact(value: number): string {
         }
       </div>
 
+      <div class="chart-toolbar">
+        <label class="chart-smooth-toggle">
+          <input type="checkbox" [checked]="smooth()" (change)="smooth.set(!smooth())"/>
+          Smooth curves
+        </label>
+      </div>
+
       <div class="training-charts-container">
         @for (chart of chartModels; track chart.title) {
           <div class="chart-section">
@@ -145,6 +163,12 @@ function compact(value: number): string {
                   <line class="chart-epoch-line" [attr.x1]="x" [attr.y1]="plotTop" [attr.x2]="x" [attr.y2]="plotBottom"/>
                 }
                 @for (series of chart.series; track series.key) {
+                  @if (series.areaPath) {
+                    <path class="chart-series-area" [attr.d]="series.areaPath" [attr.fill]="series.color"/>
+                  }
+                  @if (series.rawPath) {
+                    <path class="chart-series-line raw" [attr.d]="series.rawPath" [attr.stroke]="series.color"/>
+                  }
                   @if (series.values.length > 1) {
                     <path class="chart-series-line" [attr.d]="series.path" [attr.stroke]="series.color" [attr.stroke-dasharray]="series.dashed ? '6 4' : null"/>
                   }
@@ -177,11 +201,16 @@ function compact(value: number): string {
 
       <section class="dashboard-logs" aria-labelledby="training-log-title">
         <div class="log-header">
-          <h3 class="section-heading" id="training-log-title">Training log</h3>
+          <button type="button" class="log-toggle" [attr.aria-expanded]="logOpen()" aria-controls="training-log-body" (click)="toggleLog()">
+            <ng-icon [name]="logOpen() ? 'lucideChevronDown' : 'lucideChevronRight'" aria-hidden="true"/>
+            <h3 class="section-heading" id="training-log-title">Training log</h3>
+          </button>
           @if (logLines.length) { <span class="log-count">{{ logLines.length }} {{ logLines.length === 1 ? 'entry' : 'entries' }}</span> }
         </div>
-        @if (logLines.length) {
-          <ol #logList class="log-list" role="log" aria-labelledby="training-log-title" tabindex="0" (scroll)="onLogScroll()">
+        @if (!logOpen()) {
+          <!-- collapsed -->
+        } @else if (logLines.length) {
+          <ol #logList id="training-log-body" class="log-list" role="log" aria-labelledby="training-log-title" tabindex="0" (scroll)="onLogScroll()">
             @for (line of logLines; track $index) {
               <li class="log-line" [ngClass]="line.level">
                 <time class="log-time">{{ line.time ?? '' }}</time>
@@ -191,7 +220,7 @@ function compact(value: number): string {
             }
           </ol>
         } @else {
-          <div class="log-empty">{{ sessionState === 'idle' ? 'Training output appears here once a run starts.' : 'Waiting for training output…' }}</div>
+          <div id="training-log-body" class="log-empty">{{ sessionState === 'idle' ? 'Training output appears here once a run starts.' : 'Waiting for training output…' }}</div>
         }
       </section>
     </section>
@@ -211,8 +240,10 @@ export class TrainingDashboardComponent implements AfterViewInit, AfterViewCheck
   readonly plotTop = MARGIN.top;
   readonly plotBottom = CHART_HEIGHT - MARGIN.bottom;
   readonly chartWidth = signal(640);
+  readonly smooth = signal(true);
+  readonly logOpen = signal(false);
   readonly hover = signal<{ title: string; batch: number } | null>(null);
-  private modelCache: { data: unknown; metrics: unknown; epochs: unknown; width: number; models: ChartModel[] } | null = null;
+  private modelCache: { data: unknown; metrics: unknown; epochs: unknown; width: number; smooth: boolean; models: ChartModel[] } | null = null;
   private logCache: { entries: string[]; lines: LogLine[] } | null = null;
   private stickToLogEnd = true;
   private renderedLogCount = 0;
@@ -233,6 +264,12 @@ export class TrainingDashboardComponent implements AfterViewInit, AfterViewCheck
     if (!list || this.renderedLogCount === this.logLines.length) return;
     this.renderedLogCount = this.logLines.length;
     if (this.stickToLogEnd) list.scrollTop = list.scrollHeight;
+  }
+
+  toggleLog(): void {
+    this.logOpen.update((open) => !open);
+    this.stickToLogEnd = true;
+    this.renderedLogCount = -1;
   }
 
   onLogScroll(): void {
@@ -358,10 +395,10 @@ export class TrainingDashboardComponent implements AfterViewInit, AfterViewCheck
     const { chartData, availableMetrics, epochBoundaries } = this.dashboardState;
     const width = this.chartWidth();
     const cached = this.modelCache;
-    if (cached && cached.data === chartData && cached.metrics === availableMetrics && cached.epochs === epochBoundaries && cached.width === width) return cached.models;
+    if (cached && cached.data === chartData && cached.metrics === availableMetrics && cached.epochs === epochBoundaries && cached.width === width && cached.smooth === this.smooth()) return cached.models;
     const xMax = Math.max(...chartData.map((point) => point.batch), 1);
     const models = (['loss', 'accuracy'] as const).map((unit) => this.buildChart(unit, xMax, width));
-    this.modelCache = { data: chartData, metrics: availableMetrics, epochs: epochBoundaries, width, models };
+    this.modelCache = { data: chartData, metrics: availableMetrics, epochs: epochBoundaries, width, smooth: this.smooth(), models };
     return models;
   }
 
@@ -377,7 +414,9 @@ export class TrainingDashboardComponent implements AfterViewInit, AfterViewCheck
       role: key.toLowerCase().startsWith('val') ? 'validation' as const : 'train' as const,
       values: chartData.flatMap((point) => { const value = point[key]; return typeof value === 'number' && Number.isFinite(value) && Number.isFinite(point.batch) ? [{ batch: point.batch, value: value * scale }] : []; }).sort((a, b) => a.batch - b.batch),
     })).filter((item) => item.values.length).sort((a, b) => Number(a.role === 'validation') - Number(b.role === 'validation'));
-    const dataMax = Math.max(...raw.flatMap((item) => item.values.map((point) => point.value)), 0);
+    const smooth = this.smooth();
+    const shown = raw.map((item) => (smooth && item.role === 'train' && item.values.length >= SMOOTHING_MIN_POINTS ? smoothSeries(item.values) : item.values));
+    const dataMax = Math.max(...shown.flatMap((values) => values.map((point) => point.value)), 0);
     const scaled = raw.length ? niceScale(Math.max(dataMax * 1.05, unit === 'accuracy' ? 1 : 0.1), 4) : niceScale(unit === 'accuracy' ? 100 : 1, 4);
     const yMax = unit === 'accuracy' && dataMax <= 100 ? Math.min(scaled.max, 100) : scaled.max;
     const decimals = scaled.step >= 1 ? 0 : Math.min(4, Math.ceil(-Math.log10(scaled.step)));
@@ -385,7 +424,11 @@ export class TrainingDashboardComponent implements AfterViewInit, AfterViewCheck
     const py = (value: number) => this.plotBottom - (Math.min(value, yMax) / yMax) * (this.plotBottom - MARGIN.top);
     const xScale = niceScale(xMax, 6);
     const roleCounts = raw.reduce<Record<string, number>>((counts, item) => ({ ...counts, [item.role]: (counts[item.role] ?? 0) + 1 }), {});
-    const series: SeriesModel[] = raw.map((item) => {
+    const toPath = (values: ChartPoint[]) => values.map((point, index) => `${index ? 'L' : 'M'}${px(point.batch).toFixed(1)} ${py(point.value).toFixed(1)}`).join(' ');
+    const series: SeriesModel[] = raw.map((item, index) => {
+      const line = shown[index];
+      const smoothed = line !== item.values;
+      const path = toPath(line);
       const base = item.role === 'train' ? 'Training' : 'Validation';
       const validation = item.role === 'validation';
       return {
@@ -395,8 +438,10 @@ export class TrainingDashboardComponent implements AfterViewInit, AfterViewCheck
         color: validation ? 'var(--chart-secondary)' : 'var(--chart-primary)',
         dashed: validation,
         values: item.values,
-        path: item.values.map((point, index) => `${index ? 'L' : 'M'}${px(point.batch).toFixed(1)} ${py(point.value).toFixed(1)}`).join(' '),
-        markers: (validation || item.values.length <= 30 ? item.values : item.values.slice(-1)).map((point) => ({ x: px(point.batch), y: py(point.value) })),
+        path,
+        rawPath: smoothed ? toPath(item.values) : null,
+        areaPath: !validation && line.length > 1 ? `${path} L${px(line[line.length - 1].batch).toFixed(1)} ${this.plotBottom} L${px(line[0].batch).toFixed(1)} ${this.plotBottom} Z` : null,
+        markers: (validation || line.length <= 30 ? line : line.slice(-1)).map((point) => ({ x: px(point.batch), y: py(point.value) })),
         latest: item.values[item.values.length - 1].value,
       };
     });

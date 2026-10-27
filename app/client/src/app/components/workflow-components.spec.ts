@@ -202,6 +202,9 @@ describe('TrainingDashboardComponent', () => {
     expect(text).toContain('0.0000');
     expect(text).toContain('50.00%');
     expect(fixture.nativeElement.querySelectorAll('.chart-series-line').length).toBe(2);
+    expect(fixture.nativeElement.querySelector('.log-line')).toBeNull();
+    fixture.nativeElement.querySelector('.log-toggle').click();
+    fixture.detectChanges();
     expect(fixture.nativeElement.querySelector('.log-line.warning')).toBeTruthy();
     expect(fixture.nativeElement.querySelector('.log-line.error')).toBeTruthy();
     expect(fixture.nativeElement.querySelector('.log-time').textContent).toBe('10:00:01');

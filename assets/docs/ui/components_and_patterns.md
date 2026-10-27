@@ -82,6 +82,7 @@ shell-level lifecycle component, not a feature-page loading state.
 - report modals
 - Studio Training page lists are tables (header, fixed-height rows, in-table italic empty row, matching the Dataset page); action buttons never wrap their labels and wrap to a new line instead.
 - Studio training dashboard states: idle, initializing, running, completed, failed, interrupted. They derive from the polled job status (`sessionStatus`) plus worker phase. Unavailable metrics render as `—`, never as zero; real zeros appear only after training data exists.
+- Training dashboard charts smooth per-batch training curves (bias-corrected EMA, raw curve faint underneath) behind a "Smooth curves" toggle; the training log is collapsed by default behind a disclosure button.
 - Dashboard charts are inline SVG with train (solid) and validation (dashed) series, labelled axes, a hover/keyboard tooltip, and a width that follows the container. The log marks warnings and errors with a label as well as colour and keeps the latest entry in view unless scrolled up.
 
 ## Route-Level Page Structure
