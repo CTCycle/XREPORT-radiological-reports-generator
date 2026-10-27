@@ -399,7 +399,8 @@ def _run_migrations_on_connection(
             script.get_revision(revision)
         except Exception as exc:
             raise DatabaseMigrationError(
-                f"Database revision {revision!r} is not present in this application."
+                f"Database revision {revision!r} is not present in this application. "
+                "Recreate or replace the database before startup."
             ) from exc
 
     inspector = inspect(connection)

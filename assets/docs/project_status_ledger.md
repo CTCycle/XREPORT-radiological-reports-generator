@@ -1,6 +1,6 @@
 # XREPORT Project Status Ledger
 
-Last updated: 2026-10-26
+Last updated: 2026-10-27
 
 This is the canonical current-status summary for XREPORT. It records scoped
 component confidence, active issues, and known limits; it is not a development
@@ -32,7 +32,7 @@ working-tree launcher started on standard ports `5003`/`8003` with isolated
 resources; Inference, Reports, Dataset, Training, and Settings loaded. Settings
 seed `317` survived navigation and launcher restart; backend health reported
 version `3.2.1`. SQLite integrity passed, and Alembic reached `42c8e1f7b0d3`.
-The v3.2.1 candidate restores migration compatibility from published revisions
+Historically, the v3.2.1 candidate restored migration compatibility from published revisions
 `f48a7c2e91b6` and `e91a4f6c2d73`, including the prior browser theme
 preference. Sixteen focused database-initialization tests, four version/OpenAPI
 tests, 65 client unit tests, and both lint gates passed. Candidate commit
@@ -85,6 +85,8 @@ evidence and remaining boundaries.
 | `NOT_IMPLEMENTED` | The capability is absent. |
 | `DEPRECATED` | Intentionally retired or scheduled for removal. |
 
+Source check 2026-10-27 (working tree): the retired database-revision bridge was removed and six focused SQLite migration and rejection cases passed. The full Windows runner reported 317 passed, 3 skipped, and 4 failed in the XREPORT Python phase; Studio reported 15 passed and 11 failed, including ten preview connection refusals and one unavailable tokenizer; Angular passed 100 tests. Two XREPORT browser cases expected four tabs but found five, one API case expected a missing settings field, and the lifespan case encountered the live runner's resource lock. PostgreSQL was not configured. These results do not change the historical release gates. Details are in the ignored `assets/QA/shim-cleanup-full-tests.log`.
+
 Source-validated 2026-10-26 (not part of a release gate): the shared client gained a full-width system status bar (`GET /api/system/status`), a notification centre with toasts, and a structured generation-metadata view. Backend unit tests, Angular lint/build/unit tests, and a manual light/dark and backend-offline check on XREPORT passed. The Studio profile shares the same layout and endpoint and was built but not exercised in a browser. Notifications for inference outcomes are emitted only while the inference page is mounted.
 
 ## Component status
@@ -121,7 +123,7 @@ PR #9 review fixes passed 272 backend unit tests, Ruff and Pyright locally, and 
 | Component | Status | Current scope or limit | Authority |
 | --- | --- | --- | --- |
 | `backend.api.contracts`, `backend.jobs.lifecycle`, `backend.ml_import_boundaries` | `VALIDATED` | Covered API contracts, generic job lifecycle, and lightweight-import boundaries are validated; this does not cover every endpoint or heavy workflow. | [Backend API](architecture/backend_api.md), [API tests](../../app/tests/e2e/test_api_inference_settings.py), [job tests](../../app/tests/integration/test_job_lifecycle_api.py), [import test](../../app/tests/unit/test_runtime_startup.py) |
-| `persistence.sqlite_migrations`, `persistence.inference_history`, `persistence.postgresql`, `persistence.checkpoint_registry` | `PARTIAL` | The v3.2.1 candidate passes 16 focused database-initialization tests, including upgrades from published revisions `f48a7c2e91b6` and `e91a4f6c2d73`, preserved settings/dataset rows, theme-column restoration, and repeat initialization. The migration from `b1e7a2c4d908` to `42c8e1f7b0d3` remains covered. Hosted run `39667709442` passed the PostgreSQL persistence contract, but live migration/application and authenticated switching remain unverified; live PostgreSQL testing was deferred. Crash recovery and every production configuration remain outside scope. | [Persistence](architecture/persistence.md), [SQLite tests](../../app/tests/unit/test_settings_persistence.py), [PostgreSQL contract test](../../app/tests/integration/test_persistence_contract.py) |
+| `persistence.sqlite_migrations`, `persistence.inference_history`, `persistence.postgresql`, `persistence.checkpoint_registry` | `PARTIAL` | The migration stream begins at `b1e7a2c4d908`; published revisions `f48a7c2e91b6` and `e91a4f6c2d73` are rejected and require database recreation. Focused SQLite tests passed for fresh/current migration, removed revisions, schema rejection, and rollback. Hosted run `39667709442` passed the earlier PostgreSQL persistence contract; PostgreSQL has not been revalidated after this cleanup. Crash recovery and every production configuration remain outside scope. | [Persistence](architecture/persistence.md), [SQLite tests](../../app/tests/unit/test_settings_persistence.py), [PostgreSQL contract test](../../app/tests/integration/test_persistence_contract.py) |
 
 ### User workflows
 

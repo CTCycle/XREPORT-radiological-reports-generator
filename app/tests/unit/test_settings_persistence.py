@@ -26,8 +26,6 @@ from server.services.database_settings import DatabaseSwitchBusyError, DatabaseS
 from concurrent.futures import ThreadPoolExecutor
 from alembic import command
 from alembic.config import Config
-from alembic.migration import MigrationContext
-from alembic.operations import Operations
 from server.repositories.schemas.models import InferenceReport, InferenceRun
 from server.common.database_switch import DatabaseRequestGate
 
@@ -554,70 +552,24 @@ def test_policy_migration_from_baseline_preserves_user_settings_and_records(
         engine.dispose()
 
 ###############################################################################
-@pytest.mark.parametrize("legacy_revision", ["f48a7c2e91b6", "e91a4f6c2d73"])
-def test_published_v3_2_database_migrates_from_legacy_revision(
-    tmp_path, legacy_revision: str
+@pytest.mark.parametrize("removed_revision", ["f48a7c2e91b6", "e91a4f6c2d73"])
+def test_removed_database_revisions_are_rejected_without_modification(
+    tmp_path, removed_revision: str
 ) -> None:
     database_path = tmp_path / "database.db"
-    config = _alembic_config(database_path)
-    command.upgrade(config, "b1e7a2c4d908")
+    command.upgrade(_alembic_config(database_path), "heads")
     engine = sqlalchemy.create_engine(f"sqlite:///{database_path}")
     try:
         with engine.begin() as connection:
-            operations = Operations(MigrationContext.configure(connection))
-            with operations.batch_alter_table("application_settings") as batch_op:
-                batch_op.drop_constraint(
-                    "ck_application_settings_theme_preference", type_="check"
-                )
-                batch_op.drop_column("theme_preference")
-            if legacy_revision == "f48a7c2e91b6":
-                with operations.batch_alter_table("inference_reports") as batch_op:
-                    batch_op.drop_column("edited_at")
-                    batch_op.drop_column("edited_report")
             connection.exec_driver_sql(
-                "UPDATE application_settings SET global_seed = 909, "
-                "allow_local_filesystem_access = 0, job_polling_interval = 2.5, "
-                "inference_model_timeout = 901 WHERE settings_id = 1"
+                "UPDATE alembic_version SET version_num = ?", (removed_revision,)
             )
-            connection.exec_driver_sql(
-                "INSERT INTO datasets (name, name_key, created_at) "
-                "VALUES ('Retained v3.2 dataset', 'retained-v3-2', "
-                "'2026-10-20 12:00:00')"
-            )
-            connection.exec_driver_sql(
-                "UPDATE alembic_version SET version_num = ?", (legacy_revision,)
-            )
-    finally:
-        engine.dispose()
-
-    initializer.initialize_database(_sqlite_settings(database_path))
-
-    engine = sqlalchemy.create_engine(f"sqlite:///{database_path}")
-    try:
-        columns = {
-            column["name"]
-            for column in sqlalchemy.inspect(engine).get_columns("application_settings")
-        }
-        report_columns = {
-            column["name"]
-            for column in sqlalchemy.inspect(engine).get_columns("inference_reports")
-        }
-        assert "inference_hf_local_only" not in columns
-        assert "inference_device" not in columns
-        assert "allow_local_filesystem_access" not in columns
-        assert {"edited_report", "edited_at"}.issubset(report_columns)
+        with pytest.raises(RuntimeError, match="Recreate or replace the database"):
+            initializer.initialize_database(_sqlite_settings(database_path))
         with engine.connect() as connection:
             assert connection.exec_driver_sql(
-                "SELECT global_seed, "
-                "job_polling_interval, inference_model_timeout, theme_preference "
-                "FROM application_settings WHERE settings_id = 1"
-            ).one() == (909, 2.5, 901, None)
-            assert connection.exec_driver_sql(
-                "SELECT name FROM datasets WHERE name_key = 'retained-v3-2'"
-            ).scalar_one() == "Retained v3.2 dataset"
-            assert connection.exec_driver_sql(
                 "SELECT version_num FROM alembic_version"
-            ).scalar_one() == initializer.HEAD_REVISION
+            ).scalar_one() == removed_revision
     finally:
         engine.dispose()
 

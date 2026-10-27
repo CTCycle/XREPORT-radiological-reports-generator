@@ -1,6 +1,6 @@
 # XREPORT Persistence
 
-Last updated: 2026-10-26
+Last updated: 2026-10-27
 
 ## Database Backend Selection
 
@@ -50,13 +50,13 @@ recovery rather than replaced from an old environment source. Changing
 process-level launch settings such as the resource root requires a restart;
 database switching does not.
 
-Alembic is the authoritative schema history. The checked-in migration stream
-has one head (`42c8e1f7b0d3`): the `b1e7a2c4d908` baseline creates the schema and
-seeds the `application_settings` singleton row, then the head migration removes
-inference process-policy columns from that row. The baseline no longer imports
-former JSON or `.env` configuration sources and does not scan the checkpoint
-directory; re-creating the database starts with typed default settings and an
-empty checkpoint registry.
+Alembic is the authoritative schema history. The migration stream starts at
+`b1e7a2c4d908` and has one head, `c3b8e5d1a7f4`. The baseline creates the
+schema and seeds the `application_settings` singleton; later revisions remove
+process-policy and filesystem settings and add the inference idle timeout.
+Published revisions `f48a7c2e91b6` and `e91a4f6c2d73` are no longer supported:
+startup rejects them without modifying the database, which must be replaced or
+recreated. Re-creating starts with typed defaults and an empty checkpoint registry.
 
 The `generated_report` column of `inference_reports` remains the immutable
 model output; a nullable `edited_report`/`edited_at` pair stores a user draft

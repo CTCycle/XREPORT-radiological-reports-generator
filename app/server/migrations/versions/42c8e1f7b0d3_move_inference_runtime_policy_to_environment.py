@@ -13,21 +13,7 @@ depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade() -> None:
-    columns = {
-        column["name"] for column in sa.inspect(op.get_bind()).get_columns("application_settings")
-    }
-    add_theme_preference = "theme_preference" not in columns
-    if add_theme_preference:
-        op.add_column(
-            "application_settings",
-            sa.Column("theme_preference", sa.String(length=8), nullable=True),
-        )
     with op.batch_alter_table("application_settings") as batch_op:
-        if add_theme_preference:
-            batch_op.create_check_constraint(
-                "ck_application_settings_theme_preference",
-                "theme_preference IS NULL OR theme_preference IN ('light', 'dark', 'system')",
-            )
         batch_op.drop_constraint("ck_application_settings_device", type_="check")
         batch_op.drop_column("inference_device")
         batch_op.drop_column("inference_hf_local_only")
