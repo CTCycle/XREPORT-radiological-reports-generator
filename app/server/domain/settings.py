@@ -29,7 +29,8 @@ class RuntimeInferenceSettings(_StrictSettingsModel):
 class RuntimeApplicationSettings(_StrictSettingsModel):
     global_settings: RuntimeGlobalSettings = Field(alias="global")
     jobs: RuntimeJobSettings
-    inference: RuntimeInferenceSettings
+    # Present only for XREPORT Inference; Studio stores no inference controls.
+    inference: RuntimeInferenceSettings | None
     theme_preference: Literal["light", "dark", "system"] | None
 
     model_config = ConfigDict(

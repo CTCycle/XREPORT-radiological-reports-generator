@@ -6,7 +6,7 @@ import pandas as pd
 from sqlalchemy import exists, select
 
 from server.common.constants import CHECKPOINT_EVALUATIONS_TABLE
-from server.repositories.schemas import (
+from server.repositories.schemas.studio import (
     Checkpoint,
     CheckpointEvaluation,
     Dataset,
@@ -30,6 +30,16 @@ class ValidationRepository(RepositorySupport):
         self.checkpoint_repository = checkpoint_repository or CheckpointRepository(
             self.database
         )
+
+    # -------------------------------------------------------------------------
+    def _get_dataset_id(self, dataset_name: str) -> int | None:
+        with self.database.read_session() as session:
+            dataset_id = session.execute(
+                select(Dataset.dataset_id).where(
+                    Dataset.name_key == normalize_key(dataset_name)
+                )
+            ).scalar_one_or_none()
+        return int(dataset_id) if dataset_id is not None else None
 
     # -------------------------------------------------------------------------
     def save_validation_report(self, report: dict[str, Any]) -> None:

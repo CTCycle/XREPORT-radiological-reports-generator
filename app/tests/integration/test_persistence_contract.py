@@ -15,7 +15,7 @@ from sqlalchemy import inspect, text
 import server.repositories.database.initializer as initializer
 from server.configurations import DatabaseSettings
 from server.repositories.database.engine import Database
-from server.repositories.schemas.models import ApplicationSettingsRecord
+from server.repositories.database.schema import ApplicationSchema, application_schema
 
 ###############################################################################
 def _postgres_settings() -> DatabaseSettings:
@@ -78,49 +78,29 @@ def postgres_settings() -> Iterator[DatabaseSettings]:
         _drop_postgres_database(settings)
 
 ###############################################################################
+def _schema_revision(database: Database, schema: ApplicationSchema) -> str:
+    with database.engine.connect() as connection:
+        return connection.execute(
+            text(f"SELECT version_num FROM {schema.version_table}")
+        ).scalar_one()
+
+###############################################################################
+@pytest.mark.parametrize("profile", ["xreport", "studio"])
 def test_postgresql_migrations_and_restart_persistence(
-    postgres_settings: DatabaseSettings,
+    postgres_settings: DatabaseSettings, profile: str
 ) -> None:
-    initializer.initialize_postgres_database(postgres_settings)
+    schema = application_schema(profile)
+    initializer.initialize_postgres_database(postgres_settings, schema)
 
     database = Database(postgres_settings)
     try:
-        tables = set(inspect(database.engine).get_table_names())
-        assert {
-            "application_settings",
-            "datasets",
-            "dataset_versions",
-            "dataset_records",
-            "alembic_version",
-        } <= tables
-
-        inference_columns = {
-            column["name"]: column
-            for column in inspect(database.engine).get_columns("inference_runs")
-        }
-        assert {
-            "provider",
-            "model_ref",
-            "model_revision",
-            "generation_profile",
-            "generation_config_json",
-            "clinical_context",
-            "request_id",
-            "status",
-            "execution_time_seconds",
-        } <= set(inference_columns)
-        assert inference_columns["checkpoint_id"]["nullable"] is True
-
-        with database.engine.connect() as connection:
-            assert (
-                connection.execute(text("SELECT version_num FROM alembic_version"))
-                .scalar_one()
-                == initializer.HEAD_REVISION
-            )
-            assert connection.execute(text("SELECT 1")).scalar_one() == 1
+        assert set(inspect(database.engine).get_table_names()) == set(
+            schema.metadata.tables
+        ) | {schema.version_table}
+        assert _schema_revision(database, schema) == initializer.schema_head(schema)
 
         with database.transaction() as session:
-            settings_row = session.get(ApplicationSettingsRecord, 1)
+            settings_row = session.get(schema.settings_model, 1)
             assert settings_row is not None
             settings_row.global_seed = 2_026_092_301
     finally:
@@ -128,32 +108,51 @@ def test_postgresql_migrations_and_restart_persistence(
 
     # A second startup is the persistence boundary: migrations must remain
     # current while previously committed application data stays intact.
-    initializer.initialize_postgres_database(postgres_settings)
+    initializer.initialize_postgres_database(postgres_settings, schema)
 
     restarted_database = Database(postgres_settings)
     try:
         with restarted_database.transaction() as session:
-            settings_row = session.get(ApplicationSettingsRecord, 1)
+            settings_row = session.get(schema.settings_model, 1)
             assert settings_row is not None
             assert settings_row.global_seed == 2_026_092_301
-        with restarted_database.engine.connect() as connection:
-            assert (
-                connection.execute(text("SELECT version_num FROM alembic_version"))
-                .scalar_one()
-                == initializer.HEAD_REVISION
-            )
+        assert _schema_revision(restarted_database, schema) == initializer.schema_head(
+            schema
+        )
     finally:
         restarted_database.engine.dispose()
+
+###############################################################################
+@pytest.mark.parametrize(("profile", "owner"), [("xreport", "studio"), ("studio", "xreport")])
+def test_postgresql_database_of_the_other_application_is_rejected(
+    postgres_settings: DatabaseSettings, profile: str, owner: str
+) -> None:
+    owner_schema = application_schema(owner)
+    initializer.initialize_postgres_database(postgres_settings, owner_schema)
+
+    with pytest.raises(RuntimeError, match=f"belongs to {owner_schema.title}"):
+        initializer.prepare_database_for_startup(
+            postgres_settings, application_schema(profile)
+        )
+
+    database = Database(postgres_settings)
+    try:
+        assert set(inspect(database.engine).get_table_names()) == set(
+            owner_schema.metadata.tables
+        ) | {owner_schema.version_table}
+    finally:
+        database.engine.dispose()
 
 ###############################################################################
 def test_postgresql_concurrent_initializers_use_advisory_locks(
     postgres_settings: DatabaseSettings,
 ) -> None:
+    schema = application_schema()
     start = Barrier(2)
 
     def initialize_together() -> str:
         start.wait(timeout=10)
-        return initializer.initialize_postgres_database(postgres_settings)
+        return initializer.initialize_postgres_database(postgres_settings, schema)
 
     with ThreadPoolExecutor(max_workers=2) as executor:
         futures = [executor.submit(initialize_together) for _ in range(2)]
@@ -164,13 +163,7 @@ def test_postgresql_concurrent_initializers_use_advisory_locks(
 
     database = Database(postgres_settings)
     try:
-        with database.engine.connect() as connection:
-            assert (
-                connection.execute(text("SELECT version_num FROM alembic_version"))
-                .scalar_one()
-                == initializer.HEAD_REVISION
-            )
-        assert "application_settings" in set(inspect(database.engine).get_table_names())
+        assert _schema_revision(database, schema) == initializer.schema_head(schema)
     finally:
         database.engine.dispose()
 

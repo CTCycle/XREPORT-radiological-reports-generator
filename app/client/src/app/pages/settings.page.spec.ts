@@ -36,6 +36,9 @@ const databaseSummary = (sqlitePath = 'C:\\data\\database.db') => ({
 
 const databaseStatus = () => ({
   state: 'ready' as const,
+  application: 'XREPORT Inference',
+  schema_revision: '36d142391099',
+  schema_head: '36d142391099',
   active: databaseSummary(),
   suggested: databaseSummary(),
   connected: true,
@@ -145,8 +148,8 @@ describe('SettingsPage', () => {
     });
     expect(page.draft()?.global.seed).toBe(124);
     expect(page.draft()?.jobs.polling_interval).toBe(2.5);
-    expect(page.draft()?.inference.model_timeout).toBe(900);
-    expect(page.draft()?.inference.model_idle_timeout).toBe(60);
+    expect(page.draft()?.inference?.model_timeout).toBe(900);
+    expect(page.draft()?.inference?.model_idle_timeout).toBe(60);
     expect(page.dirty()).toBe(false);
   });
 

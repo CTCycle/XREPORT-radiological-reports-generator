@@ -16,7 +16,8 @@ from server.api.preparation import PreparationEndpoint
 from server.configurations import ServerSettings
 from server.repositories.database import Database as DatasetDatabase
 from server.repositories.preparation import PreparationRepository
-from server.repositories.schemas import Base, Dataset, DatasetRecord, ProcessingRun, TrainingSample, Checkpoint, CheckpointEvaluation, DatasetVersion, InferenceReport, InferenceRun, ValidationRun
+from server.repositories.schemas.inference import InferenceBase, InferenceReport, InferenceRun
+from server.repositories.schemas.studio import StudioBase, Dataset, DatasetRecord, ProcessingRun, TrainingSample, Checkpoint, CheckpointEvaluation, DatasetVersion, ValidationRun
 from server.repositories.serialization.dataset import DatasetRepository, sample_dataset
 from server.services.dataset_processing import DatasetProcessingService
 from server.services.jobs import JobManager
@@ -74,7 +75,7 @@ def database() -> Iterator[DatasetDatabase]:
     database.engine = engine
     database.session = sessionmaker(bind=engine, future=True, expire_on_commit=False)
     database.insert_batch_size = 100
-    Base.metadata.create_all(engine)
+    StudioBase.metadata.create_all(engine)
     yield database
     engine.dispose()
 
@@ -226,14 +227,19 @@ def test_source_dataset_delete_preserves_processed_samples_until_they_are_delete
 
 
 ###############################################################################
-def _serializer() -> tuple[DatasetRepository, Database]:
+def _memory_database(metadata) -> Database:
     database = Database.__new__(Database)
     database.engine = create_engine("sqlite:///:memory:", future=True)
     database.session = sessionmaker(
         bind=database.engine, future=True, expire_on_commit=False
     )
     database.insert_batch_size = 100
-    Base.metadata.create_all(database.engine)
+    metadata.create_all(database.engine)
+    return database
+
+###############################################################################
+def _serializer() -> tuple[DatasetRepository, Database]:
+    database = _memory_database(StudioBase.metadata)
     return DatasetRepository(database=database), database
 
 ###############################################################################
@@ -421,6 +427,7 @@ def test_processing_run_and_samples_roll_back_together() -> None:
         assert session.execute(select(ProcessingRun)).scalars().all() == []
 
 ###############################################################################
+@pytest.mark.usefixtures("studio_profile")
 def test_validation_report_children_commit_atomically() -> None:
     dataset_repository, database = _serializer()
     dataset_repository.upsert_source_dataset(
@@ -448,6 +455,7 @@ def test_validation_report_children_commit_atomically() -> None:
         assert len(session.execute(select(ValidationRun)).scalars().all()) == 1
 
 ###############################################################################
+@pytest.mark.usefixtures("studio_profile")
 def test_validation_aggregates_are_stored_on_the_run() -> None:
     _, database = _serializer()
     ValidationRepository(database=database).save_validation_report(
@@ -462,6 +470,7 @@ def test_validation_aggregates_are_stored_on_the_run() -> None:
         assert run.pixel_bins_json == [999]
 
 ###############################################################################
+@pytest.mark.usefixtures("studio_profile")
 def test_checkpoint_evaluation_is_owned_by_validation_repository() -> None:
     _, database = _serializer()
     with database.transaction() as session:
@@ -496,7 +505,7 @@ def test_checkpoint_evaluation_is_owned_by_validation_repository() -> None:
 
 ###############################################################################
 def test_inference_reports_preserve_input_order_and_are_idempotent() -> None:
-    _, database = _serializer()
+    database = _memory_database(InferenceBase.metadata)
     serializer = InferenceRepository(database=database)
     serializer.save_generated_reports(
         [
@@ -581,7 +590,7 @@ def test_inference_reports_preserve_input_order_and_are_idempotent() -> None:
 
 ###############################################################################
 def test_inference_history_crud_preserves_original_text_and_isolated_deletion() -> None:
-    _, database = _serializer()
+    database = _memory_database(InferenceBase.metadata)
     repository = InferenceRepository(database=database)
     repository.save_generated_reports(
         [

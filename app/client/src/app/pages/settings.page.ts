@@ -1,7 +1,6 @@
 import { CommonModule } from '@angular/common';
 import { Component, computed, EventEmitter, HostListener, inject, Input, OnDestroy, OnInit, Output, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { ActivatedRoute } from '@angular/router';
 import type { Subscription } from 'rxjs';
 import { JobPollingService } from '../services/job-polling.service';
 import { JobsApiService } from '../services/jobs-api.service';
@@ -15,6 +14,7 @@ import type {
   DatabaseConfigurationStatus,
   DatabaseConnectionTest,
   DatabaseBackend,
+  EditableInferenceSettings,
   EditableSettings,
   HuggingFaceAccessStatus,
   StorageStatus,
@@ -88,7 +88,7 @@ type SettingsTab = 'general' | 'advanced' | 'models' | 'storage' | 'database';
             } @else if (activeTab() === 'advanced') {
               <div class="settings-section-heading">
                 <h2>Advanced</h2>
-                <p>Fine-tune polling and local inference operation limits.</p>
+                <p>{{ values.inference ? 'Fine-tune polling and local inference operation limits.' : 'Fine-tune job status polling.' }}</p>
               </div>
               <div class="settings-fields">
                 <div class="settings-field">
@@ -104,25 +104,25 @@ type SettingsTab = 'general' | 'advanced' | 'models' | 'storage' | 'database';
                     @if (validationErrors().polling_interval; as error) { <span id="polling-error" class="settings-error">{{ error }}</span> }
                   </div>
                 </div>
-                <div class="settings-field">
-                  <div class="settings-field-copy"><h3 id="inference-timeout-title">Inference timeout <span class="settings-unit">seconds</span></h3><p>Maximum runtime for a newly started local generation.</p></div>
-                  <div class="settings-field-control">
-                    <input id="inference-timeout" type="number" inputmode="numeric" step="1" min="1"
-                      [ngModel]="values.inference.model_timeout" (ngModelChange)="updateModelTimeout($event)" name="model_timeout"
-                      [disabled]="resetting() || databaseSwitching()" [attr.aria-labelledby]="'inference-timeout-title'"
-                      [attr.aria-invalid]="validationErrors().model_timeout ? 'true' : null"
-                      [attr.aria-describedby]="validationErrors().model_timeout ? 'timeout-help timeout-error' : 'timeout-help'"
-                      (blur)="flushSettingsPersistence()" />
-                    <span id="timeout-help" class="settings-help">A running generation keeps its captured timeout.</span>
-                    @if (validationErrors().model_timeout; as error) { <span id="timeout-error" class="settings-error">{{ error }}</span> }
+                @if (values.inference; as inference) {
+                  <div class="settings-field">
+                    <div class="settings-field-copy"><h3 id="inference-timeout-title">Inference timeout <span class="settings-unit">seconds</span></h3><p>Maximum runtime for a newly started local generation.</p></div>
+                    <div class="settings-field-control">
+                      <input id="inference-timeout" type="number" inputmode="numeric" step="1" min="1"
+                        [ngModel]="inference.model_timeout" (ngModelChange)="updateModelTimeout($event)" name="model_timeout"
+                        [disabled]="resetting() || databaseSwitching()" [attr.aria-labelledby]="'inference-timeout-title'"
+                        [attr.aria-invalid]="validationErrors().model_timeout ? 'true' : null"
+                        [attr.aria-describedby]="validationErrors().model_timeout ? 'timeout-help timeout-error' : 'timeout-help'"
+                        (blur)="flushSettingsPersistence()" />
+                      <span id="timeout-help" class="settings-help">A running generation keeps its captured timeout.</span>
+                      @if (validationErrors().model_timeout; as error) { <span id="timeout-error" class="settings-error">{{ error }}</span> }
+                    </div>
                   </div>
-                </div>
-                @if (!studio) {
                   <div class="settings-field">
                     <div class="settings-field-copy"><h3 id="idle-unload-title">Unload idle models after <span class="settings-unit">seconds</span></h3><p>Releases a loaded model's RAM and VRAM once no inference has used it for this long.</p></div>
                     <div class="settings-field-control">
                       <input id="idle-unload" type="number" inputmode="numeric" step="1" min="0"
-                        [ngModel]="values.inference.model_idle_timeout" (ngModelChange)="updateModelIdleTimeout($event)" name="model_idle_timeout"
+                        [ngModel]="inference.model_idle_timeout" (ngModelChange)="updateModelIdleTimeout($event)" name="model_idle_timeout"
                         [disabled]="resetting() || databaseSwitching()" [attr.aria-labelledby]="'idle-unload-title'"
                         [attr.aria-invalid]="validationErrors().model_idle_timeout ? 'true' : null"
                         [attr.aria-describedby]="validationErrors().model_idle_timeout ? 'idle-unload-help idle-unload-error' : 'idle-unload-help'"
@@ -136,7 +136,7 @@ type SettingsTab = 'general' | 'advanced' | 'models' | 'storage' | 'database';
                       <div class="settings-field-copy"><h3 [id]="field.key + '-title'">{{ field.label }} <span class="settings-unit">{{ field.unit }}</span></h3><p>{{ field.description }}</p></div>
                       <div class="settings-field-control">
                         <input [id]="field.key" type="number" inputmode="numeric" step="1" min="0" [attr.max]="field.max"
-                          [ngModel]="values.inference[field.key]" (ngModelChange)="updateGeneration(field.key, $event)" [name]="field.key"
+                          [ngModel]="inference[field.key]" (ngModelChange)="updateGeneration(field.key, $event)" [name]="field.key"
                           [disabled]="resetting() || databaseSwitching()" [attr.aria-labelledby]="field.key + '-title'"
                           [attr.aria-invalid]="validationErrors()[field.key] ? 'true' : null"
                           [attr.aria-describedby]="validationErrors()[field.key] ? field.key + '-help ' + field.key + '-error' : field.key + '-help'"
@@ -273,12 +273,15 @@ type SettingsTab = 'general' | 'advanced' | 'models' | 'storage' | 'database';
         <section class="database-panel" aria-labelledby="database-settings-title">
           <div class="settings-section-heading">
             <h2 id="database-settings-title">Database</h2>
-            <p>Choose where the application stores application data. Each database keeps its own settings and records.</p>
+            <p>Choose where this application stores its data. Each database keeps its own settings and records and belongs to one application.</p>
           </div>
           <div class="database-status" [class.database-status-error]="databaseStatus()?.state !== 'ready'" role="status">
             <span class="database-status-indicator" aria-hidden="true"></span>
             <div><strong>{{ databaseStatusLabel() }}</strong><span>{{ databaseStatusDescription() }}</span></div>
           </div>
+          @if (databaseStatus(); as status) {
+            <p class="settings-help">{{ databaseSchemaDescription(status) }}</p>
+          }
           @if (databaseLoadError()) {
             <div class="settings-feedback settings-feedback-error" role="alert">
               {{ databaseLoadError() }}
@@ -409,8 +412,6 @@ type SettingsTab = 'general' | 'advanced' | 'models' | 'storage' | 'database';
 export class SettingsPage implements OnInit, OnDestroy {
   private readonly api = inject(SettingsApiService);
   private readonly theme = inject(ThemeService);
-  // Idle model release is an XREPORT inference control; Studio shares this page without it
-  readonly studio = inject(ActivatedRoute, { optional: true })?.snapshot.pathFromRoot.some((route) => route.data['application'] === 'studio') ?? false;
   readonly generationFields = [
     { key: 'max_new_tokens_deterministic', label: 'Deterministic token limit', unit: 'tokens', max: 4096, description: 'Maximum new tokens for the Deterministic profile.' },
     { key: 'max_new_tokens_concise', label: 'Concise token limit', unit: 'tokens', max: 4096, description: 'Maximum new tokens for the Concise profile.' },
@@ -484,14 +485,16 @@ export class SettingsPage implements OnInit, OnDestroy {
     if (!Number.isFinite(values.jobs.polling_interval) || values.jobs.polling_interval < 0.25 || values.jobs.polling_interval > 60) {
       errors.polling_interval = 'Enter a value from 0.25 to 60 seconds.';
     }
-    if (!Number.isInteger(values.inference.model_timeout) || values.inference.model_timeout < 1) {
+    const inference = values.inference;
+    if (!inference) return errors;
+    if (!Number.isInteger(inference.model_timeout) || inference.model_timeout < 1) {
       errors.model_timeout = 'Enter an integer of at least 1 second.';
     }
-    if (!Number.isInteger(values.inference.model_idle_timeout) || values.inference.model_idle_timeout < 0) {
+    if (!Number.isInteger(inference.model_idle_timeout) || inference.model_idle_timeout < 0) {
       errors.model_idle_timeout = 'Enter an integer of at least 0 seconds.';
     }
     for (const field of this.generationFields) {
-      const value = values.inference[field.key];
+      const value = inference[field.key];
       if (!Number.isInteger(value) || value < 0 || value > field.max) errors[field.key] = `Enter an integer from 0 to ${field.max}.`;
     }
     return errors;
@@ -694,6 +697,13 @@ export class SettingsPage implements OnInit, OnDestroy {
       : (status.active?.sqlite_path ?? 'Local database');
   }
 
+  databaseSchemaDescription(status: DatabaseConfigurationStatus): string {
+    const revision = status.schema_revision
+      ? status.schema_revision === status.schema_head ? `schema ${status.schema_revision} (current)` : `schema ${status.schema_revision}, upgrades to ${status.schema_head} on activation`
+      : 'schema not initialized';
+    return `${status.application} database · ${revision}`;
+  }
+
   databaseCanSwitch(): boolean {
     const draft = this.databaseDraft();
     const status = this.databaseStatus();
@@ -844,15 +854,15 @@ export class SettingsPage implements OnInit, OnDestroy {
   }
 
   updateModelTimeout(value: number | null): void {
-    this.updateDraft((draft) => ({ ...draft, inference: { ...draft.inference, model_timeout: value ?? Number.NaN } }));
+    this.updateDraft((draft) => ({ ...draft, inference: draft.inference && { ...draft.inference, model_timeout: value ?? Number.NaN } }));
   }
 
   updateModelIdleTimeout(value: number | null): void {
-    this.updateDraft((draft) => ({ ...draft, inference: { ...draft.inference, model_idle_timeout: value ?? Number.NaN } }));
+    this.updateDraft((draft) => ({ ...draft, inference: draft.inference && { ...draft.inference, model_idle_timeout: value ?? Number.NaN } }));
   }
 
   updateGeneration(key: GenerationKey, value: number | null): void {
-    this.updateDraft((draft) => ({ ...draft, inference: { ...draft.inference, [key]: value ?? Number.NaN } }));
+    this.updateDraft((draft) => ({ ...draft, inference: draft.inference && { ...draft.inference, [key]: value ?? Number.NaN } }));
   }
 
   async reset(): Promise<void> {
@@ -957,14 +967,14 @@ export class SettingsPage implements OnInit, OnDestroy {
     return {
       global: { seed: values.global.seed },
       jobs: { polling_interval: values.jobs.polling_interval },
-      inference: {
+      inference: values.inference ? {
         model_timeout: values.inference.model_timeout,
         model_idle_timeout: values.inference.model_idle_timeout,
         max_new_tokens_deterministic: values.inference.max_new_tokens_deterministic,
         max_new_tokens_concise: values.inference.max_new_tokens_concise,
         max_new_tokens_detailed: values.inference.max_new_tokens_detailed,
         detailed_num_beams: values.inference.detailed_num_beams,
-      },
+      } : null,
     };
   }
 
@@ -978,6 +988,7 @@ export class SettingsPage implements OnInit, OnDestroy {
       && current.jobs.polling_interval >= 0.25 && current.jobs.polling_interval <= 60) {
       patch.jobs = { polling_interval: current.jobs.polling_interval };
     }
+    if (!current.inference || !original.inference) return patch;
     const inference: NonNullable<ApplicationSettingsPatch['inference']> = {};
     if (current.inference.model_timeout !== original.inference.model_timeout && Number.isInteger(current.inference.model_timeout)
       && current.inference.model_timeout >= 1) {
@@ -1009,14 +1020,23 @@ export class SettingsPage implements OnInit, OnDestroy {
     return {
       global: patch.global ? { seed: persisted.global.seed } : current.global,
       jobs: patch.jobs ? { polling_interval: persisted.jobs.polling_interval } : current.jobs,
-      inference: {
-        model_timeout: patch.inference?.model_timeout !== undefined ? persisted.inference.model_timeout : current.inference.model_timeout,
-        model_idle_timeout: patch.inference?.model_idle_timeout !== undefined ? persisted.inference.model_idle_timeout : current.inference.model_idle_timeout,
-        ...Object.fromEntries(this.generationFields.map((field) => [
-          field.key,
-          patch.inference?.[field.key] !== undefined ? persisted.inference[field.key] : current.inference[field.key],
-        ])) as Pick<EditableSettings['inference'], GenerationKey>,
-      },
+      inference: this.mergeInference(current.inference, persisted.inference, patch.inference),
+    };
+  }
+
+  private mergeInference(
+    current: EditableInferenceSettings | null,
+    persisted: EditableInferenceSettings | null,
+    patch: ApplicationSettingsPatch['inference'],
+  ): EditableInferenceSettings | null {
+    if (!current || !persisted) return current;
+    return {
+      model_timeout: patch?.model_timeout !== undefined ? persisted.model_timeout : current.model_timeout,
+      model_idle_timeout: patch?.model_idle_timeout !== undefined ? persisted.model_idle_timeout : current.model_idle_timeout,
+      ...Object.fromEntries(this.generationFields.map((field) => [
+        field.key,
+        patch?.[field.key] !== undefined ? persisted[field.key] : current[field.key],
+      ])) as Pick<EditableInferenceSettings, GenerationKey>,
     };
   }
 }

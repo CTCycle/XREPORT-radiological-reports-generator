@@ -33,7 +33,8 @@ datas = [
     *collect_data_files("transformers"),
     *copy_metadata("transformers"),
     *collect_data_files("keras"),
-    (str(server_root / "migrations"), "server/migrations"),
+    # Only the XREPORT Inference migration stream ships with the desktop backend.
+    (str(server_root / "migrations" / "inference"), "server/migrations/inference"),
 ]
 # PyInstaller's maintained hooks already place these native libraries in the
 # onedir `_internal` tree.  Adding collect_dynamic_libs here duplicates the

@@ -140,6 +140,12 @@ def studio_base_url() -> str:
     return STUDIO_UI_BASE_URL
 
 ###############################################################################
+@pytest.fixture
+def studio_profile(monkeypatch):
+    """Resolve repositories against the XREPORT Studio schema in this process."""
+    monkeypatch.setattr("server.repositories.database.schema.APP_PROFILE", "studio")
+
+###############################################################################
 def run_async_in_thread(awaitable):
     """Run a coroutine on a dedicated thread to avoid cross-plugin event loop clashes."""
     result_queue: Queue[tuple[bool, object]] = Queue(maxsize=1)

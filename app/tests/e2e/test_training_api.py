@@ -11,7 +11,7 @@ from sqlalchemy import delete
 
 from server.common.path import CHECKPOINTS_DIR
 from server.repositories.checkpoints import CheckpointRepository
-from server.repositories.schemas import CheckpointEvaluation
+from server.repositories.schemas.studio import CheckpointEvaluation
 
 
 @pytest.fixture

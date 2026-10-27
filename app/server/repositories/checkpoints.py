@@ -4,13 +4,14 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
 import shutil
+from typing import Any
 
 from sqlalchemy import exists, select
 
 from server.common.path import CHECKPOINTS_DIR
 from server.common.utils.security import validate_checkpoint_name
 from server.repositories.database import Database, get_database
-from server.repositories.schemas import Checkpoint, CheckpointEvaluation, InferenceRun
+from server.repositories.database.schema import application_schema
 from server.repositories.schemas.normalization import normalize_key
 
 
@@ -54,10 +55,13 @@ class CheckpointRepository:
     # -------------------------------------------------------------------------
     def __init__(self, database: Database | None = None) -> None:
         self.database = database or get_database()
+        schema = application_schema()
+        self.model = schema.checkpoint_model
+        self.history = schema.checkpoint_history
 
     # -------------------------------------------------------------------------
     @staticmethod
-    def _record(row: Checkpoint) -> CheckpointRecord:
+    def _record(row: Any) -> CheckpointRecord:
         return CheckpointRecord(
             checkpoint_id=int(row.checkpoint_id),
             name=row.name,
@@ -101,7 +105,7 @@ class CheckpointRepository:
     def list_checkpoints(self) -> list[CheckpointRecord]:
         with self.database.read_session() as session:
             rows = (
-                session.execute(select(Checkpoint).order_by(Checkpoint.name_key))
+                session.execute(select(self.model).order_by(self.model.name_key))
                 .scalars()
                 .all()
             )
@@ -112,8 +116,8 @@ class CheckpointRepository:
         checkpoint_name = validate_checkpoint_name(name)
         with self.database.read_session() as session:
             row = session.execute(
-                select(Checkpoint).where(
-                    Checkpoint.name_key == normalize_key(checkpoint_name)
+                select(self.model).where(
+                    self.model.name_key == normalize_key(checkpoint_name)
                 )
             ).scalar_one_or_none()
         return self._record(row) if row is not None else None
@@ -137,9 +141,9 @@ class CheckpointRepository:
 
         with self.database.transaction() as session:
             row = session.execute(
-                select(Checkpoint).where(Checkpoint.name_key == name_key)
+                select(self.model).where(self.model.name_key == name_key)
             ).scalar_one_or_none()
-            path_rows = session.execute(select(Checkpoint)).scalars().all()
+            path_rows = session.execute(select(self.model)).scalars().all()
             for existing in path_rows:
                 if str(Path(existing.path).resolve()).casefold() == path_key:
                     if existing.name_key != name_key:
@@ -150,7 +154,7 @@ class CheckpointRepository:
                     break
 
             if row is None:
-                row = Checkpoint(
+                row = self.model(
                     name=checkpoint_name,
                     name_key=name_key,
                     path=str(artifact_path),
@@ -175,7 +179,7 @@ class CheckpointRepository:
         now = datetime.now(timezone.utc)
         if record.artifact_complete:
             with self.database.transaction() as session:
-                row = session.get(Checkpoint, record.checkpoint_id)
+                row = session.get(self.model, record.checkpoint_id)
                 if row is not None:
                     row.last_seen_at = now
                     return self._record(row)
@@ -187,19 +191,13 @@ class CheckpointRepository:
         if record is None:
             raise CheckpointRegistryError(f"Checkpoint is not registered: {name}")
         with self.database.transaction() as session:
-            evaluation_exists = session.execute(
-                select(
-                    exists().where(
-                        CheckpointEvaluation.checkpoint_id == record.checkpoint_id
-                    )
-                )
-            ).scalar()
-            inference_exists = session.execute(
-                select(
-                    exists().where(InferenceRun.checkpoint_id == record.checkpoint_id)
-                )
-            ).scalar()
-            if evaluation_exists or inference_exists:
+            referenced = any(
+                session.execute(
+                    select(exists().where(column == record.checkpoint_id))
+                ).scalar()
+                for column in self.history
+            )
+            if referenced:
                 raise CheckpointReferencedError(
                     f"Checkpoint cannot be deleted while persisted history references it: {record.name}"
                 )
@@ -211,7 +209,7 @@ class CheckpointRepository:
                     raise CheckpointRegistryError(
                         f"Failed to delete checkpoint artifact: {artifact_path}"
                     ) from exc
-            row = session.get(Checkpoint, record.checkpoint_id)
+            row = session.get(self.model, record.checkpoint_id)
             if row is not None:
                 session.delete(row)
         return record

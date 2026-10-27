@@ -6,6 +6,7 @@ from .environment import load_environment
 from .database_config import load_database_settings
 from .settings import (
     DatabaseSettings,
+    InferenceSettings,
     ServerSettings,
     application_settings_to_server_settings,
 )
@@ -28,6 +29,15 @@ def get_server_settings() -> ServerSettings:
     return application_settings_to_server_settings(values, get_database_settings())
 
 ###############################################################################
+def get_inference_settings() -> InferenceSettings:
+    """Return the persisted inference controls of the XREPORT Inference database."""
+
+    inference = get_server_settings().inference
+    if inference is None:
+        raise RuntimeError("Inference settings exist only in the XREPORT Inference database")
+    return inference
+
+###############################################################################
 def reload_settings_for_tests() -> ServerSettings:
     load_environment(force=True)
     get_database_settings.cache_clear()
@@ -41,6 +51,7 @@ def reload_settings_for_tests() -> ServerSettings:
 
 __all__ = [
     "get_database_settings",
+    "get_inference_settings",
     "get_server_settings",
     "reload_settings_for_tests",
 ]

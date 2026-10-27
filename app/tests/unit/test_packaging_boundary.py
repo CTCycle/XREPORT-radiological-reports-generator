@@ -86,6 +86,8 @@ def test_studio_import_closure_never_reaches_inference_workflows() -> None:
         "server.services.model_installation",
         "server.services.huggingface_access",
         "server.models.inference.providers",
+        "server.repositories.schemas.inference",
+        "server.repositories.serialization.inference",
     }
     leaked = sorted(forbidden & reachable)
 

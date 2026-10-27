@@ -9,7 +9,7 @@ from sqlalchemy.engine import Row
 
 from server.repositories.database import Database
 from server.repositories.serialization.dataset import DatasetRepository
-from server.repositories.schemas import (
+from server.repositories.schemas.studio import (
     Dataset,
     DatasetRecord,
     DatasetVersion,

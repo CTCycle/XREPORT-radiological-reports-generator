@@ -143,6 +143,18 @@ export type DatabaseConfigurationStatusResponse = {
      * State
      */
     state: 'ready' | 'recovery' | 'unavailable';
+    /**
+     * Application
+     */
+    application: string;
+    /**
+     * Schema Revision
+     */
+    schema_revision?: string | null;
+    /**
+     * Schema Head
+     */
+    schema_head: string;
     active?: DatabaseConfigurationSummary | null;
     suggested: DatabaseConfigurationSummary;
     /**
@@ -1072,7 +1084,7 @@ export type ProviderAvailability = {
 export type RuntimeApplicationSettings = {
     global: RuntimeGlobalSettings;
     jobs: RuntimeJobSettings;
-    inference: RuntimeInferenceSettings;
+    inference: RuntimeInferenceSettings | null;
     /**
      * Theme Preference
      */

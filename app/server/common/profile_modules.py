@@ -23,6 +23,7 @@ STUDIO_ONLY_MODULES: tuple[str, ...] = (
     "server.repositories.preparation",
     "server.repositories.serialization.dataset",
     "server.repositories.serialization.validation",
+    "server.repositories.schemas.studio",
     "server.models.callbacks",
     "server.models.training.model",
     "server.models.training.trainer",

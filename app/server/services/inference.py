@@ -46,7 +46,7 @@ from server.common.utils.logger import logger
 from server.services.jobs import JobExecutionError, JobManager, get_job_manager
 from server.repositories.serialization.inference import InferenceRepository
 from server.configurations import ServerSettings
-from server.configurations.startup import get_server_settings
+from server.configurations.startup import get_inference_settings, get_server_settings
 from server.services.inference_catalog import InferenceModelCatalog
 from server.services.model_installation import (
     InstallationCancelled,
@@ -149,9 +149,9 @@ def get_huggingface_provider() -> HuggingFaceProvider:
     from server.models.inference.providers.huggingface import HuggingFaceProvider
 
     return HuggingFaceProvider(
-        get_server_settings().inference,
-        timeout_provider=lambda: get_server_settings().inference.model_timeout,
-        settings_provider=lambda: get_server_settings().inference,
+        get_inference_settings(),
+        timeout_provider=lambda: get_inference_settings().model_timeout,
+        settings_provider=get_inference_settings,
     )
 
 ###############################################################################
@@ -168,7 +168,7 @@ def get_inference_runtime() -> InferenceRuntimeCoordinator:
         huggingface_provider=get_huggingface_provider(),
         installation_manager=get_model_installation_manager(),
         checkpoint_repository=CheckpointRepository(),
-        idle_timeout_provider=lambda: get_server_settings().inference.model_idle_timeout,
+        idle_timeout_provider=lambda: get_inference_settings().model_idle_timeout,
     )
 
 ###############################################################################
@@ -994,7 +994,7 @@ def get_inference_service() -> InferenceService:
         inference_image_store=get_inference_image_store(),
         server_settings=server_settings,
         model_catalog=InferenceModelCatalog(
-            server_settings.inference,
+            get_inference_settings(),
             installation_manager=installation_manager,
         ),
         installation_manager=installation_manager,

@@ -4,13 +4,12 @@ from __future__ import annotations
 # importing Alembic so normal application startup does not emit plugin noise.
 # ruff: noqa: E402
 
-from collections.abc import Callable, Iterator
+from collections.abc import Iterator
 from contextlib import contextmanager
 import hashlib
 import logging
 import re
 import time
-from pathlib import Path
 
 logging.getLogger("alembic.runtime.plugins").setLevel(logging.WARNING)
 
@@ -29,14 +28,14 @@ from sqlalchemy.sql.elements import TextClause
 from server.common.utils.logger import logger
 from server.configurations import DatabaseSettings, get_database_settings
 from server.repositories.database.engine import Database
+from server.repositories.database.schema import (
+    SHARED_VERSION_TABLE,
+    VERSION_TABLES,
+    ApplicationSchema,
+    application_schema,
+    profile_title,
+)
 from server.repositories.database.utils import normalize_postgres_engine
-from server.repositories.schemas import Base
-
-# Kept as the current repository head for diagnostics and integration tests;
-# the coordinator discovers the active head from ScriptDirectory at runtime.
-HEAD_REVISION = "d4a9c6e2b3f1"
-ALEMBIC_VERSION_TABLE = "alembic_version"
-MIGRATIONS_DIR = Path(__file__).resolve().parents[2] / "migrations"
 
 ###############################################################################
 class DatabaseSchemaError(RuntimeError):
@@ -315,24 +314,23 @@ def _semantic_constraint_diffs(connection: Connection, metadata: MetaData) -> li
     return diffs
 
 ###############################################################################
-def _include_schema_object(
-    _object: object,
-    name: str,
-    object_type: str,
-    reflected: bool,
-    _compare_to: object,
-) -> bool:
-    return not (object_type == "table" and name == ALEMBIC_VERSION_TABLE)
+def _validate_head_schema(connection: Connection, schema: ApplicationSchema) -> None:
+    def include_object(
+        _object: object,
+        name: str,
+        object_type: str,
+        _reflected: bool,
+        _compare_to: object,
+    ) -> bool:
+        return not (object_type == "table" and name == schema.version_table)
 
-###############################################################################
-def _validate_head_schema(connection: Connection) -> None:
     migration_context = MigrationContext.configure(
         connection,
-        opts={"compare_type": True, "include_object": _include_schema_object},
+        opts={"compare_type": True, "include_object": include_object},
     )
     try:
-        diffs = compare_metadata(migration_context, Base.metadata)
-        diffs.extend(_semantic_constraint_diffs(connection, Base.metadata))
+        diffs = compare_metadata(migration_context, schema.metadata)
+        diffs.extend(_semantic_constraint_diffs(connection, schema.metadata))
     except Exception as exc:
         raise DatabaseSchemaError(
             "Unable to verify the database schema against the current ORM metadata."
@@ -344,15 +342,49 @@ def _validate_head_schema(connection: Connection) -> None:
         )
 
 ###############################################################################
-def _build_alembic_config(connection: Connection) -> AlembicConfig:
-    if not MIGRATIONS_DIR.is_dir():
+def _build_alembic_config(
+    schema: ApplicationSchema, connection: Connection | None = None
+) -> AlembicConfig:
+    if not schema.migrations_dir.is_dir():
         raise DatabaseMigrationError(
-            f"Migration directory is missing: {MIGRATIONS_DIR}"
+            f"Migration directory is missing: {schema.migrations_dir}"
         )
     config = AlembicConfig()
-    config.set_main_option("script_location", str(MIGRATIONS_DIR))
-    config.attributes["connection"] = connection
+    config.set_main_option("script_location", str(schema.migrations_dir))
+    if connection is not None:
+        config.attributes["connection"] = connection
     return config
+
+###############################################################################
+def schema_head(schema: ApplicationSchema | None = None) -> str:
+    """Return the single Alembic head of an application's migration stream."""
+    resolved = schema or application_schema()
+    script = ScriptDirectory.from_config(_build_alembic_config(resolved))
+    heads = tuple(script.get_heads())
+    if len(heads) != 1:
+        raise DatabaseMigrationError(
+            f"{resolved.title} requires exactly one Alembic head; discovered: "
+            + (", ".join(heads) or "none")
+        )
+    return heads[0]
+
+###############################################################################
+def database_ownership_error(
+    table_names: set[str], schema: ApplicationSchema
+) -> str | None:
+    """Explain why a database belongs to another schema, or return None."""
+    for profile, version_table in VERSION_TABLES.items():
+        if profile != schema.profile and version_table in table_names:
+            return (
+                f"This database belongs to {profile_title(profile)}. "
+                f"Choose a separate database for {schema.title}."
+            )
+    if SHARED_VERSION_TABLE in table_names:
+        return (
+            "This database uses the retired shared XREPORT schema. "
+            "Choose a new database or delete and recreate this one."
+        )
+    return None
 
 ###############################################################################
 def _pending_revisions(
@@ -375,21 +407,31 @@ def _pending_revisions(
     ]
 
 ###############################################################################
+def _current_revisions(
+    connection: Connection, schema: ApplicationSchema
+) -> tuple[str, ...]:
+    return tuple(
+        MigrationContext.configure(
+            connection, opts={"version_table": schema.version_table}
+        ).get_current_heads()
+    )
+
+###############################################################################
 def _run_migrations_on_connection(
     connection: Connection,
     settings: DatabaseSettings,
+    schema: ApplicationSchema,
 ) -> None:
-    config = _build_alembic_config(connection)
-    script = ScriptDirectory.from_config(config)
-    heads = tuple(script.get_heads())
-    if len(heads) != 1:
-        raise DatabaseMigrationError(
-            "XREPORT requires exactly one Alembic head; discovered: "
-            + (", ".join(heads) or "none")
-        )
-    head = heads[0]
+    table_names = set(inspect(connection).get_table_names())
+    ownership_error = database_ownership_error(table_names, schema)
+    if ownership_error:
+        raise DatabaseSchemaError(ownership_error)
 
-    current = tuple(MigrationContext.configure(connection).get_current_heads())
+    config = _build_alembic_config(schema, connection)
+    script = ScriptDirectory.from_config(config)
+    head = schema_head(schema)
+
+    current = _current_revisions(connection, schema)
     if len(current) > 1:
         raise DatabaseMigrationError(
             "Database contains multiple Alembic revisions: " + ", ".join(current)
@@ -403,8 +445,7 @@ def _run_migrations_on_connection(
                 "Recreate or replace the database before startup."
             ) from exc
 
-    inspector = inspect(connection)
-    application_tables = set(inspector.get_table_names()) - {ALEMBIC_VERSION_TABLE}
+    application_tables = table_names - {schema.version_table}
     if not current and application_tables:
         raise DatabaseSchemaError(
             "Non-empty database has no Alembic revision; refusing implicit schema "
@@ -414,26 +455,27 @@ def _run_migrations_on_connection(
     pending = _pending_revisions(script, current, head)
     current_label = ", ".join(current) if current else "base"
     logger.info(
-        "Database migration check (backend=%s, database=%s, current=%s, head=%s)",
+        "%s database migration check (backend=%s, database=%s, current=%s, head=%s)",
+        schema.title,
         settings.backend,
         _database_label(settings),
         current_label,
         head,
     )
     if not pending:
-        _validate_head_schema(connection)
+        _validate_head_schema(connection, schema)
         logger.info("Database is already at Alembic head %s", head)
     else:
         for revision, message in pending:
             logger.info("Pending migration %s: %s", revision, message)
         command.upgrade(config, head)
-        final_heads = tuple(MigrationContext.configure(connection).get_current_heads())
+        final_heads = _current_revisions(connection, schema)
         if final_heads != (head,):
             raise DatabaseMigrationError(
                 "Alembic upgrade completed without reaching the expected head "
                 f"{head}; current revisions: {', '.join(final_heads) or 'base'}"
             )
-        _validate_head_schema(connection)
+        _validate_head_schema(connection, schema)
         logger.info("Database migrations applied through Alembic head %s", head)
 
 ###############################################################################
@@ -453,13 +495,14 @@ def _sqlite_migration_connection(engine: Engine) -> Iterator[Connection]:
 def _postgres_migration_connection(
     engine: Engine,
     settings: DatabaseSettings,
+    schema: ApplicationSchema,
 ) -> Iterator[Connection]:
     with engine.connect() as connection:
         with connection.begin():
             _acquire_postgres_lock(
                 connection,
                 key=_advisory_key(
-                    f"xreport:migrate:{settings.host}:{settings.port}:{settings.database_name}"
+                    f"xreport:{schema.profile}:migrate:{settings.host}:{settings.port}:{settings.database_name}"
                 ),
                 timeout=settings.connect_timeout,
                 transaction=True,
@@ -468,13 +511,17 @@ def _postgres_migration_connection(
             yield connection
 
 ###############################################################################
-def _migrate_repository(repository: Database, settings: DatabaseSettings) -> None:
+def _migrate_repository(
+    repository: Database, settings: DatabaseSettings, schema: ApplicationSchema
+) -> None:
     if settings.backend == "sqlite":
         with _sqlite_migration_connection(repository.engine) as connection:
-            _run_migrations_on_connection(connection, settings)
+            _run_migrations_on_connection(connection, settings, schema)
         return
-    with _postgres_migration_connection(repository.engine, settings) as connection:
-        _run_migrations_on_connection(connection, settings)
+    with _postgres_migration_connection(
+        repository.engine, settings, schema
+    ) as connection:
+        _run_migrations_on_connection(connection, settings, schema)
 
 ###############################################################################
 def _validate_postgres_engine(settings: DatabaseSettings) -> None:
@@ -546,21 +593,25 @@ def _ensure_postgres_database(settings: DatabaseSettings) -> str:
     return target_database
 
 ###############################################################################
-def initialize_sqlite_database(settings: DatabaseSettings) -> None:
+def initialize_sqlite_database(
+    settings: DatabaseSettings, schema: ApplicationSchema
+) -> None:
     repository = Database(settings)
     try:
-        _migrate_repository(repository, settings)
+        _migrate_repository(repository, settings, schema)
     finally:
         repository.engine.dispose()
     logger.info("SQLite database is synchronized at %s", repository.db_path)
 
 ###############################################################################
-def initialize_postgres_database(settings: DatabaseSettings) -> str:
+def initialize_postgres_database(
+    settings: DatabaseSettings, schema: ApplicationSchema
+) -> str:
     _validate_postgres_engine(settings)
     target_database = _ensure_postgres_database(settings)
     repository = Database(clone_settings_with_database(settings, target_database))
     try:
-        _migrate_repository(repository, settings)
+        _migrate_repository(repository, settings, schema)
     finally:
         repository.engine.dispose()
     logger.info("PostgreSQL database %s is synchronized", target_database)
@@ -577,11 +628,14 @@ def verify_postgres_connection(settings: DatabaseSettings) -> None:
     logger.info("Verified PostgreSQL connection to %s", settings.database_name)
 
 ###############################################################################
-def run_database_initialization(settings: DatabaseSettings) -> None:
+def run_database_initialization(
+    settings: DatabaseSettings, schema: ApplicationSchema | None = None
+) -> None:
+    resolved_schema = schema or application_schema()
     if settings.backend == "sqlite":
-        initialize_sqlite_database(settings)
+        initialize_sqlite_database(settings, resolved_schema)
         return
-    initialize_postgres_database(settings)
+    initialize_postgres_database(settings, resolved_schema)
 
 ###############################################################################
 def _sanitize_error(message: str) -> str:
@@ -600,11 +654,11 @@ def _sanitize_error(message: str) -> str:
 ###############################################################################
 def _run_database_action(
     action: str,
-    operation: Callable[[DatabaseSettings], object],
     settings: DatabaseSettings,
+    schema: ApplicationSchema | None,
 ) -> None:
     try:
-        operation(settings)
+        run_database_initialization(settings, schema)
     except (DatabaseSchemaError, DatabaseMigrationError) as exc:
         message = _sanitize_error(str(exc))
         logger.error("%s failed: %s", action, message)
@@ -631,19 +685,23 @@ def _run_database_action(
         ) from exc
 
 ###############################################################################
-def initialize_database(settings: DatabaseSettings | None = None) -> None:
-    resolved_settings = settings or get_database_settings()
+def initialize_database(
+    settings: DatabaseSettings | None = None,
+    schema: ApplicationSchema | None = None,
+) -> None:
     _run_database_action(
         "Database initialization",
-        run_database_initialization,
-        resolved_settings,
+        settings or get_database_settings(),
+        schema,
     )
 
 ###############################################################################
-def prepare_database_for_startup(settings: DatabaseSettings | None = None) -> None:
-    resolved_settings = settings or get_database_settings()
+def prepare_database_for_startup(
+    settings: DatabaseSettings | None = None,
+    schema: ApplicationSchema | None = None,
+) -> None:
     _run_database_action(
         "Database startup migration",
-        run_database_initialization,
-        resolved_settings,
+        settings or get_database_settings(),
+        schema,
     )

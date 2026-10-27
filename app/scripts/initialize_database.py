@@ -1,18 +1,32 @@
 from __future__ import annotations
 
+import argparse
+import os
 import time
-
-from server.common.utils.logger import logger
-from server.configurations import get_database_settings
-from server.repositories.database.initializer import initialize_database
 
 
 ###############################################################################
 if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description="Initialize an XREPORT database")
+    parser.add_argument("--app", choices=("xreport", "studio"), default="xreport")
+    arguments = parser.parse_args()
+    # Data roots are resolved when the server package is imported, so the
+    # profile must be exported first; an explicit environment value must agree.
+    configured = os.environ.setdefault("XREPORT_APP", arguments.app).strip().lower()
+    if configured != arguments.app:
+        raise SystemExit(
+            f"XREPORT_APP must be '{arguments.app}' to initialize the {arguments.app} database"
+        )
+
+    from server.common.utils.logger import logger
+    from server.configurations import get_database_settings
+    from server.repositories.database.initializer import initialize_database
+
     start = time.perf_counter()
     database_settings = get_database_settings()
     logger.info(
-        "Starting database initialization for %s",
+        "Starting %s database initialization for %s",
+        arguments.app,
         database_settings.backend,
     )
     initialize_database(database_settings)

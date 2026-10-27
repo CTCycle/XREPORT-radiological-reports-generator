@@ -1274,6 +1274,25 @@
             ],
             "title": "State"
           },
+          "application": {
+            "type": "string",
+            "title": "Application"
+          },
+          "schema_revision": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Schema Revision"
+          },
+          "schema_head": {
+            "type": "string",
+            "title": "Schema Head"
+          },
           "active": {
             "anyOf": [
               {
@@ -1315,6 +1334,8 @@
         "type": "object",
         "required": [
           "state",
+          "application",
+          "schema_head",
           "suggested",
           "connected",
           "schema_ready",
@@ -3021,7 +3042,14 @@
             "$ref": "#/components/schemas/RuntimeJobSettings"
           },
           "inference": {
-            "$ref": "#/components/schemas/RuntimeInferenceSettings"
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/RuntimeInferenceSettings"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "theme_preference": {
             "anyOf": [

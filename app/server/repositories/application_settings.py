@@ -6,51 +6,49 @@ from typing import Any
 
 from sqlalchemy import select
 
-from server.configurations.settings import ApplicationSettingsValues
+from server.configurations.settings import (
+    ApplicationSettingsValues,
+    InferenceSettingsValues,
+)
 from server.repositories.database import Database, get_database
-from server.repositories.schemas import ApplicationSettingsRecord
+from server.repositories.database.schema import application_schema
 
 
 _SETTINGS_ID = 1
-_PUBLIC_COLUMNS = frozenset(
-    {
-        "global_seed",
-        "job_polling_interval",
-        "inference_model_timeout",
-        "inference_model_idle_timeout",
-        "inference_max_new_tokens_deterministic",
-        "inference_max_new_tokens_concise",
-        "inference_max_new_tokens_detailed",
-        "inference_detailed_num_beams",
-        "theme_preference",
-    }
-)
 
 ###############################################################################
 class ApplicationSettingsRepository:
-    """Database authority for the singleton application-settings row."""
+    """Database authority for the active application's singleton settings row."""
 
     # -------------------------------------------------------------------------
     def __init__(self, database: Database | None = None) -> None:
         self.database = database or get_database()
+        schema = application_schema()
+        self.record_model = schema.settings_model
+        self.values_model: type[ApplicationSettingsValues] = (
+            ApplicationSettingsValues
+            if schema.profile == "studio"
+            else InferenceSettingsValues
+        )
+        self.columns = frozenset(self.values_model.model_fields)
 
     # -------------------------------------------------------------------------
     def get_settings(self) -> ApplicationSettingsValues:
         with self.database.read_session() as session:
             record = session.execute(
-                select(ApplicationSettingsRecord).where(
-                    ApplicationSettingsRecord.settings_id == _SETTINGS_ID
+                select(self.record_model).where(
+                    self.record_model.settings_id == _SETTINGS_ID
                 )
             ).scalar_one_or_none()
         if record is None:
             raise RuntimeError("Application settings row is missing")
-        return self._validate_record(record)
+        return self.values_model.model_validate(self._record_values(record))
 
     # -------------------------------------------------------------------------
     def update_public_settings(
         self, changes: Mapping[str, Any]
     ) -> ApplicationSettingsValues:
-        unknown = set(changes).difference(_PUBLIC_COLUMNS)
+        unknown = set(changes).difference(self.columns)
         if unknown:
             raise ValueError(
                 "Unsupported application setting column(s): "
@@ -61,25 +59,15 @@ class ApplicationSettingsRepository:
 
         with self.database.transaction() as session:
             record = session.execute(
-                select(ApplicationSettingsRecord)
-                .where(ApplicationSettingsRecord.settings_id == _SETTINGS_ID)
+                select(self.record_model)
+                .where(self.record_model.settings_id == _SETTINGS_ID)
                 .with_for_update()
             ).scalar_one_or_none()
             if record is None:
                 raise RuntimeError("Application settings row is missing")
-            candidate = {
-                "global_seed": record.global_seed,
-                "job_polling_interval": record.job_polling_interval,
-                "inference_model_timeout": record.inference_model_timeout,
-                "inference_model_idle_timeout": record.inference_model_idle_timeout,
-                "inference_max_new_tokens_deterministic": record.inference_max_new_tokens_deterministic,
-                "inference_max_new_tokens_concise": record.inference_max_new_tokens_concise,
-                "inference_max_new_tokens_detailed": record.inference_max_new_tokens_detailed,
-                "inference_detailed_num_beams": record.inference_detailed_num_beams,
-                "theme_preference": record.theme_preference,
-                **changes,
-            }
-            values = ApplicationSettingsValues.model_validate(candidate)
+            values = self.values_model.model_validate(
+                {**self._record_values(record), **changes}
+            )
             for column, value in changes.items():
                 setattr(record, column, value)
             record.updated_at = datetime.now(timezone.utc)
@@ -90,38 +78,11 @@ class ApplicationSettingsRepository:
     def reset_public_settings(
         self, defaults: ApplicationSettingsValues
     ) -> ApplicationSettingsValues:
-        return self.update_public_settings(
-            {
-                "global_seed": defaults.global_seed,
-                "job_polling_interval": defaults.job_polling_interval,
-                "inference_model_timeout": defaults.inference_model_timeout,
-                "inference_model_idle_timeout": defaults.inference_model_idle_timeout,
-                "inference_max_new_tokens_deterministic": defaults.inference_max_new_tokens_deterministic,
-                "inference_max_new_tokens_concise": defaults.inference_max_new_tokens_concise,
-                "inference_max_new_tokens_detailed": defaults.inference_max_new_tokens_detailed,
-                "inference_detailed_num_beams": defaults.inference_detailed_num_beams,
-                "theme_preference": defaults.theme_preference,
-            }
-        )
+        return self.update_public_settings(defaults.model_dump())
 
     # -------------------------------------------------------------------------
-    @staticmethod
-    def _validate_record(
-        record: ApplicationSettingsRecord,
-    ) -> ApplicationSettingsValues:
-        return ApplicationSettingsValues.model_validate(
-            {
-                "global_seed": record.global_seed,
-                "job_polling_interval": record.job_polling_interval,
-                "inference_model_timeout": record.inference_model_timeout,
-                "inference_model_idle_timeout": record.inference_model_idle_timeout,
-                "inference_max_new_tokens_deterministic": record.inference_max_new_tokens_deterministic,
-                "inference_max_new_tokens_concise": record.inference_max_new_tokens_concise,
-                "inference_max_new_tokens_detailed": record.inference_max_new_tokens_detailed,
-                "inference_detailed_num_beams": record.inference_detailed_num_beams,
-                "theme_preference": record.theme_preference,
-            }
-        )
+    def _record_values(self, record: Any) -> dict[str, Any]:
+        return {column: getattr(record, column) for column in self.columns}
 
 
 __all__ = ["ApplicationSettingsRepository"]

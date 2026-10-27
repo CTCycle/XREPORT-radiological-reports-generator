@@ -52,7 +52,8 @@ class ServerSettings:
     database: DatabaseSettings
     global_settings: GlobalSettings
     jobs: JobsSettings
-    inference: InferenceSettings
+    # Only XREPORT Inference persists inference controls; Studio has none.
+    inference: InferenceSettings | None
 
 ###############################################################################
 class ApplicationSettingsValues(BaseModel):
@@ -66,6 +67,12 @@ class ApplicationSettingsValues(BaseModel):
         le=60.0,
         allow_inf_nan=False,
     )
+    theme_preference: Literal["light", "dark", "system"] | None = None
+
+###############################################################################
+class InferenceSettingsValues(ApplicationSettingsValues):
+    """XREPORT Inference settings, adding local inference operation limits."""
+
     inference_model_timeout: int = Field(ge=1)
     inference_model_idle_timeout: int = Field(ge=0)
     # 0 defers to the selected model adapter's own profile default.
@@ -73,10 +80,14 @@ class ApplicationSettingsValues(BaseModel):
     inference_max_new_tokens_concise: int = Field(default=0, ge=0, le=4096)
     inference_max_new_tokens_detailed: int = Field(default=0, ge=0, le=4096)
     inference_detailed_num_beams: int = Field(default=0, ge=0, le=8)
-    theme_preference: Literal["light", "dark", "system"] | None = None
 
 
-DEFAULT_APPLICATION_SETTINGS = ApplicationSettingsValues(
+DEFAULT_STUDIO_SETTINGS = ApplicationSettingsValues(
+    global_seed=42,
+    job_polling_interval=1.0,
+    theme_preference=None,
+)
+DEFAULT_INFERENCE_SETTINGS = InferenceSettingsValues(
     global_seed=42,
     job_polling_interval=1.0,
     inference_model_timeout=600,
@@ -89,16 +100,18 @@ DEFAULT_APPLICATION_SETTINGS = ApplicationSettingsValues(
 )
 
 ###############################################################################
+def default_application_settings(profile: str) -> ApplicationSettingsValues:
+    return DEFAULT_STUDIO_SETTINGS if profile == "studio" else DEFAULT_INFERENCE_SETTINGS
+
+###############################################################################
 def application_settings_to_server_settings(
     values: ApplicationSettingsValues,
     database: DatabaseSettings,
 ) -> ServerSettings:
-    runtime = get_runtime_environment_settings()
-    return ServerSettings(
-        database=database,
-        global_settings=GlobalSettings(seed=values.global_seed),
-        jobs=JobsSettings(polling_interval=values.job_polling_interval),
-        inference=InferenceSettings(
+    inference: InferenceSettings | None = None
+    if isinstance(values, InferenceSettingsValues):
+        runtime = get_runtime_environment_settings()
+        inference = InferenceSettings(
             hf_local_only=runtime.inference_hf_local_only,
             device=runtime.inference_device,
             model_timeout=values.inference_model_timeout,
@@ -107,5 +120,10 @@ def application_settings_to_server_settings(
             max_new_tokens_concise=values.inference_max_new_tokens_concise,
             max_new_tokens_detailed=values.inference_max_new_tokens_detailed,
             detailed_num_beams=values.inference_detailed_num_beams,
-        ),
+        )
+    return ServerSettings(
+        database=database,
+        global_settings=GlobalSettings(seed=values.global_seed),
+        jobs=JobsSettings(polling_interval=values.job_polling_interval),
+        inference=inference,
     )

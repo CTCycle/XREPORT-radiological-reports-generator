@@ -17,7 +17,7 @@ from server.common.constants import (
 )
 from server.common.utils.logger import logger
 from server.repositories.database import Database
-from server.repositories.schemas import (
+from server.repositories.schemas.studio import (
     Dataset,
     DatasetRecord,
     DatasetVersion,

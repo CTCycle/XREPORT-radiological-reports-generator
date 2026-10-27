@@ -30,6 +30,9 @@ class DatabaseConfigurationStatusResponse(BaseModel):
     model_config = ConfigDict(extra="forbid", strict=True)
 
     state: Literal["ready", "recovery", "unavailable"]
+    application: str
+    schema_revision: str | None = None
+    schema_head: str
     active: DatabaseConfigurationSummary | None = None
     suggested: DatabaseConfigurationSummary
     connected: bool

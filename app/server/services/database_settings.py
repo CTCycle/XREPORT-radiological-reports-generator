@@ -5,7 +5,9 @@ from functools import lru_cache
 import re
 from typing import Any
 
-from sqlalchemy import inspect, text
+from sqlalchemy import column as sqlalchemy_column
+from sqlalchemy import inspect, select
+from sqlalchemy import table as sqlalchemy_table
 
 from server.common.path import DATABASE_FILE_PATH
 from server.configurations.database_config import (
@@ -30,7 +32,11 @@ from server.repositories.database.backend import (
     rollback_database_activation,
 )
 from server.repositories.database.engine import Database
-from server.repositories.database.initializer import HEAD_REVISION
+from server.repositories.database.initializer import (
+    database_ownership_error,
+    schema_head,
+)
+from server.repositories.database.schema import application_schema
 from server.services.jobs import get_job_manager
 from server.services.settings import SettingsService
 
@@ -38,6 +44,17 @@ from server.services.settings import SettingsService
 ###############################################################################
 class DatabaseSwitchBusyError(RuntimeError):
     """Raised when database switching would interrupt an active background job."""
+
+
+###############################################################################
+@dataclass(frozen=True)
+class DatabaseProbe:
+    connected: bool
+    schema_ready: bool
+    # False when the database belongs to another schema and must not be used.
+    compatible: bool
+    revision: str | None
+    detail: str
 
 
 ###############################################################################
@@ -60,13 +77,14 @@ class DatabaseSettingsService:
     ) -> DatabaseConfigurationStatusResponse:
         stored = read_database_configuration_status()
         configuration = stored.configuration
-        connected = False
-        schema_ready = False
+        probe: DatabaseProbe | None = None
         connection_error = stored.error or startup_error
         if configuration is not None:
-            connected, schema_ready, detail = self._probe(configuration)
-            if not connected or not schema_ready:
-                connection_error = detail
+            probe = self._probe(configuration)
+            if not probe.connected or not probe.schema_ready:
+                connection_error = probe.detail
+        connected = probe is not None and probe.connected
+        schema_ready = probe is not None and probe.schema_ready
 
         if not database_ready:
             state = "recovery"
@@ -77,6 +95,9 @@ class DatabaseSettingsService:
 
         return DatabaseConfigurationStatusResponse(
             state=state,
+            application=application_schema().title,
+            schema_revision=probe.revision if probe is not None else None,
+            schema_head=schema_head(),
             active=self._summary(configuration) if configuration else None,
             suggested=self._summary(
                 DatabaseConfiguration(
@@ -95,16 +116,15 @@ class DatabaseSettingsService:
         self, candidate: DatabaseConfiguration
     ) -> DatabaseConnectionTestResponse:
         resolved = self._preserve_saved_password(candidate)
-        connected, schema_ready, detail = self._probe(resolved)
-        if connected and not schema_ready:
+        probe = self._probe(resolved)
+        detail = probe.detail
+        if probe.connected and probe.compatible and not probe.schema_ready:
             detail = "Connection succeeded. The application schema will be prepared when you switch."
-        elif connected:
-            detail = "Connection and application schema are ready."
         return DatabaseConnectionTestResponse(
-            success=connected,
+            success=probe.connected and probe.compatible,
             backend=resolved.backend,
-            connected=connected,
-            schema_ready=schema_ready,
+            connected=probe.connected,
+            schema_ready=probe.schema_ready,
             detail=detail,
         )
 
@@ -135,11 +155,11 @@ class DatabaseSettingsService:
             from server.services.startup_validation import run_startup_validations
 
             server_settings = run_startup_validations(server_settings)
-            connected, schema_ready, detail = self._probe(resolved)
-            if not connected or not schema_ready:
+            probe = self._probe(resolved)
+            if not probe.connected or not probe.schema_ready:
                 raise DatabaseConfigurationError(
                     "The target database did not pass its connection and schema checks: "
-                    + detail
+                    + probe.detail
                 )
 
             response = DatabaseSwitchResponse(
@@ -187,32 +207,55 @@ class DatabaseSettingsService:
 
     # -------------------------------------------------------------------------
     @staticmethod
-    def _probe(
-        configuration: DatabaseConfiguration,
-    ) -> tuple[bool, bool, str]:
+    def _probe(configuration: DatabaseConfiguration) -> DatabaseProbe:
+        schema = application_schema()
         database: Database | None = None
         try:
             database = Database(configuration.to_database_settings())
             with database.engine.connect() as connection:
-                connection.execute(text("SELECT 1"))
-                inspector = inspect(connection)
-                if not inspector.has_table("alembic_version"):
-                    return True, False, "Connection succeeded, but the application schema is not initialized."
-                if not inspector.has_table("application_settings"):
-                    return True, False, "Connection succeeded, but the application settings table is missing."
-                revisions = connection.execute(
-                    text("SELECT version_num FROM alembic_version")
-                ).scalars().all()
-                if revisions != [HEAD_REVISION]:
-                    return (
+                table_names = set(inspect(connection).get_table_names())
+                ownership_error = database_ownership_error(table_names, schema)
+                if ownership_error:
+                    return DatabaseProbe(True, False, False, None, ownership_error)
+                if schema.version_table not in table_names:
+                    if table_names:
+                        return DatabaseProbe(
+                            True,
+                            False,
+                            False,
+                            None,
+                            f"The database contains tables but no {schema.title} schema.",
+                        )
+                    return DatabaseProbe(
                         True,
                         False,
+                        True,
+                        None,
+                        "Connection succeeded, but the application schema is not initialized.",
+                    )
+                revisions = (
+                    connection.execute(
+                        select(sqlalchemy_column("version_num")).select_from(
+                            sqlalchemy_table(schema.version_table)
+                        )
+                    )
+                    .scalars()
+                    .all()
+                )
+                revision = revisions[0] if len(revisions) == 1 else None
+                if revision != schema_head(schema):
+                    return DatabaseProbe(
+                        True,
+                        False,
+                        True,
+                        revision,
                         "Connection succeeded, but the schema revision is not current.",
                     )
-                return True, True, "Connection and application schema are ready."
+                return DatabaseProbe(
+                    True, True, True, revision, "Connection and application schema are ready."
+                )
         except Exception as exc:  # noqa: BLE001
-            message = _sanitize_database_error(exc)
-            return False, False, message
+            return DatabaseProbe(False, False, False, None, _sanitize_database_error(exc))
         finally:
             if database is not None:
                 database.engine.dispose()

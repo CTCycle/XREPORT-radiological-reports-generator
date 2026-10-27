@@ -2671,12 +2671,15 @@ function Invoke-InitializeDatabase {
     Ensure-PortableRuntimes
     Initialize-Environment
     if (-not (Test-Path -LiteralPath $InitDatabaseScript)) { throw "Missing database script: $InitDatabaseScript" }
+    $appProfile = if ($App -eq 'Studio') { 'studio' } else { 'xreport' }
     $previousPythonPath = $env:PYTHONPATH
+    $previousApp = [Environment]::GetEnvironmentVariable('XREPORT_APP', 'Process')
     $env:PYTHONPATH = Join-Path $RepoRoot 'app'
+    $env:XREPORT_APP = $appProfile
     try {
         Invoke-Checked -FilePath $UvExe -ArgumentList @(
             'run', '--project', 'app/server', '--python', $PythonExe, 'python',
-            'app/scripts/initialize_database.py'
+            'app/scripts/initialize_database.py', '--app', $appProfile
         ) -WorkingDirectory $RepoRoot
     } finally {
         if ($null -eq $previousPythonPath) {
@@ -2684,8 +2687,10 @@ function Invoke-InitializeDatabase {
         } else {
             $env:PYTHONPATH = $previousPythonPath
         }
+        if ($null -eq $previousApp) { Remove-Item Env:XREPORT_APP -ErrorAction SilentlyContinue }
+        else { $env:XREPORT_APP = $previousApp }
     }
-    Write-Ok 'Database initialization completed'
+    Write-Ok "Database initialization completed for $(Get-AppLabel)"
 }
 
 function Invoke-TestSuite {
@@ -3192,7 +3197,7 @@ while ($true) {
                 'Install' { Invoke-InstallOrUpdate }
                 'InstallStudio' { Invoke-InstallStudio }
                 'Rebuild' { Invoke-RebuildFrontend }
-                'Database' { Invoke-InitializeDatabase }
+                'Database' { Select-LauncherApplication; Invoke-InitializeDatabase }
                 'Tests' { Invoke-TestSuite }
                 'Update' { Invoke-Update }
                 'CreateRelease' { Invoke-CreateDesktopArtifactsMenu }

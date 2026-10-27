@@ -23,7 +23,7 @@ from server.repositories.database.utils import (
     validate_table_name,
     validate_unique_key_values,
 )
-from server.repositories.schemas import Base
+from server.repositories.database.schema import application_schema
 
 ###############################################################################
 @dataclass(frozen=True)
@@ -154,9 +154,9 @@ class Database:
 
     # -------------------------------------------------------------------------
     def get_table_class(self, table_name: str) -> Any:
-        for cls in Base.__subclasses__():
-            if getattr(cls, "__tablename__", None) == table_name:
-                return cls
+        for mapper in application_schema().base.registry.mappers:
+            if mapper.local_table.name == table_name:
+                return mapper.class_
         raise ValueError(f"No table class found for name {table_name}")
 
     # -------------------------------------------------------------------------

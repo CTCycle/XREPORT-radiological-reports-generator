@@ -31,6 +31,9 @@ export type DatabaseConfigurationSummary = Omit<DatabaseConfigurationDraft, 'pas
 
 export interface DatabaseConfigurationStatus {
   state: 'ready' | 'recovery' | 'unavailable';
+  application: string;
+  schema_revision: string | null;
+  schema_head: string;
   active: DatabaseConfigurationSummary | null;
   suggested: DatabaseConfigurationSummary;
   connected: boolean;
@@ -52,17 +55,20 @@ export interface DatabaseSwitchResult {
   settings: ApplicationSettingsResponse;
 }
 
+export interface EditableInferenceSettings {
+  model_timeout: number;
+  model_idle_timeout: number;
+  max_new_tokens_deterministic: number;
+  max_new_tokens_concise: number;
+  max_new_tokens_detailed: number;
+  detailed_num_beams: number;
+}
+
 export interface EditableSettings {
   global: { seed: number };
   jobs: { polling_interval: number };
-  inference: {
-    model_timeout: number;
-    model_idle_timeout: number;
-    max_new_tokens_deterministic: number;
-    max_new_tokens_concise: number;
-    max_new_tokens_detailed: number;
-    detailed_num_beams: number;
-  };
+  // Null for XREPORT Studio, whose database stores no inference controls.
+  inference: EditableInferenceSettings | null;
 }
 
 export interface StorageFolder {

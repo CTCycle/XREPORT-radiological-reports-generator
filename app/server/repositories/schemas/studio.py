@@ -1,3 +1,5 @@
+"""XREPORT Studio ORM schema: datasets, preparation, training, and evaluation."""
+
 from __future__ import annotations
 
 from datetime import datetime, timezone
@@ -17,37 +19,22 @@ from sqlalchemy import (
 )
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
+from server.repositories.schemas.checkpoint import CheckpointColumns
 from server.repositories.schemas.normalization import normalize_key
 from server.repositories.schemas.types import JSONSequence, UTCDateTime
 
 ###############################################################################
-class Base(DeclarativeBase):
+class StudioBase(DeclarativeBase):
     pass
 
 ###############################################################################
-class ApplicationSettingsRecord(Base):
-    """Singleton persisted application settings row."""
+class StudioSettingsRecord(StudioBase):
+    """Singleton persisted XREPORT Studio settings row."""
 
     __tablename__ = "application_settings"
     settings_id: Mapped[int] = mapped_column(Integer, primary_key=True)
     global_seed: Mapped[int] = mapped_column(BigInteger, nullable=False)
     job_polling_interval: Mapped[float] = mapped_column(Float, nullable=False)
-    inference_model_timeout: Mapped[int] = mapped_column(BigInteger, nullable=False)
-    inference_model_idle_timeout: Mapped[int] = mapped_column(
-        BigInteger, nullable=False, default=300
-    )
-    inference_max_new_tokens_deterministic: Mapped[int] = mapped_column(
-        BigInteger, nullable=False, default=0
-    )
-    inference_max_new_tokens_concise: Mapped[int] = mapped_column(
-        BigInteger, nullable=False, default=0
-    )
-    inference_max_new_tokens_detailed: Mapped[int] = mapped_column(
-        BigInteger, nullable=False, default=0
-    )
-    inference_detailed_num_beams: Mapped[int] = mapped_column(
-        BigInteger, nullable=False, default=0
-    )
     theme_preference: Mapped[str | None] = mapped_column(
         String(8), nullable=True, default=None
     )
@@ -67,31 +54,13 @@ class ApplicationSettingsRecord(Base):
             name="ck_application_settings_polling_interval",
         ),
         CheckConstraint(
-            "inference_model_timeout >= 1",
-            name="ck_application_settings_model_timeout",
-        ),
-        CheckConstraint(
-            "inference_model_idle_timeout >= 0",
-            name="ck_application_settings_model_idle_timeout",
-        ),
-        CheckConstraint(
-            "inference_max_new_tokens_deterministic >= 0 AND inference_max_new_tokens_deterministic <= 4096"
-            " AND inference_max_new_tokens_concise >= 0 AND inference_max_new_tokens_concise <= 4096"
-            " AND inference_max_new_tokens_detailed >= 0 AND inference_max_new_tokens_detailed <= 4096",
-            name="ck_application_settings_max_new_tokens",
-        ),
-        CheckConstraint(
-            "inference_detailed_num_beams >= 0 AND inference_detailed_num_beams <= 8",
-            name="ck_application_settings_detailed_num_beams",
-        ),
-        CheckConstraint(
             "theme_preference IS NULL OR theme_preference IN ('light', 'dark', 'system')",
             name="ck_application_settings_theme_preference",
         ),
     )
 
 ###############################################################################
-class Dataset(Base):
+class Dataset(StudioBase):
     """Canonical dataset identity."""
 
     __tablename__ = "datasets"
@@ -135,7 +104,7 @@ class Dataset(Base):
     )
 
 ###############################################################################
-class DatasetRecord(Base):
+class DatasetRecord(StudioBase):
     """Canonical image/report records belonging to a dataset."""
 
     __tablename__ = "dataset_records"
@@ -180,13 +149,9 @@ class DatasetRecord(Base):
         back_populates="record",
         cascade="all, delete-orphan",
     )
-    inference_reports: Mapped[list[InferenceReport]] = relationship(
-        "InferenceReport",
-        back_populates="record",
-    )
 
 ###############################################################################
-class DatasetVersion(Base):
+class DatasetVersion(StudioBase):
     """Immutable snapshot of one logical imported dataset."""
 
     __tablename__ = "dataset_versions"
@@ -219,7 +184,7 @@ class DatasetVersion(Base):
     )
 
 ###############################################################################
-class ProcessingRun(Base):
+class ProcessingRun(StudioBase):
     """Preprocessing run metadata and configuration."""
 
     __tablename__ = "processing_runs"
@@ -270,7 +235,7 @@ class ProcessingRun(Base):
     )
 
 ###############################################################################
-class TrainingSample(Base):
+class TrainingSample(StudioBase):
     """Processed training samples linked to preprocessing runs and source records."""
 
     __tablename__ = "training_samples"
@@ -309,7 +274,7 @@ class TrainingSample(Base):
     )
 
 ###############################################################################
-class ValidationRun(Base):
+class ValidationRun(StudioBase):
     """Validation run metadata and aggregate metric payloads."""
 
     __tablename__ = "validation_runs"
@@ -351,38 +316,17 @@ class ValidationRun(Base):
     dataset: Mapped[Dataset] = relationship("Dataset", back_populates="validation_runs")
 
 ###############################################################################
-class Checkpoint(Base):
-    """Canonical checkpoint identity."""
+class Checkpoint(CheckpointColumns, StudioBase):
+    """Trained checkpoint identity."""
 
-    __tablename__ = "checkpoints"
-    checkpoint_id: Mapped[int] = mapped_column(
-        Integer, primary_key=True, autoincrement=True
-    )
-    name: Mapped[str] = mapped_column(String, nullable=False)
-    name_key: Mapped[str] = mapped_column(String(255), nullable=False)
-    path: Mapped[str] = mapped_column(Text, nullable=False)
-    created_at: Mapped[datetime] = mapped_column(
-        UTCDateTime(),
-        nullable=False,
-        default=lambda: datetime.now(timezone.utc),
-    )
-    last_seen_at: Mapped[datetime] = mapped_column(
-        UTCDateTime(), nullable=False, default=lambda: datetime.now(timezone.utc)
-    )
-    __table_args__ = (UniqueConstraint("name_key", name="uq_checkpoints_name_key"),)
     evaluations: Mapped[list[CheckpointEvaluation]] = relationship(
         "CheckpointEvaluation",
         back_populates="checkpoint",
         passive_deletes=True,
     )
-    inference_runs: Mapped[list[InferenceRun]] = relationship(
-        "InferenceRun",
-        back_populates="checkpoint",
-        passive_deletes=True,
-    )
 
 ###############################################################################
-class CheckpointEvaluation(Base):
+class CheckpointEvaluation(StudioBase):
     """Latest checkpoint evaluation payload."""
 
     __tablename__ = "checkpoint_evaluations"
@@ -410,93 +354,6 @@ class CheckpointEvaluation(Base):
     )
 
 ###############################################################################
-class InferenceRun(Base):
-    """Inference execution metadata."""
-
-    __tablename__ = "inference_runs"
-    inference_run_id: Mapped[int] = mapped_column(
-        Integer, primary_key=True, autoincrement=True
-    )
-    checkpoint_id: Mapped[int | None] = mapped_column(
-        Integer,
-        ForeignKey("checkpoints.checkpoint_id", ondelete="RESTRICT"),
-        nullable=True,
-    )
-    provider: Mapped[str] = mapped_column(String(32), nullable=False)
-    model_ref: Mapped[str] = mapped_column(String(512), nullable=False)
-    model_revision: Mapped[str | None] = mapped_column(String(64), nullable=True)
-    generation_profile: Mapped[str] = mapped_column(String(32), nullable=False)
-    generation_config_json: Mapped[Any] = mapped_column(JSONSequence, nullable=False)
-    clinical_context: Mapped[str | None] = mapped_column(Text, nullable=True)
-    request_id: Mapped[str] = mapped_column(String(64), nullable=False)
-    status: Mapped[str] = mapped_column(String(16), nullable=False, default="succeeded")
-    execution_time_seconds: Mapped[float | None] = mapped_column(Float, nullable=True)
-    executed_at: Mapped[datetime] = mapped_column(
-        UTCDateTime(),
-        nullable=False,
-        default=lambda: datetime.now(timezone.utc),
-    )
-    __table_args__ = (
-        CheckConstraint(
-            "status IN ('queued', 'running', 'succeeded', 'failed', 'cancelled')",
-            name="ck_inference_runs_status",
-        ),
-        UniqueConstraint("request_id", name="uq_inference_runs_request_id"),
-    )
-    checkpoint: Mapped[Checkpoint | None] = relationship(
-        "Checkpoint", back_populates="inference_runs"
-    )
-    reports: Mapped[list[InferenceReport]] = relationship(
-        "InferenceReport",
-        back_populates="inference_run",
-        cascade="all, delete-orphan",
-    )
-
-###############################################################################
-class InferenceReport(Base):
-    """Generated reports linked to inference runs."""
-
-    __tablename__ = "inference_reports"
-    inference_report_id: Mapped[int] = mapped_column(
-        Integer, primary_key=True, autoincrement=True
-    )
-    inference_run_id: Mapped[int] = mapped_column(
-        Integer,
-        ForeignKey("inference_runs.inference_run_id", ondelete="CASCADE"),
-        nullable=False,
-    )
-    record_id: Mapped[int | None] = mapped_column(
-        Integer,
-        ForeignKey("dataset_records.record_id", ondelete="SET NULL"),
-        nullable=True,
-    )
-    input_image_name: Mapped[str] = mapped_column(String, nullable=False)
-    input_image_name_key: Mapped[str] = mapped_column(String(512), nullable=False)
-    image_index: Mapped[int] = mapped_column(Integer, nullable=False)
-    generated_report: Mapped[str] = mapped_column(Text, nullable=False)
-    edited_report: Mapped[str | None] = mapped_column(Text, nullable=True)
-    edited_at: Mapped[datetime | None] = mapped_column(
-        UTCDateTime(), nullable=True
-    )
-    __table_args__ = (
-        UniqueConstraint(
-            "inference_run_id",
-            "input_image_name_key",
-            name="uq_inference_reports_run_image",
-        ),
-        UniqueConstraint(
-            "inference_run_id", "image_index", name="uq_inference_reports_run_index"
-        ),
-        CheckConstraint("image_index >= 0", name="ck_inference_reports_image_index"),
-    )
-    inference_run: Mapped[InferenceRun] = relationship(
-        "InferenceRun", back_populates="reports"
-    )
-    record: Mapped[DatasetRecord | None] = relationship(
-        "DatasetRecord", back_populates="inference_reports"
-    )
-
-###############################################################################
 @event.listens_for(Dataset, "before_insert")
 def _populate_dataset_name_key(_mapper: Any, _connection: Any, target: Dataset) -> None:
     target.name_key = normalize_key(target.name)
@@ -508,9 +365,16 @@ def _populate_image_name_key(
 ) -> None:
     target.image_name_key = normalize_key(target.image_name)
 
-###############################################################################
-@event.listens_for(Checkpoint, "before_insert")
-def _populate_checkpoint_name_key(
-    _mapper: Any, _connection: Any, target: Checkpoint
-) -> None:
-    target.name_key = normalize_key(target.name)
+
+__all__ = [
+    "Checkpoint",
+    "CheckpointEvaluation",
+    "Dataset",
+    "DatasetRecord",
+    "DatasetVersion",
+    "ProcessingRun",
+    "StudioBase",
+    "StudioSettingsRecord",
+    "TrainingSample",
+    "ValidationRun",
+]

@@ -5,18 +5,16 @@ from datetime import datetime, timezone
 from typing import Any
 
 import pandas as pd
-from sqlalchemy import delete, select
+from sqlalchemy import delete
 from sqlalchemy.orm import Session
 
-from server.common.constants import DATASETS_TABLE, TABLE_REQUIRED_COLUMNS
+from server.common.constants import TABLE_REQUIRED_COLUMNS
 from server.common.utils.logger import logger
 from server.repositories.database import Database, get_database
 from server.repositories.database.utils import (
     validate_sql_identifier,
     validate_table_name,
 )
-from server.repositories.schemas import Dataset
-from server.repositories.schemas.normalization import normalize_key
 
 ###############################################################################
 class RepositorySupport:
@@ -137,41 +135,6 @@ class RepositorySupport:
     # -------------------------------------------------------------------------
     def _get_table_class(self, table_name: str) -> Any:
         return self.database.get_table_class(validate_table_name(table_name))
-
-    # -------------------------------------------------------------------------
-    def _get_dataset_id(self, dataset_name: str) -> int | None:
-        with self.database.read_session() as session:
-            dataset_id = session.execute(
-                select(Dataset.dataset_id).where(
-                    Dataset.name_key == normalize_key(dataset_name)
-                )
-            ).scalar_one_or_none()
-        return int(dataset_id) if dataset_id is not None else None
-
-    # -------------------------------------------------------------------------
-    def _ensure_dataset(self, dataset_name: str) -> int:
-        normalized_name = str(dataset_name or "").strip()
-        if not normalized_name:
-            raise ValueError("Dataset name cannot be empty")
-        existing_id = self._get_dataset_id(normalized_name)
-        if existing_id is not None:
-            return existing_id
-        self.upsert_table(
-            pd.DataFrame(
-                [
-                    {
-                        "name": normalized_name,
-                        "name_key": normalize_key(normalized_name),
-                        "created_at": self._now_utc(),
-                    }
-                ]
-            ),
-            DATASETS_TABLE,
-        )
-        created_id = self._get_dataset_id(normalized_name)
-        if created_id is None:
-            raise RuntimeError(f"Failed to create dataset: {normalized_name}")
-        return created_id
 
     # -------------------------------------------------------------------------
     def _delete_by_key(self, table_name: str, column_name: str, value: Any) -> None:

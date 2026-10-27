@@ -8,7 +8,7 @@ from sqlalchemy import delete, func, select
 from sqlalchemy.orm import selectinload
 
 from server.repositories.checkpoints import CheckpointRepository
-from server.repositories.schemas import InferenceReport, InferenceRun
+from server.repositories.schemas.inference import InferenceReport, InferenceRun
 from server.repositories.schemas.normalization import normalize_key
 from server.repositories.serialization.support import RepositorySupport
 
@@ -95,7 +95,6 @@ class InferenceRepository(RepositorySupport):
                     input_image_name_key=normalize_key(str(report["image"])),
                     image_index=index,
                     generated_report=str(report["report"]),
-                    record_id=None,
                 )
                 for index, report in enumerate(reports)
             )

@@ -481,7 +481,7 @@ def test_inference_policy_is_composed_from_environment(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     from server.configurations.settings import (
-        DEFAULT_APPLICATION_SETTINGS,
+        DEFAULT_INFERENCE_SETTINGS,
         DatabaseSettings,
         application_settings_to_server_settings,
     )
@@ -504,7 +504,7 @@ def test_inference_policy_is_composed_from_environment(
     )
 
     settings = application_settings_to_server_settings(
-        DEFAULT_APPLICATION_SETTINGS, database
+        DEFAULT_INFERENCE_SETTINGS, database
     )
 
     assert settings.inference.hf_local_only is False
