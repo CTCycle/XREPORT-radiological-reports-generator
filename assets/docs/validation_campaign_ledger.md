@@ -25,7 +25,7 @@ Last updated: 2026-10-24
   | V05 | `BLOCKED` | `919e3b61` / `develop` | Pinned encoder absent; no model weights fetched. |
   | V06 | `BLOCKED` | `9b298c54` / `develop` | Requires a V05 UI-trained checkpoint for format-2 export/import. |
   | V07 | `BLOCKED` | `9b298c54` / `develop` | Requires V06 imported custom model for real XREPORT inference. |
-  | V08 | `PARTIAL` | `9b298c54` / `develop` | UI lone-`.keras` and manifestless four-core ZIP rejected before job; no custom entry. Further archive cases depend on a V05 checkpoint. Dialog mismatch is `ISSUE-004`. |
+  | V08 | `PARTIAL` | `9b298c54` / `develop` | UI lone-`.keras` and manifestless four-core ZIP rejected before job; no custom entry. Further archive cases depend on a V05 checkpoint. |
   | V09 | `PARTIAL` | `9b298c54` / `develop` | Job completion, transient-poll recovery, and app-scoped stop/restart verified. Cancellation arrived after completion; duplicate-start refusal is unverified. |
   | V10 | `PARTIAL` | `9b298c54` / `develop` | Seven routes × four viewports across both apps; no document-level horizontal overflow. Studio `Rows` values clip at 320px (`ISSUE-005`). Reachable modal, keyboard, disabled-state and theme checks passed; reduced-motion emulation and screen-reader output were unavailable. Positive checkpoint/report paths remain blocked by V05. |
   | V11 | `PASS` | `e8ad7bed` / `develop` | Exact-SHA CI 40122131254; live Chromium 18/18 XREPORT and 14/14 Studio; 54 affected contract/job units; Angular 79/79 and Node 9/9; both builds and both lints. 331 Python cases were collected, not all run locally. V05–V07 remain independently blocked. |
