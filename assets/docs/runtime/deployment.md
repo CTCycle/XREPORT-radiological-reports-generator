@@ -4,7 +4,7 @@ Last updated: 2026-10-23
 
 ## Deployment Scope
 
-- XREPORT is a local client/server application.
+- XREPORT Inference is a local client/server application.
 - Windows users run the application through `start_on_windows.ps1`.
 - macOS and Linux source instructions use a manually started development
   backend and Angular development server.
@@ -25,7 +25,7 @@ Last updated: 2026-10-23
 
 ## Dependency Consistency
 
-- XREPORT's Windows source environment uses the locked `cuda` extra. Studio
+- XREPORT Inference's Windows source environment uses the locked `cuda` extra. Studio
   uses a separate environment with the locked `studio` and either `standard`
   (CPU) or `cuda` extra from `app/server/pyproject.toml` and `uv.lock`.
 - Python dependencies are synchronized with `uv sync --frozen` from the
@@ -110,10 +110,10 @@ matching GitHub Release. Signing is deliberately absent.
 
 ## Inference-only packages
 
-Tauri MSI and portable packages contain only XREPORT. `desktop_entry` runs the `xreport` profile, the
+Tauri MSI and portable packages contain only XREPORT Inference. `desktop_entry` runs the `xreport` profile, the
 PyInstaller spec excludes every module listed in `server/common/profile_modules.py` (dataset
 preparation, upload, training, validation, evaluation), and the runtime-bundle audit forbids `studio`
 and `studio-angular` members. XREPORT Studio has no installer, package, or release workflow. A unit
-test (`test_packaging_boundary.py`) keeps the XREPORT import closure free of Studio modules; package
+test (`test_packaging_boundary.py`) keeps the XREPORT Inference import closure free of Studio modules; package
 contents themselves were not rebuilt for this change (see the status ledger). Models are still not
 bundled; imported checkpoints live under the user data folder like other models.

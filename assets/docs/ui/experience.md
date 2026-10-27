@@ -69,7 +69,7 @@ Last updated: 2026-10-26
 - Unsaved inference edits prompt before the study is replaced (new images,
   Clear study) or regenerated. Browser reload and close use the standard
   `beforeunload` prompt where supported, because studies live in memory.
-- The status bar's **Free memory** button (XREPORT only) unloads the resident
+- The status bar's **Free memory** button (XREPORT Inference only) unloads the resident
   model and refreshes the RAM and VRAM readings. It is disabled while inference
   runs, and the backend also refuses a release during a run.
 
@@ -96,7 +96,7 @@ Last updated: 2026-10-26
 - Database settings stay as a draft until the user activates the connection. The backend prepares and validates the target before activation, and a failed switch restores the previous connection.
 - Help text explains that seed, polling interval, and inference timeout changes
   apply to new work; active jobs and generations retain their starting values.
-- **Unload idle models after** (Advanced, XREPORT only) sets the idle release
+- **Unload idle models after** (Advanced, XREPORT Inference only) sets the idle release
   timeout in seconds; `0` keeps the model loaded.
 
 ## Contextual Guidance

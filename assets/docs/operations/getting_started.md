@@ -18,8 +18,8 @@ For direct launch without the menu, run `powershell -ExecutionPolicy Bypass -Fil
 
 ### Optional XREPORT Studio Setup
 
-XREPORT and XREPORT Studio use separate Python environments. The regular
-XREPORT install does not install Studio-only packages. To prepare Studio ahead
+XREPORT Inference and XREPORT Studio use separate Python environments. The regular
+XREPORT Inference install does not install Studio-only packages. To prepare Studio ahead
 of time, choose **Install / update Studio** or run:
 
 ```powershell

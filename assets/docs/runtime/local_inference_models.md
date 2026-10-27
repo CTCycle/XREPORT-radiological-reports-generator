@@ -87,7 +87,7 @@ The backend owns this structure under the configured resource root (default
 
 ```text
 data/
-├── checkpoints/                         # custom XREPORT training outputs
+├── checkpoints/                         # custom Studio training outputs
 ├── models/huggingface/
 │   ├── installed/<model>/<revision>/    # active verified snapshot
 │   ├── staging/<operation>/<model>/<revision>/
@@ -170,7 +170,7 @@ applies to Hub metadata and to per-file download responses (HTTP 401/403).
   dependencies, unsupported hardware, model-load failures, cancellation, and
   inference failures. Secrets and local credential paths are redacted.
 
-## Custom XREPORT
+## Custom checkpoints
 
 Complete checkpoint artifacts are registered in the database and listed in the
 persistent **Custom XReport Models** section. The filesystem stores the

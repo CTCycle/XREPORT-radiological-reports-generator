@@ -10,7 +10,7 @@ from the repository root with:
 & ".\app\server\.venv\Scripts\python.exe" app/scripts/export_openapi.py
 ```
 
-then run `npm run generate:api` in `app/client`. The XREPORT application mounts the inference,
+then run `npm run generate:api` in `app/client`. The XREPORT Inference application mounts the inference,
 jobs, settings, and database-settings routers plus `POST /api/exchange/import`; XREPORT Studio mounts
 upload, preparation, training, validation, jobs, settings, database settings, `POST /api/exchange/export`,
 and `GET /api/exchange/exports/{filename}`. Endpoint groups below that belong to the other

@@ -112,7 +112,7 @@ Only these values are user-editable through Settings:
 - `global.seed` (`0` through `4,294,967,295`)
 - `jobs.polling_interval` (`0.25` through `60` seconds)
 - `inference.model_timeout` (at least `1` second)
-- `inference.model_idle_timeout` (`0` or more seconds; default `300`; `0` keeps the model loaded; XREPORT only in the UI)
+- `inference.model_idle_timeout` (`0` or more seconds; default `300`; `0` keeps the model loaded; XREPORT Inference only in the UI)
 - `theme_preference` (`light`, `dark`, or `system`)
 
 Changing a seed, polling interval, or inference timeout applies to newly started
@@ -139,7 +139,7 @@ configuration if activation fails. Switching pauses new API requests, drains
 in-flight requests, and is blocked while a background job is running. The
 selected database is initialized to the current Alembic head before activation.
 The application then reloads settings from that database. Databases remain
-independent; XREPORT does not copy records or settings between them.
+independent; The applications do not copy records or settings between them.
 
 If a database configuration is missing, corrupt, or unavailable at startup, a
 restricted Database settings screen lets the user repair or select a backend

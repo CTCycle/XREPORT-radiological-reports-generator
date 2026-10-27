@@ -103,7 +103,7 @@ installation profile:
 
 - `Development` includes Ruff, Pyright, pytest, Studio dependencies needed by
   the full backend test suite, and desktop build dependencies.
-- `Standard` installs XREPORT runtime dependencies only, including its existing
+- `Standard` installs XREPORT Inference runtime dependencies only, including its existing
   CUDA-capable Torch stack; Studio-only dependencies are omitted.
 
 XREPORT Studio has a separate Python environment at
@@ -118,7 +118,7 @@ powershell -ExecutionPolicy Bypass -File .\start_on_windows.ps1 -Action InstallS
 **Standard** installs CPU Torch and works without CUDA hardware. **CUDA** uses
 the pinned cu130 Torch stack and requires a supported NVIDIA GPU and driver.
 The profile controls the installed runtime; Studio's existing device settings
-still determine which device a job uses. The XREPORT and Studio environments
+still determine which device a job uses. The XREPORT Inference and Studio environments
 are isolated, so installing or changing Studio dependencies does not replace
 XREPORT's CUDA environment.
 
@@ -315,7 +315,7 @@ tokenizers, and logs while preserving application files, templates, and
 
 ## XREPORT Studio launch and application scope
 
-`-Action Launch` (and `-Launch`) starts XREPORT. `-Action LaunchStudio` starts
+`-Action Launch` (and `-Launch`) starts XREPORT Inference. `-Action LaunchStudio` starts
 XREPORT Studio on `STUDIO_FASTAPI_PORT` (default 5013) with its own Python
 environment, launch token, data folder (`<resources>/studio`), and Angular
 project (`studio-angular`). The launcher exports `XREPORT_APP` before starting
@@ -331,4 +331,4 @@ its own port and keeps the fail-closed handling of unknown listeners.
   `server.source_entry --app studio`. Unknown listeners are never stopped.
 - `RemoveLogs`, `RemoveCheckpoints`, and `RemoveAllData` act on one application (`-App`, or a prompt in
   the menu). Studio targets live under `<resources>/studio` and never include `models`.
-- Tauri builds (`BuildDesktopRelease`, `LaunchDesktopDev`) remain XREPORT-only.
+- Tauri builds (`BuildDesktopRelease`, `LaunchDesktopDev`) remain XREPORT Inference-only.

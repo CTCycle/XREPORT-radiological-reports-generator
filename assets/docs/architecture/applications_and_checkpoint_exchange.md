@@ -1,12 +1,12 @@
 # Applications and Checkpoint Exchange
 
-Last updated: 2026-10-23
+Last updated: 2026-10-27
 
-XREPORT is two independently launchable local applications in one repository.
+XREPORT is two independently launchable local applications in one repository: XREPORT Inference and XREPORT Studio.
 This file owns their boundary, data ownership, and the portable checkpoint
 contract that connects them.
 
-| | XREPORT | XREPORT Studio |
+| | XREPORT Inference | XREPORT Studio |
 |---|---|---|
 | Purpose | Inference, report history and review, importing models | Dataset import and preparation, validation, training, evaluation, exporting checkpoints |
 | Backend profile | `XREPORT_APP=xreport` (default) | `XREPORT_APP=studio` |
@@ -18,13 +18,13 @@ contract that connects them.
 ## Backend composition
 
 `server.app.create_app(profile)` assembles only the routers of its profile
-(`profile_routers`). Studio routers are resolved by name, so the XREPORT build
+(`profile_routers`). Studio routers are resolved by name, so the XREPORT Inference build
 never imports them. The profile must be known when the `server` package is
 imported (data roots are resolved at import time), so the launcher exports
 `XREPORT_APP` before starting `server.source_entry --app <profile>`; the entry
 point fails if the two disagree. `desktop_entry` supports only `xreport`.
 
-- XREPORT mounts inference, jobs, settings, database settings, and
+- XREPORT Inference mounts inference, jobs, settings, database settings, and
   `POST /api/exchange/import`.
 - Studio mounts upload, preparation, training, validation, jobs, settings,
   database settings, `POST /api/exchange/export`, and
@@ -33,26 +33,40 @@ point fails if the two disagree. `desktop_entry` supports only `xreport`.
   (`app/shared/openapi.xreport.json`, `openapi.studio.json`) and generated
   client types (`types/generated/{xreport,studio}`).
 - `server/common/profile_modules.py` lists the Studio-only modules. A unit test
-  walks the static import closure of `server.app` and fails if XREPORT can
+  walks the static import closure of `server.app` and fails if XREPORT Inference can
   reach any of them; the PyInstaller spec excludes the same list.
 - Modules under `server/models/training/` that checkpoints need at load time
   (`layers`, `metrics`, `scheduler`, `encoder`, `processing`, `dataloader`)
   stay shared and in place, because Keras serialises their registered names.
 
+- Both profiles run the same Alembic stream and settings model, so each database
+  also holds the other application's empty tables (for example `inference_runs` in
+  Studio, `datasets` in XREPORT Inference) and exposes shared setting groups. This
+  is intentional: one schema keeps migrations and checkpoint registry code single.
+  Per-profile schemas were considered and rejected as too risky for existing user
+  databases.
+- Python dependencies are one lock file. `nltk` and `openpyxl` (evaluation and
+  spreadsheet upload) and `opencv-python`/`matplotlib` live in the `studio` extra,
+  so the XREPORT Inference environment does not install them. `huggingface-hub`
+  and the other inference packages remain in the base set because Studio
+  validation runs models.
+- `test_packaging_boundary.py` checks both directions: XREPORT Inference cannot
+  reach Studio modules and Studio routers cannot reach inference workflow modules.
+
 ## Data ownership
 
-- XREPORT keeps its existing database, reports, installed models, and
+- XREPORT Inference keeps its existing database, reports, installed models, and
   settings untouched; packaged upgrades therefore keep their history.
 - Studio uses `<resources>/studio/` for its database, `database-config.json`,
   checkpoints, exports, and logs.
 - The pinned BEiT encoder and tokenizers (`<resources>/models`) are shared,
   immutable resources installed atomically. Studio resolves `MODELS_DIR` to the
-  base folder; it never writes elsewhere in XREPORT's tree.
+  base folder; it never writes elsewhere in XREPORT Inference's tree.
 - A process lock (`.xreport.lock` in each data folder) makes a second process on
   the same folder fail at startup instead of mutating the same SQLite file.
   The OS releases it when the owner exits or crashes.
 - Launcher cleanup is application-scoped (`-App Xreport|Studio`). Studio
-  targets never include `models`. XREPORT "remove all data" still removes the
+  targets never include `models`. XREPORT Inference "remove all data" still removes the
   shared `models` folder (existing behaviour) and says so in its prompt; it
   never touches `studio/`.
 
@@ -90,10 +104,13 @@ Import (`CheckpointExchangeService`) is a cancellable `checkpoint_import` job:
    entry/size/ratio limits (128 entries, 6 GiB total, 1000x ratio), no
    traversal, absolute, backslash, drive, duplicate, encrypted or non-regular
    (symlink) members, manifest/payload agreement, format/architecture/custom
-   object compatibility, name conflicts. Invalid input returns 400/409 before
+   object compatibility, the encoder repository and pinned revision (a different
+   encoder is rejected), name conflicts. Invalid input returns 400/409 before
    any job starts.
 2. Streaming extraction to `checkpoints/.import-<id>/` with the byte count
-   enforced against the manifest, then SHA-256 verification of every file.
+   enforced against the manifest, then SHA-256 verification of every file and a
+   check that `metadata.json` defines an integer `max_report_size` and a
+   `tokenizer` equal to the manifest's tokenizer name.
 3. Installation of bundled tokenizer/encoder (identical content is a no-op,
    different content is a conflict).
 4. Smoke test: load the checkpoint with the shared custom objects and run one
@@ -109,7 +126,8 @@ Imports require a version 2 manifest. Version 1 and manifestless archives are
 rejected; a lone `.keras` file is rejected with an explanation of the required
 companion files.
 
-Export (Studio) validates the registered artifact, collects the tokenizer
+Export (Studio) validates the registered artifact, refuses archives the import
+limits would reject (member names, entry count, entry and total size), collects the tokenizer
 through `TokenizerHandler`, hashes all members, and writes
 `<resources>/studio/exports/<name>.xreportckpt`, offered as a download.
 Training and export jobs exclude each other atomically. Checkpoint deletion
@@ -117,6 +135,7 @@ checks both job types while holding the same job-registration lock.
 
 ## Not covered
 
-Import from arbitrary third-party frameworks, a live link between the two
+Image preprocessing (224x224 input and normalisation) is fixed in code on both
+sides and is not part of the manifest. Import from arbitrary third-party frameworks, a live link between the two
 applications, and CUDA-specific package acceptance are out of scope or
 unverified; see the [status ledger](../project_status_ledger.md).
