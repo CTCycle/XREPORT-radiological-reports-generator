@@ -1002,7 +1002,7 @@ function Get-FrontendProductionInputRelativePaths {
                 throw "Frontend production input escaped the client directory: $($file.FullName)"
             }
             $relative = $fullPath.Substring($clientRootPrefix.Length).Replace('\', '/')
-            if ($relative -match '(?i)^src/.+\.spec\.ts$' -or $relative -ieq 'src/proxy.conf.cjs') { continue }
+            if ($relative -match '(?i)^src/.+\.spec\.ts$' -or $relative -ieq 'src/proxy.conf.cjs' -or $relative -ieq 'src/proxy.studio.conf.cjs') { continue }
             $relativePaths += $relative
         }
     }
