@@ -461,11 +461,12 @@ input[type="checkbox"] {
 .training-wizard-modal {
     background: var(--bg-secondary);
     border-radius: 16px;
-    width: 780px;
-    max-width: 92vw;
-    max-height: 88vh;
+    width: 860px;
+    max-width: 94vw;
+    height: min(720px, 90vh);
     display: flex;
     flex-direction: column;
+    overflow: hidden;
     box-shadow: var(--shadow-md);
     border: 1px solid var(--border-color);
 }
@@ -473,30 +474,42 @@ input[type="checkbox"] {
 .training-wizard-modal > .modal-header {
     display: flex;
     justify-content: space-between;
-    align-items: center;
+    align-items: flex-start;
     flex: 0 0 auto;
     gap: 1rem;
-    padding: 1rem 1.25rem;
-    border-bottom: 1px solid var(--border-color);
-    background: var(--surface-elevated);
+    padding: 1.25rem 1.5rem 1rem;
+    background: var(--bg-secondary);
 }
 
 .training-wizard-modal > .modal-header h2 {
     margin: 0;
-    font-size: 1.1rem;
+    font-size: 1.25rem;
+    line-height: 1.3;
     color: var(--text-primary);
+}
+
+.wizard-subtitle {
+    margin: 0.25rem 0 0;
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+    overflow-wrap: anywhere;
+}
+
+.wizard-subtitle strong {
+    color: var(--text-primary);
+    font-weight: 600;
 }
 
 .training-wizard-modal > .modal-header .btn-icon-small {
     display: inline-grid;
     place-items: center;
     flex: 0 0 auto;
-    width: var(--control-height-sm);
-    height: var(--control-height-sm);
+    width: var(--control-height-md);
+    height: var(--control-height-md);
     margin-left: auto;
     padding: 0;
     border: 1px solid transparent;
-    border-radius: 6px;
+    border-radius: 8px;
     background: transparent;
     color: var(--text-secondary);
     cursor: pointer;
@@ -513,17 +526,13 @@ input[type="checkbox"] {
     box-shadow: var(--focus-ring);
 }
 
-.training-wizard-modal > p {
-    flex: 0 0 auto;
-    margin: 0;
-    padding: 0.75rem 1.25rem;
-    color: var(--text-secondary);
-}
-
 .training-wizard-body {
-    padding: 1rem 1.4rem 1.4rem;
+    flex: 1 1 auto;
+    min-height: 0;
     overflow-y: auto;
+    padding: 1.5rem;
     background: var(--bg-primary);
+    border-top: 1px solid var(--border-color);
 }
 
 /* Wizard Page - Compact Style */
@@ -537,12 +546,10 @@ input[type="checkbox"] {
     display: flex;
     align-items: center;
     gap: 0.5rem;
-    font-size: 0.85rem;
+    font-size: 1rem;
     font-weight: 600;
     color: var(--text-primary);
     margin-bottom: 1rem;
-    padding-bottom: 0.25rem;
-    border-bottom: 1px solid var(--border-color);
 }
 
 /* Force clean styling for form groups inside wizard to remove "contours" */
@@ -552,8 +559,11 @@ input[type="checkbox"] {
     padding: 0;
     box-shadow: none;
     margin-bottom: 0;
-    gap: 0.15rem;
-    /* Reduced gap between title and input */
+    gap: 0.35rem;
+}
+
+.training-wizard-modal .form-label {
+    font-size: 0.8rem;
 }
 
 /* Checkbox specific alignment */
@@ -579,15 +589,18 @@ input[type="checkbox"] {
 .wizard-2col-panel {
     display: grid;
     grid-template-columns: 1fr 1fr;
-    gap: 2rem;
-    /* Generous spacing between columns */
-    align-items: start;
+    gap: 1rem;
+    align-items: stretch;
 }
 
 .wizard-col {
     display: flex;
     flex-direction: column;
-    gap: 0.85rem;
+    gap: 0.9rem;
+    padding: 1.1rem 1.25rem;
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    background: var(--bg-secondary);
 }
 
 .wizard-device-panel {
@@ -908,53 +921,80 @@ input[type="checkbox"] {
 
 .training-wizard-steps {
     display: flex;
-    gap: 0.45rem;
+    align-items: center;
+    flex: 0 0 auto;
+    gap: 0;
+    padding: 0 1.5rem 1rem;
+    background: var(--bg-secondary);
     overflow-x: auto;
-    padding: 0.75rem 0 1rem;
-    border-bottom: 1px solid var(--border-color);
 }
 
 .training-wizard-step {
     display: inline-flex;
     align-items: center;
-    gap: 0.4rem;
+    gap: 0.6rem;
     border: 0;
     background: transparent;
     color: var(--text-secondary);
-    padding: 0.35rem 0.55rem;
-    border-radius: 0.5rem;
+    padding: 0.4rem 0.5rem;
+    border-radius: 999px;
+    font: inherit;
+    font-size: 0.9rem;
+    font-weight: 500;
     white-space: nowrap;
     cursor: pointer;
 }
 
-.training-wizard-step span {
+.training-wizard-step:hover {
+    color: var(--text-primary);
+}
+
+.training-wizard-step:focus-visible {
+    outline: none;
+    box-shadow: var(--focus-ring);
+}
+
+.training-wizard-step:not(:last-child)::after {
+    content: '';
+    width: clamp(1rem, 4vw, 2.5rem);
+    height: 2px;
+    margin-left: 0.5rem;
+    border-radius: 1px;
+    background: var(--border-color);
+}
+
+.training-wizard-step.done:not(:last-child)::after {
+    background: var(--accent-fill);
+}
+
+.training-wizard-step .step-index {
     display: inline-grid;
     place-items: center;
-    width: 1.45rem;
-    height: 1.45rem;
+    flex: 0 0 auto;
+    width: 1.75rem;
+    height: 1.75rem;
     border-radius: 50%;
+    border: 1.5px solid var(--input-border);
     background: var(--bg-secondary);
-    font-size: 0.78rem;
+    font-size: 0.8rem;
     font-weight: 700;
+}
+
+.training-wizard-step.done .step-index {
+    border-color: var(--accent-fill);
+    background: color-mix(in srgb, var(--accent-primary) 12%, transparent);
+    color: var(--accent-color);
 }
 
 .training-wizard-step.active {
     color: var(--text-primary);
-    background: color-mix(in srgb, var(--accent-primary) 10%, transparent);
+    font-weight: 600;
 }
 
-.training-wizard-step.active span {
+.training-wizard-step.active .step-index {
     color: var(--on-accent);
+    border-color: var(--accent-fill);
     background: var(--accent-fill);
-}
-
-.training-wizard-body {
-    min-height: 18rem;
-    padding-top: 0.35rem;
-}
-
-.training-wizard-actions {
-    gap: 0.5rem;
 }
 
 .training-wizard-modal > .modal-footer {
@@ -963,13 +1003,116 @@ input[type="checkbox"] {
     justify-content: flex-end;
     flex: 0 0 auto;
     gap: 0.5rem;
-    padding: 1rem 1.25rem;
+    padding: 1rem 1.5rem;
     border-top: 1px solid var(--border-color);
+    background: var(--bg-secondary);
+}
+
+.training-wizard-modal > .modal-footer .wizard-footer-spacer {
+    margin-right: auto;
+}
+
+.training-wizard-modal > .upload-status {
+    flex: 0 0 auto;
+    margin: 0;
+    border-radius: 0;
+}
+
+.training-wizard-modal .checkbox-label {
+    display: flex;
+    align-items: center;
+    gap: 0.65rem;
+    min-height: var(--control-height-md);
+    font-size: 0.9rem;
+    white-space: normal;
+    overflow: visible;
+    cursor: pointer;
+}
+
+.training-wizard-modal .checkbox-visual {
+    position: relative;
+    width: 18px;
+    height: 18px;
+    border-radius: 5px;
+}
+
+.training-wizard-modal .checkbox-visual::after {
+    width: 5px;
+    height: 9px;
+    margin-top: -2px;
+    background: transparent;
+    border: solid var(--on-accent);
+    border-width: 0 2px 2px 0;
+    border-radius: 0;
+    transform: rotate(45deg);
+}
+
+.training-wizard-modal input[type="checkbox"]:focus-visible + .checkbox-visual {
+    box-shadow: var(--focus-ring);
+}
+
+.training-wizard-modal input[type="checkbox"]:disabled + .checkbox-visual,
+.training-wizard-modal .form-input:disabled,
+.training-wizard-modal .form-select:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
 }
 
 @media (max-width: 640px) {
-    .training-wizard-modal { width: min(94vw, 42rem); }
-    .training-wizard-steps { gap: 0.15rem; }
-    .training-wizard-step { padding-inline: 0.35rem; font-size: 0.8rem; }
-    .training-wizard-body { min-height: 22rem; }
+    .training-wizard-modal { height: 94vh; }
+    .training-wizard-steps { padding-inline: 1rem; }
+    .training-wizard-step { gap: 0.4rem; padding-inline: 0.15rem; }
+    .training-wizard-step:not(:last-child)::after { width: 0.6rem; margin-left: 0.15rem; }
+    .training-wizard-step .step-label { display: none; }
+    .training-wizard-body { padding: 1rem; }
+    .wizard-2col-panel { grid-template-columns: 1fr; gap: 1rem; }
+}
+
+.wizard-summary-content .wizard-summary {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 1rem;
+    margin-top: 0;
+    padding: 0;
+    border: 0;
+    background: transparent;
+}
+
+.wizard-summary-content .summary-section {
+    display: flex;
+    flex-direction: column;
+    gap: 0.6rem;
+    margin: 0;
+    padding: 1.1rem 1.25rem;
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    background: var(--bg-secondary);
+}
+
+.wizard-summary-content .summary-section h5 {
+    margin: 0 0 0.25rem;
+    font-size: 0.75rem;
+}
+
+.wizard-summary-content .summary-item {
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 1rem;
+    font-size: 0.9rem;
+}
+
+.wizard-summary-content .summary-item span:first-child {
+    color: var(--text-secondary);
+    font-size: inherit;
+    font-weight: 500;
+}
+
+.wizard-summary-content .summary-item span:last-child {
+    text-align: right;
+    overflow-wrap: anywhere;
+}
+
+@media (max-width: 760px) {
+    .wizard-summary-content .wizard-summary { grid-template-columns: 1fr; }
 }

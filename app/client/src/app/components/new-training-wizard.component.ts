@@ -3,7 +3,7 @@ import { Component, EventEmitter, Input, Output, signal } from '@angular/core';
 import { FormGroup, ReactiveFormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { NgIcon, provideIcons } from '@ng-icons/core';
-import { lucideActivity, lucideChevronLeft, lucideChevronRight, lucideCpu, lucideInfo, lucideMonitor, lucidePlay, lucideSettings, lucideX } from '@ng-icons/lucide';
+import { lucideActivity, lucideCheck, lucideChevronLeft, lucideChevronRight, lucideCpu, lucideInfo, lucideMonitor, lucidePlay, lucideSettings, lucideX } from '@ng-icons/lucide';
 import { formatParameters } from '../common/model-architecture';
 import type { ArchitecturePreset } from '../types/modelArchitectureApi';
 import { ModalFocusDirective } from './modal-focus.directive';
@@ -12,17 +12,16 @@ import { ModalFocusDirective } from './modal-focus.directive';
   standalone: true,
   selector: 'app-new-training-wizard',
   imports: [CommonModule, ReactiveFormsModule, RouterLink, NgIcon, ModalFocusDirective],
-  providers: [provideIcons({ lucideActivity, lucideChevronLeft, lucideChevronRight, lucideCpu, lucideInfo, lucideMonitor, lucidePlay, lucideSettings, lucideX })],
+  providers: [provideIcons({ lucideActivity, lucideCheck, lucideChevronLeft, lucideChevronRight, lucideCpu, lucideInfo, lucideMonitor, lucidePlay, lucideSettings, lucideX })],
   styleUrl: '../styles/TrainingPage.css',
   template: `
     @if (open) {
       <div class="training-modal-backdrop" role="presentation">
         <section class="modal training-wizard-modal" role="dialog" aria-modal="true" aria-labelledby="new-training-title" appModalFocus (modalEscape)="closed.emit()">
-          <div class="modal-header"><h2 id="new-training-title">New Training Wizard</h2><button type="button" class="btn-icon-small" aria-label="Close" (click)="closed.emit()"><ng-icon name="lucideX"/></button></div>
-          <p>Dataset: <strong>{{ datasetLabel || 'No dataset selected' }}</strong></p>
+          <div class="modal-header"><div><h2 id="new-training-title">New Training Wizard</h2><p class="wizard-subtitle">Dataset: <strong>{{ datasetLabel || 'No dataset selected' }}</strong></p></div><button type="button" class="btn-icon-small" aria-label="Close" (click)="closed.emit()"><ng-icon name="lucideX"/></button></div>
           <nav class="training-wizard-steps" aria-label="Training configuration steps">
             @for (step of steps; track step; let index = $index) {
-              <button type="button" class="training-wizard-step" [class.active]="currentStep() === index" [attr.aria-current]="currentStep() === index ? 'step' : null" (click)="goToStep(index)"><span>{{ index + 1 }}</span>{{ step }}</button>
+              <button type="button" class="training-wizard-step" [class.active]="currentStep() === index" [class.done]="currentStep() > index" [attr.aria-current]="currentStep() === index ? 'step' : null" (click)="goToStep(index)"><span class="step-index">@if (currentStep() > index) { <ng-icon name="lucideCheck" size="14"/> } @else { {{ index + 1 }} }</span><span class="step-label">{{ step }}</span></button>
             }
           </nav>
           <div class="training-wizard-body" [formGroup]="form">
@@ -58,7 +57,7 @@ import { ModalFocusDirective } from './modal-focus.directive';
             }
           </div>
           @if (error) { <div class="upload-status error">{{ error }}</div> }
-          <div class="modal-footer training-wizard-actions"><button type="button" class="btn btn-secondary" (click)="closed.emit()">Cancel</button>@if (currentStep() > 0) { <button type="button" class="btn btn-secondary" (click)="previousStep()"><ng-icon name="lucideChevronLeft"/>Back</button> }@if (currentStep() < steps.length - 1) { <button type="button" class="btn btn-primary" (click)="nextStep()">Next<ng-icon name="lucideChevronRight"/></button> }@else { <button type="button" class="btn btn-primary" (click)="submitted.emit()" [disabled]="isLoading || form.invalid || !selectedPreset()"><ng-icon [name]="isLoading ? 'lucideActivity' : 'lucidePlay'"/>{{ isLoading ? 'Starting…' : 'Start training' }}</button> }</div>
+          <div class="modal-footer training-wizard-actions"><button type="button" class="btn btn-secondary wizard-footer-spacer" (click)="closed.emit()">Cancel</button>@if (currentStep() > 0) { <button type="button" class="btn btn-secondary" (click)="previousStep()"><ng-icon name="lucideChevronLeft"/>Back</button> }@if (currentStep() < steps.length - 1) { <button type="button" class="btn btn-primary" (click)="nextStep()">Next<ng-icon name="lucideChevronRight"/></button> }@else { <button type="button" class="btn btn-primary" (click)="submitted.emit()" [disabled]="isLoading || form.invalid || !selectedPreset()"><ng-icon [name]="isLoading ? 'lucideActivity' : 'lucidePlay'"/>{{ isLoading ? 'Starting…' : 'Start training' }}</button> }</div>
         </section>
       </div>
     }
