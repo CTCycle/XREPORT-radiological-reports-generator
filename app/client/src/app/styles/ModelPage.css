@@ -9,11 +9,11 @@
 /* The three panels share one top and one bottom edge; their bodies scroll. */
 .model-layout {
     display: grid;
-    grid-template-columns: minmax(220px, 260px) minmax(0, 1fr) minmax(300px, 340px);
+    grid-template-columns: minmax(200px, 232px) minmax(0, 1fr) minmax(280px, 312px);
     grid-template-areas: "library canvas inspector";
     gap: var(--space-4);
     align-items: stretch;
-    height: clamp(720px, calc(100dvh - 190px), 1200px);
+    height: clamp(760px, calc(100dvh - 150px), 1300px);
 }
 
 .model-panel {
@@ -253,7 +253,7 @@
 .model-diagram {
     flex: 1;
     min-height: 0;
-    overflow: auto;
+    overflow: hidden;
     border: 1px solid var(--border-subtle);
     border-radius: var(--radius-md);
     background: var(--bg-primary);

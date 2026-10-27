@@ -1,4 +1,6 @@
 import { Component, ElementRef, EventEmitter, Input, OnDestroy, OnInit, Output, computed, inject, signal } from '@angular/core';
+import { NgIcon, provideIcons } from '@ng-icons/core';
+import { lucideMaximize, lucideZoomIn, lucideZoomOut } from '@ng-icons/lucide';
 import { formatParameters } from '../common/model-architecture';
 import type { ArchitectureGraph, ArchitectureNode } from '../types/modelArchitectureApi';
 
@@ -9,11 +11,15 @@ const NODE_WIDTH = 220;
 const NODE_HEIGHT = 66;
 const CHIP_ROW = 26;
 const ROW_GAP = 46;
-const LANE_GAP = 64;
+const LANE_GAP = 56;
 const MARGIN = 14;
 const MAX_CHIPS = 6;
-// The diagram scales up to fill its panel, but not beyond this factor.
-const MAX_SCALE = 1.6;
+// Fitting the diagram to its panel never magnifies beyond this factor.
+const MAX_FIT_SCALE = 1.6;
+const MIN_ZOOM = 0.3;
+const MAX_ZOOM = 4;
+const ZOOM_STEP = 1.25;
+const DRAG_THRESHOLD = 4;
 // Narrower than this, the two lanes are stacked in one column.
 const STACKED_BREAKPOINT = MARGIN * 2 + NODE_WIDTH * 2 + LANE_GAP;
 
@@ -42,9 +48,19 @@ function formatShape(shape: (number | null)[]): string {
 @Component({
   standalone: true,
   selector: 'app-architecture-diagram',
+  imports: [NgIcon],
+  providers: [provideIcons({ lucideMaximize, lucideZoomIn, lucideZoomOut })],
   styleUrl: '../styles/ArchitectureDiagram.css',
   template: `
-    <svg class="arch-svg" [attr.viewBox]="'0 0 ' + layout().width + ' ' + layout().height" [style.max-width.px]="layout().width * MAX_SCALE" role="group" aria-label="Model architecture diagram">
+    <div class="arch-controls" role="toolbar" aria-label="Diagram view">
+      <button type="button" class="icon-button" title="Zoom out" aria-label="Zoom out" (click)="zoomBy(1 / ZOOM_STEP)"><ng-icon name="lucideZoomOut"/></button>
+      <span class="arch-zoom-level" aria-live="polite">{{ zoomPercent() }}%</span>
+      <button type="button" class="icon-button" title="Zoom in" aria-label="Zoom in" (click)="zoomBy(ZOOM_STEP)"><ng-icon name="lucideZoomIn"/></button>
+      <button type="button" class="icon-button" title="Fit to panel" aria-label="Fit diagram to panel" (click)="fit()"><ng-icon name="lucideMaximize"/></button>
+    </div>
+    <svg class="arch-svg" [class.dragging]="dragging()" role="group" aria-label="Model architecture diagram. Scroll to zoom, drag to move."
+         (wheel)="onWheel($event)" (pointerdown)="onPointerDown($event)" (pointermove)="onPointerMove($event)" (pointerup)="endDrag()" (pointerleave)="endDrag()">
+      <g [attr.transform]="'translate(' + view().x + ',' + view().y + ') scale(' + view().k + ')'">
       <defs>
         <marker id="arch-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
           <path d="M 0 0 L 10 5 L 0 10 z" class="arch-arrow-head" />
@@ -65,7 +81,7 @@ function formatShape(shape: (number | null)[]): string {
         <g class="arch-node" [class.arch-node-input]="placed.node.kind === 'input'" [class.arch-node-frozen]="!placed.node.trainable && placed.node.parameters > 0" [class.selected]="placed.node.id === selected"
            [attr.transform]="'translate(' + placed.x + ',' + placed.y + ')'" tabindex="0" role="button"
            [attr.aria-pressed]="placed.node.id === selected" [attr.aria-label]="placed.node.label + ', ' + formatParameters(placed.node.parameters) + ' parameters'"
-           (click)="nodeSelected.emit(placed.node.id)" (keydown.enter)="nodeSelected.emit(placed.node.id)" (keydown.space)="$event.preventDefault(); nodeSelected.emit(placed.node.id)">
+           (click)="selectNode(placed.node.id)" (keydown.enter)="nodeSelected.emit(placed.node.id)" (keydown.space)="$event.preventDefault(); nodeSelected.emit(placed.node.id)">
           <rect class="arch-node-box" [attr.width]="nodeWidth" [attr.height]="placed.height" rx="10" />
           <text class="arch-node-label" x="14" y="24">{{ placed.node.label }}@if (placed.chips.length) { <tspan class="arch-node-repeat"> × {{ placed.node.repeat }}</tspan> }</text>
           @if (placed.node.parameters > 0) {
@@ -85,6 +101,7 @@ function formatShape(shape: (number | null)[]): string {
           }
         </g>
       }
+      </g>
     </svg>
   `,
 })
@@ -95,7 +112,13 @@ export class ArchitectureDiagramComponent implements OnInit, OnDestroy {
   readonly stacked = signal(false);
   readonly nodeWidth = NODE_WIDTH;
   readonly NODE_HEIGHT = NODE_HEIGHT;
-  readonly MAX_SCALE = MAX_SCALE;
+  readonly ZOOM_STEP = ZOOM_STEP;
+  private readonly size = signal({ width: 0, height: 0 });
+  /** Zoom factor and offset of the diagram; follows the panel until the user zooms or pans. */
+  private readonly manualView = signal<{ k: number; x: number; y: number } | null>(null);
+  readonly dragging = signal(false);
+  private dragOrigin: { x: number; y: number; viewX: number; viewY: number } | null = null;
+  private moved = false;
   readonly formatParameters = formatParameters;
   @Input() set graph(value: ArchitectureGraph | null) { this.graphState.set(value); }
   @Input() selected = '';
@@ -167,6 +190,55 @@ export class ArchitectureDiagramComponent implements OnInit, OnDestroy {
     return { width, height, nodes, edges };
   });
 
+  private readonly fitView = computed(() => {
+    const { width, height } = this.size();
+    const { width: contentWidth, height: contentHeight } = this.layout();
+    if (!width || !height || !contentWidth) return { k: 1, x: 0, y: 0 };
+    // The stacked column is tall and narrow: fit its width and scroll by panning.
+    const k = Math.min(width / contentWidth, this.stacked() ? MAX_FIT_SCALE : height / contentHeight, MAX_FIT_SCALE);
+    return { k, x: (width - contentWidth * k) / 2, y: Math.max(0, (height - contentHeight * k) / 2) };
+  });
+  readonly view = computed(() => this.manualView() ?? this.fitView());
+  readonly zoomPercent = computed(() => Math.round(this.view().k * 100));
+
+  fit(): void { this.manualView.set(null); }
+
+  zoomBy(factor: number, originX = this.size().width / 2, originY = this.size().height / 2): void {
+    const { k, x, y } = this.view();
+    const next = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, k * factor));
+    const ratio = next / k;
+    this.manualView.set({ k: next, x: originX - (originX - x) * ratio, y: originY - (originY - y) * ratio });
+  }
+
+  onWheel(event: WheelEvent): void {
+    event.preventDefault();
+    const rect = this.host.nativeElement.getBoundingClientRect();
+    this.zoomBy(event.deltaY < 0 ? ZOOM_STEP : 1 / ZOOM_STEP, event.clientX - rect.left, event.clientY - rect.top);
+  }
+
+  onPointerDown(event: PointerEvent): void {
+    if (event.button !== 0) return;
+    const { x, y } = this.view();
+    this.dragOrigin = { x: event.clientX, y: event.clientY, viewX: x, viewY: y };
+    this.moved = false;
+  }
+
+  onPointerMove(event: PointerEvent): void {
+    const origin = this.dragOrigin;
+    if (!origin) return;
+    const dx = event.clientX - origin.x;
+    const dy = event.clientY - origin.y;
+    if (!this.moved && Math.hypot(dx, dy) < DRAG_THRESHOLD) return;
+    this.moved = true;
+    this.dragging.set(true);
+    this.manualView.set({ k: this.view().k, x: origin.viewX + dx, y: origin.viewY + dy });
+  }
+
+  endDrag(): void { this.dragOrigin = null; this.dragging.set(false); }
+
+  /** A drag that moved the diagram is not a click on the node under the pointer. */
+  selectNode(id: string): void { if (!this.moved) this.nodeSelected.emit(id); }
+
   laneX(lane: 0 | 1): number { return MARGIN + lane * (NODE_WIDTH + LANE_GAP); }
 
   /** Two lines that fit the gap between the lanes, e.g. cross- / attention. */
@@ -174,7 +246,10 @@ export class ArchitectureDiagramComponent implements OnInit, OnDestroy {
 
   ngOnInit(): void {
     if (typeof ResizeObserver === 'undefined') return;
-    this.observer = new ResizeObserver(([entry]) => this.stacked.set(entry.contentRect.width < STACKED_BREAKPOINT));
+    this.observer = new ResizeObserver(([entry]) => {
+      this.size.set({ width: entry.contentRect.width, height: entry.contentRect.height });
+      this.stacked.set(entry.contentRect.width < STACKED_BREAKPOINT);
+    });
     this.observer.observe(this.host.nativeElement);
   }
 

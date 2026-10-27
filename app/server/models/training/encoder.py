@@ -8,6 +8,7 @@ from keras.saving import register_keras_serializable
 from transformers import AutoModel
 
 from server.common.path import ENCODERS_DIR
+from server.models.training.architecture import BEIT_REVISION
 
 
 # [PRETRAINED IMAGE ENCODER]
@@ -15,7 +16,7 @@ from server.common.path import ENCODERS_DIR
 ###############################################################################
 @register_keras_serializable(package="Encoders", name="BeitXRayImageEncoder")
 class BeitXRayImageEncoder(layers.Layer):
-    ENCODER_REVISION = "f02e8f77db4703e3fbd3766e3375a4619c5a4863"
+    ENCODER_REVISION = BEIT_REVISION
 
     # -------------------------------------------------------------------------
     def __init__(

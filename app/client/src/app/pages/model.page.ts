@@ -408,9 +408,9 @@ export class ModelPage {
   }
 
   private async initialize() {
-    const [presets, encoders, checkpoints] = await Promise.all([this.api.getPresets(), this.api.getEncoders(), this.trainingApi.getCheckpoints()]);
-    if (encoders.result) this.encoders.set(encoders.result.encoders);
-    if (checkpoints.result) this.checkpoints.set(checkpoints.result.checkpoints.filter((checkpoint) => checkpoint.artifact_status === 'ready').map((checkpoint) => checkpoint.name));
+    void this.api.getEncoders().then((encoders) => { if (encoders.result) this.encoders.set(encoders.result.encoders); });
+    void this.trainingApi.getCheckpoints().then((checkpoints) => { if (checkpoints.result) this.checkpoints.set(checkpoints.result.checkpoints.filter((checkpoint) => checkpoint.artifact_status === 'ready').map((checkpoint) => checkpoint.name)); });
+    const presets = await this.api.getPresets();
     if (!presets.result) { this.pageError.set(presets.error ?? 'Failed to load architecture presets'); return; }
     this.setPresets(presets.result.presets, presets.result.hidden_builtins ?? 0);
     const initial = presets.result.presets[0];

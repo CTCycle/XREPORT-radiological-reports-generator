@@ -26,6 +26,7 @@ IMAGE_SHAPE = (224, 224, 3)
 FLOAT32_BYTES = 4
 
 DEFAULT_PRESET_KEY = "xreport-default"
+BEIT_REVISION = "f02e8f77db4703e3fbd3766e3375a4619c5a4863"
 
 # Effective settings that decide the shape of a weight tensor. Any other setting
 # (dropout, activations, epsilon, temperature, freezing) leaves every tensor
@@ -153,14 +154,12 @@ BUILTIN_PRESETS: dict[str, BuiltinPreset] = {
 
 # -----------------------------------------------------------------------------
 def encoder_options() -> list[EncoderOption]:
-    from server.models.training.encoder import BeitXRayImageEncoder
-
     return [
         EncoderOption(
             id=spec.id,
             label=spec.label,
             repository=spec.repository,
-            revision=BeitXRayImageEncoder.ENCODER_REVISION,
+            revision=BEIT_REVISION,
             input_shape=list(IMAGE_SHAPE),
             output_tokens=spec.output_tokens,
             feature_dims=spec.feature_dims,
