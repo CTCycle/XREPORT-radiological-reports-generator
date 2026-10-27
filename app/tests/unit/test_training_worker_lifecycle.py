@@ -4,23 +4,23 @@ import os
 os.environ.setdefault("KERAS_BACKEND", "torch")
 # ruff: noqa: E402
 # Select the backend before importing the training runtime.
-import types
+import pickle
+import keras
 import pandas as pd
 import torch
 import pytest
 import queue
 from pathlib import Path
-from typing import Any
 from PIL import Image
-from server.models.device import DeviceDataLoader
+from server.models.device import DeviceConfig
 from server.models.training.dataloader import XRAYDataLoader
-from server.models.training.trainer import ModelTrainer
+from server.repositories.serialization.model import ModelSerializer
 from unittest.mock import Mock
 from server.services import training as training_module
 from server.services.jobs import JobExecutionError
 from threading import Event
 from server.models.callbacks import TrainingProgressCallback
-from server.services.training_worker import ProcessWorker, QueueProgressReporter, WorkerChannels, process_target
+from server.services.training_worker import ProcessWorker, QueueProgressReporter, WorkerChannels, keep_saved_epoch, process_target
 
 
 
@@ -38,62 +38,42 @@ from server.services.training_worker import ProcessWorker, QueueProgressReporter
 
 
 ###############################################################################
-class FakeLoader:
+def test_cpu_choice_keeps_weights_on_cpu_when_cuda_is_available() -> None:
+    # Keras' torch backend defaults to CUDA, so the CPU choice only holds
+    # inside the device scope the worker opens.
+    device = DeviceConfig({"use_device_GPU": False}).set_device()
+    with keras.device(device):
+        layer = keras.layers.Dense(2)
+        layer.build((None, 3))
 
-    # -------------------------------------------------------------------------
-    def __init__(self, length: int) -> None:
-        self.length = length
-
-    # -------------------------------------------------------------------------
-    def __len__(self) -> int:
-        return self.length
-
-    # -------------------------------------------------------------------------
-    def __iter__(self):
-        for _ in range(self.length):
-            yield ((0, 0), 0)
+    assert device == "cpu"
+    assert layer.kernel.value.device.type == "cpu"
 
 ###############################################################################
-class FakeSession:
-    history = {"loss": [1.0], "val_loss": [1.2]}
-    epoch = [0]
-
-###############################################################################
-class FakeModel:
-
-    # -------------------------------------------------------------------------
-    def __init__(self) -> None:
-        self.fit_x: Any = None
-        self.fit_validation_data: Any = None
-        self.fit_steps_per_epoch = 0
-        self.fit_validation_steps = 0
-
-    # -------------------------------------------------------------------------
-    def fit(self, x: Any, **kwargs: Any) -> FakeSession:
-        self.fit_x = x
-        self.fit_validation_data = kwargs.get("validation_data")
-        self.fit_steps_per_epoch = int(kwargs.get("steps_per_epoch", 0))
-        self.fit_validation_steps = int(kwargs.get("validation_steps", 0))
-        return FakeSession()
-
-###############################################################################
-def test_model_trainer_uses_finite_iterables_for_keras_fit() -> None:
-    trainer = ModelTrainer({"training_seed": 42, "epochs": 1, "use_device_GPU": False})
-    model = FakeModel()
-
-    trainer.train_model(
-        model=model,
-        train_data=FakeLoader(length=3),
-        validation_data=FakeLoader(length=2),
-        checkpoint_path=".",
+def test_cancelled_run_keeps_saved_epoch_and_drops_empty_folder(
+    tmp_path: Path,
+) -> None:
+    saved = tmp_path / "saved"
+    (saved / "configuration").mkdir(parents=True)
+    (saved / "saved_model.keras").write_bytes(b"weights")
+    ModelSerializer().save_training_configuration(
+        saved,
+        {"history": {"loss": [2.0, 1.5], "val_loss": [2.1, 1.7]}, "epochs": 2},
+        {"epochs": 5},
+        {"max_report_size": 8},
     )
+    empty = tmp_path / "empty"
+    (empty / "configuration").mkdir(parents=True)
 
-    assert isinstance(model.fit_x, DeviceDataLoader)
-    assert isinstance(model.fit_validation_data, DeviceDataLoader)
-    assert not isinstance(model.fit_x, types.GeneratorType)
-    assert not isinstance(model.fit_validation_data, types.GeneratorType)
-    assert model.fit_steps_per_epoch == 3
-    assert model.fit_validation_steps == 2
+    assert keep_saved_epoch(str(saved), created_by_run=True) == {
+        "epochs": 2,
+        "final_loss": 1.5,
+        "final_val_loss": 1.7,
+        "checkpoint_path": str(saved),
+    }
+    assert keep_saved_epoch(str(empty), created_by_run=True) == {}
+    assert saved.is_dir()
+    assert not empty.exists()
 
 ###############################################################################
 def test_xray_dataloader_construction_does_not_load_tokenizer() -> None:
@@ -763,3 +743,20 @@ def test_xray_dataloaders_return_expected_tensor_contract(
     inference_images = next(iter(loader.build_inference_dataloader(data)))
     assert inference_images.shape == (2, 224, 224, 3)
     assert inference_images.dtype == torch.float32
+
+###############################################################################
+def test_xray_training_loader_runs_with_spawned_workers(tmp_path: Path) -> None:
+    # Windows DataLoader workers are spawned and must unpickle the transforms.
+    image_paths = [tmp_path / f"image_{index}.png" for index in range(4)]
+    for path in image_paths:
+        Image.new("L", (64, 48), "white").save(path)
+    data = pd.DataFrame({"path": image_paths, "tokens": [[1, 2, 3]] * 4})
+    loader = XRAYDataLoader(
+        {"batch_size": 2, "dataloader_workers": 2, "prefetch_factor": 1},
+        shuffle=False,
+    ).build_training_dataloader(data)
+
+    pickle.dumps(loader.dataset)
+    batches = list(loader)
+    assert len(batches) == 2
+    assert batches[0][0][0].shape == (2, 224, 224, 3)

@@ -415,6 +415,47 @@ class RealTimeMetricsCallback(Callback):
         self.progress_callback(payload)
 
 ###############################################################################
+class EpochCheckpointCallback(Callback):
+    """Keep the checkpoint folder resumable after every completed epoch.
+
+    Overwrites ``saved_model.keras`` and the configuration JSON atomically, so
+    a cancelled or failed run still leaves its last completed epoch behind.
+    """
+
+    # -------------------------------------------------------------------------
+    def __init__(
+        self,
+        configuration: dict[str, Any],
+        metadata: dict[str, Any],
+        checkpoint_path: str,
+        session: dict[str, Any] | None = None,
+    ) -> None:
+        super().__init__()
+        self.configuration = configuration
+        self.metadata = metadata
+        self.checkpoint_path = checkpoint_path
+        past = (session or {}).get("history", {})
+        self.history: dict[str, list[float]] = {
+            key: list(values) for key, values in past.items()
+        }
+
+    # -------------------------------------------------------------------------
+    def on_epoch_end(self, epoch: int, logs: dict | None = None) -> None:
+        from server.repositories.serialization.model import ModelSerializer
+
+        for key, value in (logs or {}).items():
+            self.history.setdefault(key, []).append(float(value))
+        serializer = ModelSerializer()
+        serializer.save_pretrained_model(self.model, self.checkpoint_path)
+        serializer.save_training_configuration(
+            self.checkpoint_path,
+            {"history": self.history, "epochs": epoch + 1},
+            self.configuration,
+            self.metadata,
+        )
+        logger.info(f"Epoch {epoch + 1} checkpoint saved")
+
+###############################################################################
 def initialize_training_callbacks(
     configuration: dict[str, Any],
     checkpoint_path: str,
@@ -423,6 +464,7 @@ def initialize_training_callbacks(
     worker: Any | None = None,
     session: dict[str, Any] | None = None,
     total_epochs: int = 100,
+    metadata: dict[str, Any] | None = None,
 ) -> list[Any]:
     from_epoch = 0
     additional_epochs = configuration.get("additional_epochs", 10)
@@ -440,6 +482,12 @@ def initialize_training_callbacks(
         )
     )
 
+    # Rolling per-epoch checkpoint, saved before an interrupt can raise at epoch end
+    if configuration.get("save_checkpoints", False) and metadata is not None:
+        callbacks_list.append(
+            EpochCheckpointCallback(configuration, metadata, checkpoint_path, session)
+        )
+
     # Training interrupt callback
     if interrupt_callback is not None:
         if worker is not None and getattr(interrupt_callback, "worker", None) is None:
@@ -456,23 +504,6 @@ def initialize_training_callbacks(
                 checkpoint_path,
                 past_logs=session,
                 progress_callback=progress_callback,
-            )
-        )
-
-    # Checkpoint saving callback
-    if configuration.get("save_checkpoints", False):
-        logger.debug("Adding checkpoint saving callback")
-        checkpoint_filepath = str(
-            Path(checkpoint_path) / "model_checkpoint_E{epoch:02d}.keras"
-        )
-        callbacks_list.append(
-            keras.callbacks.ModelCheckpoint(
-                filepath=checkpoint_filepath,
-                save_weights_only=False,
-                monitor="val_loss",
-                save_best_only=False,
-                mode="auto",
-                verbose=0,
             )
         )
 

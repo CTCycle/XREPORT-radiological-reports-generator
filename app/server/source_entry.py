@@ -29,9 +29,14 @@ def main() -> None:
         raise SystemExit(
             f"XREPORT_APP must be '{arguments.app}' to start the {arguments.app} application"
         )
+    studio = arguments.app == "studio"
+    if studio:
+        # Studio trains with Keras on PyTorch; set it before Keras is imported
+        # so neither the server nor its spawned training workers fall back to
+        # Keras' TensorFlow default when settings/.env is absent.
+        os.environ["KERAS_BACKEND"] = "torch"
     from server.app import app
 
-    studio = arguments.app == "studio"
     host = os.getenv("FASTAPI_HOST", "127.0.0.1")
     port = int(
         os.getenv("STUDIO_FASTAPI_PORT", "5013")

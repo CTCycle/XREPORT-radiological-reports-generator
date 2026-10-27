@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import os
 import re
 from datetime import datetime
 from pathlib import Path
@@ -17,19 +18,25 @@ class ModelSerializer:
         self.model_name = "XREPORT"
 
     # -------------------------------------------------------------------------
-    def create_checkpoint_folder(self, name: str | None = None) -> str:
-        if name:
-            sanitized_name = re.sub(r"[^a-zA-Z0-9_\-]", "", name)
-            if not sanitized_name:
-                today_datetime = datetime.now().strftime("%Y%m%dT%H%M%S")
-                sanitized_name = f"{self.model_name}_{today_datetime}"
-        else:
+    def checkpoint_folder_name(self, name: str | None = None) -> str:
+        sanitized_name = re.sub(r"[^a-zA-Z0-9_\-]", "", name) if name else ""
+        if not sanitized_name:
             today_datetime = datetime.now().strftime("%Y%m%dT%H%M%S")
             sanitized_name = f"{self.model_name}_{today_datetime}"
+        return sanitized_name
 
-        checkpoint_path = CHECKPOINTS_DIR / sanitized_name
-        checkpoint_path.mkdir(parents=True, exist_ok=True)
-        (checkpoint_path / "configuration").mkdir(parents=True, exist_ok=True)
+    # -------------------------------------------------------------------------
+    def create_checkpoint_folder(self, name: str | None = None) -> str:
+        checkpoint_path = CHECKPOINTS_DIR / self.checkpoint_folder_name(name)
+        CHECKPOINTS_DIR.mkdir(parents=True, exist_ok=True)
+        # A new run never writes into an existing checkpoint.
+        try:
+            checkpoint_path.mkdir()
+        except FileExistsError as exc:
+            raise ValueError(
+                f"A checkpoint named '{checkpoint_path.name}' already exists"
+            ) from exc
+        (checkpoint_path / "configuration").mkdir()
         logger.debug(f"Created checkpoint folder at {checkpoint_path}")
 
         return str(checkpoint_path)
@@ -38,7 +45,10 @@ class ModelSerializer:
     def save_pretrained_model(self, model: Any, path: str | Path) -> None:
         checkpoint_path = Path(path)
         model_files_path = checkpoint_path / "saved_model.keras"
-        model.save(model_files_path)
+        # Keras requires the .keras suffix, so the temporary name keeps it.
+        temporary_path = checkpoint_path / ".saved_model.tmp.keras"
+        model.save(temporary_path)
+        os.replace(temporary_path, model_files_path)
         logger.info(
             f"Training session is over. Model {checkpoint_path.name} has been saved"
         )
@@ -57,12 +67,15 @@ class ModelSerializer:
         metadata_path = configuration_path / "metadata.json"
         history_path = configuration_path / "session_history.json"
 
-        with config_path.open("w") as f:
-            json.dump(configuration, f)
-        with metadata_path.open("w") as f:
-            json.dump(metadata, f)
-        with history_path.open("w") as f:
-            json.dump(history, f)
+        for target, payload in (
+            (config_path, configuration),
+            (metadata_path, metadata),
+            (history_path, history),
+        ):
+            temporary_path = target.with_name(f".{target.name}.tmp")
+            with temporary_path.open("w") as f:
+                json.dump(payload, f)
+            os.replace(temporary_path, target)
 
         logger.debug(
             f"Model configuration, session history and metadata saved for {checkpoint_path.name}"

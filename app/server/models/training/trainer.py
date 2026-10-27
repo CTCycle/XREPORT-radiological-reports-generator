@@ -5,10 +5,8 @@ from typing import Any
 
 from keras import Model
 from keras.utils import set_random_seed
-from torch.utils.data import DataLoader
 
 from server.common.utils.logger import logger
-from server.models.device import DeviceConfig, DeviceDataLoader
 from server.models.callbacks import (
     TrainingInterruptCallback,
     initialize_training_callbacks,
@@ -16,15 +14,13 @@ from server.models.callbacks import (
 
 ###############################################################################
 class ModelTrainer:
+    """Run Keras ``fit`` on torch DataLoaders.
 
-    # -------------------------------------------------------------------------
-    @staticmethod
-    def _prepare_fit_data(data: Any, device: Any) -> Any:
-        # Keras 3's Torch backend recognizes native DataLoader instances. Keep
-        # the device wrapper for generic finite iterables used by unit callers.
-        if isinstance(data, DataLoader):
-            return data
-        return DeviceDataLoader(data, device)
+    Callers build and fit inside ``keras.device(...)`` (see ``DeviceConfig``);
+    Keras moves each batch to that device. ``verbose=0`` because progress is
+    reported by ``TrainingProgressCallback``; the progress bar would force a
+    device sync and a stdout write on every batch.
+    """
 
     # -------------------------------------------------------------------------
     def __init__(
@@ -55,21 +51,17 @@ class ModelTrainer:
             interrupt_callback=interrupt_callback,
             worker=worker,
             total_epochs=total_epochs,
+            metadata=self.metadata,
         )
 
         logger.info(f"Starting training for {total_epochs} epochs")
 
-        device = DeviceConfig(self.configuration).set_device()
-        train_data = self._prepare_fit_data(train_data, device)
-        validation_data = self._prepare_fit_data(validation_data, device)
-
         session = model.fit(
             train_data,
-            steps_per_epoch=len(train_data),
             epochs=total_epochs,
             validation_data=validation_data,
-            validation_steps=len(validation_data),
             callbacks=callbacks_list,
+            verbose=0,
         )
 
         history = {"history": session.history, "epochs": session.epoch[-1] + 1}
@@ -101,21 +93,17 @@ class ModelTrainer:
             worker=worker,
             session=session,
             total_epochs=total_epochs,
+            metadata=self.metadata,
         )
 
         logger.info(f"Resuming training from epoch {from_epoch} to {total_epochs}")
 
-        device = DeviceConfig(self.configuration).set_device()
-        train_data = self._prepare_fit_data(train_data, device)
-        validation_data = self._prepare_fit_data(validation_data, device)
-
         new_session = model.fit(
             train_data,
-            steps_per_epoch=len(train_data),
             epochs=total_epochs,
             validation_data=validation_data,
-            validation_steps=len(validation_data),
             callbacks=callbacks_list,
+            verbose=0,
             initial_epoch=from_epoch,
         )
 

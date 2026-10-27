@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from collections.abc import Iterator
 from typing import Any
 
 from server.common.utils.logger import logger
@@ -13,61 +12,44 @@ class DeviceConfig:
         self.configuration = configuration
 
     # -------------------------------------------------------------------------
-    def set_device(self) -> Any:
+    def set_device(self) -> str:
+        """Select the training device and dtype policy.
+
+        Keras' torch backend places new variables and input batches on CUDA
+        whenever it is available, so callers must build and fit inside
+        ``keras.device(<returned name>)`` for a CPU choice to take effect.
+        """
         import torch
         from keras.mixed_precision import set_global_policy
 
         use_gpu = self.configuration.get("use_device_GPU", False)
-        device_name = "cuda" if use_gpu else "cpu"
         mixed_precision = self.configuration.get("use_mixed_precision", False)
 
-        device = torch.device("cpu")
-        if device_name == "cuda" and torch.cuda.is_available():
-            device_id = self.configuration.get("device_ID", 0)
-            device = torch.device(f"cuda:{device_id}")
-            torch.cuda.set_device(device_id)
-            logger.info(f"GPU (cuda:{device_id}) is set as the active device.")
-            if mixed_precision:
-                set_global_policy("mixed_float16")
-                logger.info("Mixed precision policy is active during training")
-        else:
-            if device_name == "cuda":
+        if not use_gpu or not torch.cuda.is_available():
+            if use_gpu:
                 logger.info("No GPU found. Falling back to CPU.")
+            set_global_policy("float32")
             logger.info("CPU is set as the active device.")
+            return "cpu"
 
-        return device
+        device_id = int(self.configuration.get("device_ID", 0))
+        device_count = torch.cuda.device_count()
+        if device_id >= device_count:
+            raise ValueError(
+                f"GPU device {device_id} is not available; "
+                f"{device_count} CUDA device(s) detected."
+            )
+        torch.cuda.set_device(device_id)
+        logger.info(f"GPU (cuda:{device_id}) is set as the active device.")
 
-###############################################################################
-class DeviceDataLoader:
+        policy = "float32"
+        if mixed_precision:
+            # bfloat16 needs no loss scaling; float16 is wrapped by Keras in a
+            # LossScaleOptimizer at compile time.
+            policy = (
+                "mixed_bfloat16" if torch.cuda.is_bf16_supported() else "mixed_float16"
+            )
+            logger.info(f"Mixed precision policy {policy} is active during training")
+        set_global_policy(policy)
 
-    # -------------------------------------------------------------------------
-    def __init__(self, dataloader: Any, device: Any) -> None:
-        self.dataloader = dataloader
-        self.device = device
-
-    # -------------------------------------------------------------------------
-    def __iter__(self) -> Iterator[Any]:
-        for batch in self.dataloader:
-            batch = self.to_device(batch)
-            if isinstance(batch, list):
-                yield tuple(batch)
-            else:
-                yield batch
-
-    # -------------------------------------------------------------------------
-    def __len__(self) -> int:
-        return len(self.dataloader)
-
-    # -------------------------------------------------------------------------
-    def to_device(self, data: Any) -> Any:
-        import torch
-
-        if isinstance(data, torch.Tensor):
-            return data.to(self.device, non_blocking=True)
-        if isinstance(data, list):
-            return [self.to_device(item) for item in data]
-        if isinstance(data, tuple):
-            return tuple(self.to_device(item) for item in data)
-        if isinstance(data, dict):
-            return {key: self.to_device(value) for key, value in data.items()}
-        return data
+        return f"cuda:{device_id}"

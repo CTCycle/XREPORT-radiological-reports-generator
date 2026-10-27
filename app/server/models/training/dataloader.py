@@ -10,6 +10,11 @@ from PIL import Image, ImageOps
 from torch.utils.data import DataLoader, Dataset
 from torchvision import transforms
 
+# -----------------------------------------------------------------------------
+def to_channels_last(image: torch.Tensor) -> torch.Tensor:
+    # Module-level (not a lambda) so spawned DataLoader workers can pickle it.
+    return image.permute(1, 2, 0)
+
 ###############################################################################
 class XRAYDataset(Dataset):
 
@@ -107,7 +112,7 @@ class XRAYDataLoader:
                 transforms.ToTensor(),
                 transforms.Normalize(mean=self.image_mean, std=self.image_std),
                 # Permute to (H, W, C) for Keras compatibility as model.py expects channels last
-                transforms.Lambda(lambda x: x.permute(1, 2, 0)),
+                transforms.Lambda(to_channels_last),
             ]
         )
 

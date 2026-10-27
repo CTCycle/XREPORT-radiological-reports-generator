@@ -3,9 +3,11 @@ from __future__ import annotations
 from collections.abc import Callable
 from typing import TYPE_CHECKING, Any, Protocol
 import multiprocessing
+from pathlib import Path
 
 import os
 import queue
+import shutil
 import signal
 import subprocess
 import time
@@ -596,10 +598,73 @@ def load_resume_training_data(
     return train_data, validation_data
 
 ###############################################################################
+def require_torch_backend() -> None:
+    import keras
+
+    backend = keras.backend.backend()
+    if backend != "torch":
+        raise RuntimeError(
+            f"Studio training requires KERAS_BACKEND=torch, but Keras uses '{backend}'"
+        )
+
+###############################################################################
+def loader_configuration(
+    configuration: dict[str, Any], device_name: str
+) -> dict[str, Any]:
+    # Pinned host memory only speeds up host-to-CUDA copies.
+    pin_memory = bool(configuration.get("pin_memory", False)) and device_name != "cpu"
+    return {**configuration, "pin_memory": pin_memory}
+
+###############################################################################
+def training_result(history: dict[str, Any], checkpoint_path: str) -> dict[str, Any]:
+    metrics = history.get("history", {})
+    return {
+        "epochs": history.get("epochs", 0),
+        "final_loss": (metrics.get("loss") or [0])[-1],
+        "final_val_loss": (metrics.get("val_loss") or [0])[-1],
+        "checkpoint_path": checkpoint_path,
+    }
+
+###############################################################################
+def keep_saved_epoch(checkpoint_path: str | None, created_by_run: bool) -> dict[str, Any]:
+    """Return the result of the last epoch saved in the folder, if any.
+
+    A folder this run created without a saved epoch is removed, so cancelled
+    or failed runs leave no orphan checkpoint directories behind.
+    """
+    from server.repositories.serialization.model import ModelSerializer
+
+    if checkpoint_path is None:
+        return {}
+    path = Path(checkpoint_path)
+    if (path / "saved_model.keras").is_file():
+        try:
+            _, _, history = ModelSerializer().load_training_configuration(path)
+            return training_result(history, checkpoint_path)
+        except (OSError, ValueError) as exc:
+            logger.warning(f"Saved epoch in {path.name} is unreadable: {exc}")
+    if created_by_run:
+        shutil.rmtree(path, ignore_errors=True)
+    return {}
+
+###############################################################################
+def register_saved_epoch(result: dict[str, Any]) -> None:
+    if not result:
+        return
+    path = Path(result["checkpoint_path"])
+    try:
+        CheckpointRepository().register_completed_checkpoint(path.name, path)
+        logger.info(f"Kept checkpoint {path.name} at epoch {result['epochs']}")
+    except Exception as exc:  # noqa: BLE001
+        logger.warning(f"Could not register saved epoch of {path.name}: {exc}")
+
+###############################################################################
 def run_training_process(  # noqa: PLR0915 - lifecycle boundaries are intentionally explicit
     configuration: dict[str, Any],
     worker: Any,
 ) -> None:
+    import keras
+
     from server.models.callbacks import TrainingInterruptCallback, WorkerInterrupted
     from server.models.device import DeviceConfig
     from server.models.training.dataloader import XRAYDataLoader
@@ -612,7 +677,9 @@ def run_training_process(  # noqa: PLR0915 - lifecycle boundaries are intentiona
 
     progress_queue = worker.progress_queue
     stop_event = worker.stop_event
+    checkpoint_path: str | None = None
     try:
+        require_torch_backend()
         worker.report_lifecycle("dataset_loading_started")
         train_data, validation_data, metadata = prepare_training_data(configuration)
         worker.report_lifecycle(
@@ -634,84 +701,76 @@ def run_training_process(  # noqa: PLR0915 - lifecycle boundaries are intentiona
 
         logger.info("Setting device for training operations")
         worker.report_lifecycle("device_initialization_started")
-        device = DeviceConfig(configuration)
-        device.set_device()
+        device_name = DeviceConfig(configuration).set_device()
         worker.report_lifecycle("device_initialization_completed")
 
         modser = ModelSerializer()
-        worker.report_lifecycle("checkpoint_initialization_started")
-        checkpoint_path = modser.create_checkpoint_folder(
-            name=configuration.get("checkpoint_id")
-        )
-        worker.report_lifecycle("checkpoint_initialized")
+        with keras.device(device_name):
+            logger.info("Building model data loaders")
+            worker.report_lifecycle("dataloader_construction_started")
+            loader_settings = loader_configuration(configuration, device_name)
+            train_loader = XRAYDataLoader(
+                loader_settings, shuffle=True
+            ).build_training_dataloader(train_data)
+            validation_loader = XRAYDataLoader(
+                loader_settings, shuffle=False
+            ).build_training_dataloader(validation_data)
+            worker.report_lifecycle(
+                "dataloader_construction_completed",
+                train_batches=len(train_loader),
+                validation_batches=len(validation_loader),
+            )
 
-        logger.info("Building model data loaders")
-        worker.report_lifecycle("dataloader_construction_started")
-        train_loader = XRAYDataLoader(
-            configuration, shuffle=True
-        ).build_training_dataloader(train_data)
-        validation_loader = XRAYDataLoader(
-            configuration, shuffle=False
-        ).build_training_dataloader(validation_data)
-        worker.report_lifecycle(
-            "dataloader_construction_completed",
-            train_batches=len(train_loader),
-            validation_batches=len(validation_loader),
-        )
+            logger.info("Building XREPORT Transformer model")
+            worker.report_lifecycle("model_loading_started")
+            model = build_xreport_model(metadata, configuration)
+            configuration["architecture_summary"] = count_model_parameters(model)
+            worker.report_lifecycle("model_loading_completed")
+            worker.report_lifecycle("model_compilation_completed")
 
-        logger.info("Building XREPORT Transformer model")
-        worker.report_lifecycle("model_loading_started")
-        model = build_xreport_model(metadata, configuration)
-        configuration["architecture_summary"] = count_model_parameters(model)
-        worker.report_lifecycle("model_loading_completed")
-        worker.report_lifecycle("model_compilation_completed")
+            if stop_event.is_set():
+                worker.report_result({"result": {}})
+                return
 
-        if stop_event.is_set():
-            worker.report_result({"result": {}})
-            return
+            worker.report_lifecycle("checkpoint_initialization_started")
+            checkpoint_path = modser.create_checkpoint_folder(
+                name=configuration.get("checkpoint_id")
+            )
+            worker.report_lifecycle("checkpoint_initialized")
 
-        trainer = ModelTrainer(configuration)
-        reporter = QueueProgressReporter(progress_queue, worker=worker)
-        interrupt_callback = TrainingInterruptCallback(
-            worker=worker,
-            stop_event=stop_event,
-        )
+            trainer = ModelTrainer(configuration, metadata)
+            reporter = QueueProgressReporter(progress_queue, worker=worker)
+            interrupt_callback = TrainingInterruptCallback(
+                worker=worker,
+                stop_event=stop_event,
+            )
 
-        logger.info("Starting XREPORT Transformer model training")
-        worker.report_lifecycle("training_initialization_completed")
-        worker.report_lifecycle("fit_requested")
-        trained_model, history = trainer.train_model(
-            model,
-            train_loader,
-            validation_loader,
-            checkpoint_path,
-            progress_callback=reporter,
-            interrupt_callback=interrupt_callback,
-            worker=worker,
-        )
-        worker.report_lifecycle("training_fit_completed")
+            logger.info("Starting XREPORT Transformer model training")
+            worker.report_lifecycle("training_initialization_completed")
+            worker.report_lifecycle("fit_requested")
+            trained_model, history = trainer.train_model(
+                model,
+                train_loader,
+                validation_loader,
+                checkpoint_path,
+                progress_callback=reporter,
+                interrupt_callback=interrupt_callback,
+                worker=worker,
+            )
+            worker.report_lifecycle("training_fit_completed")
 
-        worker.report_lifecycle("checkpoint_saving_started")
-        modser.save_pretrained_model(trained_model, checkpoint_path)
-        modser.save_training_configuration(
-            checkpoint_path, history, configuration, metadata
-        )
-        worker.report_lifecycle("checkpoint_saving_completed")
+            worker.report_lifecycle("checkpoint_saving_started")
+            modser.save_pretrained_model(trained_model, checkpoint_path)
+            modser.save_training_configuration(
+                checkpoint_path, history, configuration, metadata
+            )
+            worker.report_lifecycle("checkpoint_saving_completed")
 
-        worker.report_result(
-            {
-                "result": {
-                    "epochs": history.get("epochs", 0),
-                    "final_loss": history.get("history", {}).get("loss", [0])[-1],
-                    "final_val_loss": history.get("history", {}).get("val_loss", [0])[
-                        -1
-                    ],
-                    "checkpoint_path": checkpoint_path,
-                }
-            }
-        )
+        worker.report_result({"result": training_result(history, checkpoint_path)})
     except WorkerInterrupted:
-        worker.report_result({"result": {}})
+        worker.report_result(
+            {"result": keep_saved_epoch(checkpoint_path, created_by_run=True)}
+        )
     except DatasetIntegrityError as exc:
         worker.report_failure(
             exc,
@@ -722,6 +781,7 @@ def run_training_process(  # noqa: PLR0915 - lifecycle boundaries are intentiona
             },
         )
     except Exception as exc:  # noqa: BLE001
+        register_saved_epoch(keep_saved_epoch(checkpoint_path, created_by_run=True))
         worker.report_failure(exc)
 
 ###############################################################################
@@ -731,6 +791,8 @@ def run_resume_training_process(  # noqa: PLR0915 - lifecycle boundaries are int
     worker: Any,
     poll_interval: float = 1.0,
 ) -> None:
+    import keras
+
     from server.models.callbacks import TrainingInterruptCallback, WorkerInterrupted
     from server.models.device import DeviceConfig
     from server.models.training.dataloader import XRAYDataLoader
@@ -739,7 +801,9 @@ def run_resume_training_process(  # noqa: PLR0915 - lifecycle boundaries are int
 
     progress_queue = worker.progress_queue
     stop_event = worker.stop_event
+    checkpoint_path: str | None = None
     try:
+        require_torch_backend()
         worker.report_lifecycle("checkpoint_loading_started")
         modser = ModelSerializer()
         checkpoint_record = CheckpointRepository().get_checkpoint(checkpoint)
@@ -749,98 +813,94 @@ def run_resume_training_process(  # noqa: PLR0915 - lifecycle boundaries are int
             raise ValueError(
                 f"Checkpoint artifact is missing or incomplete: {checkpoint}"
             )
-        model, train_config, model_metadata, session, checkpoint_path = (
-            modser.load_checkpoint(checkpoint_record.path)
-        )
-        worker.report_lifecycle("checkpoint_loading_completed")
-        train_config["additional_epochs"] = additional_epochs
-        train_config["polling_interval"] = poll_interval
-
-        worker.report_lifecycle("dataset_loading_started")
-        train_data, validation_data = load_resume_training_data(
-            train_config, model_metadata
-        )
-        worker.report_lifecycle(
-            "dataset_loaded",
-            train_records=len(train_data),
-            validation_records=len(validation_data),
-        )
-        if train_data.empty or validation_data.empty:
-            raise ValueError(
-                "Training data split is empty. Reprocess the dataset or adjust "
-                "sample_size/validation_size to ensure both train and validation "
-                "sets contain data."
-            )
-
-        if stop_event.is_set():
-            worker.report_result({"result": {}})
-            return
-
+        # The device and dtype policy must be set before the model is loaded.
+        saved_config, _, _ = modser.load_training_configuration(checkpoint_record.path)
         logger.info("Setting device for training operations")
         worker.report_lifecycle("device_initialization_started")
-        device = DeviceConfig(train_config)
-        device.set_device()
+        device_name = DeviceConfig(saved_config).set_device()
         worker.report_lifecycle("device_initialization_completed")
 
-        logger.info("Building model data loaders")
-        worker.report_lifecycle("dataloader_construction_started")
-        train_loader = XRAYDataLoader(
-            train_config, shuffle=True
-        ).build_training_dataloader(train_data)
-        validation_loader = XRAYDataLoader(
-            train_config, shuffle=False
-        ).build_training_dataloader(validation_data)
-        worker.report_lifecycle(
-            "dataloader_construction_completed",
-            train_batches=len(train_loader),
-            validation_batches=len(validation_loader),
-        )
+        with keras.device(device_name):
+            model, train_config, model_metadata, session, checkpoint_path = (
+                modser.load_checkpoint(checkpoint_record.path)
+            )
+            worker.report_lifecycle("checkpoint_loading_completed")
+            train_config["additional_epochs"] = additional_epochs
+            train_config["polling_interval"] = poll_interval
 
-        trainer = ModelTrainer(train_config, model_metadata)
-        reporter = QueueProgressReporter(progress_queue, worker=worker)
-        interrupt_callback = TrainingInterruptCallback(
-            worker=worker,
-            stop_event=stop_event,
-        )
-        from_epoch = session.get("epochs", 0)
+            worker.report_lifecycle("dataset_loading_started")
+            train_data, validation_data = load_resume_training_data(
+                train_config, model_metadata
+            )
+            worker.report_lifecycle(
+                "dataset_loaded",
+                train_records=len(train_data),
+                validation_records=len(validation_data),
+            )
+            if train_data.empty or validation_data.empty:
+                raise ValueError(
+                    "Training data split is empty. Reprocess the dataset or adjust "
+                    "sample_size/validation_size to ensure both train and validation "
+                    "sets contain data."
+                )
 
-        logger.info("Resuming training from epoch %s", from_epoch)
-        worker.report_lifecycle("training_initialization_completed")
-        worker.report_lifecycle("fit_requested")
-        trained_model, history = trainer.resume_training(
-            model,
-            train_loader,
-            validation_loader,
-            checkpoint_path,
-            session=session,
-            additional_epochs=additional_epochs,
-            progress_callback=reporter,
-            interrupt_callback=interrupt_callback,
-            worker=worker,
-        )
-        worker.report_lifecycle("training_fit_completed")
+            if stop_event.is_set():
+                worker.report_result({"result": {}})
+                return
 
-        worker.report_lifecycle("checkpoint_saving_started")
-        modser.save_pretrained_model(trained_model, checkpoint_path)
-        modser.save_training_configuration(
-            checkpoint_path, history, train_config, model_metadata
-        )
-        worker.report_lifecycle("checkpoint_saving_completed")
+            logger.info("Building model data loaders")
+            worker.report_lifecycle("dataloader_construction_started")
+            loader_settings = loader_configuration(train_config, device_name)
+            train_loader = XRAYDataLoader(
+                loader_settings, shuffle=True
+            ).build_training_dataloader(train_data)
+            validation_loader = XRAYDataLoader(
+                loader_settings, shuffle=False
+            ).build_training_dataloader(validation_data)
+            worker.report_lifecycle(
+                "dataloader_construction_completed",
+                train_batches=len(train_loader),
+                validation_batches=len(validation_loader),
+            )
 
-        worker.report_result(
-            {
-                "result": {
-                    "epochs": history.get("epochs", 0),
-                    "final_loss": history.get("history", {}).get("loss", [0])[-1],
-                    "final_val_loss": history.get("history", {}).get("val_loss", [0])[
-                        -1
-                    ],
-                    "checkpoint_path": checkpoint_path,
-                }
-            }
-        )
+            trainer = ModelTrainer(train_config, model_metadata)
+            reporter = QueueProgressReporter(progress_queue, worker=worker)
+            interrupt_callback = TrainingInterruptCallback(
+                worker=worker,
+                stop_event=stop_event,
+            )
+            from_epoch = session.get("epochs", 0)
+
+            logger.info("Resuming training from epoch %s", from_epoch)
+            worker.report_lifecycle("training_initialization_completed")
+            worker.report_lifecycle("fit_requested")
+            trained_model, history = trainer.resume_training(
+                model,
+                train_loader,
+                validation_loader,
+                checkpoint_path,
+                session=session,
+                additional_epochs=additional_epochs,
+                progress_callback=reporter,
+                interrupt_callback=interrupt_callback,
+                worker=worker,
+            )
+            worker.report_lifecycle("training_fit_completed")
+
+            worker.report_lifecycle("checkpoint_saving_started")
+            modser.save_pretrained_model(trained_model, checkpoint_path)
+            modser.save_training_configuration(
+                checkpoint_path, history, train_config, model_metadata
+            )
+            worker.report_lifecycle("checkpoint_saving_completed")
+
+        worker.report_result({"result": training_result(history, checkpoint_path)})
     except WorkerInterrupted:
-        worker.report_result({"result": {}})
+        # The checkpoint stays registered; re-registering refreshes its record
+        # when the rolling save advanced it.
+        worker.report_result(
+            {"result": keep_saved_epoch(checkpoint_path, created_by_run=False)}
+        )
     except DatasetIntegrityError as exc:
         worker.report_failure(
             exc,
@@ -851,4 +911,5 @@ def run_resume_training_process(  # noqa: PLR0915 - lifecycle boundaries are int
             },
         )
     except Exception as exc:  # noqa: BLE001
+        register_saved_epoch(keep_saved_epoch(checkpoint_path, created_by_run=False))
         worker.report_failure(exc)
