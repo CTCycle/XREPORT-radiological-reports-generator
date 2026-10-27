@@ -131,17 +131,19 @@ class FeedForward(layers.Layer):
         dropout: float = 0.2,
         seed: int = 42,
         output_units: int | None = None,
+        activation: str = "relu",
         **kwargs,
     ) -> None:
         super(FeedForward, self).__init__(**kwargs)
         self.dense_units = dense_units
         self.output_units = output_units or dense_units
         self.dropout_rate = dropout
+        self.activation = activation
         self.dense1 = layers.Dense(
-            dense_units, activation="relu", kernel_initializer="he_uniform"
+            dense_units, activation=activation, kernel_initializer="he_uniform"
         )
         self.dense2 = layers.Dense(
-            self.output_units, activation="relu", kernel_initializer="he_uniform"
+            self.output_units, activation=activation, kernel_initializer="he_uniform"
         )
         self.dropout = layers.Dropout(rate=dropout, seed=seed)
         self.seed = seed
@@ -168,6 +170,7 @@ class FeedForward(layers.Layer):
                 "output_units": self.output_units,
                 "dropout": self.dropout_rate,
                 "seed": self.seed,
+                "activation": self.activation,
             }
         )
         return config
@@ -183,12 +186,18 @@ class SoftMaxClassifier(layers.Layer):
 
     # -------------------------------------------------------------------------
     def __init__(
-        self, dense_units: int, output_size: int, temperature: float = 1.0, **kwargs
+        self,
+        dense_units: int,
+        output_size: int,
+        temperature: float = 1.0,
+        activation: str = "relu",
+        **kwargs,
     ) -> None:
         super(SoftMaxClassifier, self).__init__(**kwargs)
         self.dense_units = dense_units
         self.output_size = output_size
         self.temperature = temperature
+        self.activation = activation
         self.dense1 = layers.Dense(dense_units, kernel_initializer="he_uniform")
         self.dense2 = layers.Dense(
             output_size, kernel_initializer="he_uniform", dtype=floatx()
@@ -204,7 +213,7 @@ class SoftMaxClassifier(layers.Layer):
     # -------------------------------------------------------------------------
     def call(self, x: Any, training: bool | None = None) -> Any:
         layer = self.dense1(x)
-        layer = activations.relu(layer)
+        layer = activations.get(self.activation)(layer)
         layer = self.dense2(layer)
         layer = layer / self.temperature
         output = activations.softmax(layer)
@@ -219,6 +228,7 @@ class SoftMaxClassifier(layers.Layer):
                 "dense_units": self.dense_units,
                 "output_size": self.output_size,
                 "temperature": self.temperature,
+                "activation": self.activation,
             }
         )
         return config
@@ -243,6 +253,8 @@ class TransformerEncoder(layers.Layer):
         ffn_units: int | None = None,
         dropout: float = 0.2,
         key_dim: int | None = None,
+        activation: str = "relu",
+        norm_epsilon: float = 10e-5,
         **kwargs,
     ) -> None:
         super(TransformerEncoder, self).__init__(**kwargs)
@@ -254,13 +266,19 @@ class TransformerEncoder(layers.Layer):
         self.ffn_units = ffn_units or embedding_dims
         self.dropout = dropout
         self.key_dim = key_dim or embedding_dims
+        self.activation = activation
+        self.norm_epsilon = norm_epsilon
         self.attention = layers.MultiHeadAttention(
             num_heads=self.num_heads, key_dim=self.key_dim, seed=self.seed
         )
-        self.addnorm1 = AddNorm()
-        self.addnorm2 = AddNorm()
+        self.addnorm1 = AddNorm(norm_epsilon)
+        self.addnorm2 = AddNorm(norm_epsilon)
         self.ffn1 = FeedForward(
-            self.ffn_units, self.dropout, seed, output_units=self.embedding_dims
+            self.ffn_units,
+            self.dropout,
+            seed,
+            output_units=self.embedding_dims,
+            activation=self.activation,
         )
         # set mask supports to True but mask propagation is handled
         # through the attention layer call
@@ -310,6 +328,8 @@ class TransformerEncoder(layers.Layer):
                 "ffn_units": self.ffn_units,
                 "dropout": self.dropout,
                 "key_dim": self.key_dim,
+                "activation": self.activation,
+                "norm_epsilon": self.norm_epsilon,
             }
         )
         return config
@@ -334,6 +354,8 @@ class TransformerDecoder(layers.Layer):
         ffn_units: int | None = None,
         dropout: float = 0.2,
         key_dim: int | None = None,
+        activation: str = "relu",
+        norm_epsilon: float = 10e-5,
         **kwargs,
     ) -> None:
         super(TransformerDecoder, self).__init__(**kwargs)
@@ -343,6 +365,8 @@ class TransformerDecoder(layers.Layer):
         self.ffn_units = ffn_units or embedding_dims
         self.dropout = dropout
         self.key_dim = key_dim or embedding_dims
+        self.activation = activation
+        self.norm_epsilon = norm_epsilon
         self.self_attention = layers.MultiHeadAttention(
             num_heads=self.num_heads,
             key_dim=self.key_dim,
@@ -355,11 +379,15 @@ class TransformerDecoder(layers.Layer):
             dropout=self.dropout,
             seed=self.seed,
         )
-        self.addnorm1 = AddNorm()
-        self.addnorm2 = AddNorm()
-        self.addnorm3 = AddNorm()
+        self.addnorm1 = AddNorm(norm_epsilon)
+        self.addnorm2 = AddNorm(norm_epsilon)
+        self.addnorm3 = AddNorm(norm_epsilon)
         self.ffn1 = FeedForward(
-            self.ffn_units, self.dropout, seed, output_units=self.embedding_dims
+            self.ffn_units,
+            self.dropout,
+            seed,
+            output_units=self.embedding_dims,
+            activation=self.activation,
         )
         # set mask supports to True but mask propagation is handled
         # through the attention layer call
@@ -446,6 +474,8 @@ class TransformerDecoder(layers.Layer):
                 "ffn_units": self.ffn_units,
                 "dropout": self.dropout,
                 "key_dim": self.key_dim,
+                "activation": self.activation,
+                "norm_epsilon": self.norm_epsilon,
             }
         )
         return config

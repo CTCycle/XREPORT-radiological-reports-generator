@@ -829,6 +829,27 @@
         }
       }
     },
+    "/api/model/presets/restore": {
+      "post": {
+        "tags": [
+          "model"
+        ],
+        "summary": "Restore Presets",
+        "operationId": "restore_presets_api_model_presets_restore_post",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ArchitecturePresetsResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/model/presets/{key}": {
       "put": {
         "tags": [
@@ -1594,12 +1615,20 @@
             "type": "string",
             "title": "Reference"
           },
+          "reference_kind": {
+            "type": "string",
+            "enum": [
+              "preset",
+              "checkpoint"
+            ],
+            "title": "Reference Kind"
+          },
           "level": {
             "type": "string",
             "enum": [
               "identical",
-              "weights_compatible",
-              "retrain_required"
+              "compatible",
+              "mismatch"
             ],
             "title": "Level"
           },
@@ -1613,11 +1642,22 @@
           "message": {
             "type": "string",
             "title": "Message"
+          },
+          "weights": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/WeightCompatibility"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "type": "object",
         "required": [
           "reference",
+          "reference_kind",
           "level",
           "changes",
           "message"
@@ -1749,6 +1789,11 @@
             "type": "array",
             "title": "Output Shape"
           },
+          "fixed": {
+            "type": "boolean",
+            "title": "Fixed",
+            "default": false
+          },
           "properties": {
             "additionalProperties": true,
             "type": "object",
@@ -1785,6 +1830,11 @@
           "builtin": {
             "type": "boolean",
             "title": "Builtin"
+          },
+          "protected": {
+            "type": "boolean",
+            "title": "Protected",
+            "default": false
           },
           "architecture": {
             "$ref": "#/components/schemas/ModelArchitecture"
@@ -1862,6 +1912,11 @@
             },
             "type": "array",
             "title": "Presets"
+          },
+          "hidden_builtins": {
+            "type": "integer",
+            "title": "Hidden Builtins",
+            "default": 0
           }
         },
         "type": "object",
@@ -1876,19 +1931,6 @@
             "additionalProperties": true,
             "type": "object",
             "title": "Architecture"
-          },
-          "dataset_name": {
-            "anyOf": [
-              {
-                "type": "string",
-                "maxLength": 128,
-                "minLength": 1
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Dataset Name"
           },
           "reference": {
             "anyOf": [
@@ -1964,6 +2006,13 @@
                 "type": "null"
               }
             ]
+          },
+          "shape_fields": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Shape Fields"
           }
         },
         "type": "object",
@@ -2069,6 +2118,28 @@
               }
             ],
             "title": "Measured Parameters"
+          },
+          "vocabulary_size": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Vocabulary Size"
+          },
+          "sequence_length": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sequence Length"
           }
         },
         "type": "object",
@@ -3005,13 +3076,13 @@
           "after": {
             "title": "After"
           },
-          "impact": {
+          "scope": {
             "type": "string",
             "enum": [
-              "weights_compatible",
-              "retrain_required"
+              "shape",
+              "behaviour"
             ],
-            "title": "Impact"
+            "title": "Scope"
           }
         },
         "type": "object",
@@ -3019,7 +3090,7 @@
           "field",
           "before",
           "after",
-          "impact"
+          "scope"
         ],
         "title": "FieldChange"
       },
@@ -3586,6 +3657,14 @@
             "description": "Model width shared by all transformer blocks",
             "default": 768
           },
+          "norm_epsilon": {
+            "type": "number",
+            "maximum": 0.01,
+            "minimum": 1e-08,
+            "title": "Norm Epsilon",
+            "description": "Epsilon of every residual layer norm",
+            "default": 0.0001
+          },
           "num_encoders": {
             "type": "integer",
             "maximum": 12.0,
@@ -3593,6 +3672,60 @@
             "title": "Num Encoders",
             "description": "Transformer encoder layers",
             "default": 6
+          },
+          "encoder_head_dim_mode": {
+            "type": "string",
+            "enum": [
+              "full",
+              "split",
+              "custom"
+            ],
+            "title": "Encoder Head Dim Mode",
+            "description": "full: model width per head; split: width / heads; custom: encoder_head_dim",
+            "default": "full"
+          },
+          "encoder_head_dim": {
+            "type": "integer",
+            "maximum": 1024.0,
+            "minimum": 8.0,
+            "title": "Encoder Head Dim",
+            "description": "Head size in custom mode",
+            "default": 64
+          },
+          "encoder_heads": {
+            "type": "integer",
+            "maximum": 16.0,
+            "minimum": 1.0,
+            "title": "Encoder Heads",
+            "description": "Encoder attention heads",
+            "default": 8
+          },
+          "encoder_ffn_units": {
+            "type": "integer",
+            "maximum": 4096.0,
+            "minimum": 64.0,
+            "title": "Encoder Ffn Units",
+            "description": "Hidden units of each encoder feed-forward network",
+            "default": 768
+          },
+          "encoder_ffn_activation": {
+            "type": "string",
+            "enum": [
+              "relu",
+              "gelu",
+              "silu"
+            ],
+            "title": "Encoder Ffn Activation",
+            "description": "Activation of the encoder feed-forward network",
+            "default": "relu"
+          },
+          "encoder_dropout": {
+            "type": "number",
+            "maximum": 0.5,
+            "minimum": 0.0,
+            "title": "Encoder Dropout",
+            "description": "Encoder dropout rate",
+            "default": 0.2
           },
           "num_decoders": {
             "type": "integer",
@@ -3602,38 +3735,58 @@
             "description": "Transformer decoder layers",
             "default": 6
           },
-          "attention_heads": {
-            "type": "integer",
-            "maximum": 16.0,
-            "minimum": 1.0,
-            "title": "Attention Heads",
-            "description": "Attention heads per block",
-            "default": 8
-          },
-          "head_dim_mode": {
+          "decoder_head_dim_mode": {
             "type": "string",
             "enum": [
               "full",
-              "split"
+              "split",
+              "custom"
             ],
-            "title": "Head Dim Mode",
-            "description": "full: every head projects to the model width; split: width / heads",
+            "title": "Decoder Head Dim Mode",
+            "description": "full: model width per head; split: width / heads; custom: decoder_head_dim",
             "default": "full"
           },
-          "ffn_units": {
+          "decoder_head_dim": {
+            "type": "integer",
+            "maximum": 1024.0,
+            "minimum": 8.0,
+            "title": "Decoder Head Dim",
+            "description": "Head size in custom mode",
+            "default": 64
+          },
+          "decoder_heads": {
+            "type": "integer",
+            "maximum": 16.0,
+            "minimum": 1.0,
+            "title": "Decoder Heads",
+            "description": "Decoder attention heads",
+            "default": 8
+          },
+          "decoder_ffn_units": {
             "type": "integer",
             "maximum": 4096.0,
             "minimum": 64.0,
-            "title": "Ffn Units",
-            "description": "Hidden units of each feed-forward network",
+            "title": "Decoder Ffn Units",
+            "description": "Hidden units of each decoder feed-forward network",
             "default": 768
           },
-          "dropout": {
+          "decoder_ffn_activation": {
+            "type": "string",
+            "enum": [
+              "relu",
+              "gelu",
+              "silu"
+            ],
+            "title": "Decoder Ffn Activation",
+            "description": "Activation of the decoder feed-forward network",
+            "default": "relu"
+          },
+          "decoder_dropout": {
             "type": "number",
             "maximum": 0.5,
             "minimum": 0.0,
-            "title": "Dropout",
-            "description": "Dropout rate",
+            "title": "Decoder Dropout",
+            "description": "Decoder dropout rate",
             "default": 0.2
           },
           "classifier_units": {
@@ -3643,6 +3796,17 @@
             "title": "Classifier Units",
             "description": "Hidden units of the token classifier",
             "default": 1024
+          },
+          "classifier_activation": {
+            "type": "string",
+            "enum": [
+              "relu",
+              "gelu",
+              "silu"
+            ],
+            "title": "Classifier Activation",
+            "description": "Activation of the classifier hidden layer",
+            "default": "relu"
           },
           "temperature": {
             "type": "number",
@@ -3656,7 +3820,7 @@
         "additionalProperties": false,
         "type": "object",
         "title": "ModelArchitecture",
-        "description": "Configurable, constrained XREPORT transformer architecture."
+        "description": "Configurable, constrained XREPORT transformer architecture.\n\nEncoder and decoder stacks are configured independently. Components that are\npart of the fixed XREPORT design (image preprocessing, BEiT weights,\npositional embeddings, vocabulary and report length, softmax output) are not\nfields."
       },
       "PixelDistribution": {
         "properties": {
@@ -4306,6 +4470,70 @@
         ],
         "title": "ValidationRequest",
         "description": "Request model for dataset validation."
+      },
+      "WeightCompatibility": {
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "loadable",
+              "incompatible"
+            ],
+            "title": "Status"
+          },
+          "message": {
+            "type": "string",
+            "title": "Message"
+          },
+          "mismatches": {
+            "items": {
+              "$ref": "#/components/schemas/WeightMismatch"
+            },
+            "type": "array",
+            "title": "Mismatches"
+          }
+        },
+        "type": "object",
+        "required": [
+          "status",
+          "message",
+          "mismatches"
+        ],
+        "title": "WeightCompatibility"
+      },
+      "WeightMismatch": {
+        "properties": {
+          "layer": {
+            "type": "string",
+            "title": "Layer"
+          },
+          "tensor": {
+            "type": "string",
+            "title": "Tensor"
+          },
+          "expected": {
+            "items": {
+              "type": "integer"
+            },
+            "type": "array",
+            "title": "Expected"
+          },
+          "found": {
+            "items": {
+              "type": "integer"
+            },
+            "type": "array",
+            "title": "Found"
+          }
+        },
+        "type": "object",
+        "required": [
+          "layer",
+          "tensor",
+          "expected",
+          "found"
+        ],
+        "title": "WeightMismatch"
       }
     }
   }

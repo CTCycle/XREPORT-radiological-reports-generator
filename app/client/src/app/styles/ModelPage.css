@@ -3,15 +3,17 @@
 .model-page {
     display: flex;
     flex-direction: column;
-    gap: var(--space-5);
+    gap: var(--space-4);
 }
 
+/* The three panels share one top and one bottom edge; their bodies scroll. */
 .model-layout {
     display: grid;
-    grid-template-columns: minmax(200px, 236px) minmax(0, 1fr) minmax(268px, 300px);
+    grid-template-columns: minmax(220px, 260px) minmax(0, 1fr) minmax(300px, 340px);
     grid-template-areas: "library canvas inspector";
     gap: var(--space-4);
-    align-items: start;
+    align-items: stretch;
+    height: clamp(720px, calc(100dvh - 190px), 1200px);
 }
 
 .model-panel {
@@ -21,11 +23,26 @@
     box-shadow: var(--shadow-card);
     padding: var(--space-4);
     min-width: 0;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3);
 }
 
 .model-library { grid-area: library; }
-.model-canvas { grid-area: canvas; display: flex; flex-direction: column; gap: var(--space-4); }
-.model-inspector { grid-area: inspector; display: flex; flex-direction: column; gap: var(--space-3); }
+.model-canvas { grid-area: canvas; gap: var(--space-3); }
+.model-inspector { grid-area: inspector; }
+
+.model-panel-body {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3);
+    margin-inline: calc(var(--space-2) * -1);
+    padding-inline: var(--space-2);
+}
 
 .model-panel-header {
     display: flex;
@@ -49,12 +66,38 @@
 /* Preset library ---------------------------------------------------------- */
 
 .model-library-group {
-    margin: var(--space-4) 0 var(--space-2);
+    display: flex;
+    align-items: center;
+    gap: var(--space-1);
+    width: 100%;
+    padding: var(--space-1) 0;
+    border: 0;
+    background: transparent;
+    cursor: pointer;
     font-size: var(--text-xs);
     font-weight: 600;
     letter-spacing: 0.04em;
     text-transform: uppercase;
     color: var(--text-muted);
+}
+
+.model-library-group:hover { color: var(--text-primary); }
+.model-library-count { margin-left: auto; font-variant-numeric: tabular-nums; }
+
+.model-restore { width: 100%; justify-content: center; }
+
+.model-locked {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-1);
+    padding: 1px var(--space-2);
+    border-radius: 999px;
+    background: var(--bg-muted);
+    color: var(--text-secondary);
+    font-size: 10.5px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
 }
 
 .model-library-empty {
@@ -162,14 +205,14 @@
 
 .model-stats {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(96px, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(82px, 1fr));
     gap: var(--space-2);
     margin: 0;
     transition: opacity var(--theme-transition-duration);
 }
 
 .model-stats div {
-    padding: var(--space-2) var(--space-3);
+    padding: var(--space-2);
     border: 1px solid var(--border-subtle);
     border-radius: var(--radius-md);
     background: var(--bg-muted);
@@ -185,20 +228,14 @@
 
 .model-stats dd {
     margin: 2px 0 0;
-    font-size: 1.15rem;
+    font-size: 1rem;
     font-weight: 600;
     color: var(--text-primary);
     font-variant-numeric: tabular-nums;
 }
 
-.model-sizing {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: var(--space-2) var(--space-4);
-}
-
-.model-sizing-note {
+.model-assumptions {
+    margin: 0;
     font-size: var(--text-xs);
     color: var(--text-secondary);
 }
@@ -214,7 +251,9 @@
 .model-inline-field .form-select { min-width: 0; max-width: 100%; }
 
 .model-diagram {
-    overflow-x: auto;
+    flex: 1;
+    min-height: 0;
+    overflow: auto;
     border: 1px solid var(--border-subtle);
     border-radius: var(--radius-md);
     background: var(--bg-primary);
@@ -287,8 +326,8 @@
     white-space: nowrap;
 }
 
-.model-impact[data-impact="weights_compatible"] { background: var(--success-soft); color: var(--success-color); }
-.model-impact[data-impact="retrain_required"] { background: var(--warning-soft); color: var(--warning-color); }
+.model-impact[data-impact="setting"] { background: var(--bg-muted); color: var(--text-secondary); }
+.model-impact[data-impact="shape"] { background: var(--warning-soft); color: var(--warning-color); }
 
 .model-range {
     display: grid;
@@ -336,7 +375,7 @@
     display: flex;
     flex-direction: column;
     gap: var(--space-2);
-    margin-top: var(--space-2);
+    margin-top: auto;
     padding-top: var(--space-3);
     border-top: 1px solid var(--border-color);
 }
@@ -357,8 +396,9 @@
 
 .model-compat-result p { margin: 2px 0 0; color: var(--text-secondary); font-size: var(--text-xs); }
 .model-compat-result[data-level="identical"],
-.model-compat-result[data-level="weights_compatible"] { background: var(--success-soft); color: var(--success-color); }
-.model-compat-result[data-level="retrain_required"] { background: var(--warning-soft); color: var(--warning-color); }
+.model-compat-result[data-level="compatible"] { background: var(--success-soft); color: var(--success-color); }
+.model-compat-result[data-level="mismatch"],
+.model-compat-result[data-level="weights-incompatible"] { background: var(--warning-soft); color: var(--warning-color); }
 .model-compat-result strong { color: var(--text-primary); }
 
 .model-compat-changes {
@@ -381,6 +421,10 @@
 
 .model-compat-changes .model-impact { margin-left: 0; }
 .model-compat-load { align-self: flex-start; }
+
+.model-weight-list li { grid-template-columns: minmax(0, 1fr); gap: 0; padding-bottom: var(--space-1); border-bottom: 1px solid var(--border-subtle); }
+.model-weight-list li span:last-child { color: var(--text-secondary); }
+.model-note.muted { color: var(--text-muted); }
 
 .model-banner {
     display: flex;
@@ -434,16 +478,28 @@
 
 @media (max-width: 1200px) {
     .model-layout {
-        grid-template-columns: minmax(200px, 236px) minmax(0, 1fr);
+        grid-template-columns: minmax(220px, 260px) minmax(0, 1fr);
+        grid-template-rows: minmax(0, 1fr) auto;
         grid-template-areas:
             "library canvas"
-            "library inspector";
+            "inspector inspector";
+        height: auto;
     }
+
+    .model-library,
+    .model-canvas { height: clamp(640px, calc(100dvh - 190px), 900px); }
+    .model-inspector .model-panel-body { overflow: visible; }
 }
 
 @media (max-width: 860px) {
     .model-layout {
         grid-template-columns: minmax(0, 1fr);
+        grid-template-rows: none;
         grid-template-areas: "canvas" "inspector" "library";
     }
+
+    .model-library,
+    .model-canvas { height: auto; }
+    .model-library .model-panel-body { max-height: 420px; }
+    .model-diagram { min-height: 460px; }
 }

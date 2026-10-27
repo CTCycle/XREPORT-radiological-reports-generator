@@ -380,6 +380,13 @@ class ModelArchitecturePreset(StudioBase):
     )
 
 ###############################################################################
+class HiddenArchitecturePreset(StudioBase):
+    """Built-in architecture preset removed from the user's preset collection."""
+
+    __tablename__ = "hidden_architecture_presets"
+    preset_key: Mapped[str] = mapped_column(String(80), primary_key=True)
+
+###############################################################################
 @event.listens_for(Dataset, "before_insert")
 def _populate_dataset_name_key(_mapper: Any, _connection: Any, target: Dataset) -> None:
     target.name_key = normalize_key(target.name)
@@ -398,6 +405,7 @@ __all__ = [
     "Dataset",
     "DatasetRecord",
     "DatasetVersion",
+    "HiddenArchitecturePreset",
     "ModelArchitecturePreset",
     "ProcessingRun",
     "StudioBase",

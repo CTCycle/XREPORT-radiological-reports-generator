@@ -4,12 +4,15 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import Any
 
-from sqlalchemy import select
+from sqlalchemy import delete, select
 
 from server.domain.model_architecture import ModelArchitecture
 from server.repositories.database import Database, get_database
 from server.repositories.schemas.normalization import normalize_key
-from server.repositories.schemas.studio import ModelArchitecturePreset
+from server.repositories.schemas.studio import (
+    HiddenArchitecturePreset,
+    ModelArchitecturePreset,
+)
 
 ###############################################################################
 @dataclass(frozen=True)
@@ -130,6 +133,23 @@ class ModelArchitectureRepository:
                 return False
             session.delete(row)
         return True
+
+    # -------------------------------------------------------------------------
+    def hidden_builtin_keys(self) -> set[str]:
+        with self.database.read_session() as session:
+            rows = session.execute(select(HiddenArchitecturePreset.preset_key))
+            return set(rows.scalars().all())
+
+    # -------------------------------------------------------------------------
+    def hide_builtin(self, key: str) -> None:
+        with self.database.transaction() as session:
+            if session.get(HiddenArchitecturePreset, key) is None:
+                session.add(HiddenArchitecturePreset(preset_key=key))
+
+    # -------------------------------------------------------------------------
+    def restore_builtins(self) -> None:
+        with self.database.transaction() as session:
+            session.execute(delete(HiddenArchitecturePreset))
 
 
 __all__ = [

@@ -8,7 +8,7 @@ from torch import compile as torch_compile
 
 from server.common.utils.logger import logger
 from server.domain.model_architecture import ModelArchitecture
-from server.models.training.architecture import IMAGE_SHAPE, layer_kwargs
+from server.models.training.architecture import IMAGE_SHAPE, stack_kwargs
 from server.models.training.encoder import BeitXRayImageEncoder
 from server.models.training.layers import (
     PositionalEmbedding,
@@ -49,13 +49,12 @@ class XREPORTModel:
             architecture.freeze_image_encoder, architecture.embedding_dims
         )
 
-        block_kwargs = layer_kwargs(architecture)
         self.encoders = [
-            TransformerEncoder(seed=self.seed, **block_kwargs)
+            TransformerEncoder(seed=self.seed, **stack_kwargs(architecture, "encoder"))
             for _ in range(architecture.num_encoders)
         ]
         self.decoders = [
-            TransformerDecoder(seed=self.seed, **block_kwargs)
+            TransformerDecoder(seed=self.seed, **stack_kwargs(architecture, "decoder"))
             for _ in range(architecture.num_decoders)
         ]
         self.embeddings = PositionalEmbedding(
@@ -65,6 +64,7 @@ class XREPORTModel:
             architecture.classifier_units,
             self.vocabulary_size,
             architecture.temperature,
+            architecture.classifier_activation,
         )
 
     # -------------------------------------------------------------------------

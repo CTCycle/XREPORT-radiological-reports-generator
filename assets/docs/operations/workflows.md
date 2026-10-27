@@ -29,15 +29,23 @@ Expected result:
 
 ## Configure A Model Architecture (Studio)
 
-1. Open the Model page. Built-in presets are read-only; the XREPORT default
-   reproduces the original architecture.
-2. Select a component in the diagram and adjust its parameters, optionally
-   sizing against a processed dataset and comparing with a preset or checkpoint.
+1. Open the Model page. Presets are untrained architecture definitions;
+   built-in presets are read-only and the XREPORT default (which can never be
+   removed) reproduces the original architecture. Other built-in presets can be
+   removed from the list and restored later; custom presets can be deleted.
+2. Select a component in the diagram and adjust its parameters. Encoder and
+   decoder are configured independently. Compare the draft with any preset
+   (architecture only) or checkpoint (architecture and trained-weight shapes).
 3. Save as a custom preset, or export/import it as JSON
-   (`xreport-model-architecture`, version 1).
+   (`xreport-model-architecture`, version 1; files with the former shared
+   heads/feed-forward/dropout keys still import).
 
-Changing dropout, temperature or encoder freezing keeps weight shapes; every
-other change requires training the transformer from scratch. The pinned BEiT
+Settings such as dropout, activations, layer-norm epsilon, temperature and
+encoder freezing keep every tensor shape, so a checkpoint trained with one
+value loads with another. Layer counts, width, heads, head size,
+feed-forward and classifier units change tensor shapes: weights of a
+checkpoint with different shapes cannot be loaded, and the comparison lists
+the affected tensors. The pinned BEiT
 encoder weights are always reused. Other image encoders were evaluated but are
 not offered: XREPORT Inference only imports checkpoints built on the pinned
 BEiT revision, and Studio has no offline installer for other encoders.

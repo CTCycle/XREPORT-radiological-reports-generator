@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, Literal
 
 from server.domain.model_architecture import (
     BEIT_ENCODER_ID,
@@ -13,6 +13,9 @@ from server.domain.model_architecture import (
     EncoderOption,
     FieldChange,
     ModelArchitecture,
+    Stack,
+    WeightCompatibility,
+    WeightMismatch,
 )
 
 # Dimensions used to size an architecture when no processed dataset is chosen:
@@ -22,9 +25,24 @@ REFERENCE_SEQUENCE_LENGTH = 200
 IMAGE_SHAPE = (224, 224, 3)
 FLOAT32_BYTES = 4
 
-# Fields that change no weight shape: a checkpoint trained with one value can be
-# rebuilt or fine-tuned with another. Every other field changes weight shapes.
-WEIGHTS_COMPATIBLE_FIELDS = ("freeze_image_encoder", "dropout", "temperature")
+DEFAULT_PRESET_KEY = "xreport-default"
+
+# Effective settings that decide the shape of a weight tensor. Any other setting
+# (dropout, activations, epsilon, temperature, freezing) leaves every tensor
+# shape unchanged, so weights trained with one value load with another.
+SHAPE_FIELDS = (
+    "image_encoder",
+    "embedding_dims",
+    "num_encoders",
+    "encoder_heads",
+    "encoder_key_dim",
+    "encoder_ffn_units",
+    "num_decoders",
+    "decoder_heads",
+    "decoder_key_dim",
+    "decoder_ffn_units",
+    "classifier_units",
+)
 
 ###############################################################################
 @dataclass(frozen=True)
@@ -62,11 +80,27 @@ class BuiltinPreset:
     architecture: ModelArchitecture
 
 
+def shared_stacks(
+    heads: int, head_dim_mode: str, ffn_units: int, dropout: float
+) -> dict[str, Any]:
+    """Identical encoder and decoder settings for a built-in preset."""
+    return {
+        f"{stack}_{key}": value
+        for stack in ("encoder", "decoder")
+        for key, value in (
+            ("heads", heads),
+            ("head_dim_mode", head_dim_mode),
+            ("ffn_units", ffn_units),
+            ("dropout", dropout),
+        )
+    }
+
+
 BUILTIN_PRESETS: dict[str, BuiltinPreset] = {
     preset.key: preset
     for preset in (
         BuiltinPreset(
-            key="xreport-default",
+            key=DEFAULT_PRESET_KEY,
             name="XREPORT default",
             description=(
                 "The standard XREPORT transformer: six full-width encoder and "
@@ -82,11 +116,8 @@ BUILTIN_PRESETS: dict[str, BuiltinPreset] = {
                 embedding_dims=256,
                 num_encoders=2,
                 num_decoders=2,
-                attention_heads=4,
-                head_dim_mode="split",
-                ffn_units=512,
-                dropout=0.1,
                 classifier_units=512,
+                **shared_stacks(4, "split", 512, 0.1),
             ),
         ),
         BuiltinPreset(
@@ -97,11 +128,8 @@ BUILTIN_PRESETS: dict[str, BuiltinPreset] = {
                 embedding_dims=512,
                 num_encoders=4,
                 num_decoders=4,
-                attention_heads=8,
-                head_dim_mode="split",
-                ffn_units=1024,
-                dropout=0.1,
                 classifier_units=1024,
+                **shared_stacks(8, "split", 1024, 0.1),
             ),
         ),
         BuiltinPreset(
@@ -116,11 +144,8 @@ BUILTIN_PRESETS: dict[str, BuiltinPreset] = {
                 embedding_dims=768,
                 num_encoders=6,
                 num_decoders=6,
-                attention_heads=12,
-                head_dim_mode="split",
-                ffn_units=3072,
-                dropout=0.1,
                 classifier_units=1024,
+                **shared_stacks(12, "split", 3072, 0.1),
             ),
         ),
     )
@@ -148,19 +173,21 @@ def encoder_options() -> list[EncoderOption]:
     ]
 
 # -----------------------------------------------------------------------------
-def layer_kwargs(architecture: ModelArchitecture) -> dict[str, Any]:
-    """Keyword arguments shared by every transformer encoder and decoder layer."""
+def stack_kwargs(architecture: ModelArchitecture, stack: Stack) -> dict[str, Any]:
+    """Keyword arguments of the transformer encoder or decoder layers of a stack."""
     return {
         "embedding_dims": architecture.embedding_dims,
-        "num_heads": architecture.attention_heads,
-        "ffn_units": architecture.ffn_units,
-        "dropout": architecture.dropout,
-        "key_dim": architecture.key_dim,
+        "num_heads": getattr(architecture, f"{stack}_heads"),
+        "ffn_units": getattr(architecture, f"{stack}_ffn_units"),
+        "dropout": getattr(architecture, f"{stack}_dropout"),
+        "key_dim": architecture.key_dim(stack),
+        "activation": getattr(architecture, f"{stack}_ffn_activation"),
+        "norm_epsilon": architecture.norm_epsilon,
     }
 
 # [ANALYTIC PARAMETER COUNTS]
 # These mirror the Keras layers in layers.py and encoder.py; unit tests compare
-# them with the parameter counts of the built layers.
+# them with the parameter counts and weight shapes of the built layers.
 
 # -----------------------------------------------------------------------------
 def attention_parameters(width: int, heads: int, key_dim: int) -> int:
@@ -175,20 +202,20 @@ def feed_forward_parameters(width: int, units: int) -> int:
 def encoder_block_parameters(architecture: ModelArchitecture) -> int:
     width = architecture.embedding_dims
     attention = attention_parameters(
-        width, architecture.attention_heads, architecture.key_dim
+        width, architecture.encoder_heads, architecture.key_dim("encoder")
     )
     return attention + 2 * (2 * width) + feed_forward_parameters(
-        width, architecture.ffn_units
+        width, architecture.encoder_ffn_units
     )
 
 
 def decoder_block_parameters(architecture: ModelArchitecture) -> int:
     width = architecture.embedding_dims
     attention = attention_parameters(
-        width, architecture.attention_heads, architecture.key_dim
+        width, architecture.decoder_heads, architecture.key_dim("decoder")
     )
     return 2 * attention + 3 * (2 * width) + feed_forward_parameters(
-        width, architecture.ffn_units
+        width, architecture.decoder_ffn_units
     )
 
 
@@ -218,13 +245,16 @@ def describe(
     tokens = encoder.output_tokens
     encoder_block = encoder_block_parameters(architecture)
     decoder_block = decoder_block_parameters(architecture)
-    block_properties = {
-        "attention_heads": architecture.attention_heads,
-        "head_dim_mode": architecture.head_dim_mode,
-        "key_dim": architecture.key_dim,
-        "ffn_units": architecture.ffn_units,
-        "dropout": architecture.dropout,
-    }
+
+    def block_properties(stack: Stack) -> dict[str, Any]:
+        return {
+            "heads": getattr(architecture, f"{stack}_heads"),
+            "head_dim_mode": getattr(architecture, f"{stack}_head_dim_mode"),
+            "key_dim": architecture.key_dim(stack),
+            "ffn_units": getattr(architecture, f"{stack}_ffn_units"),
+            "ffn_activation": getattr(architecture, f"{stack}_ffn_activation"),
+            "dropout": getattr(architecture, f"{stack}_dropout"),
+        }
 
     nodes = [
         ArchitectureNode(
@@ -236,6 +266,7 @@ def describe(
             parameters=0,
             trainable=False,
             output_shape=[None, *IMAGE_SHAPE],
+            fixed=True,
         ),
         ArchitectureNode(
             id="image_encoder",
@@ -265,13 +296,16 @@ def describe(
             id="encoder_stack",
             kind="encoder_stack",
             label="Encoder stack",
-            detail="Self-attention + feed-forward",
+            detail=(
+                f"{architecture.encoder_heads} heads x {architecture.key_dim('encoder')}"
+                f" · FFN {architecture.encoder_ffn_units}"
+            ),
             lane="image",
             parameters=encoder_block * architecture.num_encoders,
             trainable=True,
             repeat=architecture.num_encoders,
             output_shape=[None, tokens, width],
-            properties={**block_properties, "block_parameters": encoder_block},
+            properties={**block_properties("encoder"), "block_parameters": encoder_block},
         ),
         ArchitectureNode(
             id="token_input",
@@ -282,6 +316,7 @@ def describe(
             parameters=0,
             trainable=False,
             output_shape=[None, sequence_length],
+            fixed=True,
         ),
         ArchitectureNode(
             id="embedding",
@@ -301,13 +336,16 @@ def describe(
             id="decoder_stack",
             kind="decoder_stack",
             label="Decoder stack",
-            detail="Self- and cross-attention, FFN",
+            detail=(
+                f"{architecture.decoder_heads} heads x {architecture.key_dim('decoder')}"
+                f" · FFN {architecture.decoder_ffn_units}"
+            ),
             lane="text",
             parameters=decoder_block * architecture.num_decoders,
             trainable=True,
             repeat=architecture.num_decoders,
             output_shape=[None, sequence_length, width],
-            properties={**block_properties, "block_parameters": decoder_block},
+            properties={**block_properties("decoder"), "block_parameters": decoder_block},
         ),
         ArchitectureNode(
             id="classifier",
@@ -323,6 +361,7 @@ def describe(
             output_shape=[None, sequence_length, vocabulary_size],
             properties={
                 "classifier_units": architecture.classifier_units,
+                "activation": architecture.classifier_activation,
                 "temperature": architecture.temperature,
             },
         ),
@@ -357,49 +396,197 @@ def describe(
     return ArchitectureGraph(nodes=nodes, edges=edges), stats
 
 # -----------------------------------------------------------------------------
-def compatibility(
-    architecture: ModelArchitecture, reference: ModelArchitecture, label: str
+def effective_settings(architecture: ModelArchitecture) -> dict[str, Any]:
+    """Settings that act on the model, with head size resolved to its real value.
+
+    Raw fields such as an unused custom head size, or a custom size equal to the
+    model width, are not differences between two architectures.
+    """
+    return {
+        "image_encoder": architecture.image_encoder,
+        "freeze_image_encoder": architecture.freeze_image_encoder,
+        "embedding_dims": architecture.embedding_dims,
+        "norm_epsilon": architecture.norm_epsilon,
+        **{
+            f"{prefix}{key}": value
+            for stack, prefix, count in (
+                ("encoder", "encoder_", "num_encoders"),
+                ("decoder", "decoder_", "num_decoders"),
+            )
+            for key, value in (
+                ("heads", getattr(architecture, f"{stack}_heads")),
+                ("key_dim", architecture.key_dim(stack)),
+                ("ffn_units", getattr(architecture, f"{stack}_ffn_units")),
+                ("ffn_activation", getattr(architecture, f"{stack}_ffn_activation")),
+                ("dropout", getattr(architecture, f"{stack}_dropout")),
+            )
+        },
+        "num_encoders": architecture.num_encoders,
+        "num_decoders": architecture.num_decoders,
+        "classifier_units": architecture.classifier_units,
+        "classifier_activation": architecture.classifier_activation,
+        "temperature": architecture.temperature,
+    }
+
+# -----------------------------------------------------------------------------
+def compare_architectures(
+    architecture: ModelArchitecture,
+    reference: ModelArchitecture,
+    label: str,
+    reference_kind: Literal["preset", "checkpoint"],
 ) -> ArchitectureCompatibility:
-    current = architecture.model_dump()
-    previous = reference.model_dump()
+    """Compare two architecture definitions by their effective settings."""
+    current = effective_settings(architecture)
+    previous = effective_settings(reference)
     changes = [
         FieldChange(
             field=field,
             before=previous[field],
             after=current[field],
-            impact=(
-                "weights_compatible"
-                if field in WEIGHTS_COMPATIBLE_FIELDS
-                else "retrain_required"
-            ),
+            scope="shape" if field in SHAPE_FIELDS else "behaviour",
         )
         for field in current
         if current[field] != previous[field]
     ]
     if not changes:
-        return ArchitectureCompatibility(
-            reference=label,
-            level="identical",
-            changes=[],
-            message=f"Identical to {label}.",
+        level, message = "identical", f"Same architecture as {label}."
+    elif all(change.scope == "behaviour" for change in changes):
+        level, message = (
+            "compatible",
+            f"Same structure as {label}; only configurable settings differ, "
+            "so every weight tensor has the same shape.",
         )
-    if all(change.impact == "weights_compatible" for change in changes):
-        return ArchitectureCompatibility(
-            reference=label,
-            level="weights_compatible",
-            changes=changes,
-            message=(
-                f"Weight shapes match {label}; only training behaviour changes."
-            ),
+    else:
+        shape = sum(change.scope == "shape" for change in changes)
+        level, message = (
+            "mismatch",
+            f"{shape} structural setting{'s' if shape != 1 else ''} differ from "
+            f"{label}, so weight tensors have different shapes.",
         )
     return ArchitectureCompatibility(
         reference=label,
-        level="retrain_required",
+        reference_kind=reference_kind,
+        level=level,  # type: ignore[arg-type]
         changes=changes,
+        message=message,
+    )
+
+# -----------------------------------------------------------------------------
+def weight_shapes(
+    architecture: ModelArchitecture, vocabulary_size: int, sequence_length: int
+) -> dict[tuple[str, str, str], tuple[int, ...]]:
+    """Trainable tensors of the model as (group, block, tensor) -> shape.
+
+    The group is a stack or component, the block its 1-based index within the
+    stack ("" outside stacks). The shapes mirror the Keras layers (see
+    layers.py); unit tests compare them with a built model.
+    """
+    width = architecture.embedding_dims
+    features = ENCODER_REGISTRY[architecture.image_encoder].feature_dims
+    shapes: dict[tuple[str, str, str], tuple[int, ...]] = {
+        ("projection", "", "dense/kernel"): (features, width),
+        ("projection", "", "dense/bias"): (width,),
+        ("embedding", "", "token_embeddings"): (vocabulary_size, width),
+        ("embedding", "", "position_embeddings"): (sequence_length, width),
+    }
+
+    def attention(group: str, block: str, name: str, heads: int, key_dim: int) -> None:
+        for part in ("query", "key", "value"):
+            shapes[(group, block, f"{name}/{part}/kernel")] = (width, heads, key_dim)
+            shapes[(group, block, f"{name}/{part}/bias")] = (heads, key_dim)
+        shapes[(group, block, f"{name}/output/kernel")] = (heads, key_dim, width)
+        shapes[(group, block, f"{name}/output/bias")] = (width,)
+
+    def feed_forward(group: str, block: str, units: int) -> None:
+        shapes[(group, block, "ffn/dense1/kernel")] = (width, units)
+        shapes[(group, block, "ffn/dense1/bias")] = (units,)
+        shapes[(group, block, "ffn/dense2/kernel")] = (units, width)
+        shapes[(group, block, "ffn/dense2/bias")] = (width,)
+
+    def norms(group: str, block: str, count: int) -> None:
+        for index in range(1, count + 1):
+            shapes[(group, block, f"norm{index}/gamma")] = (width,)
+            shapes[(group, block, f"norm{index}/beta")] = (width,)
+
+    for index in range(1, architecture.num_encoders + 1):
+        block = str(index)
+        attention("encoder", block, "attention", architecture.encoder_heads, architecture.key_dim("encoder"))
+        norms("encoder", block, 2)
+        feed_forward("encoder", block, architecture.encoder_ffn_units)
+    for index in range(1, architecture.num_decoders + 1):
+        block = str(index)
+        key_dim = architecture.key_dim("decoder")
+        attention("decoder", block, "self_attention", architecture.decoder_heads, key_dim)
+        attention("decoder", block, "cross_attention", architecture.decoder_heads, key_dim)
+        norms("decoder", block, 3)
+        feed_forward("decoder", block, architecture.decoder_ffn_units)
+
+    units = architecture.classifier_units
+    shapes[("classifier", "", "dense1/kernel")] = (width, units)
+    shapes[("classifier", "", "dense1/bias")] = (units,)
+    shapes[("classifier", "", "dense2/kernel")] = (units, vocabulary_size)
+    shapes[("classifier", "", "dense2/bias")] = (vocabulary_size,)
+    return shapes
+
+# -----------------------------------------------------------------------------
+def _block_range(blocks: list[int]) -> str:
+    runs: list[str] = []
+    start = previous = blocks[0]
+    for block in [*blocks[1:], None]:  # type: ignore[list-item]
+        if block is not None and block == previous + 1:
+            previous = block
+            continue
+        runs.append(str(start) if start == previous else f"{start}-{previous}")
+        if block is not None:
+            start = previous = block
+    return ", ".join(runs)
+
+# -----------------------------------------------------------------------------
+def compare_weights(
+    architecture: ModelArchitecture,
+    checkpoint: ModelArchitecture,
+    vocabulary_size: int,
+    sequence_length: int,
+    label: str,
+) -> WeightCompatibility:
+    """Check which tensors of a draft cannot take the weights stored in a checkpoint.
+
+    The draft is assumed to use the checkpoint's vocabulary and report length.
+    Tensors that differ in the same way across blocks are reported once.
+    """
+    expected = weight_shapes(architecture, vocabulary_size, sequence_length)
+    found = weight_shapes(checkpoint, vocabulary_size, sequence_length)
+    grouped: dict[tuple[str, str, tuple[int, ...], tuple[int, ...]], list[int]] = {}
+    for key in expected.keys() | found.keys():
+        group, block, tensor = key
+        if expected.get(key) != found.get(key):
+            grouped.setdefault(
+                (group, tensor, expected.get(key, ()), found.get(key, ())), []
+            ).append(int(block) if block else 0)
+
+    mismatches = [
+        WeightMismatch(
+            layer=f"{group} {_block_range(sorted(blocks))}" if blocks[0] else group,
+            tensor=tensor,
+            expected=list(want),
+            found=list(have),
+        )
+        for (group, tensor, want, have), blocks in sorted(grouped.items())
+    ]
+    if not mismatches:
+        return WeightCompatibility(
+            status="loadable",
+            message=f"Every weight tensor of {label} fits this architecture.",
+            mismatches=[],
+        )
+    return WeightCompatibility(
+        status="incompatible",
         message=(
-            f"Weight shapes differ from {label}. The transformer must be trained "
-            "from scratch; the pretrained BEiT weights are still reused."
+            f"{len(mismatches)} tensor group{'s' if len(mismatches) != 1 else ''} "
+            f"cannot load the trained weights of {label}: weights can only be "
+            "reused when every tensor shape matches."
         ),
+        mismatches=mismatches,
     )
 
 # -----------------------------------------------------------------------------
@@ -417,17 +604,19 @@ def architecture_from_configuration(
 
     width = int(configuration.get("embedding_dims", 256))
     return (
-        ModelArchitecture(
-            freeze_image_encoder=bool(configuration.get("freeze_img_encoder", False)),
-            embedding_dims=width,
-            num_encoders=int(configuration.get("num_encoders", 4)),
-            num_decoders=int(configuration.get("num_decoders", 4)),
-            attention_heads=int(configuration.get("attention_heads", 8)),
-            head_dim_mode="full",
-            ffn_units=width,
-            dropout=0.2,
-            classifier_units=1024,
-            temperature=float(configuration.get("train_temp", 1.0)),
+        ModelArchitecture.model_validate(
+            {
+                "freeze_image_encoder": bool(configuration.get("freeze_img_encoder", False)),
+                "embedding_dims": width,
+                "num_encoders": int(configuration.get("num_encoders", 4)),
+                "num_decoders": int(configuration.get("num_decoders", 4)),
+                "attention_heads": int(configuration.get("attention_heads", 8)),
+                "head_dim_mode": "full",
+                "ffn_units": width,
+                "dropout": 0.2,
+                "classifier_units": 1024,
+                "temperature": float(configuration.get("train_temp", 1.0)),
+            }
         ),
         True,
     )

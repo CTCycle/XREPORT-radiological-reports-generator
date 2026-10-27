@@ -34,9 +34,13 @@ export type ArchitectureCompatibility = {
      */
     reference: string;
     /**
+     * Reference Kind
+     */
+    reference_kind: 'preset' | 'checkpoint';
+    /**
      * Level
      */
-    level: 'identical' | 'weights_compatible' | 'retrain_required';
+    level: 'identical' | 'compatible' | 'mismatch';
     /**
      * Changes
      */
@@ -45,6 +49,7 @@ export type ArchitectureCompatibility = {
      * Message
      */
     message: string;
+    weights?: WeightCompatibility | null;
 };
 
 /**
@@ -134,6 +139,10 @@ export type ArchitectureNode = {
      */
     output_shape: Array<number | null>;
     /**
+     * Fixed
+     */
+    fixed?: boolean;
+    /**
      * Properties
      */
     properties?: {
@@ -161,6 +170,10 @@ export type ArchitecturePreset = {
      * Builtin
      */
     builtin: boolean;
+    /**
+     * Protected
+     */
+    protected?: boolean;
     architecture: ModelArchitecture;
     stats: ArchitectureStats;
     /**
@@ -196,6 +209,10 @@ export type ArchitecturePresetsResponse = {
      * Presets
      */
     presets: Array<ArchitecturePreset>;
+    /**
+     * Hidden Builtins
+     */
+    hidden_builtins?: number;
 };
 
 /**
@@ -208,10 +225,6 @@ export type ArchitecturePreviewRequest = {
     architecture: {
         [key: string]: unknown;
     };
-    /**
-     * Dataset Name
-     */
-    dataset_name?: string | null;
     /**
      * Reference
      *
@@ -236,6 +249,10 @@ export type ArchitecturePreviewResponse = {
     graph?: ArchitectureGraph | null;
     stats?: ArchitectureStats | null;
     compatibility?: ArchitectureCompatibility | null;
+    /**
+     * Shape Fields
+     */
+    shape_fields?: Array<string>;
 };
 
 /**
@@ -307,6 +324,14 @@ export type CheckpointArchitectureResponse = {
      * Measured Parameters
      */
     measured_parameters?: number | null;
+    /**
+     * Vocabulary Size
+     */
+    vocabulary_size?: number | null;
+    /**
+     * Sequence Length
+     */
+    sequence_length?: number | null;
 };
 
 /**
@@ -853,9 +878,9 @@ export type FieldChange = {
      */
     after: unknown;
     /**
-     * Impact
+     * Scope
      */
-    impact: 'weights_compatible' | 'retrain_required';
+    scope: 'shape' | 'behaviour';
 };
 
 /**
@@ -1214,6 +1239,11 @@ export type MemoryUsage = {
  * ModelArchitecture
  *
  * Configurable, constrained XREPORT transformer architecture.
+ *
+ * Encoder and decoder stacks are configured independently. Components that are
+ * part of the fixed XREPORT design (image preprocessing, BEiT weights,
+ * positional embeddings, vocabulary and report length, softmax output) are not
+ * fields.
  */
 export type ModelArchitecture = {
     /**
@@ -1235,11 +1265,53 @@ export type ModelArchitecture = {
      */
     embedding_dims?: number;
     /**
+     * Norm Epsilon
+     *
+     * Epsilon of every residual layer norm
+     */
+    norm_epsilon?: number;
+    /**
      * Num Encoders
      *
      * Transformer encoder layers
      */
     num_encoders?: number;
+    /**
+     * Encoder Head Dim Mode
+     *
+     * full: model width per head; split: width / heads; custom: encoder_head_dim
+     */
+    encoder_head_dim_mode?: 'full' | 'split' | 'custom';
+    /**
+     * Encoder Head Dim
+     *
+     * Head size in custom mode
+     */
+    encoder_head_dim?: number;
+    /**
+     * Encoder Heads
+     *
+     * Encoder attention heads
+     */
+    encoder_heads?: number;
+    /**
+     * Encoder Ffn Units
+     *
+     * Hidden units of each encoder feed-forward network
+     */
+    encoder_ffn_units?: number;
+    /**
+     * Encoder Ffn Activation
+     *
+     * Activation of the encoder feed-forward network
+     */
+    encoder_ffn_activation?: 'relu' | 'gelu' | 'silu';
+    /**
+     * Encoder Dropout
+     *
+     * Encoder dropout rate
+     */
+    encoder_dropout?: number;
     /**
      * Num Decoders
      *
@@ -1247,35 +1319,53 @@ export type ModelArchitecture = {
      */
     num_decoders?: number;
     /**
-     * Attention Heads
+     * Decoder Head Dim Mode
      *
-     * Attention heads per block
+     * full: model width per head; split: width / heads; custom: decoder_head_dim
      */
-    attention_heads?: number;
+    decoder_head_dim_mode?: 'full' | 'split' | 'custom';
     /**
-     * Head Dim Mode
+     * Decoder Head Dim
      *
-     * full: every head projects to the model width; split: width / heads
+     * Head size in custom mode
      */
-    head_dim_mode?: 'full' | 'split';
+    decoder_head_dim?: number;
     /**
-     * Ffn Units
+     * Decoder Heads
      *
-     * Hidden units of each feed-forward network
+     * Decoder attention heads
      */
-    ffn_units?: number;
+    decoder_heads?: number;
     /**
-     * Dropout
+     * Decoder Ffn Units
      *
-     * Dropout rate
+     * Hidden units of each decoder feed-forward network
      */
-    dropout?: number;
+    decoder_ffn_units?: number;
+    /**
+     * Decoder Ffn Activation
+     *
+     * Activation of the decoder feed-forward network
+     */
+    decoder_ffn_activation?: 'relu' | 'gelu' | 'silu';
+    /**
+     * Decoder Dropout
+     *
+     * Decoder dropout rate
+     */
+    decoder_dropout?: number;
     /**
      * Classifier Units
      *
      * Hidden units of the token classifier
      */
     classifier_units?: number;
+    /**
+     * Classifier Activation
+     *
+     * Activation of the classifier hidden layer
+     */
+    classifier_activation?: 'relu' | 'gelu' | 'silu';
     /**
      * Temperature
      *
@@ -1693,6 +1783,46 @@ export type ValidationRequest = {
      * Seed
      */
     seed?: number | null;
+};
+
+/**
+ * WeightCompatibility
+ */
+export type WeightCompatibility = {
+    /**
+     * Status
+     */
+    status: 'loadable' | 'incompatible';
+    /**
+     * Message
+     */
+    message: string;
+    /**
+     * Mismatches
+     */
+    mismatches: Array<WeightMismatch>;
+};
+
+/**
+ * WeightMismatch
+ */
+export type WeightMismatch = {
+    /**
+     * Layer
+     */
+    layer: string;
+    /**
+     * Tensor
+     */
+    tensor: string;
+    /**
+     * Expected
+     */
+    expected: Array<number>;
+    /**
+     * Found
+     */
+    found: Array<number>;
 };
 
 export type ExportCheckpointApiExchangeExportPostData = {
@@ -2250,6 +2380,22 @@ export type CreatePresetApiModelPresetsPostResponses = {
 };
 
 export type CreatePresetApiModelPresetsPostResponse = CreatePresetApiModelPresetsPostResponses[keyof CreatePresetApiModelPresetsPostResponses];
+
+export type RestorePresetsApiModelPresetsRestorePostData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/api/model/presets/restore';
+};
+
+export type RestorePresetsApiModelPresetsRestorePostResponses = {
+    /**
+     * Successful Response
+     */
+    200: ArchitecturePresetsResponse;
+};
+
+export type RestorePresetsApiModelPresetsRestorePostResponse = RestorePresetsApiModelPresetsRestorePostResponses[keyof RestorePresetsApiModelPresetsRestorePostResponses];
 
 export type DeletePresetApiModelPresetsKeyDeleteData = {
     body?: never;

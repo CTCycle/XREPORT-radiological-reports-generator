@@ -46,38 +46,56 @@ def _service() -> ModelArchitectureService:
     )
 
 ###############################################################################
-def test_split_heads_require_divisible_width_and_minimum_head_size() -> None:
+def test_stack_heads_validate_independently_of_each_other() -> None:
     with pytest.raises(ValidationError, match="divisible"):
-        ModelArchitecture(embedding_dims=100, attention_heads=8, head_dim_mode="split")
+        ModelArchitecture(embedding_dims=100, encoder_heads=8, encoder_head_dim_mode="split")
     with pytest.raises(ValidationError, match="at least"):
-        ModelArchitecture(embedding_dims=64, attention_heads=16, head_dim_mode="split")
-    # full-width heads have no divisibility constraint (original XREPORT design)
-    assert ModelArchitecture(embedding_dims=100, attention_heads=8).key_dim == 100
+        ModelArchitecture(embedding_dims=64, decoder_heads=16, decoder_head_dim_mode="split")
+    # the decoder keeps its full-width heads (no divisibility constraint)
+    mixed = ModelArchitecture(
+        embedding_dims=96, encoder_heads=4, encoder_head_dim_mode="split", decoder_heads=7
+    )
+    assert (mixed.key_dim("encoder"), mixed.key_dim("decoder")) == (24, 96)
+    assert ModelArchitecture(decoder_head_dim_mode="custom", decoder_head_dim=32).key_dim("decoder") == 32
     with pytest.raises(ValidationError):
         ModelArchitecture.model_validate({"image_encoder": "resnet50"})
 
 ###############################################################################
-@pytest.mark.parametrize(
-    ("head_dim_mode", "ffn_units"), [("full", WIDTH), ("split", 3 * WIDTH)]
-)
-def test_analytic_counts_match_built_keras_layers(
-    head_dim_mode: str, ffn_units: int
-) -> None:
-    architecture = ModelArchitecture(
-        embedding_dims=WIDTH,
-        attention_heads=4,
-        head_dim_mode=head_dim_mode,  # type: ignore[arg-type]
-        ffn_units=ffn_units,
-        classifier_units=96,
+def test_shared_keys_of_saved_architectures_apply_to_both_stacks() -> None:
+    migrated = ModelArchitecture.model_validate(
+        {"attention_heads": 4, "head_dim_mode": "split", "ffn_units": 512, "dropout": 0.1,
+         "embedding_dims": 256}
     )
+    assert (migrated.encoder_heads, migrated.decoder_heads) == (4, 4)
+    assert (migrated.encoder_ffn_units, migrated.decoder_ffn_units) == (512, 512)
+    assert migrated.decoder_head_dim_mode == "split"
+    assert ModelArchitecture.model_validate(migrated.model_dump()) == migrated
+
+###############################################################################
+CONFIGURATIONS = [
+    {"embedding_dims": WIDTH, "encoder_heads": 4, "encoder_ffn_units": WIDTH,
+     "decoder_heads": 4, "decoder_ffn_units": WIDTH},
+    {"embedding_dims": WIDTH, "encoder_heads": 4, "encoder_head_dim_mode": "split",
+     "encoder_ffn_units": 3 * WIDTH, "encoder_ffn_activation": "gelu",
+     "decoder_heads": 2, "decoder_head_dim_mode": "custom", "decoder_head_dim": 24,
+     "decoder_ffn_units": 80, "decoder_ffn_activation": "silu",
+     "classifier_units": 96, "classifier_activation": "gelu", "norm_epsilon": 1e-5},
+]
+
+
+@pytest.mark.parametrize("settings", CONFIGURATIONS)
+def test_analytic_counts_and_shapes_match_built_keras_layers(settings: dict) -> None:
+    architecture = ModelArchitecture(num_encoders=1, num_decoders=1, **settings)
     hidden = np.zeros((2, TOKENS, WIDTH), dtype="float32")
-    encoder = TransformerEncoder(seed=1, **arch.layer_kwargs(architecture))
-    decoder = TransformerDecoder(seed=1, **arch.layer_kwargs(architecture))
+    encoder = TransformerEncoder(seed=1, **arch.stack_kwargs(architecture, "encoder"))
+    decoder = TransformerDecoder(seed=1, **arch.stack_kwargs(architecture, "decoder"))
     encoder(hidden)
     decoder(hidden, hidden)
     embedding = PositionalEmbedding(50, WIDTH, TOKENS)
     embedding(np.ones((2, TOKENS), dtype="int32"))
-    classifier = SoftMaxClassifier(96, 50)
+    classifier = SoftMaxClassifier(
+        architecture.classifier_units, 50, 1.0, architecture.classifier_activation
+    )
     classifier(hidden)
 
     assert encoder.count_params() == arch.encoder_block_parameters(architecture)
@@ -85,14 +103,43 @@ def test_analytic_counts_match_built_keras_layers(
     assert embedding.count_params() == arch.embedding_parameters(architecture, 50, TOKENS)
     assert classifier.count_params() == arch.classifier_parameters(architecture, 50)
 
+    shapes = arch.weight_shapes(architecture, 50, TOKENS)
+    built = {tuple(weight.shape) for layer in (encoder, decoder, embedding, classifier)
+             for weight in layer.weights}
+    stack_shapes = {shape for (group, _, _), shape in shapes.items()
+                    if group in {"encoder", "decoder", "embedding", "classifier"}}
+    assert stack_shapes == built
+    assert sum(int(np.prod(shape)) for key, shape in shapes.items()
+               if key[0] != "projection") == (
+        encoder.count_params() + decoder.count_params()
+        + embedding.count_params() + classifier.count_params()
+    )
+
+###############################################################################
+def test_layer_options_change_the_computation() -> None:
+    from keras import ops
+
+    hidden = np.random.default_rng(0).normal(size=(2, TOKENS, WIDTH)).astype("float32")
+    relu = TransformerEncoder(embedding_dims=WIDTH, num_heads=2, seed=1)
+    gelu = TransformerEncoder(embedding_dims=WIDTH, num_heads=2, seed=1, activation="gelu")
+    relu(hidden), gelu(hidden)
+    gelu.set_weights(relu.get_weights())
+
+    assert not np.allclose(
+        ops.convert_to_numpy(relu(hidden)), ops.convert_to_numpy(gelu(hidden))
+    )
+    assert TransformerEncoder(embedding_dims=WIDTH, num_heads=2, seed=1,
+                              norm_epsilon=1e-2).addnorm1.epsilon == 1e-2
+
 ###############################################################################
 def test_legacy_layer_config_rebuilds_original_layers() -> None:
     legacy = {"name": "encoder", "embedding_dims": WIDTH, "num_heads": 4, "seed": 1}
     layer = TransformerEncoder.from_config(legacy)
     layer(np.zeros((2, TOKENS, WIDTH), dtype="float32"))
-    original = ModelArchitecture(embedding_dims=WIDTH, attention_heads=4, ffn_units=WIDTH)
+    original = ModelArchitecture(embedding_dims=WIDTH, encoder_heads=4, encoder_ffn_units=WIDTH)
 
-    assert (layer.key_dim, layer.ffn_units, layer.dropout) == (WIDTH, WIDTH, 0.2)
+    assert (layer.key_dim, layer.ffn_units, layer.dropout, layer.activation) == (
+        WIDTH, WIDTH, 0.2, "relu")
     assert layer.count_params() == arch.encoder_block_parameters(original)
 
 ###############################################################################
@@ -115,20 +162,50 @@ def test_default_preset_matches_original_studio_architecture() -> None:
     ) == (default, False)
 
 ###############################################################################
-def test_compatibility_separates_training_only_changes_from_shape_changes() -> None:
+def test_comparison_separates_structure_from_configurable_settings() -> None:
     base = ModelArchitecture()
 
-    assert arch.compatibility(base, base, "base").level == "identical"
-    tuned = base.model_copy(update={"dropout": 0.1, "temperature": 0.8})
-    assert arch.compatibility(tuned, base, "base").level == "weights_compatible"
-    deeper = base.model_copy(update={"num_decoders": 8, "dropout": 0.1})
-    report = arch.compatibility(deeper, base, "base")
-    assert report.level == "retrain_required"
-    assert {change.field: change.impact for change in report.changes} == {
-        "num_decoders": "retrain_required",
-        "dropout": "weights_compatible",
+    def compare(candidate: ModelArchitecture):
+        return arch.compare_architectures(candidate, base, "base", "preset")
+
+    assert compare(base).level == "identical"
+    tuned = base.model_copy(update={"encoder_dropout": 0.1, "temperature": 0.8,
+                                    "decoder_ffn_activation": "gelu"})
+    assert compare(tuned).level == "compatible"
+    # a custom head size equal to the width, or unused, is no difference at all
+    assert compare(base.model_copy(update={"encoder_head_dim_mode": "custom",
+                                           "encoder_head_dim": 768})).level == "identical"
+    assert compare(base.model_copy(update={"decoder_head_dim": 16})).level == "identical"
+
+    deeper = base.model_copy(update={"num_decoders": 8, "decoder_dropout": 0.1})
+    report = compare(deeper)
+    assert report.level == "mismatch"
+    assert {change.field: change.scope for change in report.changes} == {
+        "num_decoders": "shape",
+        "decoder_dropout": "behaviour",
     }
 
+###############################################################################
+def test_checkpoint_weights_report_the_tensors_that_cannot_load() -> None:
+    base = ModelArchitecture()
+    same = arch.compare_weights(base, base, 1000, 50, "checkpoint a")
+    assert same.status == "loadable" and not same.mismatches
+
+    tuned = base.model_copy(update={"encoder_dropout": 0.0, "temperature": 0.5})
+    assert arch.compare_weights(tuned, base, 1000, 50, "checkpoint a").status == "loadable"
+
+    changed = base.model_copy(update={"embedding_dims": 512, "num_decoders": 4})
+    report = arch.compare_weights(changed, base, 1000, 50, "checkpoint a")
+    assert report.status == "incompatible"
+    layers = {(item.layer, item.tensor): item for item in report.mismatches}
+    token = layers[("embedding", "token_embeddings")]
+    assert (token.expected, token.found) == ([1000, 512], [1000, 768])
+    # decoders 5-6 exist only in the checkpoint
+    missing = layers[("decoder 5-6", "ffn/dense1/kernel")]
+    assert (missing.expected, missing.found) == ([], [768, 768])
+    assert ("encoder 1-6", "attention/query/kernel") in layers
+
+###############################################################################
 ###############################################################################
 def test_frozen_encoder_is_excluded_from_trainable_parameters() -> None:
     frozen = ModelArchitecture(freeze_image_encoder=True)
@@ -178,7 +255,9 @@ def test_custom_presets_persist_and_protect_names() -> None:
             ArchitecturePresetRequest(name="XREPORT Default", architecture=compact)
         )
     with pytest.raises(BadRequestError):
-        service.delete_preset("compact")
+        service.update_preset(
+            "compact", ArchitecturePresetRequest(name="Compact 2", architecture=compact)
+        )
 
     wider = compact.model_copy(update={"embedding_dims": 512})
     updated = service.update_preset(
@@ -194,15 +273,35 @@ def test_custom_presets_persist_and_protect_names() -> None:
         service.resolve_preset(created.key)
 
 ###############################################################################
+def test_builtin_presets_can_be_hidden_and_restored_except_the_default() -> None:
+    service = _service()
+    with pytest.raises(BadRequestError):
+        service.delete_preset("xreport-default")
+
+    service.delete_preset("large")
+    service.delete_preset("compact")
+    listing = service.list_presets()
+    assert [preset.key for preset in listing.presets] == ["xreport-default", "balanced"]
+    assert listing.hidden_builtins == 2
+    assert listing.presets[0].protected is True
+    # hidden presets still resolve, so trained checkpoints and runs keep working
+    assert service.resolve_preset("large")[0] == "Large"
+
+    restored = service.restore_builtin_presets()
+    assert [preset.key for preset in restored.presets] == list(arch.BUILTIN_PRESETS)
+    assert restored.hidden_builtins == 0
+
+###############################################################################
 def test_preview_reports_field_issues_instead_of_failing() -> None:
     service = _service()
     invalid = service.preview(
         ArchitecturePreviewRequest(
-            architecture={"embedding_dims": 100, "attention_heads": 8, "head_dim_mode": "split"}
+            architecture={"embedding_dims": 100, "encoder_heads": 8, "encoder_head_dim_mode": "split"}
         )
     )
     assert invalid.valid is False
     assert invalid.graph is None
+    assert invalid.issues[0].field == "encoder_heads"
     assert "divisible" in invalid.issues[0].message
 
     valid = service.preview(
@@ -211,4 +310,6 @@ def test_preview_reports_field_issues_instead_of_failing() -> None:
     assert valid.valid is True
     assert valid.stats is not None and valid.stats.depth == 8
     assert valid.compatibility is not None
-    assert valid.compatibility.level == "retrain_required"
+    assert valid.compatibility.level == "mismatch"
+    assert valid.compatibility.weights is None
+    assert "num_decoders" in valid.shape_fields

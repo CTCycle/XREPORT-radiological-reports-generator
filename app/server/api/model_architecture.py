@@ -64,6 +64,10 @@ class ModelArchitectureEndpoint:
         return Response(status_code=status.HTTP_204_NO_CONTENT)
 
     # -------------------------------------------------------------------------
+    def restore_presets(self) -> ArchitecturePresetsResponse:
+        return self.service.restore_builtin_presets()
+
+    # -------------------------------------------------------------------------
     def preview(self, request: ArchitecturePreviewRequest) -> ArchitecturePreviewResponse:
         return self.service.preview(request)
 
@@ -95,6 +99,13 @@ class ModelArchitectureEndpoint:
             methods=["POST"],
             response_model=ArchitecturePreset,
             status_code=status.HTTP_201_CREATED,
+        )
+        self.router.add_api_route(
+            "/presets/restore",
+            self.restore_presets,
+            methods=["POST"],
+            response_model=ArchitecturePresetsResponse,
+            status_code=status.HTTP_200_OK,
         )
         self.router.add_api_route(
             "/presets/{key}",

@@ -12,6 +12,8 @@ const ROW_GAP = 46;
 const LANE_GAP = 64;
 const MARGIN = 14;
 const MAX_CHIPS = 6;
+// The diagram scales up to fill its panel, but not beyond this factor.
+const MAX_SCALE = 1.6;
 // Narrower than this, the two lanes are stacked in one column.
 const STACKED_BREAKPOINT = MARGIN * 2 + NODE_WIDTH * 2 + LANE_GAP;
 
@@ -42,7 +44,7 @@ function formatShape(shape: (number | null)[]): string {
   selector: 'app-architecture-diagram',
   styleUrl: '../styles/ArchitectureDiagram.css',
   template: `
-    <svg class="arch-svg" [attr.viewBox]="'0 0 ' + layout().width + ' ' + layout().height" [attr.width]="layout().width" role="group" aria-label="Model architecture diagram">
+    <svg class="arch-svg" [attr.viewBox]="'0 0 ' + layout().width + ' ' + layout().height" [style.max-width.px]="layout().width * MAX_SCALE" role="group" aria-label="Model architecture diagram">
       <defs>
         <marker id="arch-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
           <path d="M 0 0 L 10 5 L 0 10 z" class="arch-arrow-head" />
@@ -72,6 +74,8 @@ function formatShape(shape: (number | null)[]): string {
           <text class="arch-node-detail" x="14" y="44">{{ placed.node.detail }}</text>
           @if (!placed.node.trainable && placed.node.parameters > 0) {
             <text class="arch-node-badge" [attr.x]="nodeWidth - 14" y="44" text-anchor="end">frozen</text>
+          } @else if (placed.node.fixed) {
+            <text class="arch-node-badge" [attr.x]="nodeWidth - 14" y="44" text-anchor="end">fixed</text>
           }
           @for (chip of placed.chips; track $index; let index = $index) {
             <g [attr.transform]="'translate(' + (14 + index * 32) + ',' + (NODE_HEIGHT - 8) + ')'">
@@ -91,6 +95,7 @@ export class ArchitectureDiagramComponent implements OnInit, OnDestroy {
   readonly stacked = signal(false);
   readonly nodeWidth = NODE_WIDTH;
   readonly NODE_HEIGHT = NODE_HEIGHT;
+  readonly MAX_SCALE = MAX_SCALE;
   readonly formatParameters = formatParameters;
   @Input() set graph(value: ArchitectureGraph | null) { this.graphState.set(value); }
   @Input() selected = '';

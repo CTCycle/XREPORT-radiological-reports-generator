@@ -201,6 +201,8 @@ erDiagram
 architecture presets and has no foreign keys: a training run copies the
 resolved architecture into its checkpoint configuration, so deleting or
 editing a preset never affects existing checkpoints.
+`hidden_architecture_presets` (revision `b3c1d5a7e9f2`) lists built-in preset
+keys the user removed from the preset list.
 
 ### XREPORT Inference
 

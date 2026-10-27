@@ -68,19 +68,29 @@ and unmatched counts without writing records. A repeat request with
 ## Model architecture (Studio)
 
 - `GET /api/model/encoders`: registered pretrained image encoders (BEiT only).
-- `GET /api/model/presets`: built-in presets (`xreport-default`, `compact`,
-  `balanced`, `large`) followed by custom presets (`custom-<id>`), each with
-  analytic parameter and memory statistics.
-- `POST /api/model/presets`, `PUT /api/model/presets/{key}`,
-  `DELETE /api/model/presets/{key}`: custom presets only. Built-in names are
-  reserved and names are unique case-insensitively (409).
+- `GET /api/model/presets`: visible built-in presets (`xreport-default`,
+  `compact`, `balanced`, `large`; `protected` marks the default) followed by
+  custom presets (`custom-<id>`), each with analytic parameter and memory
+  statistics, plus `hidden_builtins`, the number of removed built-ins.
+- `POST /api/model/presets`, `PUT /api/model/presets/{key}`: custom presets
+  only. Built-in names are reserved and names are unique case-insensitively
+  (409).
+- `DELETE /api/model/presets/{key}`: deletes a custom preset, or hides a
+  built-in one from the list (hidden presets still resolve for existing
+  checkpoints and runs). `xreport-default` cannot be deleted (400).
+- `POST /api/model/presets/restore`: un-hides every built-in preset.
 - `POST /api/model/preview`: validates a raw architecture and returns field
-  issues instead of a 422, plus the architecture graph, statistics sized
-  against an optional processed dataset, and compatibility with an optional
-  `reference` (a preset key or `checkpoint:<name>`).
+  issues instead of a 422, plus the architecture graph and statistics (always
+  for vocabulary 30,522, 200 report tokens, fp32), and the comparison with an
+  optional `reference` (a preset key or `checkpoint:<name>`): architecture
+  level `identical|compatible|mismatch` with per-setting `shape|behaviour`
+  changes, and for checkpoints a `weights` verdict (`loadable|incompatible`)
+  listing mismatching tensors. `shape_fields` names the settings that decide
+  tensor shapes.
 - `GET /api/model/checkpoints/{checkpoint}/architecture`: the architecture a
   checkpoint was trained with, reconstructed from its configuration (legacy
-  flat keys are flagged with `legacy: true`).
+  flat keys are flagged with `legacy: true`), with its vocabulary size and
+  report length.
 
 The graph and parameter counts come from `server/models/training/architecture.py`,
 the same module the training builder uses; unit tests compare the analytic
