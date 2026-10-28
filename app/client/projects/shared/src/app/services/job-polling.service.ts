@@ -1,5 +1,5 @@
 import { Injectable } from '@angular/core';
-import { Observable, catchError, defer, from, of, switchMap, takeWhile, timer } from 'rxjs';
+import { Observable, catchError, defer, exhaustMap, from, of, switchMap, takeWhile, timer } from 'rxjs';
 import { ApiResult } from './api-request.service';
 import { JobStatusResponse } from '../types/jobs';
 
@@ -11,7 +11,7 @@ export class JobPollingService {
     let lastStatus: JobStatusResponse | null = null;
 
     return timer(0, intervalMs).pipe(
-      switchMap(() => defer(() => from(fetchStatus(jobId))).pipe(
+      exhaustMap(() => defer(() => from(fetchStatus(jobId))).pipe(
         catchError((error: unknown) => of<ApiResult<JobStatusResponse>>({
           result: null,
           error: error instanceof Error ? error.message : String(error),
