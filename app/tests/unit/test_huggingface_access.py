@@ -2,9 +2,9 @@ from __future__ import annotations
 
 import pytest
 
-from server.services import huggingface_access as access_module
-from server.services.errors import BadRequestError, ConflictError
-from server.services.huggingface_access import HuggingFaceAccessService
+from xreport_inference.services import huggingface_access as access_module
+from xreport_shared.services.errors import BadRequestError, ConflictError
+from xreport_inference.services.huggingface_access import HuggingFaceAccessService
 
 
 ###############################################################################

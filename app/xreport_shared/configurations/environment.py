@@ -1,0 +1,82 @@
+from __future__ import annotations
+
+from dataclasses import dataclass, field
+from functools import lru_cache
+import os
+from pathlib import Path
+from threading import Lock
+
+from dotenv import dotenv_values
+
+from ..common.path import ENV_EXAMPLE_FILE_PATH, ENV_FILE_PATH
+from ..common.utils.logger import logger
+
+###############################################################################
+@dataclass
+class _EnvironmentState:
+    lock: Lock = field(default_factory=Lock)
+    loaded: bool = False
+
+###############################################################################
+@lru_cache(maxsize=1)
+def _environment_state() -> _EnvironmentState:
+    return _EnvironmentState()
+
+###############################################################################
+def ensure_environment_file() -> Path:
+    if ENV_FILE_PATH.exists():
+        return ENV_FILE_PATH
+
+    if not ENV_EXAMPLE_FILE_PATH.is_file():
+        raise FileNotFoundError(
+            f"Environment template not found: {ENV_EXAMPLE_FILE_PATH}"
+        )
+
+    ENV_FILE_PATH.parent.mkdir(parents=True, exist_ok=True)
+    created = False
+    try:
+        with ENV_FILE_PATH.open("xb") as destination:
+            destination.write(ENV_EXAMPLE_FILE_PATH.read_bytes())
+        created = True
+    except FileExistsError:
+        # Another process created the file after the existence check. Preserve it.
+        pass
+
+    if created:
+        logger.info("Created environment file from template at %s", ENV_FILE_PATH)
+    return ENV_FILE_PATH
+
+###############################################################################
+def load_environment(*, force: bool = False) -> Path:
+    state = _environment_state()
+    with state.lock:
+        env_path = ensure_environment_file()
+        if state.loaded and not force:
+            return env_path
+
+        resource_root_override = os.getenv("XREPORT_RESOURCES_DIR")
+        from xreport_shared.configurations.database_config import bootstrap_database_configuration
+
+        bootstrap_error = bootstrap_database_configuration()
+        if bootstrap_error:
+            logger.warning(
+                "Database configuration needs recovery through Settings: %s",
+                bootstrap_error,
+            )
+
+        for name, value in dotenv_values(dotenv_path=env_path).items():
+            if name is None or value is None:
+                continue
+            if name == "EMBEDDED_DATABASE" or name.startswith("DATABASE_"):
+                continue
+            os.environ[name] = value
+
+        for name in tuple(os.environ):
+            if name == "EMBEDDED_DATABASE" or name.startswith("DATABASE_"):
+                os.environ.pop(name, None)
+        if resource_root_override and resource_root_override.strip():
+            # Keep spawned workers aligned with the runtime layout resolved at import.
+            os.environ["XREPORT_RESOURCES_DIR"] = resource_root_override
+
+        state.loaded = True
+        return env_path

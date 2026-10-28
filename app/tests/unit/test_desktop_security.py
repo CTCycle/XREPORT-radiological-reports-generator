@@ -8,8 +8,8 @@ import sys
 import zipfile
 import pytest
 from pathlib import Path
-from server.common.desktop_security import token_matches, DesktopSecurityMiddleware, PRIVATE_TOKEN_HEADER, SESSION_COOKIE
-from server.common.runtime_layout import RuntimeLayout, ensure_packaged_data
+from xreport_shared.common.desktop_security import token_matches, DesktopSecurityMiddleware, PRIVATE_TOKEN_HEADER, SESSION_COOKIE
+from xreport_shared.common.runtime_layout import RuntimeLayout, ensure_packaged_data
 from fastapi import FastAPI
 from fastapi.responses import JSONResponse
 from fastapi.testclient import TestClient
@@ -329,7 +329,7 @@ def test_packaged_desktop_processes_are_windowless() -> None:
 ###############################################################################
 def test_frozen_backend_supports_spawned_training_workers() -> None:
     entrypoint = (
-        Path(__file__).parents[2] / "server" / "desktop_entry.py"
+        Path(__file__).parents[2] / "xreport_inference" / "desktop_entry.py"
     ).read_text(encoding="utf-8")
 
     assert "import multiprocessing" in entrypoint

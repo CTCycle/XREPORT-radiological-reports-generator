@@ -6,11 +6,11 @@ from pathlib import Path
 
 import pytest
 
-from server.common.runtime_layout import RuntimeLayout, read_storage_pointer
-from server.services import storage_settings as module
-from server.services.errors import ConflictError
-from server.services.jobs import JobManager, JobState
-from server.services.storage_settings import StorageSettingsService, run_storage_migration
+from xreport_shared.common.runtime_layout import RuntimeLayout, read_storage_pointer
+from xreport_inference.services import storage_settings as module
+from xreport_shared.services.errors import ConflictError
+from xreport_shared.services.jobs import JobManager, JobState
+from xreport_inference.services.storage_settings import StorageSettingsService, run_storage_migration
 
 
 ###############################################################################

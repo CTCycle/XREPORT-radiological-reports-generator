@@ -17,7 +17,7 @@
       "request": "launch",
       "module": "uvicorn",
       "args": [
-        "server.app:app",
+        "xreport_inference.app:app",
         "--host",
         "127.0.0.1",
         "--port",

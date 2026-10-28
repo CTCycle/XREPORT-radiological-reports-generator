@@ -23,26 +23,26 @@ APP_DIR = Path(__file__).resolve().parents[1]
 if str(APP_DIR) not in sys.path:
     sys.path.insert(0, str(APP_DIR))
 
-from server.common.path import ROOT_DIR  # noqa: E402
-from server.configurations.inference_models import (  # noqa: E402
+from xreport_shared.common.path import ROOT_DIR  # noqa: E402
+from xreport_inference.configurations.inference_models import (  # noqa: E402
     embedded_inference_models,
 )
-from server.configurations.startup import get_server_settings  # noqa: E402
-from server.domain.inference import GenerationProfile, InferenceImage  # noqa: E402
-from server.models.inference.providers.huggingface import HuggingFaceProvider  # noqa: E402
-from server.services.inference import (  # noqa: E402
+from xreport_shared.configurations.startup import get_server_settings  # noqa: E402
+from xreport_inference.domain.inference import GenerationProfile, InferenceImage  # noqa: E402
+from xreport_inference.models.inference.providers.huggingface import HuggingFaceProvider  # noqa: E402
+from xreport_inference.services.inference import (  # noqa: E402
     InferenceImageStore,
     run_inference_job,
 )
-import server.services.inference as inference_service  # noqa: E402
-from server.services.inference_catalog import (  # noqa: E402
+import xreport_inference.services.inference as inference_service  # noqa: E402
+from xreport_inference.services.inference_catalog import (  # noqa: E402
     InferenceModelCatalog,
     validation_contract_hash,
 )
-from server.services.inference_runtime import InferenceRuntimeCoordinator  # noqa: E402
-from server.services.jobs import JobManager, JobState  # noqa: E402
-from server.services.model_installation import ModelInstallationManager  # noqa: E402
-from server.repositories.serialization.inference import (  # noqa: E402
+from xreport_inference.services.inference_runtime import InferenceRuntimeCoordinator  # noqa: E402
+from xreport_shared.services.jobs import JobManager, JobState  # noqa: E402
+from xreport_inference.services.model_installation import ModelInstallationManager  # noqa: E402
+from xreport_inference.repositories.serialization.inference import (  # noqa: E402
     InferenceRepository,
 )
 
@@ -176,7 +176,7 @@ def _configure_validation_cache() -> Path | None:
     import transformers.utils.hub as transformers_hub  # pyright: ignore[reportMissingImports]
 
     transformers_hub.HF_MODULES_CACHE = str(modules_cache)
-    from server.models.inference.providers import huggingface as huggingface_module
+    from xreport_inference.models.inference.providers import huggingface as huggingface_module
 
     huggingface_module.HF_MODULES_CACHE = str(modules_cache)
     return modules_cache

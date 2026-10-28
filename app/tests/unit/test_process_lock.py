@@ -6,7 +6,7 @@ import sys
 
 import pytest
 
-from server.common.process_lock import DataFolderInUseError, DataFolderLock
+from xreport_shared.common.process_lock import DataFolderInUseError, DataFolderLock
 
 
 ###############################################################################
@@ -15,7 +15,7 @@ def test_second_owner_is_rejected_until_the_first_releases(tmp_path: Path) -> No
     first.acquire()
     probe = (
         "import sys; from pathlib import Path\n"
-        "from server.common.process_lock import DataFolderInUseError, DataFolderLock\n"
+        "from xreport_shared.common.process_lock import DataFolderInUseError, DataFolderLock\n"
         "try:\n    DataFolderLock(Path(sys.argv[1])).acquire()\n"
         "except DataFolderInUseError:\n    sys.exit(3)\n"
     )

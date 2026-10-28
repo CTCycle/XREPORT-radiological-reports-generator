@@ -17,12 +17,12 @@ APP_DIR = Path(__file__).resolve().parents[1]
 if str(APP_DIR) not in sys.path:
     sys.path.insert(0, str(APP_DIR))
 
-from server.common.path import ROOT_DIR  # noqa: E402
-from server.configurations.inference_models import (  # noqa: E402
+from xreport_shared.common.path import ROOT_DIR  # noqa: E402
+from xreport_inference.configurations.inference_models import (  # noqa: E402
     embedded_inference_models,
 )
-from server.configurations.startup import get_server_settings  # noqa: E402
-from server.services.inference_catalog import InferenceModelCatalog  # noqa: E402
+from xreport_shared.configurations.startup import get_server_settings  # noqa: E402
+from xreport_inference.services.inference_catalog import InferenceModelCatalog  # noqa: E402
 from scripts.validate_inference_model import validate_cached_model  # noqa: E402
 
 

@@ -5,22 +5,22 @@ import time
 import asyncio
 import pandas as pd
 import pytest
-import server.services.training as training_module
-import server.services.validation_runs as validation_module
-from server.services.jobs import JobManager, JobState, JobExecutionError
-from server.services.inference import map_inference_failure
+import xreport_studio.services.training as training_module
+import xreport_studio.services.validation_runs as validation_module
+from xreport_shared.services.jobs import JobManager, JobState, JobExecutionError
+from xreport_inference.services.inference import map_inference_failure
 from concurrent.futures import ThreadPoolExecutor
 from threading import Barrier, Event, Lock
 from types import SimpleNamespace
-from server.domain.training import ProcessDatasetRequest, StartTrainingRequest
-from server.domain.validation import CheckpointEvaluationRequest, ValidationRequest
-from server.domain.jobs import JobStartResponse
-from server.services.dataset_processing import DatasetProcessingService
-from server.services.errors import ConflictError
-from server.services.preparation import PreparationService
-from server.services.training import TrainingRuntime, TrainingService
-from server.services.upload import UploadState
-from server.services.validation_runs import ValidationService
+from xreport_studio.domain.training import ProcessDatasetRequest, StartTrainingRequest
+from xreport_studio.domain.validation import CheckpointEvaluationRequest, ValidationRequest
+from xreport_shared.domain.jobs import JobStartResponse
+from xreport_studio.services.dataset_processing import DatasetProcessingService
+from xreport_shared.services.errors import ConflictError
+from xreport_studio.services.preparation import PreparationService
+from xreport_studio.services.training import TrainingRuntime, TrainingService
+from xreport_studio.services.upload import UploadState
+from xreport_studio.services.validation_runs import ValidationService
 
 
 

@@ -11,23 +11,23 @@ os.environ["KERAS_BACKEND"] = "torch"
 
 from keras import ops  # noqa: E402
 
-from server.api import tokenizers as tokenizers_api  # noqa: E402
-from server.configurations.tokenizers import TOKENIZER_CATALOGUE  # noqa: E402
-from server.models.inference.generator import TextGenerator  # noqa: E402
-from server.models.training.layers import PositionalEmbedding  # noqa: E402
-from server.models.training.metrics import (  # noqa: E402
+from xreport_studio.api import tokenizers as tokenizers_api  # noqa: E402
+from xreport_studio.configurations.tokenizers import TOKENIZER_CATALOGUE  # noqa: E402
+from xreport_shared.models.inference.generator import TextGenerator  # noqa: E402
+from xreport_shared.models.training.layers import PositionalEmbedding  # noqa: E402
+from xreport_shared.models.training.metrics import (  # noqa: E402
     MaskedAccuracy,
     MaskedSparseCategoricalCrossentropy,
 )
-from server.models.training.processing import (  # noqa: E402
+from xreport_shared.models.training.processing import (  # noqa: E402
     TokenizerCompatibilityError,
     TokenizerHandler,
     TokenizerUnavailableError,
     is_cached_tokenizer,
     resolve_special_tokens,
 )
-from server.repositories.serialization.dataset import DatasetRepository  # noqa: E402
-from server.services import tokenizers as tokenizer_service  # noqa: E402
+from xreport_studio.repositories.serialization.dataset import DatasetRepository  # noqa: E402
+from xreport_studio.services import tokenizers as tokenizer_service  # noqa: E402
 
 ###############################################################################
 class FakeTokenizer:

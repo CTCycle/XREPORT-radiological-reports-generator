@@ -12,10 +12,10 @@ import pytest
 import sqlalchemy
 from sqlalchemy import inspect, text
 
-import server.repositories.database.initializer as initializer
-from server.configurations import DatabaseSettings
-from server.repositories.database.engine import Database
-from server.repositories.database.schema import ApplicationSchema, application_schema
+import xreport_shared.repositories.database.initializer as initializer
+from xreport_shared.configurations import DatabaseSettings
+from xreport_shared.repositories.database.engine import Database
+from xreport_shared.repositories.database.schema import ApplicationSchema, application_schema
 
 ###############################################################################
 def _postgres_settings() -> DatabaseSettings:

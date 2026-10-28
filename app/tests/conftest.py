@@ -48,6 +48,11 @@ def _configure_test_cache_environment() -> None:
 
 _configure_test_cache_environment()
 
+# Importing an application package registers its database schema with the shared
+# package; unit tests exercise both applications in one process.
+import xreport_inference  # noqa: E402,F401
+import xreport_studio  # noqa: E402,F401
+
 ###############################################################################
 def _normalize_host(value: str) -> str:
     host = value.strip()
@@ -143,7 +148,7 @@ def studio_base_url() -> str:
 @pytest.fixture
 def studio_profile(monkeypatch):
     """Resolve repositories against the XREPORT Studio schema in this process."""
-    monkeypatch.setattr("server.repositories.database.schema.APP_PROFILE", "studio")
+    monkeypatch.setattr("xreport_shared.repositories.database.schema.APP_PROFILE", "studio")
 
 ###############################################################################
 def run_async_in_thread(awaitable):

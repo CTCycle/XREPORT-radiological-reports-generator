@@ -801,7 +801,7 @@ def build_plan(
         },
         "cold_start_probes": {
             "requested_count": cold_start_count if selected_group in {"ALL", "S51"} else 0,
-            "method": "fresh Python process imports server.app with the same resource root",
+            "method": "fresh Python process imports xreport_inference.app with the same resource root",
             "timeout_seconds": 45,
         },
         "cleanup": {
@@ -1996,7 +1996,7 @@ def run_cold_start_probes(
 
     if count <= 0:
         return []
-    probe_code = "from server.app import app; print(app.title)"
+    probe_code = "from xreport_inference.app import app; print(app.title)"
     environment = os.environ.copy()
     environment["XREPORT_RESOURCES_DIR"] = str(resource_root.resolve())
     server_root = ROOT_DIR / "app" / "server"

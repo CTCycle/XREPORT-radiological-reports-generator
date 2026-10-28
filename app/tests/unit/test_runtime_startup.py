@@ -2,21 +2,22 @@ from __future__ import annotations
 
 import os
 import pytest
-import server.configurations.database_config as database_config
-import server.configurations.environment as environment
+import xreport_shared.configurations.database_config as database_config
+import xreport_shared.configurations.environment as environment
 import json
 import subprocess
 import sys
-import server.app as app_module
-import server.services.startup_validation as startup_validation
+import xreport_inference.app as inference_app
+import xreport_shared.app_factory as app_module
+import xreport_shared.services.startup_validation as startup_validation
 from fastapi.testclient import TestClient
-from server.configurations.runtime_environment import get_runtime_environment_settings, CorsSettings, RuntimeEnvironmentSettings
+from xreport_shared.configurations.runtime_environment import get_runtime_environment_settings, CorsSettings, RuntimeEnvironmentSettings
 from pathlib import Path
-from server.common import model_cache
-from server.common.runtime_layout import RuntimeLayout
+from xreport_shared.common import model_cache
+from xreport_shared.common.runtime_layout import RuntimeLayout
 from fastapi import Request
 from tests.conftest import run_async_in_thread
-from server.configurations.settings import DatabaseSettings, GlobalSettings, InferenceSettings, JobsSettings, ServerSettings
+from xreport_shared.configurations.settings import DatabaseSettings, GlobalSettings, InferenceSettings, JobsSettings, ServerSettings
 
 
 
@@ -147,7 +148,7 @@ def test_supported_runtime_settings_are_loaded_from_dotenv(tmp_path, monkeypatch
         "X-XREPORT-Desktop-Token",
     )
 
-    from server.app import create_app
+    from xreport_inference.app import create_app
 
     response = TestClient(create_app()).options(
         "/api/health",
@@ -188,18 +189,19 @@ from tempfile import TemporaryDirectory
 from types import SimpleNamespace
 import sys
 
-from server.configurations import get_database_settings
-from server.repositories.database.initializer import initialize_database
+from xreport_shared.configurations import get_database_settings
+import xreport_inference  # registers the application schema
+from xreport_shared.repositories.database.initializer import initialize_database
 
 # Service factories read the singleton row, so model normal startup first.
 initialize_database(get_database_settings())
 
 module_names = (
-    "server.services.preparation",
-    "server.services.training",
-    "server.services.validation_runs",
-    "server.services.evaluation",
-    "server.repositories.serialization.model",
+    "xreport_studio.services.preparation",
+    "xreport_studio.services.training",
+    "xreport_studio.services.validation_runs",
+    "xreport_studio.services.evaluation",
+    "xreport_shared.repositories.serialization.model",
 )
 
 def import_module(name):
@@ -208,10 +210,10 @@ def import_module(name):
 with ThreadPoolExecutor(max_workers=len(module_names)) as pool:
     list(pool.map(import_module, module_names))
 
-from server.repositories.serialization.model import ModelSerializer
-from server.services.preparation import get_preparation_service
-from server.services.training import TrainingService, get_training_runtime, get_training_service
-from server.services.validation_runs import get_validation_service
+from xreport_shared.repositories.serialization.model import ModelSerializer
+from xreport_studio.services.preparation import get_preparation_service
+from xreport_studio.services.training import TrainingService, get_training_runtime, get_training_service
+from xreport_studio.services.validation_runs import get_validation_service
 
 with ThreadPoolExecutor(max_workers=3) as pool:
     services = list(pool.map(lambda factory: factory(), (
@@ -248,15 +250,15 @@ heavy_modules = (
     "keras",
     "torchvision",
     "transformers",
-    "server.models.training.model",
-    "server.models.training.dataloader",
-    "server.models.inference.generator",
+    "xreport_studio.models.training.model",
+    "xreport_shared.models.training.dataloader",
+    "xreport_shared.models.inference.generator",
 )
 print(json.dumps({
     "factory_types": [type(service).__name__ for service in services],
     "checkpoint_epochs": listing.checkpoints[0].epochs,
     "heavy_modules": [name for name in heavy_modules if name in sys.modules],
-    "serializer_loaded": "server.repositories.serialization.model" in sys.modules,
+    "serializer_loaded": "xreport_shared.repositories.serialization.model" in sys.modules,
     "serializer_type": ModelSerializer.__name__,
 }))
 """
@@ -493,7 +495,7 @@ def test_wildcard_cors_origin_cannot_use_credentials(
 def test_inference_policy_is_composed_from_environment(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    from server.configurations.settings import (
+    from xreport_shared.configurations.settings import (
         DEFAULT_INFERENCE_SETTINGS,
         DatabaseSettings,
         application_settings_to_server_settings,
@@ -527,7 +529,7 @@ def test_inference_policy_is_composed_from_environment(
 
 def test_cors_is_disabled_when_origins_are_empty(monkeypatch: pytest.MonkeyPatch) -> None:
     _clear_runtime_environment(monkeypatch)
-    from server.app import create_app
+    from xreport_inference.app import create_app
 
     response = TestClient(create_app()).options(
         "/api/health",
@@ -544,7 +546,7 @@ def test_cors_is_disabled_when_origins_are_empty(monkeypatch: pytest.MonkeyPatch
 def test_cors_preflight_allows_configured_origin_and_rejects_other_origin(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    from server.app import create_app
+    from xreport_inference.app import create_app
 
     _clear_runtime_environment(monkeypatch)
     monkeypatch.setenv("CORS_ALLOWED_ORIGINS", "https://ui.example")
@@ -622,7 +624,7 @@ def test_source_static_mode_serves_root_assets_and_angular_routes(
 ):
     monkeypatch.setenv("XREPORT_SERVE_CLIENT", "1")
     monkeypatch.delenv("XREPORT_LAUNCH_TOKEN", raising=False)
-    application = app_module.create_app()
+    application = inference_app.create_app()
     client = TestClient(application)
 
     root = client.get("/")
@@ -642,7 +644,7 @@ def test_source_static_mode_keeps_api_paths_out_of_spa_fallback(
 ):
     monkeypatch.setenv("XREPORT_SERVE_CLIENT", "true")
     monkeypatch.delenv("XREPORT_LAUNCH_TOKEN", raising=False)
-    application = app_module.create_app()
+    application = inference_app.create_app()
     application.state.database_ready = True
     client = TestClient(application)
 
@@ -662,7 +664,7 @@ def test_source_static_mode_keeps_api_paths_out_of_spa_fallback(
 def test_database_recovery_health_and_spa_remain_available(client_build, monkeypatch):
     monkeypatch.setenv("XREPORT_SERVE_CLIENT", "1")
     monkeypatch.delenv("XREPORT_LAUNCH_TOKEN", raising=False)
-    application = app_module.create_app()
+    application = inference_app.create_app()
     client = TestClient(application)
 
     root = client.get("/")
@@ -688,7 +690,7 @@ def test_source_static_mode_rejects_traversal(client_build, monkeypatch):
 def test_default_source_root_still_redirects_to_docs(client_build, monkeypatch):
     monkeypatch.delenv("XREPORT_SERVE_CLIENT", raising=False)
     monkeypatch.delenv("XREPORT_LAUNCH_TOKEN", raising=False)
-    application = app_module.create_app()
+    application = inference_app.create_app()
     client = TestClient(application)
 
     response = client.get("/", follow_redirects=False)
@@ -700,7 +702,7 @@ def test_default_source_root_still_redirects_to_docs(client_build, monkeypatch):
 def test_source_shutdown_requires_launcher_token(client_build, monkeypatch):
     monkeypatch.delenv("XREPORT_SERVE_CLIENT", raising=False)
     monkeypatch.setenv("XREPORT_LAUNCH_TOKEN", "launcher-secret-token")
-    application = app_module.create_app()
+    application = inference_app.create_app()
     client = TestClient(application)
 
     unauthorized = client.post("/__xreport/shutdown")
@@ -720,7 +722,7 @@ def test_source_static_mode_requires_a_built_index(tmp_path, monkeypatch):
     monkeypatch.setenv("XREPORT_SERVE_CLIENT", "1")
 
     with pytest.raises(FileNotFoundError, match="Built Angular frontend"):
-        app_module.create_app()
+        inference_app.create_app()
 
 
 
@@ -739,21 +741,21 @@ def test_server_app_import_does_not_load_heavy_runtime_modules() -> None:
     code = """
 import json
 import sys
-import server.app
+import xreport_inference.app
 
 heavy_modules = (
     "torch",
     "transformers",
     "keras",
     "torchvision",
-    "server.models.inference.providers.huggingface",
-    "server.models.training.processing",
-    "server.repositories.serialization.model",
-    "server.services.dataset_processing",
-    "server.services.inference_runtime",
+    "xreport_inference.models.inference.providers.huggingface",
+    "xreport_shared.models.training.processing",
+    "xreport_shared.repositories.serialization.model",
+    "xreport_studio.services.dataset_processing",
+    "xreport_inference.services.inference_runtime",
 )
 print(json.dumps({
-    "route_count": len(server.app.app.routes),
+    "route_count": len(xreport_inference.app.app.routes),
     "loaded_heavy_modules": [name for name in heavy_modules if name in sys.modules],
 }))
 """
@@ -857,7 +859,7 @@ def test_app_lifespan_uses_returned_settings_for_state_and_health(monkeypatch) -
         "run_startup_validations",
         lambda value: validation_inputs.append(value) or settings,
     )
-    application = app_module.create_app()
+    application = inference_app.create_app()
 
     async def exercise_lifespan() -> None:
         async with app_module.app_lifespan(application):

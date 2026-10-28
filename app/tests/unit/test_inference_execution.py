@@ -3,23 +3,23 @@ from __future__ import annotations
 from PIL import Image
 import pytest
 import torch
-from server.domain.inference import InferenceImage, ProviderGenerationResult
-from server.models.inference.providers import adapters as adapters_module
-from server.models.inference.providers.adapters import GenerationLimits, CheXOneAdapter, CXRMate2Adapter, CXRMateMultiAdapter, MedGemmaAdapter, StudyImage, _ensure_cxrmate2_generation_dtype
+from xreport_inference.domain.inference import InferenceImage, ProviderGenerationResult
+from xreport_inference.models.inference.providers import adapters as adapters_module
+from xreport_inference.models.inference.providers.adapters import GenerationLimits, CheXOneAdapter, CXRMate2Adapter, CXRMateMultiAdapter, MedGemmaAdapter, StudyImage, _ensure_cxrmate2_generation_dtype
 from typing import Any, cast
 from unittest.mock import MagicMock
-from server.services.inference import InferenceImageStore, run_inference_job, InferenceService
-from server.services.jobs import JobExecutionError, JobManager, JobState
+from xreport_inference.services.inference import InferenceImageStore, run_inference_job, InferenceService
+from xreport_shared.services.jobs import JobExecutionError, JobManager, JobState
 from types import SimpleNamespace
-from server.services.inference_runtime import InferenceRuntimeCoordinator
+from xreport_inference.services.inference_runtime import InferenceRuntimeCoordinator
 from fastapi import APIRouter, FastAPI
 from fastapi.testclient import TestClient
-from server.api.errors import register_service_error_handlers
-from server.api.inference import InferenceEndpoint
-from server.configurations import ServerSettings
-from server.services.errors import ConflictError
-from server.services.inference_catalog import InferenceModelCatalog
-from server.services.model_installation import ModelInstallationManager
+from xreport_shared.api.errors import register_service_error_handlers
+from xreport_inference.api.inference import InferenceEndpoint
+from xreport_shared.configurations import ServerSettings
+from xreport_shared.services.errors import ConflictError
+from xreport_inference.services.inference_catalog import InferenceModelCatalog
+from xreport_inference.services.model_installation import ModelInstallationManager
 
 
 

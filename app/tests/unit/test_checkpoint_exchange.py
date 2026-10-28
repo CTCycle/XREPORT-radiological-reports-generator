@@ -8,18 +8,18 @@ import zipfile
 
 import pytest
 
-from server.domain.checkpoint_exchange import ExchangeManifest
-from server.repositories import checkpoint_archive as archive_module
-from server.repositories.checkpoint_archive import (
+from xreport_shared.domain.checkpoint_exchange import ExchangeManifest
+from xreport_shared.repositories import checkpoint_archive as archive_module
+from xreport_shared.repositories.checkpoint_archive import (
     ArchiveError,
     CORE_FILES,
     inspect_archive,
 )
-from server.services import checkpoint_exchange as exchange
-from server.services.errors import BadRequestError, ConflictError
-from server.services.jobs import JobExecutionError
-from server.services.jobs import JobAlreadyRunningError, JobManager
-from server.services.training import TrainingRuntime, TrainingService
+from xreport_shared.services import checkpoint_exchange as exchange
+from xreport_shared.services.errors import BadRequestError, ConflictError
+from xreport_shared.services.jobs import JobExecutionError
+from xreport_shared.services.jobs import JobAlreadyRunningError, JobManager
+from xreport_studio.services.training import TrainingRuntime, TrainingService
 
 REVISION = "a" * 40
 

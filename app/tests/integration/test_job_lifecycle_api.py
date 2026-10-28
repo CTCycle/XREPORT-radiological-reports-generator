@@ -7,9 +7,9 @@ import pytest
 from fastapi import APIRouter, FastAPI
 from fastapi.testclient import TestClient
 
-from server.api.errors import register_service_error_handlers
-from server.api.jobs import JobsEndpoint
-from server.services.jobs import JobExecutionError, JobManager
+from xreport_shared.api.errors import register_service_error_handlers
+from xreport_shared.api.jobs import JobsEndpoint
+from xreport_shared.services.jobs import JobExecutionError, JobManager
 
 ###############################################################################
 @pytest.fixture

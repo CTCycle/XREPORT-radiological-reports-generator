@@ -12,15 +12,15 @@ import pytest
 import queue
 from pathlib import Path
 from PIL import Image
-from server.models.device import DeviceConfig
-from server.models.training.dataloader import XRAYDataLoader
-from server.repositories.serialization.model import ModelSerializer
+from xreport_studio.models.device import DeviceConfig
+from xreport_shared.models.training.dataloader import XRAYDataLoader
+from xreport_shared.repositories.serialization.model import ModelSerializer
 from unittest.mock import Mock
-from server.services import training as training_module
-from server.services.jobs import JobExecutionError
+from xreport_studio.services import training as training_module
+from xreport_shared.services.jobs import JobExecutionError
 from threading import Event
-from server.models.callbacks import TrainingProgressCallback
-from server.services.training_worker import ProcessWorker, QueueProgressReporter, WorkerChannels, keep_saved_epoch, process_target
+from xreport_studio.models.callbacks import TrainingProgressCallback
+from xreport_studio.services.training_worker import ProcessWorker, QueueProgressReporter, WorkerChannels, keep_saved_epoch, process_target
 
 
 

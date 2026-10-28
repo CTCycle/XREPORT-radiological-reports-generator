@@ -1,17 +1,17 @@
 from __future__ import annotations
 
-from server.common.utils.security import validate_checkpoint_name
-from server.services.upload import UploadService, UploadState
+from xreport_shared.common.utils.security import validate_checkpoint_name
+from xreport_studio.services.upload import UploadService, UploadState
 
 MAX_DATASET_UPLOAD_BYTES = 1024 * 1024
 from pathlib import Path
 from types import SimpleNamespace
 import pandas as pd
 import pytest
-from server.domain.training import LoadDatasetRequest
-from server.services.errors import BadRequestError, PayloadTooLargeError
-from server.services.preparation import PreparationService, count_image_files, scan_image_folder
-from server.repositories.serialization.dataset import DatasetIntegrityError, DatasetRepository
+from xreport_studio.domain.training import LoadDatasetRequest
+from xreport_shared.services.errors import BadRequestError, PayloadTooLargeError
+from xreport_studio.services.preparation import PreparationService, count_image_files, scan_image_folder
+from xreport_studio.repositories.serialization.dataset import DatasetIntegrityError, DatasetRepository
 
 ###############################################################################
 def test_checkpoint_names_reject_path_separators_cross_platform() -> None:

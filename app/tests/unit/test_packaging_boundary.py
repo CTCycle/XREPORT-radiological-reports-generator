@@ -1,105 +1,90 @@
+"""The two applications may only share code through `xreport_shared`."""
+
 from __future__ import annotations
 
 import ast
 from pathlib import Path
 
-from server.common.profile_modules import STUDIO_ONLY_MODULES
+import pytest
 
 APP_ROOT = Path(__file__).resolve().parents[2]
-ROOTS = ("server.app", "server.desktop_entry")
+PACKAGES = ("xreport_shared", "xreport_studio", "xreport_inference")
+ALLOWED = {
+    "xreport_shared": {"xreport_shared"},
+    "xreport_studio": {"xreport_studio", "xreport_shared"},
+    "xreport_inference": {"xreport_inference", "xreport_shared"},
+}
 
 
-def _module_file(name: str) -> Path | None:
-    base = APP_ROOT.joinpath(*name.split("."))
-    if base.with_suffix(".py").is_file():
-        return base.with_suffix(".py")
-    if (base / "__init__.py").is_file():
-        return base / "__init__.py"
-    return None
+def _python_files(package: str) -> list[Path]:
+    return sorted(
+        path for path in (APP_ROOT / package).rglob("*.py") if "__pycache__" not in path.parts
+    )
 
 
-def _imports(path: Path, module: str) -> set[str]:
-    package = module if path.name == "__init__.py" else module.rpartition(".")[0]
+def _application_references(path: Path) -> set[str]:
+    """Top-level application packages named by imports or module-name strings."""
     found: set[str] = set()
     for node in ast.walk(ast.parse(path.read_text(encoding="utf-8"))):
+        names: list[str] = []
         if isinstance(node, ast.Import):
-            found.update(alias.name for alias in node.names)
-        elif isinstance(node, ast.ImportFrom):
-            if node.level:
-                parts = package.split(".")
-                base = ".".join(parts[: len(parts) - node.level + 1])
-                target = f"{base}.{node.module}" if node.module else base
-            else:
-                target = node.module or ""
-            found.add(target)
-            found.update(f"{target}.{alias.name}" for alias in node.names)
-    return {name for name in found if name.startswith("server")}
-
-
-def _closure(roots: tuple[str, ...]) -> set[str]:
-    seen: set[str] = set()
-    pending = list(roots)
-    while pending:
-        module = pending.pop()
-        if module in seen:
-            continue
-        path = _module_file(module)
-        if path is None:
-            continue
-        seen.add(module)
-        parent = module.rpartition(".")[0]
-        if parent.startswith("server"):
-            pending.append(parent)
-        pending.extend(_imports(path, module))
-    return seen
+            names = [alias.name for alias in node.names]
+        elif isinstance(node, ast.ImportFrom) and not node.level:
+            names = [node.module or ""]
+        elif isinstance(node, ast.Constant) and isinstance(node.value, str):
+            names = [node.value]
+        found.update(
+            name.split(".")[0] for name in names if name.split(".")[0] in PACKAGES
+        )
+    return found
 
 
 ###############################################################################
-def test_studio_only_module_list_matches_real_modules() -> None:
-    assert all(_module_file(name) is not None for name in STUDIO_ONLY_MODULES)
-
-
-###############################################################################
-def test_xreport_import_closure_never_reaches_studio_modules() -> None:
-    reachable = _closure(ROOTS)
-    leaked = sorted(set(STUDIO_ONLY_MODULES) & reachable)
-
-    assert not leaked, f"XREPORT would package Studio-only modules: {leaked}"
-    assert "server.services.inference_runtime" in reachable  # sanity: walk is real
-
-
-
-###############################################################################
-def test_studio_import_closure_never_reaches_inference_workflows() -> None:
-    studio_routers = tuple(
-        name for name in STUDIO_ONLY_MODULES if name.startswith("server.api.")
-    )
-    reachable = _closure(
-        (*studio_routers, "server.api.jobs", "server.api.settings", "server.api.system", "server.api.checkpoint_exchange")
-    )
-    forbidden = {
-        "server.api.inference",
-        "server.api.huggingface_access",
-        "server.services.inference",
-        "server.services.inference_catalog",
-        "server.services.inference_runtime",
-        "server.services.model_installation",
-        "server.services.huggingface_access",
-        "server.models.inference.providers",
-        "server.repositories.schemas.inference",
-        "server.repositories.serialization.inference",
+@pytest.mark.parametrize("package", PACKAGES)
+def test_packages_only_depend_on_themselves_and_the_shared_package(package: str) -> None:
+    violations = {
+        path.relative_to(APP_ROOT).as_posix(): sorted(
+            _application_references(path) - ALLOWED[package]
+        )
+        for path in _python_files(package)
+        if _application_references(path) - ALLOWED[package]
     }
-    leaked = sorted(forbidden & reachable)
 
-    assert not leaked, f"Studio would load inference workflow modules: {leaked}"
-    assert "server.services.training" in reachable  # sanity: walk is real
+    assert not violations, f"{package} reaches into another application: {violations}"
+
 
 ###############################################################################
-def test_desktop_build_excludes_studio_modules_and_assets() -> None:
+def test_legacy_server_package_is_gone() -> None:
+    assert not (APP_ROOT / "server" / "__init__.py").exists()
+    offenders = [
+        path.relative_to(APP_ROOT).as_posix()
+        for package in PACKAGES
+        for path in _python_files(package)
+        if any(
+            line.strip().startswith(("from server.", "import server."))
+            for line in path.read_text(encoding="utf-8").splitlines()
+        )
+    ]
+
+    assert not offenders, offenders
+
+
+###############################################################################
+def test_each_application_has_its_own_entry_point_and_migrations() -> None:
+    for package, stream in (("xreport_studio", "studio"), ("xreport_inference", "inference")):
+        assert (APP_ROOT / package / "app.py").is_file()
+        assert (APP_ROOT / package / "entry.py").is_file()
+        assert (APP_ROOT / package / "migrations" / stream / "env.py").is_file()
+    assert (APP_ROOT / "xreport_inference" / "desktop_entry.py").is_file()
+    assert not (APP_ROOT / "xreport_studio" / "desktop_entry.py").exists()
+
+
+###############################################################################
+def test_desktop_build_packages_only_the_inference_application() -> None:
     build = APP_ROOT / "desktop" / "build"
     spec = (build / "xreport_backend.spec").read_text(encoding="utf-8")
     bundle = (build / "create_runtime_bundle.py").read_text(encoding="utf-8")
 
-    assert "STUDIO_ONLY_MODULES" in spec
-    assert "excludes" in spec and "studio_excludes" in spec
+    assert "xreport_inference" in spec and "xreport_shared" in spec
+    assert 'collect_submodules("xreport_studio")' not in spec
     assert "studio-angular" in bundle

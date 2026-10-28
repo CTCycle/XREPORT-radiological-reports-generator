@@ -6,23 +6,23 @@ from pydantic import ValidationError
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
-from server.domain.model_architecture import (
+from xreport_studio.domain.model_architecture import (
     ArchitecturePresetRequest,
     ArchitecturePreviewRequest,
     ModelArchitecture,
 )
-from server.models.training import architecture as arch
-from server.models.training.layers import (
+from xreport_studio.models.training import architecture as arch
+from xreport_shared.models.training.layers import (
     PositionalEmbedding,
     SoftMaxClassifier,
     TransformerDecoder,
     TransformerEncoder,
 )
-from server.repositories.database.engine import Database
-from server.repositories.model_architecture import ModelArchitectureRepository
-from server.repositories.schemas.studio import StudioBase
-from server.services.errors import BadRequestError, ConflictError, NotFoundError
-from server.services.model_architecture import ModelArchitectureService
+from xreport_shared.repositories.database.engine import Database
+from xreport_studio.repositories.model_architecture import ModelArchitectureRepository
+from xreport_studio.repositories.schemas.studio import StudioBase
+from xreport_shared.services.errors import BadRequestError, ConflictError, NotFoundError
+from xreport_studio.services.model_architecture import ModelArchitectureService
 
 WIDTH = 64
 TOKENS = 5
@@ -219,8 +219,8 @@ def test_frozen_encoder_is_excluded_from_trainable_parameters() -> None:
 
 ###############################################################################
 def test_beit_parameter_constant_matches_installed_encoder() -> None:
-    from server.common.path import ENCODERS_DIR
-    from server.models.training.encoder import BeitXRayImageEncoder
+    from xreport_shared.common.path import ENCODERS_DIR
+    from xreport_shared.models.training.encoder import BeitXRayImageEncoder
 
     transformers = pytest.importorskip("transformers")
     try:

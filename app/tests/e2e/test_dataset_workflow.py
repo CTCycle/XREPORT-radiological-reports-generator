@@ -8,7 +8,7 @@ import base64
 import os
 import shutil
 import time
-from server.common.path import RESOURCES_DIR
+from xreport_shared.common.path import RESOURCES_DIR
 
 
 @pytest.fixture

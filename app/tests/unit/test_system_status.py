@@ -6,7 +6,7 @@ from types import SimpleNamespace
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
-from server.api.system import get_router
+from xreport_shared.api.system import get_router
 
 
 ###############################################################################

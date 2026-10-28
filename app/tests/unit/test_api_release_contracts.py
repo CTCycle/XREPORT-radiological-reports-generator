@@ -5,11 +5,14 @@ import pytest
 import tomllib
 from fastapi import Request
 from tests.conftest import run_async_in_thread
-from server.api.errors import handle_service_error
-from server.services.errors import BadRequestError, ConflictError, ForbiddenError, InternalServiceError, NotFoundError, PayloadTooLargeError, ServiceError, UnsupportedOperationError
+from xreport_shared.api.errors import handle_service_error
+from xreport_shared.services.errors import BadRequestError, ConflictError, ForbiddenError, InternalServiceError, NotFoundError, PayloadTooLargeError, ServiceError, UnsupportedOperationError
 from pathlib import Path
-from server.app import app, create_app
-from server.common.constants import FASTAPI_VERSION
+from xreport_inference.app import app, create_app as create_inference_app
+from xreport_studio.app import create_app as create_studio_app
+
+CREATE_APP = {"xreport": create_inference_app, "studio": create_studio_app}
+from xreport_shared.common.constants import FASTAPI_VERSION
 
 
 
@@ -67,7 +70,7 @@ def test_shared_openapi_schema_matches_runtime(profile: str) -> None:
     schema_path = SHARED_DIR / f"openapi.{profile}.json"
     shared_schema = json.loads(schema_path.read_text(encoding="utf-8"))
 
-    assert shared_schema == create_app(profile).openapi()
+    assert shared_schema == CREATE_APP[profile]().openapi()
 
 ###############################################################################
 def test_inference_generate_contract_has_only_current_request_fields() -> None:
@@ -88,7 +91,7 @@ def test_inference_generate_contract_has_only_current_request_fields() -> None:
 
 ###############################################################################
 def test_workflow_contracts_require_client_selected_parameters() -> None:
-    schemas = create_app("studio").openapi()["components"]["schemas"]
+    schemas = create_studio_app().openapi()["components"]["schemas"]
 
     assert schemas["LoadDatasetRequest"]["required"] == [
         "upload_id",

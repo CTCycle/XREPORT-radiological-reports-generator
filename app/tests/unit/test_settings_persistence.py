@@ -2,33 +2,33 @@ from __future__ import annotations
 
 from pathlib import Path
 import pytest
-import server.repositories.database.initializer as initializer
+import xreport_shared.repositories.database.initializer as initializer
 import json
 import os
-import server.configurations.database_config as database_config
-import server.repositories.database.backend as database_backend
-import server.services.database_settings as database_settings_service
+import xreport_shared.configurations.database_config as database_config
+import xreport_shared.repositories.database.backend as database_backend
+import xreport_shared.services.database_settings as database_settings_service
 import sqlalchemy
-import server.repositories.database.engine as database_engine
+import xreport_shared.repositories.database.engine as database_engine
 import asyncio
-from server.configurations.settings import DatabaseSettings
-from server.domain.settings import ApplicationSettingsPatch
-from server.repositories.application_settings import ApplicationSettingsRepository
-from server.repositories.database import Database as ApplicationDatabase
-from server.repositories.database.schema import MIGRATIONS_ROOT, ApplicationSchema, application_schema
-from server.repositories.schemas.inference import InferenceSettingsRecord
-from server.services.errors import BadRequestError, InternalServiceError
-from server.services.settings import SettingsService
+from xreport_shared.configurations.settings import DatabaseSettings
+from xreport_shared.domain.settings import ApplicationSettingsPatch
+from xreport_shared.repositories.application_settings import ApplicationSettingsRepository
+from xreport_shared.repositories.database import Database as ApplicationDatabase
+from xreport_shared.repositories.database.schema import ALEMBIC_INI, ApplicationSchema, application_schema
+from xreport_inference.repositories.schemas.inference import InferenceSettingsRecord
+from xreport_shared.services.errors import BadRequestError, InternalServiceError
+from xreport_shared.services.settings import SettingsService
 from types import SimpleNamespace
 from pydantic import ValidationError
-from server.configurations.database_config import DatabaseConfiguration, DatabaseConfigurationError
-from server.repositories.database.engine import Database
-from server.services.database_settings import DatabaseSwitchBusyError, DatabaseSettingsService
+from xreport_shared.configurations.database_config import DatabaseConfiguration, DatabaseConfigurationError
+from xreport_shared.repositories.database.engine import Database
+from xreport_shared.services.database_settings import DatabaseSwitchBusyError, DatabaseSettingsService
 from concurrent.futures import ThreadPoolExecutor
 from alembic import command
 from alembic.config import Config
-from server.repositories.schemas.inference import InferenceReport, InferenceRun
-from server.common.database_switch import DatabaseRequestGate
+from xreport_inference.repositories.schemas.inference import InferenceReport, InferenceRun
+from xreport_shared.common.database_switch import DatabaseRequestGate
 
 
 
@@ -375,7 +375,7 @@ def test_sqlite_switch_reloads_active_database_settings_and_can_roll_back(
         lambda: SimpleNamespace(is_job_running=lambda: False),
     )
     monkeypatch.setattr(
-        "server.services.startup_validation.run_startup_validations",
+        "xreport_shared.services.startup_validation.run_startup_validations",
         lambda settings: settings,
     )
     config_path = tmp_path / "database-config.json"
@@ -479,7 +479,7 @@ APPLICATION_PROFILES = pytest.mark.parametrize("profile", ["xreport", "studio"])
 ###############################################################################
 def _alembic_config(path: Path, schema: ApplicationSchema) -> Config:
     config = Config(
-        str(MIGRATIONS_ROOT.parent / "alembic.ini"),
+        str(ALEMBIC_INI),
         ini_section=schema.migrations_dir.name,
     )
     config.set_main_option("sqlalchemy.url", f"sqlite:///{path.as_posix()}")

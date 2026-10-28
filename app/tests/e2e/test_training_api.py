@@ -9,9 +9,9 @@ from pathlib import Path
 from playwright.sync_api import APIRequestContext
 from sqlalchemy import delete
 
-from server.common.path import CHECKPOINTS_DIR
-from server.repositories.checkpoints import CheckpointRepository
-from server.repositories.schemas.studio import CheckpointEvaluation
+from xreport_shared.common.path import CHECKPOINTS_DIR
+from xreport_shared.repositories.checkpoints import CheckpointRepository
+from xreport_studio.repositories.schemas.studio import CheckpointEvaluation
 
 
 @pytest.fixture

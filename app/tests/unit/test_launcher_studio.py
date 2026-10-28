@@ -33,7 +33,8 @@ def test_launch_actions_keep_the_launch_alias_and_add_studio() -> None:
     assert "'Launch' { Invoke-Launch -Application $App }" in LAUNCHER
     assert "'LaunchStudio' { Invoke-Launch -Application Studio }" in LAUNCHER
     launch = _function_body("Invoke-Launch")
-    assert "'--app', 'studio'" in launch
+    assert "'-m', 'xreport_studio.entry'" in launch
+    assert "'-m', 'xreport_inference.entry'" in launch
     assert "STUDIO_FASTAPI_PORT" in launch
     assert "studio-angular" in launch
     assert "$env:XREPORT_APP" in launch
@@ -108,7 +109,7 @@ def test_process_ownership_is_scoped_per_application() -> None:
     identify = _function_body("Get-XReportApplicationProcessIds")
     kill = _function_body("Stop-XReportProcesses")
 
-    assert r"--app\s+studio" in identify
+    assert r"xreport_studio\.(?:app|entry)" in identify
     assert "-not $isStudioBackend" in identify
     assert "STUDIO_FASTAPI_PORT" in kill
     assert "Get-XReportApplicationProcessIds -ProcessTable $processTable -Scope $Scope" in kill

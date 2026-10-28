@@ -7,7 +7,7 @@ import sqlalchemy
 from alembic import command
 from alembic.config import Config
 
-from server.repositories.database.schema import MIGRATIONS_ROOT, application_schema
+from xreport_shared.repositories.database.schema import ALEMBIC_INI, application_schema
 
 LEGACY_REVISION = "b3c1d5a7e9f2"
 STUDIO = application_schema("studio")
@@ -15,7 +15,7 @@ STUDIO = application_schema("studio")
 ###############################################################################
 def _config(path: Path) -> Config:
     config = Config(
-        str(MIGRATIONS_ROOT.parent / "alembic.ini"),
+        str(ALEMBIC_INI),
         ini_section=STUDIO.migrations_dir.name,
     )
     config.set_main_option("sqlalchemy.url", f"sqlite:///{path.as_posix()}")

@@ -1,0 +1,688 @@
+from __future__ import annotations
+
+from dataclasses import dataclass
+import re
+from collections.abc import Mapping
+from typing import Any, Callable, cast
+
+from qwen_vl_utils import process_vision_info
+import torch
+from PIL import Image
+from torchvision import transforms
+from transformers import (
+    AutoFeatureExtractor,
+    AutoModel,
+    AutoModelForCausalLM,
+    AutoModelForImageTextToText,
+    AutoProcessor,
+    AutoTokenizer,
+)
+
+from xreport_inference.domain.inference import GenerationProfile, InferenceImage
+
+###############################################################################
+@dataclass(frozen=True)
+class StudyImage:
+    stored: InferenceImage
+    image: Image.Image
+    original_dimensions: tuple[int, int]
+
+###############################################################################
+@dataclass(frozen=True)
+class StudyGeneration:
+    report: str
+    display_sections: dict[str, str]
+    metadata: list[dict[str, Any]]
+
+
+MoveInputs = Callable[[Any, Any], Any]
+StoppingCriteriaValue = Any
+
+###############################################################################
+class _LegacyDecoderPrepareInputs:
+    """Callable compatibility wrapper for CXRMate Multi's old decoder API."""
+
+    # -------------------------------------------------------------------------
+    def __init__(self, original: Callable[..., Any]) -> None:
+        self.original = original
+        self.__wrapped__ = original
+
+    # -------------------------------------------------------------------------
+    def __call__(
+        self,
+        input_ids: Any,
+        *args: Any,
+        past_key_values: Any = None,
+        **kwargs: Any,
+    ) -> Any:
+        if past_key_values is not None and kwargs.get("cache_position") is None:
+            try:
+                cached_length = int(past_key_values.get_seq_length())
+            except (AttributeError, TypeError, ValueError):
+                cached_length = max(int(getattr(input_ids, "shape", [1, 1])[-1]) - 1, 0)
+            kwargs["cache_position"] = torch.tensor(
+                [cached_length],
+                device=getattr(input_ids, "device", None),
+                dtype=torch.long,
+            )
+        return self.original(
+            input_ids, *args, past_key_values=past_key_values, **kwargs
+        )
+
+###############################################################################
+class _CXRMate2PrepareInputs:
+    """Cast generated CXRMate-2 auxiliary tensors to the resident model dtype."""
+
+    # -------------------------------------------------------------------------
+    def __init__(self, original: Callable[..., Any], move_inputs: MoveInputs, model: Any) -> None:
+        self.original = original
+        self.move_inputs = move_inputs
+        self.model = model
+        self.__wrapped__ = original
+
+    # -------------------------------------------------------------------------
+    def __call__(self, *args: Any, **kwargs: Any) -> Any:
+        return self.move_inputs(self.original(*args, **kwargs), self.model)
+
+###############################################################################
+def _ensure_legacy_decoder_cache_compatibility(model: Any) -> None:
+    """Bridge old remote-code decoders to Transformers' cache-position API.
+
+    CXRMate Multi's published ``prepare_inputs_for_generation`` forwards only
+    ``past_key_values``. Transformers 4.57+ requires a cache position when a
+    cache is present, so the decoder otherwise receives ``None`` and fails
+    before the first generated token. This instance-local bridge leaves the
+    verified snapshot untouched and is safe to apply once per loaded model.
+    """
+    decoder = getattr(model, "decoder", None)
+    original = getattr(decoder, "prepare_inputs_for_generation", None)
+    if (
+        decoder is None
+        or not callable(original)
+        or getattr(decoder, "_xreport_cache_compat", False)
+    ):
+        return
+
+    decoder.prepare_inputs_for_generation = _LegacyDecoderPrepareInputs(original)
+    decoder._xreport_cache_compat = True
+
+###############################################################################
+def _ensure_cxrmate2_generation_dtype(model: Any, move_inputs: MoveInputs) -> None:
+    """Keep remote CXRMate-2 generation-time float tensors aligned with the model."""
+    if getattr(model, "_xreport_cxrmate2_dtype_compat", False):
+        return
+    original = getattr(model, "prepare_inputs_for_generation", None)
+    if not callable(original):
+        return
+    model.prepare_inputs_for_generation = _CXRMate2PrepareInputs(
+        original, move_inputs, model
+    )
+    model._xreport_cxrmate2_dtype_compat = True
+
+###############################################################################
+@dataclass(frozen=True)
+class GenerationLimits:
+    """User generation limits; 0 keeps the adapter's own profile default."""
+
+    max_new_tokens_deterministic: int = 0
+    max_new_tokens_concise: int = 0
+    max_new_tokens_detailed: int = 0
+    detailed_num_beams: int = 0
+
+###############################################################################
+class StandardImageTextAdapter:
+    """Adapter for standard Transformers multimodal chat-style models."""
+
+    supports_study = False
+    generation_limits = GenerationLimits()
+
+    # -------------------------------------------------------------------------
+    def generate_study(
+        self,
+        *,
+        model: Any,
+        processor: Any,
+        images: list[StudyImage],
+        profile: GenerationProfile,
+        clinical_context: str,
+        move_inputs: MoveInputs,
+        stopping_criteria: StoppingCriteriaValue,
+        output_sections: list[str],
+    ) -> StudyGeneration:
+        del model, processor, images, profile, clinical_context
+        del move_inputs, stopping_criteria, output_sections
+        raise NotImplementedError("This adapter generates one image at a time")
+
+    # -------------------------------------------------------------------------
+    def load_processor(
+        self,
+        snapshot_path: str,
+        *,
+        processor_loader: str,
+        load_options: dict[str, Any],
+    ) -> Any:
+        if processor_loader != "auto":
+            raise ValueError(
+                f"Unsupported Transformers processor loader: {processor_loader}"
+            )
+        return AutoProcessor.from_pretrained(snapshot_path, **load_options)
+
+    # -------------------------------------------------------------------------
+    def load_model(
+        self,
+        snapshot_path: str,
+        *,
+        model_loader: str,
+        load_options: dict[str, Any],
+    ) -> Any:
+        loaders = {
+            "auto_model": AutoModel,
+            "image_text_to_text": AutoModelForImageTextToText,
+            "causal_lm": AutoModelForCausalLM,
+        }
+        loader = loaders.get(model_loader)
+        if loader is None:
+            raise ValueError(f"Unsupported Transformers model loader: {model_loader}")
+        return loader.from_pretrained(snapshot_path, **load_options)
+
+    # -------------------------------------------------------------------------
+    def build_inputs(
+        self,
+        processor: Any,
+        image: Image.Image,
+        prompt: str,
+    ) -> tuple[Any, int]:
+        messages = [
+            {
+                "role": "user",
+                "content": [
+                    {"type": "image", "image": image},
+                    {"type": "text", "text": prompt},
+                ],
+            }
+        ]
+        if hasattr(processor, "apply_chat_template"):
+            inputs = processor.apply_chat_template(
+                messages,
+                add_generation_prompt=True,
+                tokenize=True,
+                return_dict=True,
+                return_tensors="pt",
+            )
+        else:
+            inputs = processor(images=image, text=prompt, return_tensors="pt")
+        input_ids = inputs.get("input_ids") if isinstance(inputs, Mapping) else None
+        input_length = int(input_ids.shape[-1]) if input_ids is not None else 0
+        return inputs, input_length
+
+    # -------------------------------------------------------------------------
+    def decode(self, processor: Any, output: Any, *, input_length: int) -> str:
+        generated = output[0][input_length:] if input_length else output[0]
+        if hasattr(processor, "decode"):
+            return str(processor.decode(generated, skip_special_tokens=True))
+        if hasattr(processor, "batch_decode"):
+            return str(processor.batch_decode([generated], skip_special_tokens=True)[0])
+        raise RuntimeError("Transformers processor cannot decode generated output")
+
+    # -------------------------------------------------------------------------
+    @staticmethod
+    def prompt(profile: GenerationProfile, clinical_context: str) -> str:
+        detail = {
+            "deterministic": "Use a consistent and conservative structure.",
+            "concise": "Keep the report concise.",
+            "detailed": "Provide detailed observations while remaining clinically cautious.",
+        }[profile]
+        context = clinical_context.strip() or "No clinical context supplied."
+        return (
+            "Draft a radiology report for research use only. The output is preliminary, "
+            "not clinically approved, and requires qualified review. "
+            f"{detail}\nClinical context: {context}"
+        )
+
+    # -------------------------------------------------------------------------
+    def generation_kwargs(self, profile: GenerationProfile) -> dict[str, Any]:
+        return self.resolve_generation(
+            profile,
+            {
+                "max_new_tokens": {
+                    "deterministic": 768,
+                    "concise": 384,
+                    "detailed": 1536,
+                }[profile],
+                "do_sample": False,
+            },
+        )
+
+    # -------------------------------------------------------------------------
+    def resolve_generation(
+        self, profile: GenerationProfile, base: Mapping[str, Any]
+    ) -> dict[str, Any]:
+        """Merge user limits into a profile without ever passing max_length."""
+        resolved = {key: value for key, value in base.items() if key != "max_length"}
+        limits = self.generation_limits
+        max_new_tokens = getattr(limits, f"max_new_tokens_{profile}")
+        if max_new_tokens:
+            resolved["max_new_tokens"] = max_new_tokens
+        if profile == "detailed" and "num_beams" in resolved and limits.detailed_num_beams:
+            resolved["num_beams"] = limits.detailed_num_beams
+        return resolved
+
+    # -------------------------------------------------------------------------
+    @staticmethod
+    def display_sections(report: str, output_sections: list[str]) -> dict[str, str]:
+        if "raw_report" in output_sections:
+            return {"raw_report": report}
+
+        sections: dict[str, str] = {}
+        normalized = report.strip()
+        if len(output_sections) == 1 and output_sections[0] in {
+            "findings",
+            "impression",
+        }:
+            sections[output_sections[0]] = normalized
+            return sections
+
+        matches = {
+            section: re.search(
+                rf"(?:^|\n)\s*(?:#{{1,3}}\s*)?{section}\s*:?\s*([\s\S]*?)(?=\n\s*(?:#{{1,3}}\s*)?(?:findings|impression)\s*:?|$)",
+                normalized,
+                flags=re.IGNORECASE,
+            )
+            for section in output_sections
+        }
+        for section, match in matches.items():
+            if match:
+                sections[section] = match.group(1).strip()
+        return sections
+
+    # -------------------------------------------------------------------------
+    @staticmethod
+    def processed_dimensions(inputs: Any) -> list[int] | None:
+        if not isinstance(inputs, Mapping):
+            return None
+        pixel_values = inputs.get("pixel_values")
+        shape = getattr(pixel_values, "shape", None)
+        if shape is None:
+            return None
+        return [int(dimension) for dimension in shape]
+
+###############################################################################
+class ChatVisionStudyAdapter(StandardImageTextAdapter):
+    """Study adapter for image-text-to-text models using chat templates."""
+
+    supports_study = True
+
+    # -------------------------------------------------------------------------
+    def generate_study(
+        self,
+        *,
+        model: Any,
+        processor: Any,
+        images: list[StudyImage],
+        profile: GenerationProfile,
+        clinical_context: str,
+        move_inputs: MoveInputs,
+        stopping_criteria: StoppingCriteriaValue,
+        output_sections: list[str],
+    ) -> StudyGeneration:
+        prompt = self.prompt(profile, clinical_context)
+        messages = [
+            {
+                "role": "user",
+                "content": [
+                    *({"type": "image", "image": item.image} for item in images),
+                    {"type": "text", "text": prompt},
+                ],
+            }
+        ]
+        if not hasattr(processor, "apply_chat_template"):
+            raise RuntimeError(
+                "The selected vision-language processor has no chat template"
+            )
+        inputs = processor.apply_chat_template(
+            messages,
+            add_generation_prompt=True,
+            tokenize=True,
+            return_dict=True,
+            return_tensors="pt",
+        )
+        input_ids = inputs.get("input_ids") if isinstance(inputs, Mapping) else None
+        input_length = int(input_ids.shape[-1]) if input_ids is not None else 0
+        inputs = move_inputs(inputs, model)
+        output = model.generate(
+            **inputs,
+            **self.generation_kwargs(profile),
+            stopping_criteria=stopping_criteria,
+        )
+        report = self.decode(processor, output, input_length=input_length).strip()
+        return StudyGeneration(
+            report=report,
+            display_sections=self.display_sections(report, output_sections),
+            metadata=[self._metadata(item, processor, inputs) for item in images],
+        )
+
+    # -------------------------------------------------------------------------
+    @staticmethod
+    def _metadata(item: StudyImage, processor: Any, inputs: Any) -> dict[str, Any]:
+        return {
+            "filename": item.stored.filename,
+            "original_dimensions": {
+                "width": item.original_dimensions[0],
+                "height": item.original_dimensions[1],
+            },
+            "processed_tensor_dimensions": StandardImageTextAdapter.processed_dimensions(
+                inputs
+            ),
+            "processor_loader": "auto",
+            "input_scope": "study",
+        }
+
+###############################################################################
+class CheXOneAdapter(ChatVisionStudyAdapter):
+    """CheXOne's Qwen2.5-VL processor with the published multi-image path."""
+
+    # -------------------------------------------------------------------------
+    def load_processor(
+        self,
+        snapshot_path: str,
+        *,
+        processor_loader: str,
+        load_options: dict[str, Any],
+    ) -> Any:
+        return AutoProcessor.from_pretrained(
+            snapshot_path,
+            min_pixels=256 * 28 * 28,
+            max_pixels=512 * 512,
+            **load_options,
+        )
+
+    # -------------------------------------------------------------------------
+    def generate_study(self, **kwargs: Any) -> StudyGeneration:
+        model = kwargs["model"]
+        processor = kwargs["processor"]
+        images: list[StudyImage] = kwargs["images"]
+        profile: GenerationProfile = kwargs["profile"]
+        clinical_context = kwargs["clinical_context"]
+        move_inputs: MoveInputs = kwargs["move_inputs"]
+        stopping_criteria = kwargs["stopping_criteria"]
+        output_sections: list[str] = kwargs["output_sections"]
+        prompt = (
+            "Write only the Findings section for the supplied chest radiograph study. "
+            "Return the final findings text only; do not add a separate Impression section "
+            "or reasoning trace. "
+            f"{self.prompt(profile, clinical_context)}"
+        )
+        messages = [
+            {
+                "role": "user",
+                "content": [
+                    *({"type": "image", "image": item.image} for item in images),
+                    {"type": "text", "text": prompt},
+                ],
+            }
+        ]
+        text = processor.apply_chat_template(
+            messages, tokenize=False, add_generation_prompt=True
+        )
+        vision_info = process_vision_info(messages)
+        image_inputs, video_inputs = vision_info[0], vision_info[1]
+        inputs = processor(
+            text=[text],
+            images=image_inputs,
+            videos=video_inputs,
+            padding=True,
+            return_tensors="pt",
+        )
+        input_length = int(inputs.input_ids.shape[-1])
+        inputs = move_inputs(inputs, model)
+        output = model.generate(
+            **inputs,
+            **self.resolve_generation(
+                profile,
+                {
+                    "max_new_tokens": {
+                        "deterministic": 768,
+                        "concise": 384,
+                        "detailed": 1024,
+                    }[profile],
+                    "do_sample": False,
+                },
+            ),
+            stopping_criteria=stopping_criteria,
+        )
+        generated_ids = [out_ids[input_length:] for out_ids in output]
+        report = processor.batch_decode(
+            generated_ids,
+            skip_special_tokens=True,
+            clean_up_tokenization_spaces=False,
+        )[0].strip()
+        return StudyGeneration(
+            report=report,
+            display_sections=self.display_sections(report, output_sections),
+            metadata=[self._metadata(item, processor, inputs) for item in images],
+        )
+
+###############################################################################
+class CXRMateMultiAdapter(StandardImageTextAdapter):
+    """Published CXRMate multi-view encoder-decoder preprocessing contract."""
+
+    supports_study = True
+    generation_profiles: dict[GenerationProfile, dict[str, Any]] = {
+        "deterministic": {
+            "max_new_tokens": 256,
+            "num_beams": 1,
+            "do_sample": False,
+        },
+        "concise": {
+            "max_new_tokens": 160,
+            "num_beams": 1,
+            "do_sample": False,
+        },
+        "detailed": {
+            "max_new_tokens": 256,
+            "num_beams": 4,
+            "do_sample": False,
+        },
+    }
+
+    # -------------------------------------------------------------------------
+    def load_processor(
+        self,
+        snapshot_path: str,
+        *,
+        processor_loader: str,
+        load_options: dict[str, Any],
+    ) -> Any:
+        return {
+            "tokenizer": AutoTokenizer.from_pretrained(snapshot_path, **load_options),
+            "image_processor": AutoFeatureExtractor.from_pretrained(
+                snapshot_path, **load_options
+            ),
+        }
+
+    # -------------------------------------------------------------------------
+    def load_model(
+        self,
+        snapshot_path: str,
+        *,
+        model_loader: str,
+        load_options: dict[str, Any],
+    ) -> Any:
+        return AutoModel.from_pretrained(snapshot_path, **load_options)
+
+    # -------------------------------------------------------------------------
+    def generate_study(
+        self,
+        *,
+        model: Any,
+        processor: Any,
+        images: list[StudyImage],
+        profile: GenerationProfile,
+        clinical_context: str,
+        move_inputs: MoveInputs,
+        stopping_criteria: StoppingCriteriaValue,
+        output_sections: list[str],
+    ) -> StudyGeneration:
+        del clinical_context, output_sections
+        image_processor = processor["image_processor"]
+        tokenizer = processor["tokenizer"]
+        shortest_edge = int(image_processor.size["shortest_edge"])
+        image_transform = transforms.Compose(
+            [
+                transforms.Resize(shortest_edge),
+                transforms.CenterCrop((shortest_edge, shortest_edge)),
+                transforms.ToTensor(),
+                transforms.Normalize(
+                    image_processor.image_mean, image_processor.image_std
+                ),
+            ]
+        )
+        tensors: list[torch.Tensor] = [
+            cast(torch.Tensor, image_transform(item.image)) for item in images
+        ]
+        batch = torch.stack(tensors, dim=0).unsqueeze(0)
+        moved = move_inputs({"pixel_values": batch}, model)
+        _ensure_legacy_decoder_cache_compatibility(model)
+        generation_kwargs = self.resolve_generation(
+            profile, self.generation_profiles[profile]
+        )
+        output = model.generate(
+            pixel_values=moved["pixel_values"],
+            special_token_ids=[tokenizer.sep_token_id],
+            bos_token_id=tokenizer.bos_token_id,
+            eos_token_id=tokenizer.eos_token_id,
+            pad_token_id=tokenizer.pad_token_id,
+            return_dict_in_generate=True,
+            use_cache=True,
+            **generation_kwargs,
+            stopping_criteria=stopping_criteria,
+        )
+        findings, impression = model.split_and_decode_sections(
+            output.sequences,
+            [tokenizer.sep_token_id, tokenizer.eos_token_id],
+            tokenizer,
+        )
+        report = f"Findings:\n{findings[0].strip()}\n\nImpression:\n{impression[0].strip()}".strip()
+        return StudyGeneration(
+            report=report,
+            display_sections={
+                "findings": findings[0].strip(),
+                "impression": impression[0].strip(),
+            },
+            metadata=[self._metadata(item, moved["pixel_values"]) for item in images],
+        )
+
+    # -------------------------------------------------------------------------
+    @staticmethod
+    def _metadata(item: StudyImage, tensor: torch.Tensor) -> dict[str, Any]:
+        return {
+            "filename": item.stored.filename,
+            "original_dimensions": {
+                "width": item.original_dimensions[0],
+                "height": item.original_dimensions[1],
+            },
+            "processed_tensor_dimensions": [int(value) for value in tensor.shape],
+            "processor_loader": "auto_feature_extractor",
+            "input_scope": "study",
+        }
+
+###############################################################################
+class CXRMate2Adapter(StandardImageTextAdapter):
+    """Published CXRMate-2 processor and findings/impression decoder."""
+
+    supports_study = True
+    generation_profiles: dict[GenerationProfile, dict[str, Any]] = {
+        "deterministic": {
+            "max_new_tokens": 256,
+            "num_beams": 1,
+            "do_sample": False,
+        },
+        "concise": {
+            "max_new_tokens": 160,
+            "num_beams": 1,
+            "do_sample": False,
+        },
+        "detailed": {
+            "max_new_tokens": 256,
+            "num_beams": 4,
+            "do_sample": False,
+        },
+    }
+
+    # -------------------------------------------------------------------------
+    def generate_study(
+        self,
+        *,
+        model: Any,
+        processor: Any,
+        images: list[StudyImage],
+        profile: GenerationProfile,
+        clinical_context: str,
+        move_inputs: MoveInputs,
+        stopping_criteria: StoppingCriteriaValue,
+        output_sections: list[str],
+    ) -> StudyGeneration:
+        del output_sections
+        processed = processor(
+            # CXRMate-2's published processor treats each outer entry as one
+            # study and each inner entry as a current/prior view.
+            images=[[item.image for item in images]],
+            indication=clinical_context.strip() or None,
+        )
+        processed = move_inputs(processed, model)
+        _ensure_cxrmate2_generation_dtype(model, move_inputs)
+        generation_kwargs = self.resolve_generation(
+            profile, self.generation_profiles[profile]
+        )
+        generated_ids = model.generate(
+            **processed,
+            **generation_kwargs,
+            stopping_criteria=stopping_criteria,
+        )
+        findings, impression = processor.split_and_decode_sections(generated_ids)
+        report = f"Findings:\n{findings[0].strip()}\n\nImpression:\n{impression[0].strip()}".strip()
+        return StudyGeneration(
+            report=report,
+            display_sections={
+                "findings": findings[0].strip(),
+                "impression": impression[0].strip(),
+            },
+            metadata=[self._metadata(item, processed) for item in images],
+        )
+
+    # -------------------------------------------------------------------------
+    @staticmethod
+    def _metadata(item: StudyImage, inputs: Any) -> dict[str, Any]:
+        dimensions = StandardImageTextAdapter.processed_dimensions(inputs)
+        return {
+            "filename": item.stored.filename,
+            "original_dimensions": {
+                "width": item.original_dimensions[0],
+                "height": item.original_dimensions[1],
+            },
+            "processed_tensor_dimensions": dimensions,
+            "processor_loader": "auto",
+            "input_scope": "study",
+        }
+
+###############################################################################
+class MedGemmaAdapter(ChatVisionStudyAdapter):
+    """MedGemma's standard processor with a research-only report prompt."""
+
+    # -------------------------------------------------------------------------
+    @staticmethod
+    def prompt(profile: GenerationProfile, clinical_context: str) -> str:
+        return (
+            "Create a concise radiology report draft from this medical imaging study. "
+            "Return only the report text, with Findings and Impression headings when appropriate. "
+            "Do not provide chain-of-thought or diagnostic certainty. "
+            f"{StandardImageTextAdapter.prompt(profile, clinical_context)}"
+        )
+
+
+ADAPTERS: dict[str, type[StandardImageTextAdapter]] = {
+    "medgemma": MedGemmaAdapter,
+    "chexone": CheXOneAdapter,
+    "cxrmate_multi": CXRMateMultiAdapter,
+    "cxrmate2": CXRMate2Adapter,
+}

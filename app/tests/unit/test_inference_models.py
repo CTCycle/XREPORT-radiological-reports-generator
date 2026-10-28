@@ -12,24 +12,24 @@ import json
 import zipfile
 import numpy as np
 from transformers import StoppingCriteriaList
-from server.configurations import InferenceSettings
-from server.domain.inference import InferenceImage
-from server.models.inference.providers.adapters import MedGemmaAdapter, StudyGeneration
-from server.models.inference.providers import huggingface as huggingface_module, xreport
-from server.models.inference.providers.huggingface import HuggingFaceProvider
-from server.configurations.inference_models import embedded_inference_models
-from server.services.inference_runtime import InferenceRuntimeCoordinator
-from server.services.inference_catalog import validation_contract_hash, InferenceModelCatalog
+from xreport_shared.configurations import InferenceSettings
+from xreport_inference.domain.inference import InferenceImage
+from xreport_inference.models.inference.providers.adapters import MedGemmaAdapter, StudyGeneration
+from xreport_inference.models.inference.providers import huggingface as huggingface_module, xreport
+from xreport_inference.models.inference.providers.huggingface import HuggingFaceProvider
+from xreport_inference.configurations.inference_models import embedded_inference_models
+from xreport_inference.services.inference_runtime import InferenceRuntimeCoordinator
+from xreport_inference.services.inference_catalog import validation_contract_hash, InferenceModelCatalog
 from collections.abc import Callable, Mapping
 from pathlib import Path
 from typing import Any
-from server.common.path import ROOT_DIR
-from server.services.model_installation import ModelInstallationManager, InstallationError
-from server.common import path as path_module
-from server.common.runtime_layout import RuntimeLayout
-from server.services import model_installation as installation_module
-from server.services.model_storage import ModelStorageLifecycle
-from server.models.inference.providers.xreport import XReportCheckpointProvider
+from xreport_shared.common.path import ROOT_DIR
+from xreport_inference.services.model_installation import ModelInstallationManager, InstallationError
+from xreport_shared.common import path as path_module
+from xreport_shared.common.runtime_layout import RuntimeLayout
+from xreport_inference.services import model_installation as installation_module
+from xreport_inference.services.model_storage import ModelStorageLifecycle
+from xreport_inference.models.inference.providers.xreport import XReportCheckpointProvider
 
 
 
@@ -95,11 +95,11 @@ def _patch_runtime(monkeypatch, model: MagicMock, processor: MagicMock) -> None:
         lambda _self, _huggingface_manifest: (model, processor, MedGemmaAdapter()),
     )
     monkeypatch.setattr(
-        "server.models.inference.providers.adapters.AutoProcessor.from_pretrained",
+        "xreport_inference.models.inference.providers.adapters.AutoProcessor.from_pretrained",
         lambda _path, **_kwargs: processor,
     )
     monkeypatch.setattr(
-        "server.models.inference.providers.adapters.AutoModelForImageTextToText.from_pretrained",
+        "xreport_inference.models.inference.providers.adapters.AutoModelForImageTextToText.from_pretrained",
         lambda _path, **_kwargs: model,
     )
 
@@ -183,11 +183,11 @@ def test_generate_uses_manifest_loaders_revision_and_records_dimensions(
         return model
 
     monkeypatch.setattr(
-        "server.models.inference.providers.adapters.AutoProcessor.from_pretrained",
+        "xreport_inference.models.inference.providers.adapters.AutoProcessor.from_pretrained",
         load_processor,
     )
     monkeypatch.setattr(
-        "server.models.inference.providers.adapters.AutoModelForImageTextToText.from_pretrained",
+        "xreport_inference.models.inference.providers.adapters.AutoModelForImageTextToText.from_pretrained",
         load_model,
     )
     progress: list[tuple[object, ...]] = []
@@ -383,11 +383,11 @@ def test_switching_models_and_unload_clear_resident_provider_state(
     models = [model_a, model_b]
     processors = [processor_a, processor_b]
     monkeypatch.setattr(
-        "server.models.inference.providers.adapters.AutoProcessor.from_pretrained",
+        "xreport_inference.models.inference.providers.adapters.AutoProcessor.from_pretrained",
         lambda _path, **_kwargs: processors.pop(0),
     )
     monkeypatch.setattr(
-        "server.models.inference.providers.adapters.AutoModelForImageTextToText.from_pretrained",
+        "xreport_inference.models.inference.providers.adapters.AutoModelForImageTextToText.from_pretrained",
         lambda _path, **_kwargs: models.pop(0),
     )
     provider = HuggingFaceProvider(_huggingface_settings())
@@ -436,7 +436,7 @@ def test_failed_model_load_leaves_no_resident_state(monkeypatch, tmp_path) -> No
         lambda path: path.resolve().is_relative_to(tmp_path.resolve()),
     )
     monkeypatch.setattr(
-        "server.models.inference.providers.adapters.AutoProcessor.from_pretrained",
+        "xreport_inference.models.inference.providers.adapters.AutoProcessor.from_pretrained",
         lambda _path, **_kwargs: MagicMock(),
     )
 
@@ -444,7 +444,7 @@ def test_failed_model_load_leaves_no_resident_state(monkeypatch, tmp_path) -> No
         raise RuntimeError("CUDA out of memory")
 
     monkeypatch.setattr(
-        "server.models.inference.providers.adapters.AutoModelForImageTextToText.from_pretrained",
+        "xreport_inference.models.inference.providers.adapters.AutoModelForImageTextToText.from_pretrained",
         fail_load,
     )
     released = MagicMock()
@@ -539,8 +539,8 @@ def test_idle_watcher_keeps_model_when_timeout_is_disabled() -> None:
 
 ###############################################################################
 def test_xreport_checkpoint_stays_resident_until_released(monkeypatch, tmp_path) -> None:
-    from server.repositories.serialization import model as serializer_module
-    from server.services import inference_runtime as runtime_module
+    from xreport_shared.repositories.serialization import model as serializer_module
+    from xreport_inference.services import inference_runtime as runtime_module
 
     framework_release = MagicMock()
     monkeypatch.setattr(runtime_module, "release_framework_memory", framework_release)
@@ -806,11 +806,11 @@ def test_provider_reuses_same_resident_model(monkeypatch, tmp_path) -> None:
         return model
 
     monkeypatch.setattr(
-        "server.models.inference.providers.adapters.AutoProcessor.from_pretrained",
+        "xreport_inference.models.inference.providers.adapters.AutoProcessor.from_pretrained",
         lambda _path, **_kwargs: processor,
     )
     monkeypatch.setattr(
-        "server.models.inference.providers.adapters.AutoModelForImageTextToText.from_pretrained",
+        "xreport_inference.models.inference.providers.adapters.AutoModelForImageTextToText.from_pretrained",
         load_model,
     )
     provider = HuggingFaceProvider(_huggingface_settings())

@@ -8,7 +8,7 @@ import pytest
 ###############################################################################
 @pytest.fixture
 def seeded_history() -> str:
-    from server.repositories.serialization.inference import InferenceRepository
+    from xreport_inference.repositories.serialization.inference import InferenceRepository
 
     repository = InferenceRepository()
     request_id = f"e2e_history_{uuid.uuid4().hex}"

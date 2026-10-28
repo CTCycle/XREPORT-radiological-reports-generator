@@ -1,0 +1,313 @@
+from __future__ import annotations
+
+from dataclasses import dataclass, field
+from functools import lru_cache
+import inspect
+import threading
+import uuid
+from time import monotonic
+from typing import Any
+
+from collections.abc import Callable
+
+from xreport_shared.common.utils.logger import logger
+
+###############################################################################
+@dataclass
+class JobState:
+    """Mutable in-memory state owned by the background-job runtime."""
+
+    job_id: str
+    job_type: str
+    status: str
+    poll_interval: float = 1.0
+    progress: float = 0.0
+    result: dict[str, Any] | None = None
+    error: str | None = None
+    created_at: float = field(default_factory=monotonic)
+    completed_at: float | None = None
+    stop_requested: bool = False
+    lock: threading.Lock = field(default_factory=threading.Lock, init=False, repr=False)
+
+    # -------------------------------------------------------------------------
+    def update(self, **kwargs: Any) -> None:
+        with self.lock:
+            for key, value in kwargs.items():
+                if hasattr(self, key):
+                    setattr(self, key, value)
+
+    # -------------------------------------------------------------------------
+    def snapshot(self) -> dict[str, Any]:
+        with self.lock:
+            return {
+                "job_id": self.job_id,
+                "job_type": self.job_type,
+                "status": self.status,
+                "poll_interval": self.poll_interval,
+                "progress": self.progress,
+                "result": self.result,
+                "error": self.error,
+                "created_at": self.created_at,
+                "completed_at": self.completed_at,
+            }
+
+###############################################################################
+class JobExecutionError(RuntimeError):
+    """Typed failure payload supplied by a feature-specific job runner."""
+
+    # -------------------------------------------------------------------------
+    def __init__(
+        self,
+        message: str,
+        *,
+        code: str = "job_failed",
+        phase: str = "execution",
+        recoverable: bool = True,
+    ) -> None:
+        super().__init__(message)
+        self.code = code
+        self.phase = phase
+        self.recoverable = recoverable
+
+###############################################################################
+class JobAlreadyRunningError(RuntimeError):
+    """Raised when an exclusive job type already has an active job."""
+
+
+###############################################################################
+FailureMapper = Callable[[Exception], JobExecutionError]
+
+###############################################################################
+class JobManager:
+
+    # -------------------------------------------------------------------------
+    def __init__(self) -> None:
+        self.jobs: dict[str, JobState] = {}
+        self.threads: dict[str, threading.Thread] = {}
+        self.lock = threading.RLock()
+
+    # -------------------------------------------------------------------------
+    def start_job(
+        self,
+        job_type: str,
+        runner: Callable[..., dict[str, Any]],
+        args: tuple[Any, ...] = (),
+        kwargs: dict[str, Any] | None = None,
+        failure_mapper: FailureMapper | None = None,
+        poll_interval: float = 1.0,
+        require_idle: bool = False,
+        initial_result: dict[str, Any] | None = None,
+    ) -> str:
+        job_id = str(uuid.uuid4())[:8]
+        state = JobState(
+            job_id=job_id,
+            job_type=job_type,
+            status="pending",
+            poll_interval=float(poll_interval),
+            result=dict(initial_result) if initial_result is not None else None,
+        )
+        runner_kwargs = kwargs.copy() if kwargs else {}
+
+        # Inject job_id if the runner accepts it
+        if self._runner_accepts_job_id(runner):
+            runner_kwargs["job_id"] = job_id
+
+        thread = threading.Thread(
+            target=self._run_job,
+            args=(job_id, runner, args, runner_kwargs, failure_mapper),
+            daemon=True,
+        )
+
+        with self.lock:
+            checkpoint_jobs = {"training", "checkpoint_export"}
+            if job_type in checkpoint_jobs and any(
+                active.job_type in checkpoint_jobs
+                and active.status in ("pending", "running")
+                for active in self.jobs.values()
+            ):
+                raise JobAlreadyRunningError("Training or checkpoint export is already in progress")
+            if require_idle and any(
+                active.job_type == job_type and active.status in ("pending", "running")
+                for active in self.jobs.values()
+            ):
+                raise JobAlreadyRunningError(f"A {job_type} job is already in progress")
+            self.threads[job_id] = thread
+            self.jobs[job_id] = state
+            state.update(status="running")
+            thread.start()
+
+        logger.info("Started job %s (type=%s)", job_id, job_type)
+        return job_id
+
+    # -------------------------------------------------------------------------
+    def get_job_status(self, job_id: str) -> dict[str, Any] | None:
+        with self.lock:
+            state = self.jobs.get(job_id)
+        if state is None:
+            return None
+        return state.snapshot()
+
+    # -------------------------------------------------------------------------
+    def cancel_job(self, job_id: str) -> bool:
+        with self.lock:
+            state = self.jobs.get(job_id)
+        if state is None:
+            return False
+        if state.status not in ("pending", "running"):
+            return False
+
+        if state.status == "pending":
+            state.update(
+                stop_requested=True,
+                status="cancelled",
+                completed_at=monotonic(),
+            )
+            logger.info("Cancelled pending job %s", job_id)
+            return True
+
+        state.update(stop_requested=True)
+        logger.info("Cancellation requested for job %s", job_id)
+        return True
+
+    # -------------------------------------------------------------------------
+    def is_job_running(self, job_type: str | None = None) -> bool:
+        with self.lock:
+            for state in self.jobs.values():
+                if state.status in ("pending", "running"):
+                    if job_type is None or state.job_type == job_type:
+                        return True
+        return False
+
+    # -------------------------------------------------------------------------
+    def list_jobs(
+        self,
+        job_type: str | None = None,
+        status: str | None = None,
+    ) -> list[dict[str, Any]]:
+        with self.lock:
+            states = list(self.jobs.values())
+        results = []
+        for state in states:
+            if job_type is not None and state.job_type != job_type:
+                continue
+            if status is not None and state.status != status:
+                continue
+            results.append(state.snapshot())
+        return results
+
+    # -------------------------------------------------------------------------
+    def should_stop(self, job_id: str) -> bool:
+        with self.lock:
+            state = self.jobs.get(job_id)
+        if state is None:
+            return True
+        return state.stop_requested
+
+    # -------------------------------------------------------------------------
+    def update_progress(self, job_id: str, progress: float) -> None:
+        with self.lock:
+            state = self.jobs.get(job_id)
+        if state:
+            state.update(progress=min(100.0, max(0.0, progress)))
+
+    # -------------------------------------------------------------------------
+    def update_result(self, job_id: str, patch: dict[str, Any]) -> None:
+        with self.lock:
+            state = self.jobs.get(job_id)
+        if state is None:
+            return
+        with state.lock:
+            existing = state.result or {}
+            merged = {**existing, **patch}
+            state.result = merged
+
+    # -------------------------------------------------------------------------
+    def _run_job(
+        self,
+        job_id: str,
+        runner: Callable[..., dict[str, Any]],
+        args: tuple[Any, ...],
+        kwargs: dict[str, Any],
+        failure_mapper: FailureMapper | None,
+    ) -> None:
+        with self.lock:
+            state = self.jobs.get(job_id)
+        if state is None:
+            return
+
+        try:
+            result = runner(*args, **kwargs)
+            if state.stop_requested:
+                state.update(status="cancelled", completed_at=monotonic())
+            else:
+                # Merge runner result with any partial results pushed during execution
+                result_payload = result or {}
+                with state.lock:
+                    merged = {**(state.result or {}), **result_payload}
+                state.update(
+                    status="completed",
+                    result=merged if merged else None,
+                    progress=100.0,
+                    completed_at=monotonic(),
+                )
+                logger.info("Job %s completed successfully", job_id)
+        except Exception as exc:  # noqa: BLE001
+            if state.stop_requested:
+                state.update(status="cancelled", completed_at=monotonic())
+                logger.info("Job %s cancelled during execution", job_id)
+                return
+            failure = self._failure_payload(exc, failure_mapper)
+            with state.lock:
+                merged_failure = {**(state.result or {}), "failure": failure}
+            state.update(
+                status="failed",
+                error=failure["message"],
+                result=merged_failure,
+                completed_at=monotonic(),
+            )
+            logger.error(
+                "Job %s failed [%s]: %s", job_id, failure["code"], failure["message"]
+            )
+            logger.debug("Job %s error details", job_id, exc_info=True)
+
+    # -------------------------------------------------------------------------
+    @staticmethod
+    def _failure_payload(
+        exc: Exception,
+        failure_mapper: FailureMapper | None,
+    ) -> dict[str, Any]:
+        message = str(exc).split("\n")[0][:300]
+        mapped = None
+        if failure_mapper is not None:
+            try:
+                mapped = failure_mapper(exc)
+            except Exception:  # noqa: BLE001
+                logger.exception("Job failure mapper raised while classifying an error")
+        if mapped is None:
+            mapped = (
+                exc
+                if isinstance(exc, JobExecutionError)
+                else JobExecutionError(message)
+            )
+        return {
+            "code": mapped.code,
+            "message": str(mapped).split("\n")[0][:300],
+            "phase": mapped.phase,
+            "recoverable": mapped.recoverable,
+        }
+
+    # -------------------------------------------------------------------------
+    def _runner_accepts_job_id(self, runner: Callable[..., dict[str, Any]]) -> bool:
+        try:
+            signature = inspect.signature(runner)
+        except (TypeError, ValueError):
+            return False
+        for param in signature.parameters.values():
+            if param.kind == param.VAR_KEYWORD:
+                return True
+        return "job_id" in signature.parameters
+
+###############################################################################
+@lru_cache(maxsize=1)
+def get_job_manager() -> JobManager:
+    return JobManager()

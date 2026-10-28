@@ -1,5 +1,5 @@
 {
-  "include": ["api", "common", "configurations", "domain", "models", "repositories", "services", "migrations"],
+  "include": ["../xreport_shared", "../xreport_studio", "../xreport_inference"],
   "exclude": [".venv"],
   "extraPaths": [".."],
   "venvPath": ".",

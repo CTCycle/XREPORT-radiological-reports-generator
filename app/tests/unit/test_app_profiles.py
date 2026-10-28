@@ -12,20 +12,23 @@ DEV_PREFIXES = ("upload", "preparation", "training", "validation")
 
 PROBE = """
 import json, sys
-from server.app import create_app
-from server.common.path import CHECKPOINTS_DIR, DATABASE_FILE_PATH, MODELS_DIR
+from __MODULE__ import create_app
+from xreport_shared.common.path import CHECKPOINTS_DIR, DATABASE_FILE_PATH, MODELS_DIR
 application = create_app()
 paths = sorted(application.openapi()["paths"])
 print(json.dumps({
     "title": application.title,
     "areas": sorted({p.split("/")[2] for p in paths if p.startswith("/api/")}),
     "paths": paths,
-    "loaded": [m for m in sys.modules if m.startswith("server.api.") or m.startswith("server.services.training")],
+    "loaded": [m for m in sys.modules if m.startswith(("xreport_studio", "xreport_inference"))],
     "database": str(DATABASE_FILE_PATH),
     "checkpoints": str(CHECKPOINTS_DIR),
     "models": str(MODELS_DIR),
 }))
 """
+
+
+APPLICATION_MODULES = {"studio": "xreport_studio.app"}
 
 
 def _probe(profile: str, resources: Path) -> dict:
@@ -39,7 +42,7 @@ def _probe(profile: str, resources: Path) -> dict:
         "PYTHONPATH": str(SERVER_ROOT),
     }
     result = subprocess.run(
-        [sys.executable, "-c", PROBE],
+        [sys.executable, "-c", PROBE.replace("__MODULE__", APPLICATION_MODULES.get(profile, "xreport_inference.app"))],
         capture_output=True,
         text=True,
         env=environment,
@@ -60,16 +63,17 @@ def test_xreport_profile_has_no_development_endpoints(tmp_path: Path) -> None:
     assert not any(
         module.startswith(
             (
-                "server.api.upload",
-                "server.api.preparation",
-                "server.api.training",
-                "server.api.validation",
-                "server.services.training",
+                "xreport_studio.api.upload",
+                "xreport_studio.api.preparation",
+                "xreport_studio.api.training",
+                "xreport_studio.api.validation",
+                "xreport_studio.services.training",
             )
         )
         for module in probe["loaded"]
     )
     assert probe["database"] == str(tmp_path.resolve() / "database.db")
+    assert not [m for m in probe["loaded"] if m.startswith("xreport_studio")]
 
 
 ###############################################################################
@@ -87,6 +91,7 @@ def test_studio_profile_owns_development_endpoints_and_separate_data(
     assert probe["checkpoints"] == str(studio_root / "checkpoints")
     # Pinned encoder/tokenizer resources stay shared and read-mostly.
     assert probe["models"] == str(tmp_path.resolve() / "models")
+    assert not [m for m in probe["loaded"] if m.startswith("xreport_inference")]
 
 
 ###############################################################################

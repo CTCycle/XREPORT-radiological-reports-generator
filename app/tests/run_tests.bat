@@ -101,15 +101,10 @@ if exist "%RUNTIME_NPM%" (
   set "NPM_CMD=npm"
 )
 
-set "UVICORN_APP=app.server.app:app"
-set "BACKEND_WORKDIR=%PROJECT_ROOT%"
-set "PYTHONPATH=%PROJECT_ROOT%;%APP_DIR%"
-"%PYTHON_CMD%" -c "import importlib; importlib.import_module('app.server.app')" >nul 2>&1
-if errorlevel 1 (
-  set "UVICORN_APP=server.app:app"
-  set "BACKEND_WORKDIR=%SERVER_DIR%"
-  set "PYTHONPATH=%APP_DIR%"
-)
+set "INFERENCE_UVICORN_APP=xreport_inference.app:app"
+set "STUDIO_UVICORN_APP=xreport_studio.app:app"
+set "BACKEND_WORKDIR=%APP_DIR%"
+set "PYTHONPATH=%APP_DIR%"
 
 echo.
 echo ============================================================
@@ -133,7 +128,7 @@ if /i "%STANDARD_TEST_SKIP_LIVE_SERVERS%"=="false" if "%HAS_E2E%"=="1" (
   curl -s --max-time 2 "%APP_TEST_BACKEND_URL%/docs" >nul 2>&1
   if errorlevel 1 (
     echo [INFO] Starting backend server...
-    start "" /B /D "%BACKEND_WORKDIR%" "%PYTHON_CMD%" -m uvicorn %UVICORN_APP% --host %FASTAPI_HOST% --port %FASTAPI_PORT% --log-level warning >nul 2>&1
+    start "" /B /D "%BACKEND_WORKDIR%" "%PYTHON_CMD%" -m uvicorn %INFERENCE_UVICORN_APP% --host %FASTAPI_HOST% --port %FASTAPI_PORT% --log-level warning >nul 2>&1
     set "STARTED_BACKEND=1"
   )
 
@@ -148,7 +143,7 @@ if /i "%STANDARD_TEST_SKIP_LIVE_SERVERS%"=="false" if "%HAS_E2E%"=="1" (
     )
     echo [INFO] Starting Studio backend server...
     set "XREPORT_APP=studio"
-    start "" /B /D "%BACKEND_WORKDIR%" "%STUDIO_VENV_PYTHON%" -m uvicorn %UVICORN_APP% --host %FASTAPI_HOST% --port %STUDIO_FASTAPI_PORT% --log-level warning >nul 2>&1
+    start "" /B /D "%BACKEND_WORKDIR%" "%STUDIO_VENV_PYTHON%" -m uvicorn %STUDIO_UVICORN_APP% --host %FASTAPI_HOST% --port %STUDIO_FASTAPI_PORT% --log-level warning >nul 2>&1
     set "XREPORT_APP="
     set "STARTED_STUDIO_BACKEND=1"
   )

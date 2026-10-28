@@ -18,9 +18,15 @@ if __name__ == "__main__":
             f"XREPORT_APP must be '{arguments.app}' to initialize the {arguments.app} database"
         )
 
-    from server.common.utils.logger import logger
-    from server.configurations import get_database_settings
-    from server.repositories.database.initializer import initialize_database
+    # Importing the application package registers the schema it owns.
+    import importlib
+
+    importlib.import_module(
+        "xreport_studio" if arguments.app == "studio" else "xreport_inference"
+    )
+    from xreport_shared.common.utils.logger import logger
+    from xreport_shared.configurations import get_database_settings
+    from xreport_shared.repositories.database.initializer import initialize_database
 
     start = time.perf_counter()
     database_settings = get_database_settings()

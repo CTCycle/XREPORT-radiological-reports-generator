@@ -11,21 +11,21 @@ from fastapi.testclient import TestClient
 from sqlalchemy import create_engine, event, func, select, text
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
-from server.api.errors import register_service_error_handlers
-from server.api.preparation import PreparationEndpoint
-from server.configurations import ServerSettings
-from server.repositories.database import Database as DatasetDatabase
-from server.repositories.preparation import PreparationRepository
-from server.repositories.schemas.inference import InferenceBase, InferenceReport, InferenceRun
-from server.repositories.schemas.studio import StudioBase, Dataset, DatasetRecord, ProcessingRun, TrainingSample, Checkpoint, CheckpointEvaluation, DatasetVersion, ValidationRun
-from server.repositories.serialization.dataset import DatasetRepository, sample_dataset
-from server.services.dataset_processing import DatasetProcessingService
-from server.services.jobs import JobManager
-from server.services.preparation import PreparationService
-from server.services.upload import UploadState
-from server.repositories.database.engine import Database
-from server.repositories.serialization.inference import InferenceRepository
-from server.repositories.serialization.validation import ValidationRepository
+from xreport_shared.api.errors import register_service_error_handlers
+from xreport_studio.api.preparation import PreparationEndpoint
+from xreport_shared.configurations import ServerSettings
+from xreport_shared.repositories.database import Database as DatasetDatabase
+from xreport_studio.repositories.preparation import PreparationRepository
+from xreport_inference.repositories.schemas.inference import InferenceBase, InferenceReport, InferenceRun
+from xreport_studio.repositories.schemas.studio import StudioBase, Dataset, DatasetRecord, ProcessingRun, TrainingSample, Checkpoint, CheckpointEvaluation, DatasetVersion, ValidationRun
+from xreport_studio.repositories.serialization.dataset import DatasetRepository, sample_dataset
+from xreport_studio.services.dataset_processing import DatasetProcessingService
+from xreport_shared.services.jobs import JobManager
+from xreport_studio.services.preparation import PreparationService
+from xreport_studio.services.upload import UploadState
+from xreport_shared.repositories.database.engine import Database
+from xreport_inference.repositories.serialization.inference import InferenceRepository
+from xreport_studio.repositories.serialization.validation import ValidationRepository
 
 
 
@@ -779,7 +779,7 @@ def test_validation_job_persists_measured_statistics(
     import cv2
     import numpy as np
     from unittest.mock import MagicMock
-    from server.services import validation_runs
+    from xreport_studio.services import validation_runs
 
     dataset_repository, database = _serializer()
     paths = []

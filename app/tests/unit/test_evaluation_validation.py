@@ -7,17 +7,17 @@ import torch
 import hashlib
 import importlib
 import json
-from server.services import evaluation as evaluation_service, validation_runs
-from server.services.jobs import JobExecutionError, JobManager
+from xreport_studio.services import evaluation as evaluation_service, validation_runs
+from xreport_shared.services.jobs import JobExecutionError, JobManager
 from pathlib import Path
 from types import SimpleNamespace
 from typing import Any, cast
 from pydantic import ValidationError
-from server.domain.validation import CheckpointEvaluationRequest, ValidationRequest
+from xreport_studio.domain.validation import CheckpointEvaluationRequest, ValidationRequest
 from unittest.mock import MagicMock
-from server.configurations import ServerSettings
-from server.repositories.checkpoints import CheckpointRepository
-from server.services.validation_runs import ValidationService
+from xreport_shared.configurations import ServerSettings
+from xreport_shared.repositories.checkpoints import CheckpointRepository
+from xreport_studio.services.validation_runs import ValidationService
 from tests.conftest import run_async_in_thread
 
 
@@ -172,7 +172,7 @@ def test_validation_cache_override_isolated_from_canonical_modules(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     import transformers.utils.hub as transformers_hub  # pyright: ignore[reportMissingImports]
-    from server.models.inference.providers import huggingface as huggingface_module
+    from xreport_inference.models.inference.providers import huggingface as huggingface_module
 
     original_values = {
         "transformers": transformers_hub.HF_MODULES_CACHE,

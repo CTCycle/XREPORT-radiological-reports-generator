@@ -1564,8 +1564,8 @@ function Get-XReportApplicationProcessIds {
         $executablePath = [string]$process.ExecutablePath
         $processName = [IO.Path]::GetFileNameWithoutExtension([string]$process.Name)
         $repoScoped = ($commandLine -match $repoPattern) -or ($executablePath -match $repoPattern)
-        $isBackend = $repoScoped -and ($commandLine -match '(?i)(?:server\.app:app|server\.source_entry|\buvicorn\b)')
-        $isStudioBackend = $isBackend -and ($commandLine -match '(?i)server\.source_entry\s+--app\s+studio')
+        $isBackend = $repoScoped -and ($commandLine -match '(?i)(?:xreport_(?:studio|inference)\.(?:app|entry)|\buvicorn\b)')
+        $isStudioBackend = $isBackend -and ($commandLine -match '(?i)xreport_studio\.(?:app|entry)')
         $isFrontend = $repoScoped -and ($commandLine -match '(?i)(?:\bnpm\b|\bnode(?:\.exe)?\b|\bvite\b).*(?:\bpreview\b|serve-built\.cjs)')
         $isDesktopDevelopment = $repoScoped -and ($commandLine -match '(?i)\b(?:tauri|cargo)\b')
         $isPortableRelease = $processName -match '(?i)^xreport-v\d+\.\d+\.\d+-windows-x64-(?:cpu|cuda)-portable$'
@@ -1775,7 +1775,7 @@ function Invoke-Launch {
             throw "Virtual-environment Python was not found at $backendPython."
         }
         $backendAppPath = Join-Path $RepoRoot 'app'
-        $entryArguments = if ($studio) { @('-m', 'server.source_entry', '--app', 'studio') } else { @('-m', 'server.source_entry') }
+        $entryArguments = if ($studio) { @('-m', 'xreport_studio.entry') } else { @('-m', 'xreport_inference.entry') }
         $appUrl = Get-LocalServiceUrl -HostName ([string]$settings.FASTAPI_HOST) -Port ([int]$settings.FASTAPI_PORT)
         $healthUrl = "$appUrl/api/health"
         $launchToken = New-LauncherToken
@@ -2561,7 +2561,7 @@ function Invoke-LaunchDesktopDev {
         Write-Info "Development logs will be retained under $logDirectory"
         Write-Step 'Starting the source FastAPI backend and built-bundle development server'
         $backendProcess = Start-Process -FilePath $VenvPython `
-            -ArgumentList @('-m', 'server.source_entry') `
+            -ArgumentList @('-m', 'xreport_inference.entry') `
             -WorkingDirectory $backendAppPath -WindowStyle Hidden -PassThru `
             -RedirectStandardOutput $backendStdout -RedirectStandardError $backendStderr
         $quotedFrontendServerScript = '"' + $FrontendServerScript + '"'
