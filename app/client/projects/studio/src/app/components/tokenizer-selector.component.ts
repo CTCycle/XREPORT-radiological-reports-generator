@@ -14,9 +14,9 @@ const CHECK_DELAY_MS = 400;
   imports: [FormsModule],
   template: `
     <div class="form-group tokenizer-selector">
-      <label class="form-label" for="dataset-tokenizer-search">Tokenizer</label>
-      <input id="dataset-tokenizer-search" class="form-input" type="search" placeholder="Search by name, family or id" autocomplete="off" [ngModel]="search()" (ngModelChange)="search.set($event)"/>
-      <select id="dataset-tokenizer" class="form-select" aria-label="Tokenizer" [ngModel]="selection()" (ngModelChange)="choose($event)">
+      <label class="form-label" [for]="idPrefix + '-search'">Tokenizer</label>
+      <input [id]="idPrefix + '-search'" class="form-input" type="search" placeholder="Search by name, family or id" autocomplete="off" [ngModel]="search()" (ngModelChange)="search.set($event)"/>
+      <select [id]="idPrefix" class="form-select" aria-label="Tokenizer" [ngModel]="selection()" (ngModelChange)="choose($event)">
         @for (group of groups(); track group.name) {
           <optgroup [label]="group.name">
             @for (option of group.options; track option.tokenizer_id) {
@@ -27,7 +27,7 @@ const CHECK_DELAY_MS = 400;
         <option [value]="customValue">Custom Hugging Face tokenizer…</option>
       </select>
       @if (selection() === customValue) {
-        <input id="dataset-tokenizer-custom" class="form-input" type="text" placeholder="organisation/tokenizer-name" aria-label="Custom tokenizer id" autocomplete="off" spellcheck="false" [ngModel]="value" (ngModelChange)="setCustom($event)"/>
+        <input [id]="idPrefix + '-custom'" class="form-input" type="text" placeholder="organisation/tokenizer-name" aria-label="Custom tokenizer id" autocomplete="off" spellcheck="false" [ngModel]="value" (ngModelChange)="setCustom($event)"/>
       }
       <p class="tokenizer-feedback" [class.tokenizer-feedback-error]="feedbackIsError()" role="status" aria-live="polite">{{ feedback() }}</p>
     </div>
@@ -40,6 +40,8 @@ const CHECK_DELAY_MS = 400;
 })
 export class TokenizerSelectorComponent implements OnInit {
   private readonly api = inject(TokenizerApiService);
+  /** Prefix of the control ids, so several selectors can share a page. */
+  @Input() idPrefix = 'dataset-tokenizer';
   @Input() set value(next: string) {
     if (next === this.current()) return;
     this.current.set(next ?? '');

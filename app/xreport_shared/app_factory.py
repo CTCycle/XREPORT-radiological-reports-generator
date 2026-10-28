@@ -20,7 +20,6 @@ from xreport_shared.common.constants import (
     FASTAPI_DESCRIPTION,
     FASTAPI_DOCS_ENDPOINT,
     FASTAPI_ROOT_ENDPOINT,
-    FASTAPI_TITLE,
     FASTAPI_VERSION,
 )
 from xreport_shared.common.desktop_security import (

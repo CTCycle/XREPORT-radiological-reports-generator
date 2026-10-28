@@ -144,7 +144,10 @@ def run_validation_job(
         "metrics": metrics,
     }
     logger.info(f"Metrics to compute: {', '.join(metrics)}")
-    outcome = _run_validation_metrics(validator, dataset, metrics, job_id, jm)
+    tokenizer_id = request_data.get("tokenizer")
+    outcome = _run_validation_metrics(
+        validator, dataset, metrics, job_id, jm, tokenizer_id
+    )
     if outcome is None:
         return {}
     result.update(outcome.result)
@@ -158,6 +161,7 @@ def run_validation_job(
             "records_requested": records_requested,
             "records_evaluated": len(dataset),
             "text_vocabulary_size": outcome.text_vocabulary_size,
+            "tokenizer": tokenizer_id,
             "metrics": outcome.metric_rows,
             "text_records": outcome.text_records,
             "image_records": outcome.image_records,
@@ -204,6 +208,7 @@ def _run_validation_metrics(
     metrics: Any,
     job_id: str,
     jm: JobManager,
+    tokenizer_id: str | None = None,
 ) -> MetricOutcome | None:
     progress_per_metric = 25.0
     current_progress = 20.0
@@ -211,7 +216,7 @@ def _run_validation_metrics(
     if "text_statistics" in metrics:
         if jm.should_stop(job_id):
             return None
-        _run_text_validation_metric(validator, dataset, outcome)
+        _run_text_validation_metric(validator, dataset, outcome, tokenizer_id)
         current_progress += progress_per_metric
         jm.update_progress(job_id, current_progress)
     if "image_statistics" in metrics:
@@ -246,10 +251,28 @@ def _load_validation_dataset(
     )
 
 ###############################################################################
+def _count_tokens(texts: pd.Series, tokenizer_id: str) -> list[int]:
+    """Tokens per report, including the tokenizer's special tokens, without padding."""
+    from xreport_shared.models.training.processing import (
+        TokenizerUnavailableError,
+        load_tokenizer,
+    )
+
+    try:
+        tokenizer = load_tokenizer(tokenizer_id)
+    except TokenizerUnavailableError as exc:
+        raise JobExecutionError(
+            str(exc), code="tokenizer_unavailable", phase="input_validation"
+        ) from exc
+    encoded = tokenizer(texts.astype(str).tolist(), add_special_tokens=True)
+    return [len(ids) for ids in encoded["input_ids"]]
+
+###############################################################################
 def _run_text_validation_metric(
     validator: DatasetValidator,
     dataset: pd.DataFrame,
     outcome: MetricOutcome,
+    tokenizer_id: str | None = None,
 ) -> None:
     logger.info(f"[1/3] Calculating text statistics for {len(dataset)} reports...")
     text_stats, text_records_df = validator.calculate_text_statistics()
@@ -265,17 +288,23 @@ def _run_text_validation_metric(
         }
         for row in text_records_df.to_dict(orient="records")
     ]
+    measures = {
+        "words_per_report": "word_count",
+        "chars_per_report": "char_count",
+        "unique_words_per_report": "unique_words",
+    }
+    if tokenizer_id and records:
+        for item, count in zip(
+            records, _count_tokens(dataset["text"], tokenizer_id), strict=True
+        ):
+            item["token_count"] = count
+        measures["tokens_per_report"] = "token_count"
+        token_histogram = histogram_bins([item["token_count"] for item in records])
+        if token_histogram:
+            outcome.histograms["report_tokens"] = token_histogram
     outcome.text_records = records
     outcome.text_vocabulary_size = text_stats.unique_words if records else None
-    outcome.aggregates += _aggregate_rows(
-        "text",
-        records,
-        {
-            "words_per_report": "word_count",
-            "chars_per_report": "char_count",
-            "unique_words_per_report": "unique_words",
-        },
-    )
+    outcome.aggregates += _aggregate_rows("text", records, measures)
     histogram = histogram_bins([item["word_count"] for item in records])
     if histogram:
         outcome.histograms["report_length"] = histogram

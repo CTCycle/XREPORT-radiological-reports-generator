@@ -47,6 +47,8 @@ studio = [
     "matplotlib==3.10.8",
     "nltk==3.9.2",
     "openpyxl==3.1.5",
+    "protobuf==7.36.2",
+    "sentencepiece==0.2.2",
 ]
 test = [
     "pytest>=8.0",

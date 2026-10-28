@@ -6,4 +6,5 @@ export interface ValidationWizardConfirmPayload {
     metrics: ValidationMetric[];
     row: DatasetInfo | null;
     sampleFraction: number;
+    tokenizer: string | null;
 }

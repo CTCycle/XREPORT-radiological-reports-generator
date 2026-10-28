@@ -619,3 +619,32 @@ def test_validation_service_reads_seed_and_poll_interval_for_each_new_run() -> N
     assert [request["seed"] for request in requests] == [111, 222]
     assert first_response.poll_interval == 2.0
     assert second_response.poll_interval == 4.5
+
+###############################################################################
+def test_token_statistics_require_text_metric_and_count_tokens(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    with pytest.raises(ValidationError):
+        ValidationRequest(
+            dataset_name="d",
+            metrics=["image_statistics"],
+            sample_size=1.0,
+            tokenizer="distilbert-base-uncased",
+        )
+
+    class FakeTokenizer:
+        def __call__(self, texts: list[str], add_special_tokens: bool) -> dict:
+            return {"input_ids": [[0] * (len(text.split()) + 2) for text in texts]}
+
+    monkeypatch.setattr(
+        "xreport_shared.models.training.processing.load_tokenizer",
+        lambda _name: FakeTokenizer(),
+    )
+    dataset = pd.DataFrame({"record_id": [1, 2], "text": ["a b c", "d e"]})
+    outcome = validation_runs.MetricOutcome()
+    validator = validation_runs.DatasetValidator(dataset, dataset_name="d")
+    validation_runs._run_text_validation_metric(validator, dataset, outcome, "fake")
+
+    assert [row["token_count"] for row in outcome.text_records] == [5, 4]
+    assert any(item["measure"] == "tokens_per_report" for item in outcome.aggregates)
+    assert "report_tokens" in outcome.histograms

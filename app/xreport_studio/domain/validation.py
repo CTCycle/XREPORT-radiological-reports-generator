@@ -2,7 +2,9 @@ from __future__ import annotations
 
 from typing import Literal
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
+
+from xreport_studio.configurations.tokenizers import TOKENIZER_ID_PATTERN
 
 VALIDATION_METRICS = frozenset(
     {"text_statistics", "image_statistics", "pixels_distribution"}
@@ -28,6 +30,9 @@ class ValidationRequest(BaseModel):
     metrics: list[str] = Field(..., min_length=1, max_length=4)
     sample_size: float = Field(..., ge=0.01, le=1.0)
     seed: int | None = None
+    tokenizer: str | None = Field(
+        default=None, max_length=200, pattern=TOKENIZER_ID_PATTERN
+    )
     model_config = ConfigDict(extra="forbid")
 
     # -------------------------------------------------------------------------
@@ -35,6 +40,13 @@ class ValidationRequest(BaseModel):
     @classmethod
     def validate_metrics(cls, metrics: list[str]) -> list[str]:
         return _validate_metric_names(metrics, VALIDATION_METRICS, "validation metrics")
+
+    # -------------------------------------------------------------------------
+    @model_validator(mode="after")
+    def validate_tokenizer(self) -> "ValidationRequest":
+        if self.tokenizer is not None and "text_statistics" not in self.metrics:
+            raise ValueError("Token statistics require the text_statistics metric")
+        return self
 
 ###############################################################################
 class PixelDistribution(BaseModel):

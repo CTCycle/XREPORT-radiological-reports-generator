@@ -8,13 +8,14 @@ import { lucideArrowLeft, lucideLoaderCircle, lucidePlay, lucideSettings } from 
 import { ValidationApiService } from '../services/validation-api.service';
 import { JobPollingService } from '@xreport/shared/app/services/job-polling.service';
 import { JobsApiService } from '@xreport/shared/app/services/jobs-api.service';
+import { TokenizerSelectorComponent } from '../components/tokenizer-selector.component';
 import { HelpPopoverComponent } from '@xreport/shared/app/components/help-popover.component';
 import { ValidationStatisticsComponent } from '../components/validation-statistics.component';
 
 @Component({
   standalone: true,
   selector: 'app-dataset-validation-page',
-  imports: [CommonModule, ReactiveFormsModule, NgIcon, HelpPopoverComponent, ValidationStatisticsComponent],
+  imports: [CommonModule, ReactiveFormsModule, NgIcon, HelpPopoverComponent, ValidationStatisticsComponent, TokenizerSelectorComponent],
   providers: [provideIcons({ lucideArrowLeft, lucideLoaderCircle, lucidePlay, lucideSettings })],
   template: `
     <main class="dataset-container page-container">
@@ -32,8 +33,10 @@ import { ValidationStatisticsComponent } from '../components/validation-statisti
               <label class="checkbox-label"><input type="checkbox" formControlName="imgStats"/> Image statistics</label>
               <label class="checkbox-label"><input type="checkbox" formControlName="textStats"/> Text statistics</label>
               <label class="checkbox-label"><input type="checkbox" formControlName="pixDist"/> Pixel intensity dist.</label>
+              <label class="checkbox-label"><input type="checkbox" formControlName="countTokens"/> Count tokens (needs text statistics)</label>
             </div>
           </div>
+          @if (validationForm.controls.countTokens.value) { <app-tokenizer-selector idPrefix="validation-tokenizer" [value]="tokenizer()" (valueChange)="tokenizer.set($event)" (compatibleChange)="tokenizerCompatible.set($event)"/> }
           <div class="form-actions"><button type="button" class="btn btn-primary validation-run-button" (click)="runValidation()" [disabled]="isValidating()"><ng-icon [name]="isValidating() ? 'lucideLoaderCircle' : 'lucidePlay'" [class.spin]="isValidating()"/>{{ isValidating() ? 'Running Validation...' : 'Run Validation' }}</button></div>
         </form>
       </section>
@@ -65,7 +68,10 @@ export class DatasetValidationPage {
     imgStats: true,
     textStats: true,
     pixDist: true,
+    countTokens: false,
   });
+  readonly tokenizer = signal('distilbert-base-uncased');
+  readonly tokenizerCompatible = signal<boolean | null>(null);
   readonly isValidating = signal(false);
   readonly progress = signal(0);
   readonly validationError = signal<string | null>(null);
@@ -80,9 +86,11 @@ export class DatasetValidationPage {
     if (this.validationForm.invalid) { this.validationForm.markAllAsTouched(); this.validationError.set('Enter a sample size between 0.01 and 1.'); return; }
     const metrics = [config.imgStats ? 'image_statistics' : '', config.textStats ? 'text_statistics' : '', config.pixDist ? 'pixels_distribution' : ''].filter(Boolean);
     if (!metrics.length) { this.validationError.set('Please select at least one validation metric'); return; }
+    if (config.countTokens && !config.textStats) { this.validationError.set('Token counts need the text statistics metric.'); return; }
+    if (config.countTokens && this.tokenizerCompatible() !== true) { this.validationError.set('Choose a compatible tokenizer to count tokens.'); return; }
     this.isValidating.set(true);
     this.validationError.set(null);
-    const started = await this.api.run({ dataset_name: this.datasetName, metrics, sample_size: config.evalSampleSize });
+    const started = await this.api.run({ dataset_name: this.datasetName, metrics, sample_size: config.evalSampleSize, ...(config.countTokens ? { tokenizer: this.tokenizer() } : {}) });
     if (!started.result) { this.isValidating.set(false); this.validationError.set(started.error ?? 'Failed to start validation job'); return; }
     this.polling.poll((jobId) => this.jobsApi.get(jobId), started.result.job_id, started.result.poll_interval ?? 1).pipe(takeUntilDestroyed(this.destroyRef)).subscribe((status) => {
       this.progress.set(status.progress ?? 0);

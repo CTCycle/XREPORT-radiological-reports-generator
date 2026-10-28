@@ -3,6 +3,8 @@ from __future__ import annotations
 import json
 import os
 import re
+import tempfile
+import zipfile
 from datetime import datetime
 from pathlib import Path
 from typing import Any
@@ -47,7 +49,16 @@ class ModelSerializer:
         model_files_path = checkpoint_path / "saved_model.keras"
         # Keras requires the .keras suffix, so the temporary name keeps it.
         temporary_path = checkpoint_path / ".saved_model.tmp.keras"
-        model.save(temporary_path)
+        # The zipped writer builds the weights file in memory, which fails for
+        # models above 2 GB. Write the unzipped layout to disk and store it as
+        # a regular .keras archive instead.
+        with tempfile.TemporaryDirectory(dir=checkpoint_path) as staging:
+            staged = Path(staging) / "model"
+            model.save(staged, zipped=False)
+            with zipfile.ZipFile(temporary_path, "w", zipfile.ZIP_STORED) as archive:
+                for file in sorted(staged.rglob("*")):
+                    if file.is_file():
+                        archive.write(file, file.relative_to(staged).as_posix())
         os.replace(temporary_path, model_files_path)
         logger.info(
             f"Training session is over. Model {checkpoint_path.name} has been saved"

@@ -1897,6 +1897,10 @@ export type ValidationRequest = {
      * Seed
      */
     seed?: number | null;
+    /**
+     * Tokenizer
+     */
+    tokenizer?: string | null;
 };
 
 /**

@@ -22,6 +22,7 @@ const METRIC_LABELS: Record<string, string> = {
 const HISTOGRAM_LABELS: Record<string, string> = {
   pixel_intensity: 'Pixel intensity (grayscale levels)',
   report_length: 'Report length (words per report)',
+  report_tokens: 'Report length (tokens per report)',
 };
 const TEXT_MEASURES: Record<string, string> = {
   words_per_report: 'Words per report',

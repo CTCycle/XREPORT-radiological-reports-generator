@@ -153,6 +153,7 @@ describe('DatasetPage filesystem access', () => {
       row: dataset,
       metrics: ['text_statistics'],
       sampleFraction: 1,
+      tokenizer: null,
     });
     await fixture.whenStable();
 

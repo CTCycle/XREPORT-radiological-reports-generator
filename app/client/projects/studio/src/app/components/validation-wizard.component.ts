@@ -1,10 +1,11 @@
 import { CommonModule } from '@angular/common';
-import { Component, EventEmitter, Input, OnChanges, Output, SimpleChanges, inject, signal } from '@angular/core';
+import { Component, EventEmitter, Input, OnChanges, Output, SimpleChanges, computed, inject, signal } from '@angular/core';
 import { NonNullableFormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { NgIcon, provideIcons } from '@ng-icons/core';
 import { lucideX } from '@ng-icons/lucide';
 import type { DatasetInfo } from '@xreport/shared/app/types/trainingApi';
 import type { ValidationMetric, ValidationWizardConfirmPayload } from '../types/validationWizard';
+import { TokenizerSelectorComponent } from './tokenizer-selector.component';
 import { ModalFocusDirective } from '@xreport/shared/app/components/modal-focus.directive';
 
 const METRICS: { id: ValidationMetric; name: string; description: string }[] = [
@@ -16,7 +17,7 @@ const METRICS: { id: ValidationMetric; name: string; description: string }[] = [
 @Component({
   standalone: true,
   selector: 'app-validation-wizard',
-  imports: [CommonModule, ReactiveFormsModule, NgIcon, ModalFocusDirective],
+  imports: [CommonModule, ReactiveFormsModule, NgIcon, ModalFocusDirective, TokenizerSelectorComponent],
   providers: [provideIcons({ lucideX })],
   template: `
     @if (open) {
@@ -25,8 +26,8 @@ const METRICS: { id: ValidationMetric; name: string; description: string }[] = [
           <div class="wizard-header"><div><h3 id="validation-wizard-title">Validation Wizard</h3><p class="wizard-subtitle">Dataset: <strong>{{ row?.name || 'Select a dataset' }}</strong></p></div><button type="button" class="wizard-close" aria-label="Close validation wizard" (click)="closed.emit()"><ng-icon name="lucideX"/></button></div>
           <form [formGroup]="form" (ngSubmit)="confirm()">
             <div class="wizard-config-bar"><button type="button" class="config-option" [attr.aria-pressed]="form.controls.validateFullDataset.value" (click)="toggleFullDataset()"><span class="toggle-switch" [class.checked]="form.controls.validateFullDataset.value"><span class="toggle-slider"></span></span><span class="toggle-label">Validate full dataset</span></button><div class="config-input-group" [class.disabled]="form.controls.validateFullDataset.value"><label for="validation-wizard-fraction">Fraction:</label><input id="validation-wizard-fraction" type="number" min="0.01" max="1" step="0.01" formControlName="validationFraction"/></div></div>
-            <div class="wizard-body"><div class="wizard-page"><div class="wizard-step-title">Metrics selection</div><div class="wizard-metrics-grid">@for (metric of metricOptions; track metric.id) { <button type="button" class="wizard-metric" [class.selected]="isSelected(metric.id)" [attr.aria-pressed]="isSelected(metric.id)" (click)="toggleMetric(metric.id)"><div class="wizard-metric-title">{{ metric.name }}</div><div class="wizard-metric-desc">{{ metric.description }}</div><div class="wizard-metric-state">{{ isSelected(metric.id) ? 'Selected' : 'Select' }}</div></button> }</div></div></div>
-            <div class="wizard-footer"><div class="wizard-footer-actions"><button type="button" class="btn btn-secondary" (click)="closed.emit()">Cancel</button><button type="submit" class="btn btn-primary" [disabled]="!selectedMetrics().length || form.invalid">Confirm</button></div></div>
+            <div class="wizard-body"><div class="wizard-page"><div class="wizard-step-title">Metrics selection</div><div class="wizard-metrics-grid">@for (metric of metricOptions; track metric.id) { <button type="button" class="wizard-metric" [class.selected]="isSelected(metric.id)" [attr.aria-pressed]="isSelected(metric.id)" (click)="toggleMetric(metric.id)"><div class="wizard-metric-title">{{ metric.name }}</div><div class="wizard-metric-desc">{{ metric.description }}</div><div class="wizard-metric-state">{{ isSelected(metric.id) ? 'Selected' : 'Select' }}</div></button> }</div>@if (isSelected('text_statistics')) { <div class="wizard-token-options"><button type="button" class="config-option" id="validation-wizard-count-tokens" [attr.aria-pressed]="countTokens()" (click)="countTokens.set(!countTokens())"><span class="toggle-switch" [class.checked]="countTokens()"><span class="toggle-slider"></span></span><span class="toggle-label">Count tokens per report</span></button>@if (countTokens()) { <app-tokenizer-selector idPrefix="validation-wizard-tokenizer" [value]="tokenizer()" (valueChange)="tokenizer.set($event)" (compatibleChange)="tokenizerCompatible.set($event)"/> }</div> }</div></div>
+            <div class="wizard-footer"><div class="wizard-footer-actions"><button type="button" class="btn btn-secondary" (click)="closed.emit()">Cancel</button><button type="submit" class="btn btn-primary" [disabled]="!selectedMetrics().length || form.invalid || (tokenCounting() && tokenizerCompatible() !== true)">Confirm</button></div></div>
           </form>
         </section>
       </div>
@@ -42,6 +43,10 @@ export class ValidationWizardComponent implements OnChanges {
   @Output() readonly confirmed = new EventEmitter<ValidationWizardConfirmPayload>();
   readonly metricOptions = METRICS;
   readonly selectedMetrics = signal<ValidationMetric[]>([]);
+  readonly countTokens = signal(false);
+  readonly tokenizer = signal('distilbert-base-uncased');
+  readonly tokenizerCompatible = signal<boolean | null>(null);
+  readonly tokenCounting = computed(() => this.countTokens() && this.isSelected('text_statistics'));
   readonly form = inject(NonNullableFormBuilder).group({
     validateFullDataset: true,
     validationFraction: [0.5, [Validators.required, Validators.min(0.01), Validators.max(1)]],
@@ -51,6 +56,7 @@ export class ValidationWizardComponent implements OnChanges {
     if (changes['open']?.currentValue === true) {
       this.selectedMetrics.set([...(this.initialSelected ?? [])]);
       this.form.reset({ validateFullDataset: true, validationFraction: 0.5 });
+      this.countTokens.set(false);
     }
   }
 
@@ -61,6 +67,6 @@ export class ValidationWizardComponent implements OnChanges {
     if (this.form.invalid || !this.selectedMetrics().length) return;
     const values = this.form.getRawValue();
     const sampleFraction = values.validateFullDataset ? 1 : Math.min(Math.max(values.validationFraction, 0.01), 1);
-    this.confirmed.emit({ metrics: this.selectedMetrics(), row: this.row, sampleFraction });
+    this.confirmed.emit({ metrics: this.selectedMetrics(), row: this.row, sampleFraction, tokenizer: this.tokenCounting() ? this.tokenizer() : null });
   }
 }

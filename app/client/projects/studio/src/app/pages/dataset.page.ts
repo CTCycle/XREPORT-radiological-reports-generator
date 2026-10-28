@@ -90,7 +90,7 @@ export class DatasetPage {
     const dataset = payload.row;
     if (!dataset || !payload.metrics.length) return;
     this.reportDataset.set(dataset); this.reportOpen.set(true); this.reportLoading.set(true); this.reportError.set(null); this.reportProgress.set(0); this.reportStatus.set('pending');
-    const started = await this.validationApi.run({ dataset_name: dataset.name, metrics: payload.metrics, sample_size: payload.sampleFraction });
+    const started = await this.validationApi.run({ dataset_name: dataset.name, metrics: payload.metrics, sample_size: payload.sampleFraction, ...(payload.tokenizer ? { tokenizer: payload.tokenizer } : {}) });
     if (!started.result) { this.reportLoading.set(false); this.reportStatus.set('failed'); this.reportError.set(started.error ?? 'Failed to start validation job'); return; }
     const job: StoredValidationJob = { jobId: started.result.job_id, metrics: payload.metrics, sampleSize: payload.sampleFraction, pollInterval: (started.result.poll_interval ?? 1), status: 'pending', progress: 0 };
     this.validationJobs.update((jobs) => ({ ...jobs, [dataset.name]: job }));

@@ -46,6 +46,7 @@ TOKENIZER_CATALOGUE: tuple[TokenizerEntry, ...] = (
         "wordpiece",
     ),
     TokenizerEntry("allenai/scibert_scivocab_uncased", "SciBERT uncased", "Biomedical and clinical", "wordpiece"),
+    TokenizerEntry("microsoft/deberta-v3-base", "DeBERTa v3 base", "DeBERTa family", "sentencepiece"),
     TokenizerEntry("microsoft/deberta-base", "DeBERTa base", "DeBERTa family", "bpe"),
     TokenizerEntry("microsoft/deberta-large", "DeBERTa large", "DeBERTa family", "bpe"),
     TokenizerEntry("albert-base-v2", "ALBERT base v2", "SentencePiece", "sentencepiece"),
