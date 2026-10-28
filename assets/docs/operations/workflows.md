@@ -1,6 +1,6 @@
 # Operations Workflows
 
-Last updated: 2026-10-27
+Last updated: 2026-10-28
 
 ## Prepare A Dataset
 
@@ -82,6 +82,9 @@ need care:
   history). A stopped or failed run then keeps its last completed epoch as a
   registered, resumable checkpoint; without a completed epoch its folder is
   removed. A custom checkpoint name that already exists is rejected (409).
+  The archive is written from an on-disk staging folder rather than Keras' in-memory
+  writer, which fails above 2 GB (the default preset with optimizer state is
+  about 5.3 GB).
 
 Expected result:
 
@@ -120,7 +123,10 @@ another download. This technical check does not establish model quality.
 
 ## Validate Quality
 
-1. Start dataset validation or checkpoint evaluation from validation flows.
+1. Start dataset validation or checkpoint evaluation from validation flows. Text statistics can
+   also count tokens per report: choose a compatible tokenizer in the wizard or the validation
+   route; counts include special tokens, are stored per record and aggregated, and the tokenizer
+   is recorded on the run.
 2. Wait for completion through the polling workflow.
 3. Review quality metrics and generated validation artifacts.
 

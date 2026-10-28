@@ -19,6 +19,7 @@ Apply these rules to Angular, TypeScript, and frontend integration work.
 - Avoid `any` unless it is unavoidable and tightly scoped.
 - Model API payloads and job contracts with explicit types or interfaces.
 - Keep route-level state local when possible.
+- `projects/shared` holds only state both applications use (`AppStateService`, inference state). Studio's dataset and training page state lives in `projects/studio` (`StudioStateService`, `types/studioState.ts`, `types/trainingApi.ts`).
 - Use shared services only when state genuinely spans pages. Server job state
   stays in the backend `JobManager`; pages keep transient UI state in memory.
 

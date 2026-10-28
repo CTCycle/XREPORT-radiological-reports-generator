@@ -370,3 +370,5 @@ are registered in XREPORT Inference's own `checkpoints` table with an
 `exchange.json` record (content hash, manifest) next to the artifact;
 evaluation history stays in Studio. See
 [applications and checkpoint exchange](applications_and_checkpoint_exchange.md).
+
+Token counts: `record_text_stats.token_count` and `validation_runs.tokenizer` are filled when a validation run requests a tokenizer (text statistics must be selected); they stay NULL otherwise. `truncated` and `max_report_size` are not produced by validation runs.
