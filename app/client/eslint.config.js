@@ -6,7 +6,26 @@ const angular = require('angular-eslint');
 
 module.exports = defineConfig([
   {
-    ignores: ['src/app/types/generated/**/types.gen.ts'],
+    ignores: ['projects/shared/src/app/types/generated/**/types.gen.ts'],
+  },
+  {
+    // Applications may only share code through projects/shared (@xreport/shared).
+    files: ['projects/studio/**/*.ts'],
+    rules: {
+      'no-restricted-imports': ['error', { patterns: [{ group: ['**/inference/src/**', '../inference/**', '../../inference/**'], message: 'Studio must not import XREPORT Inference code; move shared code to projects/shared.' }] }],
+    },
+  },
+  {
+    files: ['projects/inference/**/*.ts'],
+    rules: {
+      'no-restricted-imports': ['error', { patterns: [{ group: ['**/studio/src/**', '../studio/**', '../../studio/**'], message: 'XREPORT Inference must not import Studio code; move shared code to projects/shared.' }] }],
+    },
+  },
+  {
+    files: ['projects/shared/**/*.ts'],
+    rules: {
+      'no-restricted-imports': ['error', { patterns: [{ group: ['**/studio/src/**', '**/inference/src/**'], message: 'Shared code must not depend on an application.' }] }],
+    },
   },
   {
     files: ['**/*.ts'],

@@ -11,11 +11,11 @@
     "build:studio": "ng build studio-angular",
     "watch": "ng build client-angular --watch --configuration development",
     "preview": "node scripts/serve-built.cjs",
-    "test": "ng test client-angular --watch=false",
-    "test:unit": "ng test client-angular --watch=false",
+    "test": "ng test shared-ui --watch=false && ng test client-angular --watch=false && ng test studio-angular --watch=false",
+    "test:unit": "ng test shared-ui --watch=false && ng test client-angular --watch=false && ng test studio-angular --watch=false",
     "test:built-server": "node --test scripts/serve-built.test.cjs",
     "test:e2e": "set \"STANDARD_TEST_PYTEST_TARGET=..\\tests\\e2e\\test_angular_ui.py\" && set \"STANDARD_TEST_SKIP_CLIENT_TESTS=true\" && ..\\tests\\run_tests.bat",
-    "lint": "ng lint client-angular"
+    "lint": "ng lint shared-ui && ng lint client-angular && ng lint studio-angular"
   },
   "private": true,
   "packageManager": "npm@10.9.8",

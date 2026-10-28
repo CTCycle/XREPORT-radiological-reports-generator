@@ -18,15 +18,15 @@
     "client-angular": {
       "projectType": "application",
       "schematics": {},
-      "root": "",
-      "sourceRoot": "src",
+      "root": "projects/inference",
+      "sourceRoot": "projects/inference/src",
       "prefix": "app",
       "architect": {
         "build": {
           "builder": "@angular/build:application",
           "options": {
-            "browser": "src/main.ts",
-            "tsConfig": "tsconfig.app.json",
+            "browser": "projects/inference/src/main.ts",
+            "tsConfig": "projects/inference/tsconfig.app.json",
             "assets": [
               {
                 "glob": "**/*",
@@ -34,8 +34,10 @@
               }
             ],
             "styles": [
-              "src/styles.css"
-            ]
+              "projects/shared/src/styles.css"
+            ],
+            "index": "projects/inference/src/index.html",
+            "outputPath": "dist/client-angular"
           },
           "configurations": {
             "production": {
@@ -74,7 +76,7 @@
         "serve": {
           "builder": "@angular/build:dev-server",
           "options": {
-            "proxyConfig": "src/proxy.conf.cjs"
+            "proxyConfig": "projects/inference/src/proxy.conf.cjs"
           },
           "configurations": {
             "production": {
@@ -87,14 +89,17 @@
           "defaultConfiguration": "development"
         },
         "test": {
-          "builder": "@angular/build:unit-test"
+          "builder": "@angular/build:unit-test",
+          "options": {
+            "tsConfig": "projects/inference/tsconfig.spec.json"
+          }
         },
         "lint": {
           "builder": "@angular-eslint/builder:lint",
           "options": {
             "lintFilePatterns": [
-              "src/**/*.ts",
-              "src/**/*.html"
+              "projects/inference/src/**/*.ts",
+              "projects/inference/src/**/*.html"
             ]
           }
         }
@@ -103,15 +108,15 @@
     "studio-angular": {
       "projectType": "application",
       "schematics": {},
-      "root": "",
-      "sourceRoot": "src",
+      "root": "projects/studio",
+      "sourceRoot": "projects/studio/src",
       "prefix": "app",
       "architect": {
         "build": {
           "builder": "@angular/build:application",
           "options": {
-            "browser": "src/studio/main.ts",
-            "tsConfig": "tsconfig.app.json",
+            "browser": "projects/studio/src/main.ts",
+            "tsConfig": "projects/studio/tsconfig.app.json",
             "assets": [
               {
                 "glob": "**/*",
@@ -119,9 +124,9 @@
               }
             ],
             "styles": [
-              "src/styles.css"
+              "projects/shared/src/styles.css"
             ],
-            "index": "src/studio/index.html",
+            "index": "projects/studio/src/index.html",
             "outputPath": "dist/studio-angular"
           },
           "configurations": {
@@ -161,7 +166,7 @@
         "serve": {
           "builder": "@angular/build:dev-server",
           "options": {
-            "proxyConfig": "src/proxy.studio.conf.cjs",
+            "proxyConfig": "projects/studio/src/proxy.studio.conf.cjs",
             "port": 8013
           },
           "configurations": {
@@ -178,8 +183,38 @@
           "builder": "@angular-eslint/builder:lint",
           "options": {
             "lintFilePatterns": [
-              "src/**/*.ts",
-              "src/**/*.html"
+              "projects/studio/src/**/*.ts",
+              "projects/studio/src/**/*.html"
+            ]
+          }
+        },
+        "test": {
+          "builder": "@angular/build:unit-test",
+          "options": {
+            "tsConfig": "projects/studio/tsconfig.spec.json"
+          }
+        }
+      }
+    },
+    "shared-ui": {
+      "projectType": "library",
+      "root": "projects/shared",
+      "sourceRoot": "projects/shared/src",
+      "prefix": "app",
+      "architect": {
+        "test": {
+          "builder": "@angular/build:unit-test",
+          "options": {
+            "tsConfig": "projects/shared/tsconfig.spec.json",
+            "buildTarget": "client-angular:build:development"
+          }
+        },
+        "lint": {
+          "builder": "@angular-eslint/builder:lint",
+          "options": {
+            "lintFilePatterns": [
+              "projects/shared/src/**/*.ts",
+              "projects/shared/src/**/*.html"
             ]
           }
         }
