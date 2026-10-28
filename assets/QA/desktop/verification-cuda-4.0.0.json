@@ -1,0 +1,12 @@
+﻿{
+    "format":  1,
+    "application":  "XREPORT",
+    "version":  "4.0.0",
+    "variant":  "cuda",
+    "architecture":  "windows-x64",
+    "source_commit":  "0069636332004decbef5caef638c32634ee55759",
+    "portable":  "XREPORT-v4.0.0-windows-x64-cuda-portable.exe",
+    "msi":  "XREPORT-v4.0.0-windows-x64-cuda.msi",
+    "runtime_resource":  "runtime.zip",
+    "verified_utc":  "2026-10-28T17:38:07.8300179Z"
+}

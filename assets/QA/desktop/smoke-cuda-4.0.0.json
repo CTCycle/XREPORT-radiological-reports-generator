@@ -1,0 +1,29 @@
+﻿{
+    "format":  1,
+    "application":  "XREPORT",
+    "version":  "4.0.0",
+    "variant":  "cuda",
+    "source_commit":  "0069636332004decbef5caef638c32634ee55759",
+    "portable":  "XREPORT-v4.0.0-windows-x64-cuda-portable.exe",
+    "started":  true,
+    "ready_contract":  true,
+    "health":  true,
+    "frontend":  true,
+    "closed":  true,
+    "backend_process_removed":  true,
+    "listener_removed":  true,
+    "contracts_removed":  true,
+    "native_acceptance":  null,
+    "phase_timings_ms":  {
+                             "process_started":  423,
+                             "session_written":  92449,
+                             "backend_ready_contract":  92807,
+                             "frontend_bootstrap":  93089,
+                             "backend_health":  93768,
+                             "frontend_index":  94157,
+                             "process_closed":  103641
+                         },
+    "shell_log":  "smoke-cuda-4.0.0-shell.log",
+    "data_root_preserved":  false,
+    "verified_utc":  "2026-10-28T17:38:10.3246801Z"
+}
