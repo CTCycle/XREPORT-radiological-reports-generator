@@ -1,0 +1,12 @@
+﻿{
+    "format":  1,
+    "application":  "XREPORT",
+    "version":  "4.0.0",
+    "variant":  "cpu",
+    "architecture":  "windows-x64",
+    "source_commit":  "e0a9be80571ef1c3abd47a0ae664747a02891b53",
+    "portable":  "XREPORT-v4.0.0-windows-x64-cpu-portable.exe",
+    "msi":  "XREPORT-v4.0.0-windows-x64-cpu.msi",
+    "runtime_resource":  "runtime.zip",
+    "verified_utc":  "2026-10-28T16:28:30.6472139Z"
+}

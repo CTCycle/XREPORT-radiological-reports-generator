@@ -20,7 +20,7 @@ XREPORT contains **two separate applications**:
 | **XREPORT Inference** | Generate and review draft reports with public models or imported checkpoints. | Windows desktop package, or from source |
 | **XREPORT Studio** | Prepare datasets, then train and evaluate models. Exports checkpoints for Inference. | From source |
 
-The applications have separate environments and data folders. Inference works without Studio; you need Studio only to prepare data or train your own model.
+The applications have separate environments and data folders. Inference works without Studio; you need Studio only to prepare data or train your own model. Only Inference is packaged and released: the Windows packages on GitHub Releases contain Inference alone, and installing them does not install Studio. Studio is run from a repository checkout. See the [changelog](CHANGELOG.md) for what changed in each release.
 
 > **Research use only.** XREPORT and its models are not clinically approved. Generated text can omit findings or contain plausible errors. A qualified reviewer must check every draft against the source images and relevant context.
 
