@@ -113,7 +113,5 @@ matching GitHub Release. Signing is deliberately absent.
 Tauri MSI and portable packages contain only XREPORT Inference. `xreport_inference.desktop_entry` runs the `xreport` profile, the
 PyInstaller spec collects only `xreport_shared` and `xreport_inference` (the Studio package is
 excluded and never imported), and the runtime-bundle audit forbids `studio`
-and `studio-angular` members. XREPORT Studio has no installer, package, or release workflow. A unit
-test (`test_packaging_boundary.py`) keeps `xreport_inference` and `xreport_shared` free of Studio imports; package
-contents themselves were not rebuilt for this change (see the status ledger). Models are still not
+and `studio-angular` members. XREPORT Studio has no installer, package, or release workflow. A unit test (`test_packaging_boundary.py`) keeps `xreport_inference` and `xreport_shared` free of Studio imports. The 4.0.0 CPU and CUDA packages were built and inspected: their module tables contain no Studio module and a running package exposes no Studio routes (see the campaign ledger). Models are still not
 bundled; imported checkpoints live under the user data folder like other models.

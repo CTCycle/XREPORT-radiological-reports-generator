@@ -2,6 +2,8 @@
 
 Last updated: 2026-10-28
 
+Release 4.0.0 (2026-10-28) is the major release for the Inference/Studio split: only XREPORT Inference is packaged and published. Its evidence, findings and unrun scopes are in the [validation campaign ledger](validation_campaign_ledger.md); open items from it: the `run_tests.bat` Studio preview race, a modified local CXRMate Multi TF snapshot that fails its integrity check until repaired, and local Pyright drift against hosted CI.
+
 Source change 2026-10-28, follow-up (not a release gate): closed the gaps left by the statistics, tokenizer and split work.
 
 Fixed and exercised:
@@ -190,7 +192,7 @@ PR #9 review fixes passed 272 backend unit tests, Ruff and Pyright locally, and 
 | `app.studio.frontend` | `WORKING` | `studio-angular` builds separately; the XREPORT bundle contains no dataset/training chunks or `/api/training|preparation|upload|validation` strings (grep of the production output). V11 built and linted both applications; 79 Angular unit tests passed on `e8ad7bedd776800ee3099239d6b257ee4d5cd0c6`. Rendered browser checks covered Studio navigation, dataset and training pages. | [Applications](architecture/applications_and_checkpoint_exchange.md) |
 | `checkpoint.exchange` | `PARTIAL` | Unit coverage confirms the format-2 round trip, idempotency, conflicts, cancellation and rollback, and rejection of legacy/manifestless archives; the earlier live round trip used format 1. V08 UI on `9b298c54` rejected a lone `.keras` and a manifestless four-core ZIP before job admission. V11 adds `app/tests/e2e/test_angular_ui.py::test_checkpoint_import_rejects_manifestless_archive_in_live_ui`, which exercises the live XREPORT import dialog and verifies the typed missing-manifest error with no import progress/job. V05 Studio training is blocked by the missing pinned encoder, so positive v2 export/import, custom-model inference/restart, checksum/version/conflict UI cases, import cancellation/recovery and packaged import remain unverified. | [Applications](architecture/applications_and_checkpoint_exchange.md), [campaign](validation_campaign_ledger.md) |
 | `runtime.studio.launcher` | `PARTIAL` | Studio now has an isolated profiled environment, first-launch setup, profile reuse/switching, retryable setup state, a dedicated install action, and uninstall cleanup. Eleven focused launcher tests, PowerShell parsing, `uv lock --check`, the XREPORT CUDA-only dry-run, and both Studio profile dry-runs pass. The new first-launch installation and profile replacement were not exercised against real dependency downloads; earlier Windows launch, build freshness, process scoping, and port-release evidence remains applicable to those behaviors. | [Startup](runtime/startup.md) |
-| `desktop.packaging.inference_only` | `UNVALIDATED` | PyInstaller spec and bundle audit exclude Studio modules/assets; no CPU/CUDA package was built, so package contents and import into a packaged build were not observed. | [Deployment](runtime/deployment.md) |
+| `desktop.packaging.inference_only` | `VALIDATED` | Release 4.0.0 CPU and CUDA packages were built locally from a clean tree: both passed the artifact verification and packaged startup smoke, the PyInstaller module tables contain no Studio module, and the running CPU portable reported 4.0.0, served only the Inference API and exposed no Studio routes. Packaged inference with a model, packaged checkpoint import and MSI install/upgrade were not exercised. | [Deployment](runtime/deployment.md), [campaign](validation_campaign_ledger.md) |
 
 ### Backend and persistence
 
