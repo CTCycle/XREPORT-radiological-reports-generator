@@ -2,7 +2,7 @@
   "application": "XREPORT",
   "architecture": "windows-x64",
   "backend_executable": "backend/XREPORT-backend.exe",
-  "created_utc": "2026-10-28T16:17:50Z",
+  "created_utc": "2026-10-28T18:18:53Z",
   "dirty_tree": false,
   "file_count": 5698,
   "format": 2,
@@ -88,9 +88,9 @@
       "path": "backend/_internal/torch/bin/protoc.exe"
     }
   ],
-  "payload_bytes": 933728248,
-  "payload_sha256": "99289f80323843b5f07e86133e96ae6d11961259ba1a4b53f4eab69e26eb802f",
-  "source_commit": "e0a9be80571ef1c3abd47a0ae664747a02891b53",
+  "payload_bytes": 933729093,
+  "payload_sha256": "22c551e1090ea0c377ec000defbdbfa79850402eb9912e25c2ac4100b9902bdc",
+  "source_commit": "a01e7949962c4fc214b40d5178cee72470ed7673",
   "variant": "cpu",
   "version": "4.0.0"
 }

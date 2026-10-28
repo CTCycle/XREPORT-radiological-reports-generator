@@ -2,7 +2,7 @@
   "application": "XREPORT",
   "architecture": "windows-x64",
   "backend_executable": "backend/XREPORT-backend.exe",
-  "created_utc": "2026-10-28T17:14:50Z",
+  "created_utc": "2026-10-28T18:19:40Z",
   "dirty_tree": false,
   "file_count": 5723,
   "format": 2,
@@ -88,9 +88,9 @@
       "path": "backend/_internal/torch/lib/cudnn_engines_runtime_compiled64_9.dll"
     }
   ],
-  "payload_bytes": 3007547744,
-  "payload_sha256": "30bd61f5e48907de5de763bd1480f09b28f69d8941cbfbac4c4a6f9797744017",
-  "source_commit": "0069636332004decbef5caef638c32634ee55759",
+  "payload_bytes": 3007548589,
+  "payload_sha256": "67f5a3dfc29a34628c72f601baaabc945512519d9f006d2b84e66293fe43de03",
+  "source_commit": "a01e7949962c4fc214b40d5178cee72470ed7673",
   "variant": "cuda",
   "version": "4.0.0"
 }
