@@ -5,6 +5,66 @@ export type ClientOptions = {
 };
 
 /**
+ * AggregateStatistic
+ *
+ * Distribution summary of one measure; unavailable values are null.
+ */
+export type AggregateStatistic = {
+    /**
+     * Domain
+     */
+    domain: 'text' | 'image' | 'token';
+    /**
+     * Measure
+     */
+    measure: string;
+    /**
+     * Count
+     */
+    count: number;
+    /**
+     * Total
+     */
+    total?: number | null;
+    /**
+     * Minimum
+     */
+    minimum?: number | null;
+    /**
+     * Maximum
+     */
+    maximum?: number | null;
+    /**
+     * Mean
+     */
+    mean?: number | null;
+    /**
+     * Median
+     */
+    median?: number | null;
+    /**
+     * Std
+     */
+    std?: number | null;
+    /**
+     * P05
+     */
+    p05?: number | null;
+    /**
+     * P25
+     */
+    p25?: number | null;
+    /**
+     * P75
+     */
+    p75?: number | null;
+    /**
+     * P95
+     */
+    p95?: number | null;
+};
+
+/**
  * ApplicationSettingsPatch
  */
 export type ApplicationSettingsPatch = {
@@ -914,6 +974,38 @@ export type HttpValidationError = {
 };
 
 /**
+ * HistogramBinModel
+ */
+export type HistogramBinModel = {
+    /**
+     * Lower
+     */
+    lower: number;
+    /**
+     * Upper
+     */
+    upper: number;
+    /**
+     * Count
+     */
+    count: number;
+};
+
+/**
+ * HistogramModel
+ */
+export type HistogramModel = {
+    /**
+     * Name
+     */
+    name: string;
+    /**
+     * Bins
+     */
+    bins: Array<HistogramBinModel>;
+};
+
+/**
  * ImageCountResponse
  */
 export type ImageCountResponse = {
@@ -989,42 +1081,6 @@ export type ImagePathResponse = {
      * Message
      */
     message: string;
-};
-
-/**
- * ImageStatistics
- *
- * Model for image statistics.
- */
-export type ImageStatistics = {
-    /**
-     * Count
-     */
-    count: number;
-    /**
-     * Mean Height
-     */
-    mean_height: number;
-    /**
-     * Mean Width
-     */
-    mean_width: number;
-    /**
-     * Mean Pixel Value
-     */
-    mean_pixel_value: number;
-    /**
-     * Std Pixel Value
-     */
-    std_pixel_value: number;
-    /**
-     * Mean Noise Std
-     */
-    mean_noise_std: number;
-    /**
-     * Mean Noise Ratio
-     */
-    mean_noise_ratio: number;
 };
 
 /**
@@ -1375,22 +1431,6 @@ export type ModelArchitecture = {
 };
 
 /**
- * PixelDistribution
- *
- * Model for pixel intensity distribution.
- */
-export type PixelDistribution = {
-    /**
-     * Bins
-     */
-    bins: Array<number>;
-    /**
-     * Counts
-     */
-    counts: Array<number>;
-};
-
-/**
  * ProcessDatasetRequest
  */
 export type ProcessDatasetRequest = {
@@ -1446,6 +1486,24 @@ export type ProcessingMetadataResponse = {
     metadata: {
         [key: string]: unknown;
     };
+};
+
+/**
+ * RecordStatisticsResponse
+ *
+ * One page of per-record statistics of a run.
+ */
+export type RecordStatisticsResponse = {
+    /**
+     * Total
+     */
+    total: number;
+    /**
+     * Rows
+     */
+    rows: Array<{
+        [key: string]: string | number | number | boolean | null;
+    }>;
 };
 
 /**
@@ -1659,38 +1717,6 @@ export type SystemStatusResponse = {
 };
 
 /**
- * TextStatistics
- *
- * Model for text statistics.
- */
-export type TextStatistics = {
-    /**
-     * Count
-     */
-    count: number;
-    /**
-     * Total Words
-     */
-    total_words: number;
-    /**
-     * Unique Words
-     */
-    unique_words: number;
-    /**
-     * Avg Words Per Report
-     */
-    avg_words_per_report: number;
-    /**
-     * Min Words Per Report
-     */
-    min_words_per_report: number;
-    /**
-     * Max Words Per Report
-     */
-    max_words_per_report: number;
-};
-
-/**
  * ValidationError
  */
 export type ValidationError = {
@@ -1711,36 +1737,22 @@ export type ValidationError = {
 /**
  * ValidationReportResponse
  *
- * Response model for a persisted validation report.
+ * Response model for one persisted validation run.
  */
 export type ValidationReportResponse = {
     /**
      * Dataset Name
      */
     dataset_name: string;
+    run: ValidationRunSummary;
     /**
-     * Date
+     * Aggregates
      */
-    date?: string | null;
+    aggregates?: Array<AggregateStatistic>;
     /**
-     * Sample Size
+     * Histograms
      */
-    sample_size?: number | null;
-    /**
-     * Metrics
-     */
-    metrics?: Array<string>;
-    pixel_distribution?: PixelDistribution | null;
-    image_statistics?: ImageStatistics | null;
-    text_statistics?: TextStatistics | null;
-    /**
-     * Artifacts
-     */
-    artifacts?: {
-        [key: string]: {
-            [key: string]: string;
-        };
-    } | null;
+    histograms?: Array<HistogramModel>;
 };
 
 /**
@@ -1765,6 +1777,86 @@ export type ValidationRequest = {
      * Seed
      */
     seed?: number | null;
+};
+
+/**
+ * ValidationRunListResponse
+ *
+ * Validation history of a dataset, newest first.
+ */
+export type ValidationRunListResponse = {
+    /**
+     * Dataset Name
+     */
+    dataset_name: string;
+    /**
+     * Runs
+     */
+    runs: Array<ValidationRunSummary>;
+};
+
+/**
+ * ValidationRunMetricModel
+ *
+ * A metric computed by a run and how many records it covered.
+ */
+export type ValidationRunMetricModel = {
+    /**
+     * Metric
+     */
+    metric: string;
+    /**
+     * Records Computed
+     */
+    records_computed?: number | null;
+};
+
+/**
+ * ValidationRunSummary
+ *
+ * Configuration and coverage of one validation run.
+ */
+export type ValidationRunSummary = {
+    /**
+     * Validation Run Id
+     */
+    validation_run_id: number;
+    /**
+     * Date
+     */
+    date?: string | null;
+    /**
+     * Sample Size
+     */
+    sample_size: number;
+    /**
+     * Seed
+     */
+    seed?: number | null;
+    /**
+     * Records Requested
+     */
+    records_requested?: number | null;
+    /**
+     * Records Evaluated
+     */
+    records_evaluated?: number | null;
+    /**
+     * Text Vocabulary Size
+     */
+    text_vocabulary_size?: number | null;
+    /**
+     * Tokenizer
+     */
+    tokenizer?: string | null;
+    /**
+     * Max Report Size
+     */
+    max_report_size?: number | null;
+    /**
+     * Metrics
+     */
+    metrics?: Array<ValidationRunMetricModel>;
 };
 
 /**
@@ -2493,6 +2585,131 @@ export type GetCheckpointArchitectureApiModelCheckpointsCheckpointArchitectureGe
 };
 
 export type GetCheckpointArchitectureApiModelCheckpointsCheckpointArchitectureGetResponse = GetCheckpointArchitectureApiModelCheckpointsCheckpointArchitectureGetResponses[keyof GetCheckpointArchitectureApiModelCheckpointsCheckpointArchitectureGetResponses];
+
+export type ListValidationRunsApiValidationRunsDatasetNameGetData = {
+    body?: never;
+    path: {
+        /**
+         * Dataset Name
+         */
+        dataset_name: string;
+    };
+    query?: never;
+    url: '/api/validation/runs/{dataset_name}';
+};
+
+export type ListValidationRunsApiValidationRunsDatasetNameGetErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type ListValidationRunsApiValidationRunsDatasetNameGetError = ListValidationRunsApiValidationRunsDatasetNameGetErrors[keyof ListValidationRunsApiValidationRunsDatasetNameGetErrors];
+
+export type ListValidationRunsApiValidationRunsDatasetNameGetResponses = {
+    /**
+     * Successful Response
+     */
+    200: ValidationRunListResponse;
+};
+
+export type ListValidationRunsApiValidationRunsDatasetNameGetResponse = ListValidationRunsApiValidationRunsDatasetNameGetResponses[keyof ListValidationRunsApiValidationRunsDatasetNameGetResponses];
+
+export type GetValidationRunApiValidationRunsDatasetNameRunIdGetData = {
+    body?: never;
+    path: {
+        /**
+         * Dataset Name
+         */
+        dataset_name: string;
+        /**
+         * Run Id
+         */
+        run_id: number;
+    };
+    query?: never;
+    url: '/api/validation/runs/{dataset_name}/{run_id}';
+};
+
+export type GetValidationRunApiValidationRunsDatasetNameRunIdGetErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type GetValidationRunApiValidationRunsDatasetNameRunIdGetError = GetValidationRunApiValidationRunsDatasetNameRunIdGetErrors[keyof GetValidationRunApiValidationRunsDatasetNameRunIdGetErrors];
+
+export type GetValidationRunApiValidationRunsDatasetNameRunIdGetResponses = {
+    /**
+     * Successful Response
+     */
+    200: ValidationReportResponse;
+};
+
+export type GetValidationRunApiValidationRunsDatasetNameRunIdGetResponse = GetValidationRunApiValidationRunsDatasetNameRunIdGetResponses[keyof GetValidationRunApiValidationRunsDatasetNameRunIdGetResponses];
+
+export type ListRunRecordsApiValidationRunsDatasetNameRunIdRecordsGetData = {
+    body?: never;
+    path: {
+        /**
+         * Dataset Name
+         */
+        dataset_name: string;
+        /**
+         * Run Id
+         */
+        run_id: number;
+    };
+    query: {
+        /**
+         * Kind
+         *
+         * Statistics domain
+         */
+        kind: 'text' | 'image';
+        /**
+         * Sort
+         */
+        sort?: string | null;
+        /**
+         * Descending
+         */
+        descending?: boolean;
+        /**
+         * Search
+         */
+        search?: string | null;
+        /**
+         * Limit
+         */
+        limit?: number;
+        /**
+         * Offset
+         */
+        offset?: number;
+    };
+    url: '/api/validation/runs/{dataset_name}/{run_id}/records';
+};
+
+export type ListRunRecordsApiValidationRunsDatasetNameRunIdRecordsGetErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type ListRunRecordsApiValidationRunsDatasetNameRunIdRecordsGetError = ListRunRecordsApiValidationRunsDatasetNameRunIdRecordsGetErrors[keyof ListRunRecordsApiValidationRunsDatasetNameRunIdRecordsGetErrors];
+
+export type ListRunRecordsApiValidationRunsDatasetNameRunIdRecordsGetResponses = {
+    /**
+     * Successful Response
+     */
+    200: RecordStatisticsResponse;
+};
+
+export type ListRunRecordsApiValidationRunsDatasetNameRunIdRecordsGetResponse = ListRunRecordsApiValidationRunsDatasetNameRunIdRecordsGetResponses[keyof ListRunRecordsApiValidationRunsDatasetNameRunIdRecordsGetResponses];
 
 export type RunValidationApiValidationRunPostData = {
     body: ValidationRequest;

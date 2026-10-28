@@ -1,15 +1,17 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Literal
 
-from fastapi import APIRouter, status
+from fastapi import APIRouter, Query, status
 
 from server.domain.jobs import JobStartResponse
 from server.domain.validation import (
     CheckpointEvaluationReportResponse,
     CheckpointEvaluationRequest,
+    RecordStatisticsResponse,
     ValidationReportResponse,
     ValidationRequest,
+    ValidationRunListResponse,
 )
 
 if TYPE_CHECKING:
@@ -59,7 +61,54 @@ class ValidationEndpoint:
         return await self.service.get_validation_report(dataset_name)
 
     # -------------------------------------------------------------------------
+    async def list_validation_runs(self, dataset_name: str) -> ValidationRunListResponse:
+        return await self.service.list_validation_runs(dataset_name)
+
+    # -------------------------------------------------------------------------
+    async def get_validation_run(
+        self, dataset_name: str, run_id: int
+    ) -> ValidationReportResponse:
+        return await self.service.get_validation_report(dataset_name, run_id)
+
+    # -------------------------------------------------------------------------
+    async def list_run_records(
+        self,
+        dataset_name: str,
+        run_id: int,
+        kind: Literal["text", "image"] = Query(..., description="Statistics domain"),
+        sort: str | None = Query(default=None, max_length=40),
+        descending: bool = False,
+        search: str | None = Query(default=None, max_length=128),
+        limit: int = Query(default=50, ge=1, le=500),
+        offset: int = Query(default=0, ge=0),
+    ) -> RecordStatisticsResponse:
+        return await self.service.list_run_records(
+            dataset_name, run_id, kind, sort, descending, search, limit, offset
+        )
+
+    # -------------------------------------------------------------------------
     def add_routes(self) -> None:
+        self.router.add_api_route(
+            "/runs/{dataset_name}",
+            self.list_validation_runs,
+            methods=["GET"],
+            response_model=ValidationRunListResponse,
+            status_code=status.HTTP_200_OK,
+        )
+        self.router.add_api_route(
+            "/runs/{dataset_name}/{run_id}",
+            self.get_validation_run,
+            methods=["GET"],
+            response_model=ValidationReportResponse,
+            status_code=status.HTTP_200_OK,
+        )
+        self.router.add_api_route(
+            "/runs/{dataset_name}/{run_id}/records",
+            self.list_run_records,
+            methods=["GET"],
+            response_model=RecordStatisticsResponse,
+            status_code=status.HTTP_200_OK,
+        )
         self.router.add_api_route(
             "/run",
             self.run_validation,

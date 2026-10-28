@@ -1018,6 +1018,232 @@
         }
       }
     },
+    "/api/validation/runs/{dataset_name}": {
+      "get": {
+        "tags": [
+          "validation"
+        ],
+        "summary": "List Validation Runs",
+        "operationId": "list_validation_runs_api_validation_runs__dataset_name__get",
+        "parameters": [
+          {
+            "name": "dataset_name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Dataset Name"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationRunListResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/validation/runs/{dataset_name}/{run_id}": {
+      "get": {
+        "tags": [
+          "validation"
+        ],
+        "summary": "Get Validation Run",
+        "operationId": "get_validation_run_api_validation_runs__dataset_name___run_id__get",
+        "parameters": [
+          {
+            "name": "dataset_name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Dataset Name"
+            }
+          },
+          {
+            "name": "run_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Run Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationReportResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/validation/runs/{dataset_name}/{run_id}/records": {
+      "get": {
+        "tags": [
+          "validation"
+        ],
+        "summary": "List Run Records",
+        "operationId": "list_run_records_api_validation_runs__dataset_name___run_id__records_get",
+        "parameters": [
+          {
+            "name": "dataset_name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Dataset Name"
+            }
+          },
+          {
+            "name": "run_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Run Id"
+            }
+          },
+          {
+            "name": "kind",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "enum": [
+                "text",
+                "image"
+              ],
+              "type": "string",
+              "description": "Statistics domain",
+              "title": "Kind"
+            },
+            "description": "Statistics domain"
+          },
+          {
+            "name": "sort",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 40
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Sort"
+            }
+          },
+          {
+            "name": "descending",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": false,
+              "title": "Descending"
+            }
+          },
+          {
+            "name": "search",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 128
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Search"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 500,
+              "minimum": 1,
+              "default": 50,
+              "title": "Limit"
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 0,
+              "title": "Offset"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RecordStatisticsResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/validation/run": {
       "post": {
         "tags": [
@@ -1539,6 +1765,145 @@
   },
   "components": {
     "schemas": {
+      "AggregateStatistic": {
+        "properties": {
+          "domain": {
+            "type": "string",
+            "enum": [
+              "text",
+              "image",
+              "token"
+            ],
+            "title": "Domain"
+          },
+          "measure": {
+            "type": "string",
+            "title": "Measure"
+          },
+          "count": {
+            "type": "integer",
+            "title": "Count"
+          },
+          "total": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Total"
+          },
+          "minimum": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Minimum"
+          },
+          "maximum": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Maximum"
+          },
+          "mean": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Mean"
+          },
+          "median": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Median"
+          },
+          "std": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Std"
+          },
+          "p05": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "P05"
+          },
+          "p25": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "P25"
+          },
+          "p75": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "P75"
+          },
+          "p95": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "P95"
+          }
+        },
+        "type": "object",
+        "required": [
+          "domain",
+          "measure",
+          "count"
+        ],
+        "title": "AggregateStatistic",
+        "description": "Distribution summary of one measure; unavailable values are null."
+      },
       "ApplicationSettingsPatch": {
         "properties": {
           "global": {
@@ -3144,6 +3509,50 @@
         "type": "object",
         "title": "HTTPValidationError"
       },
+      "HistogramBinModel": {
+        "properties": {
+          "lower": {
+            "type": "number",
+            "title": "Lower"
+          },
+          "upper": {
+            "type": "number",
+            "title": "Upper"
+          },
+          "count": {
+            "type": "integer",
+            "title": "Count"
+          }
+        },
+        "type": "object",
+        "required": [
+          "lower",
+          "upper",
+          "count"
+        ],
+        "title": "HistogramBinModel"
+      },
+      "HistogramModel": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "bins": {
+            "items": {
+              "$ref": "#/components/schemas/HistogramBinModel"
+            },
+            "type": "array",
+            "title": "Bins"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "bins"
+        ],
+        "title": "HistogramModel"
+      },
       "ImageCountResponse": {
         "properties": {
           "dataset_name": {
@@ -3244,50 +3653,6 @@
           "message"
         ],
         "title": "ImagePathResponse"
-      },
-      "ImageStatistics": {
-        "properties": {
-          "count": {
-            "type": "integer",
-            "title": "Count"
-          },
-          "mean_height": {
-            "type": "number",
-            "title": "Mean Height"
-          },
-          "mean_width": {
-            "type": "number",
-            "title": "Mean Width"
-          },
-          "mean_pixel_value": {
-            "type": "number",
-            "title": "Mean Pixel Value"
-          },
-          "std_pixel_value": {
-            "type": "number",
-            "title": "Std Pixel Value"
-          },
-          "mean_noise_std": {
-            "type": "number",
-            "title": "Mean Noise Std"
-          },
-          "mean_noise_ratio": {
-            "type": "number",
-            "title": "Mean Noise Ratio"
-          }
-        },
-        "type": "object",
-        "required": [
-          "count",
-          "mean_height",
-          "mean_width",
-          "mean_pixel_value",
-          "std_pixel_value",
-          "mean_noise_std",
-          "mean_noise_ratio"
-        ],
-        "title": "ImageStatistics",
-        "description": "Model for image statistics."
       },
       "InferenceSettingsPatch": {
         "properties": {
@@ -3822,31 +4187,6 @@
         "title": "ModelArchitecture",
         "description": "Configurable, constrained XREPORT transformer architecture.\n\nEncoder and decoder stacks are configured independently. Components that are\npart of the fixed XREPORT design (image preprocessing, BEiT weights,\npositional embeddings, vocabulary and report length, softmax output) are not\nfields."
       },
-      "PixelDistribution": {
-        "properties": {
-          "bins": {
-            "items": {
-              "type": "integer"
-            },
-            "type": "array",
-            "title": "Bins"
-          },
-          "counts": {
-            "items": {
-              "type": "integer"
-            },
-            "type": "array",
-            "title": "Counts"
-          }
-        },
-        "type": "object",
-        "required": [
-          "bins",
-          "counts"
-        ],
-        "title": "PixelDistribution",
-        "description": "Model for pixel intensity distribution."
-      },
       "ProcessDatasetRequest": {
         "properties": {
           "dataset_name": {
@@ -3928,6 +4268,47 @@
           "metadata"
         ],
         "title": "ProcessingMetadataResponse"
+      },
+      "RecordStatisticsResponse": {
+        "properties": {
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          },
+          "rows": {
+            "items": {
+              "additionalProperties": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "integer"
+                  },
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "boolean"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "type": "object"
+            },
+            "type": "array",
+            "title": "Rows"
+          }
+        },
+        "type": "object",
+        "required": [
+          "total",
+          "rows"
+        ],
+        "title": "RecordStatisticsResponse",
+        "description": "One page of per-record statistics of a run."
       },
       "ResumeTrainingRequest": {
         "properties": {
@@ -4247,45 +4628,6 @@
         ],
         "title": "SystemStatusResponse"
       },
-      "TextStatistics": {
-        "properties": {
-          "count": {
-            "type": "integer",
-            "title": "Count"
-          },
-          "total_words": {
-            "type": "integer",
-            "title": "Total Words"
-          },
-          "unique_words": {
-            "type": "integer",
-            "title": "Unique Words"
-          },
-          "avg_words_per_report": {
-            "type": "number",
-            "title": "Avg Words Per Report"
-          },
-          "min_words_per_report": {
-            "type": "integer",
-            "title": "Min Words Per Report"
-          },
-          "max_words_per_report": {
-            "type": "integer",
-            "title": "Max Words Per Report"
-          }
-        },
-        "type": "object",
-        "required": [
-          "count",
-          "total_words",
-          "unique_words",
-          "avg_words_per_report",
-          "min_words_per_report",
-          "max_words_per_report"
-        ],
-        "title": "TextStatistics",
-        "description": "Model for text statistics."
-      },
       "ValidationError": {
         "properties": {
           "loc": {
@@ -4325,89 +4667,31 @@
             "type": "string",
             "title": "Dataset Name"
           },
-          "date": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Date"
+          "run": {
+            "$ref": "#/components/schemas/ValidationRunSummary"
           },
-          "sample_size": {
-            "anyOf": [
-              {
-                "type": "number"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Sample Size"
-          },
-          "metrics": {
+          "aggregates": {
             "items": {
-              "type": "string"
+              "$ref": "#/components/schemas/AggregateStatistic"
             },
             "type": "array",
-            "title": "Metrics"
+            "title": "Aggregates"
           },
-          "pixel_distribution": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/PixelDistribution"
-              },
-              {
-                "type": "null"
-              }
-            ]
-          },
-          "image_statistics": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/ImageStatistics"
-              },
-              {
-                "type": "null"
-              }
-            ]
-          },
-          "text_statistics": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/TextStatistics"
-              },
-              {
-                "type": "null"
-              }
-            ]
-          },
-          "artifacts": {
-            "anyOf": [
-              {
-                "additionalProperties": {
-                  "additionalProperties": {
-                    "type": "string"
-                  },
-                  "type": "object"
-                },
-                "type": "object"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Artifacts"
+          "histograms": {
+            "items": {
+              "$ref": "#/components/schemas/HistogramModel"
+            },
+            "type": "array",
+            "title": "Histograms"
           }
         },
         "type": "object",
         "required": [
-          "dataset_name"
+          "dataset_name",
+          "run"
         ],
         "title": "ValidationReportResponse",
-        "description": "Response model for a persisted validation report."
+        "description": "Response model for one persisted validation run."
       },
       "ValidationRequest": {
         "properties": {
@@ -4453,6 +4737,156 @@
         ],
         "title": "ValidationRequest",
         "description": "Request model for dataset validation."
+      },
+      "ValidationRunListResponse": {
+        "properties": {
+          "dataset_name": {
+            "type": "string",
+            "title": "Dataset Name"
+          },
+          "runs": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationRunSummary"
+            },
+            "type": "array",
+            "title": "Runs"
+          }
+        },
+        "type": "object",
+        "required": [
+          "dataset_name",
+          "runs"
+        ],
+        "title": "ValidationRunListResponse",
+        "description": "Validation history of a dataset, newest first."
+      },
+      "ValidationRunMetricModel": {
+        "properties": {
+          "metric": {
+            "type": "string",
+            "title": "Metric"
+          },
+          "records_computed": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Records Computed"
+          }
+        },
+        "type": "object",
+        "required": [
+          "metric"
+        ],
+        "title": "ValidationRunMetricModel",
+        "description": "A metric computed by a run and how many records it covered."
+      },
+      "ValidationRunSummary": {
+        "properties": {
+          "validation_run_id": {
+            "type": "integer",
+            "title": "Validation Run Id"
+          },
+          "date": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Date"
+          },
+          "sample_size": {
+            "type": "number",
+            "title": "Sample Size"
+          },
+          "seed": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Seed"
+          },
+          "records_requested": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Records Requested"
+          },
+          "records_evaluated": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Records Evaluated"
+          },
+          "text_vocabulary_size": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Text Vocabulary Size"
+          },
+          "tokenizer": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tokenizer"
+          },
+          "max_report_size": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max Report Size"
+          },
+          "metrics": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationRunMetricModel"
+            },
+            "type": "array",
+            "title": "Metrics"
+          }
+        },
+        "type": "object",
+        "required": [
+          "validation_run_id",
+          "sample_size"
+        ],
+        "title": "ValidationRunSummary",
+        "description": "Configuration and coverage of one validation run."
       },
       "WeightCompatibility": {
         "properties": {

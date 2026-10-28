@@ -3,18 +3,39 @@ from __future__ import annotations
 from typing import Any
 
 import pandas as pd
-from sqlalchemy import exists, select
+from sqlalchemy import exists, func, select
 
 from server.common.constants import CHECKPOINT_EVALUATIONS_TABLE
 from server.repositories.schemas.studio import (
     Checkpoint,
     CheckpointEvaluation,
     Dataset,
+    DatasetRecord,
+    DatasetVersion,
+    RecordImageStat,
+    RecordTextStat,
+    ValidationAggregate,
+    ValidationHistogramBin,
     ValidationRun,
+    ValidationRunMetric,
 )
 from server.repositories.schemas.normalization import normalize_key
 from server.repositories.checkpoints import CheckpointRepository
 from server.repositories.serialization.support import RepositorySupport
+
+RECORD_STAT_TABLES = {"text": RecordTextStat, "image": RecordImageStat}
+AGGREGATE_VALUE_COLUMNS = (
+    "total",
+    "minimum",
+    "maximum",
+    "mean",
+    "median",
+    "std",
+    "p05",
+    "p25",
+    "p75",
+    "p95",
+)
 
 ###############################################################################
 class ValidationRepository(RepositorySupport):
@@ -42,10 +63,14 @@ class ValidationRepository(RepositorySupport):
         return int(dataset_id) if dataset_id is not None else None
 
     # -------------------------------------------------------------------------
-    def save_validation_report(self, report: dict[str, Any]) -> None:
-        dataset_name = str(report.get("dataset_name") or "").strip()
+    def save_validation_run(self, run: dict[str, Any]) -> int:
+        """Persist one validation run and all of its statistics atomically.
+
+        Every call inserts a new run; earlier runs are never modified.
+        """
+        dataset_name = str(run.get("dataset_name") or "").strip()
         if not dataset_name:
-            raise ValueError("Validation report requires dataset_name")
+            raise ValueError("Validation run requires dataset_name")
         with self.database.transaction() as session:
             dataset = session.execute(
                 select(Dataset).where(Dataset.name_key == normalize_key(dataset_name))
@@ -58,123 +83,247 @@ class ValidationRepository(RepositorySupport):
                 )
                 session.add(dataset)
                 session.flush()
-            text_stats = report.get("text_statistics") or {}
-            image_stats = report.get("image_statistics") or {}
-            pixel_distribution = report.get("pixel_distribution") or {}
-            session.add(
-                ValidationRun(
-                    dataset_id=dataset.dataset_id,
-                    executed_at=self._coerce_datetime(report.get("date")),
-                    sample_size=float(report.get("sample_size") or 1.0),
-                    metrics_json=report.get("metrics") or [],
-                    artifacts_json=report.get("artifacts") or {},
-                    text_count=int(text_stats.get("count", 0) or 0),
-                    text_total_words=int(text_stats.get("total_words", 0) or 0),
-                    text_unique_words=int(text_stats.get("unique_words", 0) or 0),
-                    text_avg_words=float(
-                        text_stats.get("avg_words_per_report", 0.0) or 0.0
-                    ),
-                    text_min_words=int(text_stats.get("min_words_per_report", 0) or 0),
-                    text_max_words=int(text_stats.get("max_words_per_report", 0) or 0),
-                    image_count=int(image_stats.get("count", 0) or 0),
-                    image_mean_height=float(image_stats.get("mean_height", 0.0) or 0.0),
-                    image_mean_width=float(image_stats.get("mean_width", 0.0) or 0.0),
-                    image_mean_value=float(
-                        image_stats.get("mean_pixel_value", 0.0) or 0.0
-                    ),
-                    image_std_value=float(
-                        image_stats.get("std_pixel_value", 0.0) or 0.0
-                    ),
-                    image_mean_noise_std=float(
-                        image_stats.get("mean_noise_std", 0.0) or 0.0
-                    ),
-                    image_mean_noise_ratio=float(
-                        image_stats.get("mean_noise_ratio", 0.0) or 0.0
-                    ),
-                    pixel_bins_json=pixel_distribution.get("bins") or [],
-                    pixel_counts_json=pixel_distribution.get("counts") or [],
-                )
+            version_id = session.execute(
+                select(DatasetVersion.dataset_version_id)
+                .where(DatasetVersion.dataset_id == dataset.dataset_id)
+                .order_by(DatasetVersion.version_number.desc())
+                .limit(1)
+            ).scalar_one_or_none()
+            record = ValidationRun(
+                dataset_id=dataset.dataset_id,
+                dataset_version_id=version_id,
+                executed_at=self._coerce_datetime(run.get("date")),
+                sample_size=float(run.get("sample_size") or 1.0),
+                seed=run.get("seed"),
+                records_requested=run.get("records_requested"),
+                records_evaluated=run.get("records_evaluated"),
+                text_vocabulary_size=run.get("text_vocabulary_size"),
+                tokenizer=run.get("tokenizer"),
+                max_report_size=run.get("max_report_size"),
+                config_json=run.get("config"),
             )
+            session.add(record)
+            session.flush()
+            run_id = int(record.validation_run_id)
+            session.add_all(
+                ValidationRunMetric(
+                    validation_run_id=run_id,
+                    metric=str(item["metric"]),
+                    records_computed=item.get("records_computed"),
+                )
+                for item in run.get("metrics") or []
+            )
+            session.add_all(
+                RecordTextStat(validation_run_id=run_id, **row)
+                for row in run.get("text_records") or []
+                if row.get("record_id") is not None
+            )
+            session.add_all(
+                RecordImageStat(validation_run_id=run_id, **row)
+                for row in run.get("image_records") or []
+                if row.get("record_id") is not None
+            )
+            session.add_all(
+                ValidationAggregate(validation_run_id=run_id, **row)
+                for row in run.get("aggregates") or []
+            )
+            for name, bins in (run.get("histograms") or {}).items():
+                session.add_all(
+                    ValidationHistogramBin(
+                        validation_run_id=run_id,
+                        histogram=str(name),
+                        bin_index=index,
+                        bin_lower=float(lower),
+                        bin_upper=float(upper),
+                        count=int(count),
+                    )
+                    for index, (lower, upper, count) in enumerate(bins)
+                )
+        return run_id
 
     # -------------------------------------------------------------------------
-    def get_validation_report(self, dataset_name: str) -> dict[str, Any] | None:
+    @staticmethod
+    def _run_row(session: Any, dataset_id: int, run_id: int | None) -> ValidationRun | None:
+        statement = select(ValidationRun).where(ValidationRun.dataset_id == dataset_id)
+        if run_id is not None:
+            statement = statement.where(ValidationRun.validation_run_id == run_id)
+        return session.execute(
+            statement.order_by(ValidationRun.validation_run_id.desc()).limit(1)
+        ).scalar_one_or_none()
+
+    # -------------------------------------------------------------------------
+    def _summarize_run(self, session: Any, run: ValidationRun) -> dict[str, Any]:
+        metrics = session.execute(
+            select(ValidationRunMetric)
+            .where(ValidationRunMetric.validation_run_id == run.validation_run_id)
+            .order_by(ValidationRunMetric.metric)
+        ).scalars()
+        return {
+            "validation_run_id": int(run.validation_run_id),
+            "date": self._format_datetime(run.executed_at),
+            "sample_size": float(run.sample_size),
+            "seed": run.seed,
+            "records_requested": run.records_requested,
+            "records_evaluated": run.records_evaluated,
+            "text_vocabulary_size": run.text_vocabulary_size,
+            "tokenizer": run.tokenizer,
+            "max_report_size": run.max_report_size,
+            "metrics": [
+                {"metric": item.metric, "records_computed": item.records_computed}
+                for item in metrics
+            ],
+        }
+
+    # -------------------------------------------------------------------------
+    def get_validation_report(
+        self, dataset_name: str, run_id: int | None = None
+    ) -> dict[str, Any] | None:
+        """Return one run (the latest unless `run_id` is given) with its aggregates."""
         dataset_id = self._get_dataset_id(str(dataset_name or "").strip())
         if dataset_id is None:
             return None
         with self.database.read_session() as session:
-            row = session.execute(
-                select(
-                    ValidationRun.validation_run_id,
-                    ValidationRun.executed_at,
-                    ValidationRun.sample_size,
-                    ValidationRun.metrics_json,
-                    ValidationRun.artifacts_json,
-                    ValidationRun.text_count,
-                    ValidationRun.text_total_words,
-                    ValidationRun.text_unique_words,
-                    ValidationRun.text_avg_words,
-                    ValidationRun.text_min_words,
-                    ValidationRun.text_max_words,
-                    ValidationRun.image_count,
-                    ValidationRun.image_mean_height,
-                    ValidationRun.image_mean_width,
-                    ValidationRun.image_mean_value,
-                    ValidationRun.image_std_value,
-                    ValidationRun.image_mean_noise_std,
-                    ValidationRun.image_mean_noise_ratio,
-                    ValidationRun.pixel_bins_json,
-                    ValidationRun.pixel_counts_json,
+            run = self._run_row(session, dataset_id, run_id)
+            if run is None:
+                return None
+            summary = self._summarize_run(session, run)
+            aggregates = session.execute(
+                select(ValidationAggregate)
+                .where(ValidationAggregate.validation_run_id == run.validation_run_id)
+                .order_by(ValidationAggregate.domain, ValidationAggregate.measure)
+            ).scalars()
+            aggregate_rows = [
+                {
+                    "domain": item.domain,
+                    "measure": item.measure,
+                    "count": item.count,
+                    **{name: getattr(item, name) for name in AGGREGATE_VALUE_COLUMNS},
+                }
+                for item in aggregates
+            ]
+            histogram_rows = session.execute(
+                select(ValidationHistogramBin)
+                .where(
+                    ValidationHistogramBin.validation_run_id == run.validation_run_id
                 )
-                .where(ValidationRun.dataset_id == dataset_id)
-                .order_by(ValidationRun.validation_run_id.desc())
-                .limit(1)
-            ).first()
-        if row is None:
-            return None
-
-        metrics = self._parse_json(row[3], default=[])
-        artifacts = self._parse_json(row[4], default={})
-        text_statistics = None
-        if row[5] is not None:
-            text_statistics = {
-                "count": int(row[5] or 0),
-                "total_words": int(row[6] or 0),
-                "unique_words": int(row[7] or 0),
-                "avg_words_per_report": float(row[8] or 0.0),
-                "min_words_per_report": int(row[9] or 0),
-                "max_words_per_report": int(row[10] or 0),
-            }
-
-        image_statistics = None
-        if int(row[11] or 0) > 0:
-            image_statistics = {
-                "count": int(row[11] or 0),
-                "mean_height": float(row[12] or 0.0),
-                "mean_width": float(row[13] or 0.0),
-                "mean_pixel_value": float(row[14] or 0.0),
-                "std_pixel_value": float(row[15] or 0.0),
-                "mean_noise_std": float(row[16] or 0.0),
-                "mean_noise_ratio": float(row[17] or 0.0),
-            }
-
-        pixel_distribution = None
-        pixel_bins = self._parse_json(row[18], default=[])
-        pixel_counts = self._parse_json(row[19], default=[])
-        if pixel_bins and pixel_counts:
-            pixel_distribution = {
-                "bins": [int(value) for value in pixel_bins],
-                "counts": [int(value) for value in pixel_counts],
-            }
-
+                .order_by(
+                    ValidationHistogramBin.histogram, ValidationHistogramBin.bin_index
+                )
+            ).scalars()
+            histograms: dict[str, list[dict[str, float]]] = {}
+            for item in histogram_rows:
+                histograms.setdefault(item.histogram, []).append(
+                    {
+                        "lower": item.bin_lower,
+                        "upper": item.bin_upper,
+                        "count": int(item.count),
+                    }
+                )
         return {
             "dataset_name": dataset_name,
-            "date": self._format_datetime(row[1]),
-            "sample_size": float(row[2] or 0.0),
-            "metrics": metrics if isinstance(metrics, list) else [],
-            "text_statistics": text_statistics,
-            "image_statistics": image_statistics,
-            "pixel_distribution": pixel_distribution,
-            "artifacts": artifacts if isinstance(artifacts, dict) else {},
+            "run": summary,
+            "aggregates": aggregate_rows,
+            "histograms": [
+                {"name": name, "bins": bins} for name, bins in histograms.items()
+            ],
+        }
+
+    # -------------------------------------------------------------------------
+    def list_validation_runs(
+        self, dataset_name: str, *, limit: int = 50, offset: int = 0
+    ) -> list[dict[str, Any]] | None:
+        if limit < 1 or limit > 500:
+            raise ValueError("limit must be between 1 and 500")
+        if offset < 0:
+            raise ValueError("offset must be >= 0")
+        dataset_id = self._get_dataset_id(str(dataset_name or "").strip())
+        if dataset_id is None:
+            return None
+        with self.database.read_session() as session:
+            runs = (
+                session.execute(
+                    select(ValidationRun)
+                    .where(ValidationRun.dataset_id == dataset_id)
+                    .order_by(ValidationRun.validation_run_id.desc())
+                    .limit(limit)
+                    .offset(offset)
+                )
+                .scalars()
+                .all()
+            )
+            return [self._summarize_run(session, run) for run in runs]
+
+    # -------------------------------------------------------------------------
+    def list_run_records(
+        self,
+        dataset_name: str,
+        run_id: int,
+        kind: str,
+        *,
+        sort: str | None = None,
+        descending: bool = False,
+        search: str | None = None,
+        limit: int = 50,
+        offset: int = 0,
+    ) -> dict[str, Any] | None:
+        """Page per-record statistics of one run (`kind` is `text` or `image`)."""
+        table = RECORD_STAT_TABLES.get(kind)
+        if table is None:
+            raise ValueError(f"Unsupported record statistics kind: {kind}")
+        if limit < 1 or limit > 500:
+            raise ValueError("limit must be between 1 and 500")
+        if offset < 0:
+            raise ValueError("offset must be >= 0")
+        value_columns = [
+            column.name
+            for column in table.__table__.columns
+            if column.name not in ("validation_run_id", "record_id")
+        ]
+        sort_name = sort or "image_name"
+        if sort_name != "image_name" and sort_name not in value_columns:
+            raise ValueError(f"Unsupported sort column: {sort_name}")
+        dataset_id = self._get_dataset_id(str(dataset_name or "").strip())
+        if dataset_id is None:
+            return None
+        sort_column = (
+            DatasetRecord.image_name
+            if sort_name == "image_name"
+            else getattr(table, sort_name)
+        )
+        filters = [
+            table.validation_run_id == run_id,
+            DatasetRecord.dataset_id == dataset_id,
+        ]
+        if search:
+            filters.append(DatasetRecord.image_name.icontains(search, autoescape=True))
+        with self.database.read_session() as session:
+            if self._run_row(session, dataset_id, run_id) is None:
+                return None
+            total = session.execute(
+                select(func.count())
+                .select_from(table)
+                .join(DatasetRecord, DatasetRecord.record_id == table.record_id)
+                .where(*filters)
+            ).scalar_one()
+            ordering = sort_column.desc() if descending else sort_column.asc()
+            rows = session.execute(
+                select(table, DatasetRecord.image_name)
+                .join(DatasetRecord, DatasetRecord.record_id == table.record_id)
+                .where(*filters)
+                .order_by(ordering, table.record_id)
+                .limit(limit)
+                .offset(offset)
+            ).all()
+        return {
+            "total": int(total),
+            "rows": [
+                {
+                    "record_id": row[0].record_id,
+                    "image_name": row[1],
+                    **{name: getattr(row[0], name) for name in value_columns},
+                }
+                for row in rows
+            ],
         }
 
     # -------------------------------------------------------------------------

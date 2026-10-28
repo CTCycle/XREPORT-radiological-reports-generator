@@ -427,47 +427,146 @@ def test_processing_run_and_samples_roll_back_together() -> None:
         assert session.execute(select(ProcessingRun)).scalars().all() == []
 
 ###############################################################################
-@pytest.mark.usefixtures("studio_profile")
-def test_validation_report_children_commit_atomically() -> None:
-    dataset_repository, database = _serializer()
-    dataset_repository.upsert_source_dataset(
+def _seed_validation_dataset(
+    repository: DatasetRepository, database: Database, name: str, texts: list[str]
+) -> list[int]:
+    repository.upsert_source_dataset(
         pd.DataFrame(
             [
                 {
-                    "dataset_name": "Chest",
-                    "image_name": "A.PNG",
-                    "report_text": "stable",
-                    "image_path": "path",
+                    "dataset_name": name,
+                    "image_name": f"{name}_{index}.png",
+                    "report_text": text,
+                    "image_path": f"{name}_{index}.png",
                 }
+                for index, text in enumerate(texts)
             ]
         )
     )
-    ValidationRepository(database=database).save_validation_report(
-        {
-            "dataset_name": "Chest",
-            "sample_size": 1.0,
-            "metrics": ["text"],
-            "text_statistics": {"count": 1, "total_words": 1},
-            "pixel_distribution": {"bins": [0], "counts": [1]},
-        }
-    )
     with database.read_session() as session:
-        assert len(session.execute(select(ValidationRun)).scalars().all()) == 1
+        return list(
+            session.execute(
+                select(DatasetRecord.record_id)
+                .join(Dataset, Dataset.dataset_id == DatasetRecord.dataset_id)
+                .where(Dataset.name == name)
+                .order_by(DatasetRecord.row_order)
+            ).scalars()
+        )
+
+###############################################################################
+def _validation_run(name: str, record_ids: list[int], words: list[int], **extra) -> dict:
+    return {
+        "dataset_name": name,
+        "sample_size": 1.0,
+        "records_requested": len(record_ids),
+        "records_evaluated": len(record_ids),
+        "metrics": [{"metric": "text_statistics", "records_computed": len(words)}],
+        "text_records": [
+            {"record_id": record_id, "word_count": count, "char_count": count * 5,
+             "unique_words": count}
+            for record_id, count in zip(record_ids, words)
+        ],
+        "aggregates": [
+            {"domain": "text", "measure": "words_per_report", "count": len(words),
+             "mean": sum(words) / len(words), "minimum": float(min(words)),
+             "maximum": float(max(words))}
+        ],
+        "histograms": {"report_length": [(0.0, 5.0, 1), (5.0, 10.0, len(words) - 1)]},
+        **extra,
+    }
 
 ###############################################################################
 @pytest.mark.usefixtures("studio_profile")
-def test_validation_aggregates_are_stored_on_the_run() -> None:
-    _, database = _serializer()
-    ValidationRepository(database=database).save_validation_report(
-        {
-            "dataset_name": "Chest",
-            "metrics": [],
-            "pixel_distribution": {"bins": [999], "counts": [1]},
-        }
+def test_repeated_validation_runs_are_kept_as_history() -> None:
+    dataset_repository, database = _serializer()
+    ids = _seed_validation_dataset(dataset_repository, database, "Chest", ["a b", "c d e"])
+    repository = ValidationRepository(database=database)
+    first = repository.save_validation_run(_validation_run("Chest", ids, [2, 3]))
+    second = repository.save_validation_run(
+        _validation_run("Chest", ids[:1], [2], sample_size=0.5, seed=7)
     )
+
+    assert second > first
+    history = repository.list_validation_runs("Chest") or []
+    assert [item["validation_run_id"] for item in history] == [second, first]
+    latest = repository.get_validation_report("Chest") or {}
+    assert latest["run"]["validation_run_id"] == second
+    assert latest["run"]["seed"] == 7
+    assert latest["run"]["records_evaluated"] == 1
+    older = repository.get_validation_report("Chest", first) or {}
+    assert older["aggregates"][0]["mean"] == 2.5
+    assert [bin["count"] for bin in older["histograms"][0]["bins"]] == [1, 1]
+    # Metrics that were not computed are absent, never reported as zero rows.
+    assert [item["domain"] for item in older["aggregates"]] == ["text"]
+
+###############################################################################
+@pytest.mark.usefixtures("studio_profile")
+def test_statistics_are_queryable_with_plain_sql_across_datasets() -> None:
+    dataset_repository, database = _serializer()
+    repository = ValidationRepository(database=database)
+    for name, texts, words in (
+        ("Chest", ["a", "b c"], [1, 2]),
+        ("Spine", ["a b c d", "e f g h i j"], [4, 6]),
+    ):
+        ids = _seed_validation_dataset(dataset_repository, database, name, texts)
+        repository.save_validation_run(_validation_run(name, ids, words))
     with database.read_session() as session:
-        run = session.execute(select(ValidationRun)).scalar_one()
-        assert run.pixel_bins_json == [999]
+        rows = session.execute(
+            text(
+                "SELECT d.name, AVG(t.word_count), MAX(t.word_count) "
+                "FROM record_text_stats t "
+                "JOIN validation_runs r ON r.validation_run_id = t.validation_run_id "
+                "JOIN datasets d ON d.dataset_id = r.dataset_id "
+                "GROUP BY d.name ORDER BY d.name"
+            )
+        ).all()
+    assert rows == [("Chest", 1.5, 2), ("Spine", 5.0, 6)]
+
+###############################################################################
+@pytest.mark.usefixtures("studio_profile")
+def test_record_statistics_page_sorts_filters_and_rejects_unknown_columns() -> None:
+    dataset_repository, database = _serializer()
+    ids = _seed_validation_dataset(
+        dataset_repository, database, "Chest", ["a", "b c", "d e f"]
+    )
+    repository = ValidationRepository(database=database)
+    run_id = repository.save_validation_run(_validation_run("Chest", ids, [1, 2, 3]))
+
+    page = repository.list_run_records(
+        "Chest", run_id, "text", sort="word_count", descending=True, limit=2
+    )
+    assert page is not None and page["total"] == 3
+    assert [row["word_count"] for row in page["rows"]] == [3, 2]
+    filtered = repository.list_run_records("Chest", run_id, "text", search="chest_1")
+    assert filtered is not None and [row["image_name"] for row in filtered["rows"]] == [
+        "Chest_1.png"
+    ]
+    assert repository.list_run_records("Chest", run_id, "image") == {"total": 0, "rows": []}
+    assert repository.list_run_records("Chest", run_id + 1, "text") is None
+    with pytest.raises(ValueError):
+        repository.list_run_records("Chest", run_id, "text", sort="word_count; DROP")
+
+###############################################################################
+@pytest.mark.usefixtures("studio_profile")
+def test_deleting_a_dataset_removes_its_statistics() -> None:
+    dataset_repository, database = _serializer()
+    with database.engine.connect() as connection:
+        connection.exec_driver_sql("PRAGMA foreign_keys=ON")
+    ids = _seed_validation_dataset(dataset_repository, database, "Chest", ["a b"])
+    ValidationRepository(database=database).save_validation_run(
+        _validation_run("Chest", ids, [2])
+    )
+    with database.transaction() as session:
+        session.delete(session.execute(select(Dataset)).scalar_one())
+    with database.read_session() as session:
+        for table in (
+            "validation_runs",
+            "validation_run_metrics",
+            "record_text_stats",
+            "validation_aggregates",
+            "validation_histogram_bins",
+        ):
+            assert session.execute(text(f"SELECT COUNT(*) FROM {table}")).scalar_one() == 0
 
 ###############################################################################
 @pytest.mark.usefixtures("studio_profile")
@@ -671,3 +770,74 @@ def test_inference_history_crud_preserves_original_text_and_isolated_deletion() 
     assert repository.delete_inference_history("older-request") is True
     assert repository.get_inference_history("older-request") is None
     assert repository.get_inference_history("newer-request") is not None
+
+###############################################################################
+@pytest.mark.usefixtures("studio_profile")
+def test_validation_job_persists_measured_statistics(
+    tmp_path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    import cv2
+    import numpy as np
+    from unittest.mock import MagicMock
+    from server.services import validation_runs
+
+    dataset_repository, database = _serializer()
+    paths = []
+    for index, (height, width) in enumerate([(8, 8), (16, 8)]):
+        path = tmp_path / f"img_{index}.png"
+        cv2.imwrite(str(path), np.full((height, width), 10 * (index + 1), np.uint8))
+        paths.append(path)
+    corrupt = tmp_path / "corrupt.png"
+    corrupt.write_bytes(b"not an image")
+    paths.append(corrupt)
+    dataset_repository.upsert_source_dataset(
+        pd.DataFrame(
+            [
+                {
+                    "dataset_name": "Chest",
+                    "image_name": path.name,
+                    "report_text": text,
+                    "image_path": str(path),
+                }
+                for path, text in zip(paths, ["one two", "one two three four", "x"])
+            ]
+        )
+    )
+    manager = MagicMock()
+    manager.should_stop.return_value = False
+    monkeypatch.setattr(validation_runs, "get_job_manager", lambda: manager)
+    monkeypatch.setattr(validation_runs, "DatasetRepository", lambda: dataset_repository)
+    monkeypatch.setattr(
+        validation_runs, "ValidationRepository", lambda: ValidationRepository(database=database)
+    )
+
+    result = validation_runs.run_validation_job(
+        {
+            "dataset_name": "Chest",
+            "sample_size": 1.0,
+            "seed": 3,
+            "metrics": ["text_statistics", "image_statistics", "pixels_distribution"],
+        },
+        "job-1",
+    )
+
+    report = ValidationRepository(database=database).get_validation_report(
+        "Chest", result["validation_run_id"]
+    )
+    assert report is not None
+    assert report["run"]["records_requested"] == 3
+    coverage = {item["metric"]: item["records_computed"] for item in report["run"]["metrics"]}
+    # The unreadable image is skipped, so image and pixel metrics cover 2 of 3 records.
+    assert coverage == {
+        "image_statistics": 2,
+        "pixels_distribution": 2,
+        "text_statistics": 3,
+    }
+    aggregates = {(item["domain"], item["measure"]): item for item in report["aggregates"]}
+    assert aggregates[("text", "words_per_report")]["total"] == 7
+    assert aggregates[("text", "words_per_report")]["median"] == 2
+    assert aggregates[("image", "height")]["mean"] == 12.0
+    assert aggregates[("image", "mean_intensity")]["maximum"] == 20.0
+    histograms = {item["name"]: item["bins"] for item in report["histograms"]}
+    assert sum(bin["count"] for bin in histograms["pixel_intensity"]) == 8 * 8 + 16 * 8
+    assert sum(bin["count"] for bin in histograms["report_length"]) == 3

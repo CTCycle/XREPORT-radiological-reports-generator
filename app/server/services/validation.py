@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -44,7 +44,9 @@ class DatasetValidator:
 
         Returns tuple of (aggregate stats for dashboard, DB DataFrame payload).
         """
-        empty_df = pd.DataFrame(columns=["name", "words_count"])
+        empty_df = pd.DataFrame(
+            columns=["record_id", "word_count", "char_count", "unique_words"]
+        )
 
         if "text" not in self.dataset.columns or self.dataset.empty:
             return TextStatistics(
@@ -69,8 +71,18 @@ class DatasetValidator:
             all_words.update(words)
 
         word_counts_np = np.array(word_counts)
+        record_ids = (
+            pd.to_numeric(self.dataset["record_id"], errors="coerce").tolist()
+            if "record_id" in self.dataset.columns
+            else [None] * len(texts)
+        )
         per_record_df = pd.DataFrame(
-            [{"name": self.dataset_name, "words_count": total_word_count}]
+            {
+                "record_id": record_ids,
+                "word_count": word_counts,
+                "char_count": [len(text) for text in texts],
+                "unique_words": [len(set(text.split())) for text in texts],
+            }
         )
 
         aggregate_stats = TextStatistics(
@@ -263,10 +275,10 @@ class DatasetValidator:
     def calculate_pixel_distribution(
         self,
         progress_callback: Callable[[float], None] | None = None,
-    ) -> PixelDistribution:
-        """Calculate pixel intensity distribution (histogram)."""
+    ) -> tuple[PixelDistribution, int]:
+        """Calculate the pixel intensity histogram and the number of images read."""
         if "path" not in self.dataset.columns or self.dataset.empty:
-            return PixelDistribution(bins=[], counts=[])
+            return PixelDistribution(bins=[], counts=[]), 0
 
         image_paths = self.dataset["path"].tolist()
         combined_hist = np.zeros(256, dtype=np.int64)
@@ -296,7 +308,49 @@ class DatasetValidator:
                 if progress_callback:
                     progress_callback((idx + 1) / total_images)
 
-        return PixelDistribution(
-            bins=list(range(256)),
-            counts=combined_hist.tolist(),
+        return (
+            PixelDistribution(
+                bins=list(range(256)),
+                counts=combined_hist.tolist(),
+            ),
+            processed,
         )
+
+###############################################################################
+def summarize_distribution(values: Sequence[float | int | None]) -> dict[str, Any] | None:
+    """Summarize a measure; missing values are excluded, never counted as zero.
+
+    Returns `None` when no value is available, so callers store no row at all.
+    """
+    array = np.array([value for value in values if value is not None], dtype=float)
+    array = array[np.isfinite(array)]
+    if array.size == 0:
+        return None
+    p05, p25, p75, p95 = np.percentile(array, [5, 25, 75, 95])
+    return {
+        "count": int(array.size),
+        "total": float(np.sum(array)),
+        "minimum": float(np.min(array)),
+        "maximum": float(np.max(array)),
+        "mean": float(np.mean(array)),
+        "median": float(np.median(array)),
+        "std": float(np.std(array)),
+        "p05": float(p05),
+        "p25": float(p25),
+        "p75": float(p75),
+        "p95": float(p95),
+    }
+
+###############################################################################
+def histogram_bins(
+    values: Sequence[float | int], bin_count: int = 20
+) -> list[tuple[float, float, int]]:
+    """Equal-width histogram as `(lower, upper, count)` rows."""
+    array = np.array(values, dtype=float)
+    if array.size == 0:
+        return []
+    counts, edges = np.histogram(array, bins=bin_count)
+    return [
+        (float(edges[index]), float(edges[index + 1]), int(count))
+        for index, count in enumerate(counts)
+    ]

@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from typing import Literal
+
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 VALIDATION_METRICS = frozenset(
@@ -75,17 +77,78 @@ class ValidationResponse(BaseModel):
     text_statistics: TextStatistics | None = None
 
 ###############################################################################
+class ValidationRunMetricModel(BaseModel):
+    """A metric computed by a run and how many records it covered."""
+
+    metric: str
+    records_computed: int | None = None
+
+###############################################################################
+class ValidationRunSummary(BaseModel):
+    """Configuration and coverage of one validation run."""
+
+    validation_run_id: int
+    date: str | None = None
+    sample_size: float
+    seed: int | None = None
+    records_requested: int | None = None
+    records_evaluated: int | None = None
+    text_vocabulary_size: int | None = None
+    tokenizer: str | None = None
+    max_report_size: int | None = None
+    metrics: list[ValidationRunMetricModel] = Field(default_factory=list)
+
+###############################################################################
+class AggregateStatistic(BaseModel):
+    """Distribution summary of one measure; unavailable values are null."""
+
+    domain: Literal["text", "image", "token"]
+    measure: str
+    count: int
+    total: float | None = None
+    minimum: float | None = None
+    maximum: float | None = None
+    mean: float | None = None
+    median: float | None = None
+    std: float | None = None
+    p05: float | None = None
+    p25: float | None = None
+    p75: float | None = None
+    p95: float | None = None
+
+###############################################################################
+class HistogramBinModel(BaseModel):
+    lower: float
+    upper: float
+    count: int
+
+###############################################################################
+class HistogramModel(BaseModel):
+    name: str
+    bins: list[HistogramBinModel]
+
+###############################################################################
 class ValidationReportResponse(BaseModel):
-    """Response model for a persisted validation report."""
+    """Response model for one persisted validation run."""
 
     dataset_name: str
-    date: str | None = None
-    sample_size: float | None = None
-    metrics: list[str] = Field(default_factory=list)
-    pixel_distribution: PixelDistribution | None = None
-    image_statistics: ImageStatistics | None = None
-    text_statistics: TextStatistics | None = None
-    artifacts: dict[str, dict[str, str]] | None = None
+    run: ValidationRunSummary
+    aggregates: list[AggregateStatistic] = Field(default_factory=list)
+    histograms: list[HistogramModel] = Field(default_factory=list)
+
+###############################################################################
+class ValidationRunListResponse(BaseModel):
+    """Validation history of a dataset, newest first."""
+
+    dataset_name: str
+    runs: list[ValidationRunSummary]
+
+###############################################################################
+class RecordStatisticsResponse(BaseModel):
+    """One page of per-record statistics of a run."""
+
+    total: int
+    rows: list[dict[str, str | int | float | bool | None]]
 
 ###############################################################################
 class CheckpointEvaluationRequest(BaseModel):

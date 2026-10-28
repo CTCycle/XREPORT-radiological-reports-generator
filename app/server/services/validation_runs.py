@@ -1,6 +1,7 @@
 from __future__ import annotations
 
-from datetime import datetime
+from dataclasses import dataclass, field
+from datetime import datetime, timezone
 from collections.abc import Callable
 from functools import lru_cache
 from typing import Any
@@ -15,7 +16,9 @@ import pandas as pd
 
 from server.domain.validation import (
     ValidationRequest,
+    RecordStatisticsResponse,
     ValidationReportResponse,
+    ValidationRunListResponse,
     CheckpointEvaluationRequest,
     CheckpointEvaluationReportResponse,
 )
@@ -30,7 +33,11 @@ from server.services.jobs import (
     JobManager,
     get_job_manager,
 )
-from server.services.validation import DatasetValidator
+from server.services.validation import (
+    DatasetValidator,
+    histogram_bins,
+    summarize_distribution,
+)
 from server.repositories.serialization.validation import ValidationRepository
 from server.repositories.serialization.dataset import (
     DatasetIntegrityError,
@@ -105,7 +112,8 @@ def run_validation_job(
             code="dataset_unavailable",
             phase="input_validation",
         )
-    logger.info(f"Loaded {len(dataset)} records for validation")
+    records_requested = len(dataset)
+    logger.info(f"Loaded {records_requested} records for validation")
     jm.update_progress(job_id, 15.0)
     if jm.should_stop(job_id):
         return {}
@@ -136,22 +144,58 @@ def run_validation_job(
         "metrics": metrics,
     }
     logger.info(f"Metrics to compute: {', '.join(metrics)}")
-    metric_results = _run_validation_metrics(validator, dataset, metrics, job_id, jm)
-    if metric_results is None:
+    outcome = _run_validation_metrics(validator, dataset, metrics, job_id, jm)
+    if outcome is None:
         return {}
-    result.update(metric_results[0])
-    image_records = metric_results[1]
+    result.update(outcome.result)
     logger.info("Dataset validation completed successfully")
-    _save_validation_report(
-        ValidationRepository(),
-        dataset_name,
-        sample_size,
-        metrics,
-        result,
-        image_records,
+    result["validation_run_id"] = ValidationRepository().save_validation_run(
+        {
+            "dataset_name": dataset_name,
+            "date": datetime.now(timezone.utc),
+            "sample_size": sample_size,
+            "seed": seed,
+            "records_requested": records_requested,
+            "records_evaluated": len(dataset),
+            "text_vocabulary_size": outcome.text_vocabulary_size,
+            "metrics": outcome.metric_rows,
+            "text_records": outcome.text_records,
+            "image_records": outcome.image_records,
+            "aggregates": outcome.aggregates,
+            "histograms": outcome.histograms,
+        }
     )
     jm.update_progress(job_id, 100.0)
     return result
+
+###############################################################################
+@dataclass
+class MetricOutcome:
+    """Computed statistics of one validation run, ready to persist."""
+
+    result: dict[str, Any] = field(default_factory=dict)
+    metric_rows: list[dict[str, Any]] = field(default_factory=list)
+    text_records: list[dict[str, Any]] = field(default_factory=list)
+    image_records: list[dict[str, Any]] = field(default_factory=list)
+    aggregates: list[dict[str, Any]] = field(default_factory=list)
+    histograms: dict[str, list[tuple[float, float, int]]] = field(default_factory=dict)
+    text_vocabulary_size: int | None = None
+
+###############################################################################
+def _optional_int(value: Any) -> int | None:
+    return None if value is None or pd.isna(value) else int(value)
+
+###############################################################################
+def _aggregate_rows(
+    domain: str, records: list[dict[str, Any]], measures: dict[str, str]
+) -> list[dict[str, Any]]:
+    """Build one aggregate row per measure from per-record values."""
+    rows: list[dict[str, Any]] = []
+    for measure, column in measures.items():
+        summary = summarize_distribution([item.get(column) for item in records])
+        if summary is not None:
+            rows.append({"domain": domain, "measure": measure, **summary})
+    return rows
 
 ###############################################################################
 def _run_validation_metrics(
@@ -160,35 +204,33 @@ def _run_validation_metrics(
     metrics: Any,
     job_id: str,
     jm: JobManager,
-) -> tuple[dict[str, Any], list[dict[str, Any]]] | None:
+) -> MetricOutcome | None:
     progress_per_metric = 25.0
     current_progress = 20.0
-    result: dict[str, Any] = {}
-    image_records: list[dict[str, Any]] = []
+    outcome = MetricOutcome()
     if "text_statistics" in metrics:
         if jm.should_stop(job_id):
             return None
-        result["text_statistics"] = _run_text_validation_metric(validator, dataset)
+        _run_text_validation_metric(validator, dataset, outcome)
         current_progress += progress_per_metric
         jm.update_progress(job_id, current_progress)
     if "image_statistics" in metrics:
         if jm.should_stop(job_id):
             return None
-        image_result, image_records = _run_image_validation_metric(
-            validator, dataset, job_id, current_progress, progress_per_metric
+        _run_image_validation_metric(
+            validator, dataset, outcome, job_id, current_progress, progress_per_metric
         )
-        result["image_statistics"] = image_result
         current_progress += progress_per_metric
         jm.update_progress(job_id, current_progress)
     if "pixels_distribution" in metrics:
         if jm.should_stop(job_id):
             return None
-        result["pixel_distribution"] = _run_pixel_validation_metric(
-            validator, dataset, job_id, current_progress, progress_per_metric
+        _run_pixel_validation_metric(
+            validator, dataset, outcome, job_id, current_progress, progress_per_metric
         )
         current_progress += progress_per_metric
         jm.update_progress(job_id, current_progress)
-    return result, image_records
+    return outcome
 
 ###############################################################################
 def _load_validation_dataset(
@@ -207,13 +249,40 @@ def _load_validation_dataset(
 def _run_text_validation_metric(
     validator: DatasetValidator,
     dataset: pd.DataFrame,
-) -> dict[str, Any]:
+    outcome: MetricOutcome,
+) -> None:
     logger.info(f"[1/3] Calculating text statistics for {len(dataset)} reports...")
-    text_stats, _text_records_df = validator.calculate_text_statistics()
+    text_stats, text_records_df = validator.calculate_text_statistics()
     logger.info(
         f"[1/3] Text statistics complete: {text_stats.total_words} total words, {text_stats.unique_words} unique"
     )
-    return {
+    records = [
+        {
+            "record_id": _optional_int(row["record_id"]),
+            "word_count": int(row["word_count"]),
+            "char_count": int(row["char_count"]),
+            "unique_words": int(row["unique_words"]),
+        }
+        for row in text_records_df.to_dict(orient="records")
+    ]
+    outcome.text_records = records
+    outcome.text_vocabulary_size = text_stats.unique_words if records else None
+    outcome.aggregates += _aggregate_rows(
+        "text",
+        records,
+        {
+            "words_per_report": "word_count",
+            "chars_per_report": "char_count",
+            "unique_words_per_report": "unique_words",
+        },
+    )
+    histogram = histogram_bins([item["word_count"] for item in records])
+    if histogram:
+        outcome.histograms["report_length"] = histogram
+    outcome.metric_rows.append(
+        {"metric": "text_statistics", "records_computed": len(records)}
+    )
+    outcome.result["text_statistics"] = {
         "count": text_stats.count,
         "total_words": text_stats.total_words,
         "unique_words": text_stats.unique_words,
@@ -226,10 +295,11 @@ def _run_text_validation_metric(
 def _run_image_validation_metric(
     validator: DatasetValidator,
     dataset: pd.DataFrame,
+    outcome: MetricOutcome,
     job_id: str,
     current_progress: float,
     progress_per_metric: float,
-) -> tuple[dict[str, Any], list[dict[str, Any]]]:
+) -> None:
     logger.info(
         f"[2/3] Calculating image statistics for {len(dataset)} images (this may take a while)..."
     )
@@ -240,10 +310,38 @@ def _run_image_validation_metric(
         progress_callback=progress_range.update,
     )
     logger.info(f"[2/3] Image statistics complete: analyzed {image_stats.count} images")
-    image_records = (
-        image_records_df.to_dict(orient="records") if not image_records_df.empty else []
+    records = [
+        {
+            "record_id": _optional_int(row["record_id"]),
+            "height": int(row["height"]),
+            "width": int(row["width"]),
+            "mean_value": float(row["mean"]),
+            "median_value": float(row["median"]),
+            "std_value": float(row["std"]),
+            "min_value": float(row["min"]),
+            "max_value": float(row["max"]),
+            "noise_std": float(row["noise_std"]),
+            "noise_ratio": float(row["noise_ratio"]),
+        }
+        for row in image_records_df.to_dict(orient="records")
+    ]
+    outcome.image_records = records
+    outcome.aggregates += _aggregate_rows(
+        "image",
+        records,
+        {
+            "height": "height",
+            "width": "width",
+            "mean_intensity": "mean_value",
+            "std_intensity": "std_value",
+            "noise_std": "noise_std",
+            "noise_ratio": "noise_ratio",
+        },
     )
-    return {
+    outcome.metric_rows.append(
+        {"metric": "image_statistics", "records_computed": len(records)}
+    )
+    outcome.result["image_statistics"] = {
         "count": image_stats.count,
         "mean_height": image_stats.mean_height,
         "mean_width": image_stats.mean_width,
@@ -251,50 +349,39 @@ def _run_image_validation_metric(
         "std_pixel_value": image_stats.std_pixel_value,
         "mean_noise_std": image_stats.mean_noise_std,
         "mean_noise_ratio": image_stats.mean_noise_ratio,
-    }, image_records
+    }
 
 ###############################################################################
 def _run_pixel_validation_metric(
     validator: DatasetValidator,
     dataset: pd.DataFrame,
+    outcome: MetricOutcome,
     job_id: str,
     current_progress: float,
     progress_per_metric: float,
-) -> dict[str, Any]:
+) -> None:
     logger.info(
         f"[3/3] Calculating pixel intensity distribution for {len(dataset)} images..."
     )
     progress_range = ProgressRange(
         job_id, current_progress, current_progress + progress_per_metric
     )
-    pixel_dist = validator.calculate_pixel_distribution(
+    pixel_dist, images_read = validator.calculate_pixel_distribution(
         progress_callback=progress_range.update,
     )
     logger.info("[3/3] Pixel distribution complete")
-    return {"bins": pixel_dist.bins, "counts": pixel_dist.counts}
-
-###############################################################################
-def _save_validation_report(
-    repository: ValidationRepository,
-    dataset_name: str,
-    sample_size: Any,
-    metrics: Any,
-    result: dict[str, Any],
-    image_records: list[dict[str, Any]],
-) -> None:
-    repository.save_validation_report(
-        {
-            "dataset_name": dataset_name,
-            "date": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-            "sample_size": sample_size,
-            "metrics": metrics,
-            "text_statistics": result.get("text_statistics"),
-            "image_statistics": result.get("image_statistics"),
-            "pixel_distribution": result.get("pixel_distribution"),
-            "artifacts": None,
-            "image_records": image_records,
-        }
+    if images_read:
+        outcome.histograms["pixel_intensity"] = [
+            (float(value), float(value) + 1.0, int(count))
+            for value, count in zip(pixel_dist.bins, pixel_dist.counts)
+        ]
+    outcome.metric_rows.append(
+        {"metric": "pixels_distribution", "records_computed": images_read}
     )
+    outcome.result["pixel_distribution"] = {
+        "bins": pixel_dist.bins,
+        "counts": pixel_dist.counts,
+    }
 
 ###############################################################################
 def run_checkpoint_evaluation_job(
@@ -611,15 +698,52 @@ class ValidationService:
 
     # -------------------------------------------------------------------------
     async def get_validation_report(
-        self, dataset_name: str
+        self, dataset_name: str, run_id: int | None = None
     ) -> ValidationReportResponse:
-        serializer = ValidationRepository()
-        report = serializer.get_validation_report(dataset_name)
+        report = ValidationRepository().get_validation_report(dataset_name, run_id)
         if report is None:
             raise NotFoundError(
                 detail=f"No validation report found for dataset: {dataset_name}",
             )
         return ValidationReportResponse(**report)
+
+    # -------------------------------------------------------------------------
+    async def list_validation_runs(self, dataset_name: str) -> ValidationRunListResponse:
+        runs = ValidationRepository().list_validation_runs(dataset_name)
+        if runs is None:
+            raise NotFoundError(detail=f"Dataset not found: {dataset_name}")
+        return ValidationRunListResponse(dataset_name=dataset_name, runs=runs)
+
+    # -------------------------------------------------------------------------
+    async def list_run_records(
+        self,
+        dataset_name: str,
+        run_id: int,
+        kind: str,
+        sort: str | None,
+        descending: bool,
+        search: str | None,
+        limit: int,
+        offset: int,
+    ) -> RecordStatisticsResponse:
+        try:
+            page = ValidationRepository().list_run_records(
+                dataset_name,
+                run_id,
+                kind,
+                sort=sort,
+                descending=descending,
+                search=search,
+                limit=limit,
+                offset=offset,
+            )
+        except ValueError as exc:
+            raise BadRequestError(detail=str(exc)) from exc
+        if page is None:
+            raise NotFoundError(
+                detail=f"No validation run {run_id} found for dataset: {dataset_name}"
+            )
+        return RecordStatisticsResponse(**page)
 
     # -------------------------------------------------------------------------
     async def get_checkpoint_evaluation_report(
