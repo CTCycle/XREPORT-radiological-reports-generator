@@ -12,6 +12,7 @@ from typing import Any
 from xreport_shared.common.path import CHECKPOINTS_DIR
 from xreport_shared.common.utils.logger import logger
 
+
 ###############################################################################
 class ModelSerializer:
 

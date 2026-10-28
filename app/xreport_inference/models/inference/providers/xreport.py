@@ -16,6 +16,7 @@ from xreport_inference.domain.inference import InferenceImage
 TextGenerator: Any | None = None
 XRAYDataLoader: Any | None = None
 
+
 ###############################################################################
 class XReportCheckpointProvider:
     """Runs existing XREPORT checkpoints without changing their decoding behavior."""

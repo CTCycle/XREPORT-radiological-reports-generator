@@ -28,6 +28,7 @@ from xreport_shared.services.errors import PayloadTooLargeError
 if TYPE_CHECKING:
     from xreport_inference.services.inference import InferenceService
 
+
 ###############################################################################
 def parse_generation_request(
     model_ref: str = Form(...),
@@ -41,6 +42,7 @@ def parse_generation_request(
         clinical_context=clinical_context,
         batch_mode=batch_mode,
     )
+
 
 ###############################################################################
 class InferenceEndpoint:
@@ -230,6 +232,7 @@ class InferenceEndpoint:
             response_model=JobStartResponse,
             status_code=status.HTTP_202_ACCEPTED,
         )
+
 
 ###############################################################################
 def get_router() -> APIRouter:

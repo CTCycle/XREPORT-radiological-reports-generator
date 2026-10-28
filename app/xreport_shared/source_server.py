@@ -11,14 +11,17 @@ import uvicorn
 from fastapi import FastAPI
 
 
+###############################################################################
 class LauncherOwnedServer(uvicorn.Server):
     """Leave Ctrl+C to the launcher so shutdown uses the authenticated API."""
 
+    # -------------------------------------------------------------------------
     @contextmanager
     def capture_signals(self) -> Generator[None, None, None]:
         yield
 
 
+###############################################################################
 def serve(app: FastAPI, port: int) -> None:
     host = os.getenv("FASTAPI_HOST", "127.0.0.1")
     signal.signal(signal.SIGINT, signal.SIG_IGN)

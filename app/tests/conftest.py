@@ -11,6 +11,7 @@ from queue import Queue
 
 import pytest
 
+
 ###############################################################################
 def _configure_test_cache_environment() -> None:
     """Keep direct pytest invocations on the same cache layout as launchers."""
@@ -53,12 +54,14 @@ _configure_test_cache_environment()
 import xreport_inference  # noqa: E402,F401
 import xreport_studio  # noqa: E402,F401
 
+
 ###############################################################################
 def _normalize_host(value: str) -> str:
     host = value.strip()
     if host == "0.0.0.0":
         return "127.0.0.1"
     return host
+
 
 ###############################################################################
 def _resolve_base_url(
@@ -107,17 +110,20 @@ STUDIO_API_BASE_URL = _resolve_base_url(
     fallback_port="5013",
 )
 
+
 ###############################################################################
 @pytest.fixture(scope="session")
 def base_url() -> str:
     """Returns the base URL of the UI."""
     return UI_BASE_URL
 
+
 ###############################################################################
 @pytest.fixture(scope="session")
 def api_base_url() -> str:
     """Returns the base URL of the API."""
     return API_BASE_URL
+
 
 ###############################################################################
 @pytest.fixture
@@ -130,6 +136,7 @@ def api_context(playwright):
     yield context
     context.dispose()
 
+
 ###############################################################################
 @pytest.fixture
 def studio_context(playwright):
@@ -138,17 +145,20 @@ def studio_context(playwright):
     yield context
     context.dispose()
 
+
 ###############################################################################
 @pytest.fixture(scope="session")
 def studio_base_url() -> str:
     """Returns the base URL of the Studio UI."""
     return STUDIO_UI_BASE_URL
 
+
 ###############################################################################
 @pytest.fixture
 def studio_profile(monkeypatch):
     """Resolve repositories against the XREPORT Studio schema in this process."""
     monkeypatch.setattr("xreport_shared.repositories.database.schema.APP_PROFILE", "studio")
+
 
 ###############################################################################
 def run_async_in_thread(awaitable):

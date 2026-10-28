@@ -20,9 +20,11 @@ from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 from xreport_shared.repositories.schemas.checkpoint import CheckpointColumns
 from xreport_shared.repositories.schemas.types import JSONSequence, UTCDateTime
 
+
 ###############################################################################
 class InferenceBase(DeclarativeBase):
     pass
+
 
 ###############################################################################
 class InferenceSettingsRecord(InferenceBase):
@@ -90,6 +92,7 @@ class InferenceSettingsRecord(InferenceBase):
         ),
     )
 
+
 ###############################################################################
 class Checkpoint(CheckpointColumns, InferenceBase):
     """Imported checkpoint identity."""
@@ -99,6 +102,7 @@ class Checkpoint(CheckpointColumns, InferenceBase):
         back_populates="checkpoint",
         passive_deletes=True,
     )
+
 
 ###############################################################################
 class InferenceRun(InferenceBase):
@@ -142,6 +146,7 @@ class InferenceRun(InferenceBase):
         back_populates="inference_run",
         cascade="all, delete-orphan",
     )
+
 
 ###############################################################################
 class InferenceReport(InferenceBase):

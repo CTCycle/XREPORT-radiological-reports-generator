@@ -22,6 +22,7 @@ VERSION_TABLES = {
 # Version table written by the retired shared migration stream.
 SHARED_VERSION_TABLE = "alembic_version"
 
+
 ###############################################################################
 @dataclass(frozen=True)
 class ApplicationSchema:
@@ -37,6 +38,7 @@ class ApplicationSchema:
     migrations_dir: Path
     version_table: str
 
+
 ###############################################################################
 @dataclass(frozen=True)
 class SchemaRegistration:
@@ -50,6 +52,7 @@ class SchemaRegistration:
 
 _REGISTRATIONS: dict[str, SchemaRegistration] = {}
 
+
 ###############################################################################
 def register_application_schema(profile: str, registration: SchemaRegistration) -> None:
     """Called by an application package when it is imported.
@@ -62,10 +65,12 @@ def register_application_schema(profile: str, registration: SchemaRegistration) 
     _REGISTRATIONS[profile] = registration
     _load_schema.cache_clear()
 
+
 ###############################################################################
 def application_schema(profile: str | None = None) -> ApplicationSchema:
     """Return a profile's schema; defaults to the running application's profile."""
     return _load_schema(profile or APP_PROFILE)
+
 
 ###############################################################################
 @lru_cache(maxsize=None)
@@ -92,6 +97,7 @@ def _load_schema(profile: str) -> ApplicationSchema:
         migrations_dir=registration.migrations_dir,
         version_table=VERSION_TABLES[profile],
     )
+
 
 ###############################################################################
 def profile_title(profile: str) -> str:

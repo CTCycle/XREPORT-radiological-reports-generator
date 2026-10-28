@@ -19,11 +19,13 @@ from xreport_studio.repositories.schemas.studio import (
 )
 from xreport_shared.repositories.schemas.normalization import normalize_key
 
+
 ###############################################################################
 @dataclass(frozen=True)
 class DatasetDeletionResult:
     deleted_count: int
     dependent_dataset_names: tuple[str, ...] = ()
+
 
 ###############################################################################
 class PreparationRepository:

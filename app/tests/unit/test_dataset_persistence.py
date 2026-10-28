@@ -28,35 +28,6 @@ from xreport_inference.repositories.serialization.inference import InferenceRepo
 from xreport_studio.repositories.serialization.validation import ValidationRepository
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 ###############################################################################
 @pytest.fixture
 def database() -> Iterator[DatasetDatabase]:
@@ -79,6 +50,7 @@ def database() -> Iterator[DatasetDatabase]:
     yield database
     engine.dispose()
 
+
 ###############################################################################
 def _preparation_service(database: DatasetDatabase) -> PreparationService:
     return PreparationService(
@@ -89,6 +61,7 @@ def _preparation_service(database: DatasetDatabase) -> PreparationService:
         upload_state=cast(UploadState, None),
         server_settings=cast(ServerSettings, SimpleNamespace()),
     )
+
 
 ###############################################################################
 def test_source_dataset_delete_preserves_processed_samples_until_they_are_deleted(
@@ -203,29 +176,6 @@ def test_source_dataset_delete_preserves_processed_samples_until_they_are_delete
         assert session.execute(text("PRAGMA integrity_check")).scalar_one() == "ok"
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 ###############################################################################
 def _memory_database(metadata) -> Database:
     database = Database.__new__(Database)
@@ -237,10 +187,12 @@ def _memory_database(metadata) -> Database:
     metadata.create_all(database.engine)
     return database
 
+
 ###############################################################################
 def _serializer() -> tuple[DatasetRepository, Database]:
     database = _memory_database(StudioBase.metadata)
     return DatasetRepository(database=database), database
+
 
 ###############################################################################
 def test_dataset_import_replaces_stale_rows_and_updates_reports() -> None:
@@ -301,6 +253,7 @@ def test_dataset_import_replaces_stale_rows_and_updates_reports() -> None:
     assert rows[0].report_text == "new"
     assert rows[0].image_path == "new-path"
 
+
 ###############################################################################
 def test_fractional_sampling_retains_one_row_for_small_nonempty_dataset() -> None:
     dataset = pd.DataFrame([{"record_id": 1}, {"record_id": 2}])
@@ -309,6 +262,7 @@ def test_fractional_sampling_retains_one_row_for_small_nonempty_dataset() -> Non
 
     assert len(sampled) == 1
     assert sampled.iloc[0]["record_id"] in {1, 2}
+
 
 ###############################################################################
 def test_dataset_import_rolls_back_when_a_record_is_invalid() -> None:
@@ -355,6 +309,7 @@ def test_dataset_import_rolls_back_when_a_record_is_invalid() -> None:
     assert len(rows) == 1
     assert rows[0].report_text == "stable"
 
+
 ###############################################################################
 def test_identical_dataset_content_reuses_the_existing_version() -> None:
     serializer, database = _serializer()
@@ -375,6 +330,7 @@ def test_identical_dataset_content_reuses_the_existing_version() -> None:
         versions = session.execute(select(DatasetVersion)).scalars().all()
     assert len(versions) == 1
     assert versions[0].version_number == 1
+
 
 ###############################################################################
 def test_processing_run_and_samples_roll_back_together() -> None:
@@ -426,6 +382,7 @@ def test_processing_run_and_samples_roll_back_together() -> None:
     with database.read_session() as session:
         assert session.execute(select(ProcessingRun)).scalars().all() == []
 
+
 ###############################################################################
 def _seed_validation_dataset(
     repository: DatasetRepository, database: Database, name: str, texts: list[str]
@@ -453,6 +410,7 @@ def _seed_validation_dataset(
             ).scalars()
         )
 
+
 ###############################################################################
 def _validation_run(name: str, record_ids: list[int], words: list[int], **extra) -> dict:
     return {
@@ -474,6 +432,7 @@ def _validation_run(name: str, record_ids: list[int], words: list[int], **extra)
         "histograms": {"report_length": [(0.0, 5.0, 1), (5.0, 10.0, len(words) - 1)]},
         **extra,
     }
+
 
 ###############################################################################
 @pytest.mark.usefixtures("studio_profile")
@@ -499,6 +458,7 @@ def test_repeated_validation_runs_are_kept_as_history() -> None:
     # Metrics that were not computed are absent, never reported as zero rows.
     assert [item["domain"] for item in older["aggregates"]] == ["text"]
 
+
 ###############################################################################
 @pytest.mark.usefixtures("studio_profile")
 def test_statistics_are_queryable_with_plain_sql_across_datasets() -> None:
@@ -521,6 +481,7 @@ def test_statistics_are_queryable_with_plain_sql_across_datasets() -> None:
             )
         ).all()
     assert rows == [("Chest", 1.5, 2), ("Spine", 5.0, 6)]
+
 
 ###############################################################################
 @pytest.mark.usefixtures("studio_profile")
@@ -546,6 +507,7 @@ def test_record_statistics_page_sorts_filters_and_rejects_unknown_columns() -> N
     with pytest.raises(ValueError):
         repository.list_run_records("Chest", run_id, "text", sort="word_count; DROP")
 
+
 ###############################################################################
 @pytest.mark.usefixtures("studio_profile")
 def test_deleting_a_dataset_removes_its_statistics() -> None:
@@ -567,6 +529,7 @@ def test_deleting_a_dataset_removes_its_statistics() -> None:
             "validation_histogram_bins",
         ):
             assert session.execute(text(f"SELECT COUNT(*) FROM {table}")).scalar_one() == 0
+
 
 ###############################################################################
 @pytest.mark.usefixtures("studio_profile")
@@ -601,6 +564,7 @@ def test_checkpoint_evaluation_is_owned_by_validation_repository() -> None:
         "metric_configs": {"bleu_score": {"data_fraction": 0.5}},
         "results": {"bleu_score": 0.75},
     }
+
 
 ###############################################################################
 def test_inference_reports_preserve_input_order_and_are_idempotent() -> None:
@@ -687,6 +651,7 @@ def test_inference_reports_preserve_input_order_and_are_idempotent() -> None:
         "offset": 0,
     }
 
+
 ###############################################################################
 def test_inference_history_crud_preserves_original_text_and_isolated_deletion() -> None:
     database = _memory_database(InferenceBase.metadata)
@@ -770,6 +735,7 @@ def test_inference_history_crud_preserves_original_text_and_isolated_deletion() 
     assert repository.delete_inference_history("older-request") is True
     assert repository.get_inference_history("older-request") is None
     assert repository.get_inference_history("newer-request") is not None
+
 
 ###############################################################################
 @pytest.mark.usefixtures("studio_profile")

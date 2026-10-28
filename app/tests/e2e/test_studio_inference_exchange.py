@@ -34,12 +34,14 @@ pytestmark = pytest.mark.skipif(
 )
 
 
+###############################################################################
 def _free_port() -> int:
     with socket.socket() as probe:
         probe.bind(("127.0.0.1", 0))
         return int(probe.getsockname()[1])
 
 
+###############################################################################
 def _start(application: str, profile: str, resources: Path, port: int) -> subprocess.Popen:
     (resources / "models").mkdir(parents=True)
     for name in ("XRAYEncoder", "tokenizers"):
@@ -60,6 +62,7 @@ def _start(application: str, profile: str, resources: Path, port: int) -> subpro
     )
 
 
+###############################################################################
 def _wait_ready(client: httpx.Client) -> None:
     deadline = time.monotonic() + 120
     while time.monotonic() < deadline:
@@ -72,6 +75,7 @@ def _wait_ready(client: httpx.Client) -> None:
     raise AssertionError("application did not become ready")
 
 
+###############################################################################
 def _finish(client: httpx.Client, job_id: str, timeout: float = 600) -> dict:
     deadline = time.monotonic() + timeout
     while time.monotonic() < deadline:
@@ -83,6 +87,7 @@ def _finish(client: httpx.Client, job_id: str, timeout: float = 600) -> dict:
     raise AssertionError(f"job {job_id} did not finish")
 
 
+###############################################################################
 @pytest.fixture(scope="module")
 def applications(tmp_path_factory: pytest.TempPathFactory) -> Iterator[tuple[httpx.Client, httpx.Client]]:
     root = tmp_path_factory.mktemp("exchange")

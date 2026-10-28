@@ -40,6 +40,7 @@ DRIVE_WARNINGS = {2: "removable drive", 4: "network drive"}
 def _same_path(left: Path, right: Path) -> bool:
     return os.path.normcase(str(left)) == os.path.normcase(str(right))
 
+
 ###############################################################################
 def _is_within(path: Path, parent: Path) -> bool:
     try:
@@ -48,11 +49,13 @@ def _is_within(path: Path, parent: Path) -> bool:
         return False
     return True
 
+
 ###############################################################################
 def _entry_size(path: Path) -> int:
     if path.is_file():
         return path.stat().st_size
     return sum(item.stat().st_size for item in path.rglob("*") if item.is_file())
+
 
 ###############################################################################
 def _nearest_existing(path: Path) -> Path:
@@ -60,6 +63,7 @@ def _nearest_existing(path: Path) -> Path:
     while not candidate.exists() and candidate != candidate.parent:
         candidate = candidate.parent
     return candidate
+
 
 ###############################################################################
 def _drive_warning(path: Path) -> str | None:
@@ -71,9 +75,11 @@ def _drive_warning(path: Path) -> str | None:
         return None
     return f"The location is on a {label}; models and the database may be slow or unavailable."
 
+
 ###############################################################################
 def _entries_present(root: Path) -> list[Path]:
     return [root / name for name in STORAGE_ENTRIES if (root / name).exists()]
+
 
 ###############################################################################
 def _rewrite_paths(staged: Path, old_root: Path, new_root: Path) -> None:
@@ -109,6 +115,7 @@ def _rewrite_paths(staged: Path, old_root: Path, new_root: Path) -> None:
             payload["sqlite_path"] = str(new_root / DATABASE_ENTRY)
             config.write_text(json.dumps(payload, indent=2), encoding="utf-8")
 
+
 ###############################################################################
 def _backup_database(source: Path, destination: Path) -> None:
     origin = sqlite3.connect(source)
@@ -118,6 +125,7 @@ def _backup_database(source: Path, destination: Path) -> None:
     finally:
         copy.close()
         origin.close()
+
 
 ###############################################################################
 def run_storage_migration(
@@ -196,6 +204,7 @@ def run_storage_migration(
         return {}
     finally:
         shutil.rmtree(staging, ignore_errors=True)
+
 
 ###############################################################################
 class StorageSettingsService:

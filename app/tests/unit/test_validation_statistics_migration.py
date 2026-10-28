@@ -12,6 +12,7 @@ from xreport_shared.repositories.database.schema import ALEMBIC_INI, application
 LEGACY_REVISION = "b3c1d5a7e9f2"
 STUDIO = application_schema("studio")
 
+
 ###############################################################################
 def _config(path: Path) -> Config:
     config = Config(
@@ -20,6 +21,7 @@ def _config(path: Path) -> Config:
     )
     config.set_main_option("sqlalchemy.url", f"sqlite:///{path.as_posix()}")
     return config
+
 
 ###############################################################################
 def _seed_legacy_runs(engine: sqlalchemy.Engine) -> None:
@@ -59,6 +61,7 @@ def _seed_legacy_runs(engine: sqlalchemy.Engine) -> None:
             "bins": json.dumps([]), "counts": json.dumps([]),
         }
         connection.execute(statement, [full, text_only])
+
 
 ###############################################################################
 def test_legacy_statistics_are_backfilled_into_relational_tables(tmp_path) -> None:
@@ -108,6 +111,7 @@ def test_legacy_statistics_are_backfilled_into_relational_tables(tmp_path) -> No
             ).one() == (256, 256)
     finally:
         engine.dispose()
+
 
 ###############################################################################
 def test_downgrade_restores_legacy_columns_and_values(tmp_path) -> None:

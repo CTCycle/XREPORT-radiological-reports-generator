@@ -31,19 +31,23 @@ _ALLOWED_PREFIXES = ("tokenizer", "encoder")
 ProgressCallback = Callable[[float], None]
 StopCallback = Callable[[], bool]
 
+
 ###############################################################################
 class ArchiveError(ValueError):
     """Raised when an exchange archive is malformed, unsafe or inconsistent."""
 
+
 ###############################################################################
 class ArchiveCancelled(RuntimeError):
     """Raised when the caller requested cancellation during archive processing."""
+
 
 ###############################################################################
 @dataclass(frozen=True)
 class ArchiveEntry:
     name: str
     size: int
+
 
 ###############################################################################
 def is_allowed_member(name: str) -> bool:
@@ -55,6 +59,7 @@ def is_allowed_member(name: str) -> bool:
         return False
     return all(_SEGMENT.fullmatch(part) for part in parts[1:])
 
+
 ###############################################################################
 def sha256_file(path: Path) -> str:
     digest = hashlib.sha256()
@@ -63,6 +68,7 @@ def sha256_file(path: Path) -> str:
             digest.update(chunk)
     return digest.hexdigest()
 
+
 ###############################################################################
 def content_digest(files: Iterable[ManifestFile]) -> str:
     """Identity of an archive payload, independent of zip layout and timestamps."""
@@ -70,6 +76,7 @@ def content_digest(files: Iterable[ManifestFile]) -> str:
     for item in sorted(files, key=lambda entry: entry.path):
         digest.update(f"{item.path}\0{item.size}\0{item.sha256}\n".encode())
     return digest.hexdigest()
+
 
 ###############################################################################
 def _check_member(info: zipfile.ZipInfo) -> None:
@@ -99,6 +106,7 @@ def _check_member(info: zipfile.ZipInfo) -> None:
     ):
         raise ArchiveError(f"Archive entry has a suspicious compression ratio: {name}")
 
+
 ###############################################################################
 def inspect_archive(archive: zipfile.ZipFile) -> dict[str, ArchiveEntry]:
     """Validate every member name and size before anything is extracted."""
@@ -116,6 +124,7 @@ def inspect_archive(archive: zipfile.ZipFile) -> dict[str, ArchiveEntry]:
             raise ArchiveError("Archive expands beyond the supported size")
         entries[info.filename] = ArchiveEntry(info.filename, info.file_size)
     return entries
+
 
 ###############################################################################
 def extract_member(
@@ -148,6 +157,7 @@ def extract_member(
     if written != expected_size:
         raise ArchiveError(f"Archive entry is shorter than declared: {name}")
     return digest.hexdigest()
+
 
 ###############################################################################
 def write_archive(

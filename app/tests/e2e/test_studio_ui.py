@@ -8,6 +8,7 @@ from playwright.sync_api import Page, expect
 import pytest
 
 
+###############################################################################
 @pytest.fixture(scope="session")
 def base_url(studio_base_url: str) -> str:
     return studio_base_url
@@ -75,6 +76,7 @@ def test_studio_tips_modal_lists_workflow_steps_and_closes_on_escape(
 
     page.keyboard.press("Escape")
     expect(dialog).to_have_count(0)
+
 
 ###############################################################################
 def test_validation_route_reports_missing_dataset_as_user_error(

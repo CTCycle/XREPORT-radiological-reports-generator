@@ -5,6 +5,7 @@ from fastapi import APIRouter, status
 from xreport_shared.domain.system import SystemStatusResponse
 from xreport_shared.services.system_status import SystemStatusService
 
+
 ###############################################################################
 class SystemEndpoint:
 
@@ -30,6 +31,7 @@ class SystemEndpoint:
             response_model=SystemStatusResponse,
             status_code=status.HTTP_200_OK,
         )
+
 
 ###############################################################################
 def get_router() -> APIRouter:

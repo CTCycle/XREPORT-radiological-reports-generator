@@ -6,6 +6,7 @@ from threading import RLock
 from xreport_shared.configurations import get_database_settings
 from xreport_shared.repositories.database.engine import Database, DatabaseConnectionSnapshot
 
+
 ###############################################################################
 @dataclass(frozen=True)
 class DatabaseActivation:
@@ -17,6 +18,7 @@ class DatabaseActivation:
 _database: Database | None = None
 _database_lock = RLock()
 
+
 ###############################################################################
 def get_database() -> Database:
     global _database
@@ -25,10 +27,12 @@ def get_database() -> Database:
             _database = Database(get_database_settings())
         return _database
 
+
 ###############################################################################
 def get_database_if_initialized() -> Database | None:
     with _database_lock:
         return _database
+
 
 ###############################################################################
 def activate_database(candidate: Database) -> DatabaseActivation:
@@ -49,6 +53,7 @@ def activate_database(candidate: Database) -> DatabaseActivation:
             created_facade=False,
         )
 
+
 ###############################################################################
 def rollback_database_activation(activation: DatabaseActivation) -> None:
     global _database
@@ -61,10 +66,12 @@ def rollback_database_activation(activation: DatabaseActivation) -> None:
         if activation.previous_engine is not None:
             activation.database.restore_connection(activation.previous_engine)
 
+
 ###############################################################################
 def finalize_database_activation(activation: DatabaseActivation) -> None:
     if activation.previous_engine is not None:
         Database.dispose_snapshot(activation.previous_engine)
+
 
 ###############################################################################
 def reset_database() -> None:

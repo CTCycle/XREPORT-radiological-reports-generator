@@ -30,6 +30,7 @@ UPSERT_CONFLICT_COLUMNS: dict[str, tuple[str, ...]] = {
 SQL_IDENTIFIER_PATTERN = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
 ALLOWED_TABLE_NAMES = frozenset(TABLE_REQUIRED_COLUMNS.keys())
 
+
 ###############################################################################
 def is_string_object_column(series: pd.Series) -> bool:
     if not pd.api.types.is_object_dtype(series):
@@ -38,6 +39,7 @@ def is_string_object_column(series: pd.Series) -> bool:
     if non_null.empty:
         return False
     return bool(non_null.map(lambda value: isinstance(value, str)).all())
+
 
 ###############################################################################
 def validate_sql_identifier(identifier: str) -> str:
@@ -48,12 +50,14 @@ def validate_sql_identifier(identifier: str) -> str:
         raise ValueError(f"Invalid SQL identifier: {identifier}")
     return normalized
 
+
 ###############################################################################
 def validate_table_name(table_name: str) -> str:
     normalized = validate_sql_identifier(table_name)
     if normalized not in ALLOWED_TABLE_NAMES:
         raise ValueError(f"Unsupported table name: {table_name}")
     return normalized
+
 
 ###############################################################################
 def normalize_postgres_engine(engine: str | None) -> str:
@@ -63,6 +67,7 @@ def normalize_postgres_engine(engine: str | None) -> str:
     if lowered in {"postgres", "postgresql"}:
         return "postgresql+psycopg"
     return engine
+
 
 ###############################################################################
 def resolve_conflict_columns(
@@ -76,6 +81,7 @@ def resolve_conflict_columns(
     if missing_columns:
         return [], missing_columns
     return configured, []
+
 
 ###############################################################################
 def normalize_string_columns(df: pd.DataFrame) -> pd.DataFrame:
@@ -93,6 +99,7 @@ def normalize_string_columns(df: pd.DataFrame) -> pd.DataFrame:
         object_series = normalized[column].astype(object)
         normalized[column] = object_series.where(object_series.notna(), None)
     return normalized
+
 
 ###############################################################################
 def validate_unique_key_values(

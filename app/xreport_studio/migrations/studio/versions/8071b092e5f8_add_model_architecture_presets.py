@@ -12,6 +12,7 @@ down_revision: Union[str, None] = "9d4d3bce4ede"
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
+
 ###############################################################################
 def upgrade() -> None:
     op.create_table(
@@ -40,6 +41,7 @@ def upgrade() -> None:
             "name_key", name="uq_model_architecture_presets_name_key"
         ),
     )
+
 
 ###############################################################################
 def downgrade() -> None:

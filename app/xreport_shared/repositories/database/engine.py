@@ -25,6 +25,7 @@ from xreport_shared.repositories.database.utils import (
 )
 from xreport_shared.repositories.database.schema import application_schema
 
+
 ###############################################################################
 @dataclass(frozen=True)
 class DatabaseConnectionSnapshot:
@@ -33,6 +34,7 @@ class DatabaseConnectionSnapshot:
     db_path: Path | None
     insert_batch_size: int
     settings: DatabaseSettings
+
 
 ###############################################################################
 class Database:

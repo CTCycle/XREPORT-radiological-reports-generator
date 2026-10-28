@@ -24,9 +24,11 @@ from xreport_shared.repositories.schemas.checkpoint import CheckpointColumns
 from xreport_shared.repositories.schemas.normalization import normalize_key
 from xreport_shared.repositories.schemas.types import JSONSequence, UTCDateTime
 
+
 ###############################################################################
 class StudioBase(DeclarativeBase):
     pass
+
 
 ###############################################################################
 class StudioSettingsRecord(StudioBase):
@@ -59,6 +61,7 @@ class StudioSettingsRecord(StudioBase):
             name="ck_application_settings_theme_preference",
         ),
     )
+
 
 ###############################################################################
 class Dataset(StudioBase):
@@ -103,6 +106,7 @@ class Dataset(StudioBase):
         back_populates="dataset",
         cascade="all, delete-orphan",
     )
+
 
 ###############################################################################
 class DatasetRecord(StudioBase):
@@ -151,6 +155,7 @@ class DatasetRecord(StudioBase):
         cascade="all, delete-orphan",
     )
 
+
 ###############################################################################
 class DatasetVersion(StudioBase):
     """Immutable snapshot of one logical imported dataset."""
@@ -183,6 +188,7 @@ class DatasetVersion(StudioBase):
     records: Mapped[list[DatasetRecord]] = relationship(
         "DatasetRecord", back_populates="dataset_version", cascade="all, delete-orphan"
     )
+
 
 ###############################################################################
 class ProcessingRun(StudioBase):
@@ -239,6 +245,7 @@ class ProcessingRun(StudioBase):
         cascade="all, delete-orphan",
     )
 
+
 ###############################################################################
 class TrainingSample(StudioBase):
     """Processed training samples linked to preprocessing runs and source records."""
@@ -277,6 +284,7 @@ class TrainingSample(StudioBase):
     record: Mapped[DatasetRecord] = relationship(
         "DatasetRecord", back_populates="training_samples"
     )
+
 
 ###############################################################################
 class ValidationRun(StudioBase):
@@ -323,6 +331,7 @@ class ValidationRun(StudioBase):
     )
     dataset: Mapped[Dataset] = relationship("Dataset", back_populates="validation_runs")
 
+
 ###############################################################################
 class ValidationRunMetric(StudioBase):
     """Metric computed by a validation run and the records it covered."""
@@ -335,6 +344,7 @@ class ValidationRunMetric(StudioBase):
     )
     metric: Mapped[str] = mapped_column(String(40), primary_key=True)
     records_computed: Mapped[int | None] = mapped_column(Integer)
+
 
 ###############################################################################
 class RecordTextStat(StudioBase):
@@ -357,6 +367,7 @@ class RecordTextStat(StudioBase):
     token_count: Mapped[int | None] = mapped_column(Integer)
     truncated: Mapped[bool | None] = mapped_column(Boolean)
     __table_args__ = (Index("ix_record_text_stats_record_id", "record_id"),)
+
 
 ###############################################################################
 class RecordImageStat(StudioBase):
@@ -383,6 +394,7 @@ class RecordImageStat(StudioBase):
     noise_std: Mapped[float] = mapped_column(Float, nullable=False)
     noise_ratio: Mapped[float] = mapped_column(Float, nullable=False)
     __table_args__ = (Index("ix_record_image_stats_record_id", "record_id"),)
+
 
 ###############################################################################
 class ValidationAggregate(StudioBase):
@@ -414,6 +426,7 @@ class ValidationAggregate(StudioBase):
         CheckConstraint("count >= 0", name="ck_validation_aggregates_count"),
     )
 
+
 ###############################################################################
 class ValidationHistogramBin(StudioBase):
     """One bin of a run-level histogram (pixel intensity, report length)."""
@@ -433,6 +446,7 @@ class ValidationHistogramBin(StudioBase):
         CheckConstraint("count >= 0", name="ck_validation_histogram_bins_count"),
     )
 
+
 ###############################################################################
 class Checkpoint(CheckpointColumns, StudioBase):
     """Trained checkpoint identity."""
@@ -442,6 +456,7 @@ class Checkpoint(CheckpointColumns, StudioBase):
         back_populates="checkpoint",
         passive_deletes=True,
     )
+
 
 ###############################################################################
 class CheckpointEvaluation(StudioBase):
@@ -471,6 +486,7 @@ class CheckpointEvaluation(StudioBase):
         "Checkpoint", back_populates="evaluations"
     )
 
+
 ###############################################################################
 class ModelArchitecturePreset(StudioBase):
     """User-defined model architecture preset."""
@@ -497,6 +513,7 @@ class ModelArchitecturePreset(StudioBase):
         UniqueConstraint("name_key", name="uq_model_architecture_presets_name_key"),
     )
 
+
 ###############################################################################
 class HiddenArchitecturePreset(StudioBase):
     """Built-in architecture preset removed from the user's preset collection."""
@@ -504,10 +521,12 @@ class HiddenArchitecturePreset(StudioBase):
     __tablename__ = "hidden_architecture_presets"
     preset_key: Mapped[str] = mapped_column(String(80), primary_key=True)
 
+
 ###############################################################################
 @event.listens_for(Dataset, "before_insert")
 def _populate_dataset_name_key(_mapper: Any, _connection: Any, target: Dataset) -> None:
     target.name_key = normalize_key(target.name)
+
 
 ###############################################################################
 @event.listens_for(DatasetRecord, "before_insert")

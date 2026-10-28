@@ -9,9 +9,11 @@ from nltk.translate.bleu_score import corpus_bleu
 
 from xreport_shared.common.utils.logger import logger
 
+
 ###############################################################################
 class CheckpointInputMismatchError(ValueError):
     """Raised when checkpoint input shapes do not match evaluation data."""
+
 
 ###############################################################################
 class CheckpointEvaluator:

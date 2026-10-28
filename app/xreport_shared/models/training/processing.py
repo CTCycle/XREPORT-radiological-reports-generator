@@ -8,6 +8,7 @@ import pandas as pd
 
 from xreport_shared.common.path import TOKENIZERS_DIR
 
+
 ###############################################################################
 class TrainValidationSplit:
 
@@ -46,6 +47,7 @@ class TrainValidationSplit:
 
         return dataframe
 
+
 ###############################################################################
 class TextSanitizer:
 
@@ -59,17 +61,21 @@ class TextSanitizer:
         dataset["text"] = dataset["text"].str.replace(r"[^a-zA-Z0-9\s]", "", regex=True)
         return dataset
 
+
 ###############################################################################
 class TokenizerError(RuntimeError):
     """Base error for tokenizer resolution failures that users can act on."""
+
 
 ###############################################################################
 class TokenizerUnavailableError(TokenizerError):
     """The tokenizer files cannot be loaded (unknown id, offline, missing library)."""
 
+
 ###############################################################################
 class TokenizerCompatibilityError(TokenizerError):
     """The tokenizer cannot drive the report decoder (missing special tokens)."""
+
 
 ###############################################################################
 @dataclass(frozen=True)
@@ -82,6 +88,7 @@ class SpecialTokens:
     start_token_id: int
     end_token_id: int
     pad_token_id: int
+
 
 ###############################################################################
 def resolve_special_tokens(tokenizer: Any) -> SpecialTokens:
@@ -111,9 +118,11 @@ def resolve_special_tokens(tokenizer: Any) -> SpecialTokens:
         pad_token_id=int(tokenizer.pad_token_id),
     )
 
+
 ###############################################################################
 def exchange_tokenizer_path(tokenizer_name: str) -> Path:
     return TOKENIZERS_DIR / "_exchange" / tokenizer_name.replace("/", "--")
+
 
 ###############################################################################
 def cached_tokenizer_revision(tokenizer_name: str) -> str | None:
@@ -130,12 +139,14 @@ def cached_tokenizer_revision(tokenizer_name: str) -> str | None:
     except OSError:
         return None
 
+
 ###############################################################################
 def is_cached_tokenizer(tokenizer_name: str) -> bool:
     exchange = exchange_tokenizer_path(tokenizer_name)
     return (exchange.is_dir() and any(exchange.iterdir())) or (
         cached_tokenizer_revision(tokenizer_name) is not None
     )
+
 
 ###############################################################################
 def load_tokenizer(tokenizer_name: str) -> Any:
@@ -161,6 +172,7 @@ def load_tokenizer(tokenizer_name: str) -> Any:
         raise TokenizerUnavailableError(
             f"Tokenizer '{tokenizer_name}' could not be loaded: {exc}"
         ) from exc
+
 
 ###############################################################################
 class TokenizerHandler:

@@ -11,6 +11,7 @@ VALIDATION_METRICS = frozenset(
 )
 CHECKPOINT_EVALUATION_METRICS = frozenset({"evaluation_report", "bleu_score"})
 
+
 ###############################################################################
 def _validate_metric_names(
     metrics: list[str],
@@ -21,6 +22,7 @@ def _validate_metric_names(
     if unsupported:
         raise ValueError(f"Unsupported {label}: {', '.join(unsupported)}")
     return metrics
+
 
 ###############################################################################
 class ValidationRequest(BaseModel):
@@ -48,12 +50,14 @@ class ValidationRequest(BaseModel):
             raise ValueError("Token statistics require the text_statistics metric")
         return self
 
+
 ###############################################################################
 class PixelDistribution(BaseModel):
     """Model for pixel intensity distribution."""
 
     bins: list[int]
     counts: list[int]
+
 
 ###############################################################################
 class ImageStatistics(BaseModel):
@@ -67,6 +71,7 @@ class ImageStatistics(BaseModel):
     mean_noise_std: float
     mean_noise_ratio: float
 
+
 ###############################################################################
 class TextStatistics(BaseModel):
     """Model for text statistics."""
@@ -78,6 +83,7 @@ class TextStatistics(BaseModel):
     min_words_per_report: int
     max_words_per_report: int
 
+
 ###############################################################################
 class ValidationResponse(BaseModel):
     """Response model for dataset validation."""
@@ -88,12 +94,14 @@ class ValidationResponse(BaseModel):
     image_statistics: ImageStatistics | None = None
     text_statistics: TextStatistics | None = None
 
+
 ###############################################################################
 class ValidationRunMetricModel(BaseModel):
     """A metric computed by a run and how many records it covered."""
 
     metric: str
     records_computed: int | None = None
+
 
 ###############################################################################
 class ValidationRunSummary(BaseModel):
@@ -109,6 +117,7 @@ class ValidationRunSummary(BaseModel):
     tokenizer: str | None = None
     max_report_size: int | None = None
     metrics: list[ValidationRunMetricModel] = Field(default_factory=list)
+
 
 ###############################################################################
 class AggregateStatistic(BaseModel):
@@ -128,16 +137,19 @@ class AggregateStatistic(BaseModel):
     p75: float | None = None
     p95: float | None = None
 
+
 ###############################################################################
 class HistogramBinModel(BaseModel):
     lower: float
     upper: float
     count: int
 
+
 ###############################################################################
 class HistogramModel(BaseModel):
     name: str
     bins: list[HistogramBinModel]
+
 
 ###############################################################################
 class ValidationReportResponse(BaseModel):
@@ -148,6 +160,7 @@ class ValidationReportResponse(BaseModel):
     aggregates: list[AggregateStatistic] = Field(default_factory=list)
     histograms: list[HistogramModel] = Field(default_factory=list)
 
+
 ###############################################################################
 class ValidationRunListResponse(BaseModel):
     """Validation history of a dataset, newest first."""
@@ -155,12 +168,14 @@ class ValidationRunListResponse(BaseModel):
     dataset_name: str
     runs: list[ValidationRunSummary]
 
+
 ###############################################################################
 class RecordStatisticsResponse(BaseModel):
     """One page of per-record statistics of a run."""
 
     total: int
     rows: list[dict[str, str | int | float | bool | None]]
+
 
 ###############################################################################
 class CheckpointEvaluationRequest(BaseModel):
@@ -184,6 +199,7 @@ class CheckpointEvaluationRequest(BaseModel):
             "checkpoint evaluation metrics",
         )
 
+
 ###############################################################################
 class CheckpointEvaluationResults(BaseModel):
     """Evaluation metric results."""
@@ -192,6 +208,7 @@ class CheckpointEvaluationResults(BaseModel):
     accuracy: float | None = None
     bleu_score: float | None = None
 
+
 ###############################################################################
 class CheckpointEvaluationResponse(BaseModel):
     """Response model for checkpoint evaluation."""
@@ -199,6 +216,7 @@ class CheckpointEvaluationResponse(BaseModel):
     success: bool
     message: str
     results: CheckpointEvaluationResults | None = None
+
 
 ###############################################################################
 class CheckpointEvaluationReportResponse(BaseModel):

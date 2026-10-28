@@ -6,6 +6,7 @@ from xreport_shared.domain.jobs import JobCancelResponse, JobListResponse, JobSt
 from xreport_shared.services.errors import NotFoundError
 from xreport_shared.services.jobs import JobManager, get_job_manager
 
+
 ###############################################################################
 class JobsEndpoint:
 
@@ -75,6 +76,7 @@ class JobsEndpoint:
             response_model=JobCancelResponse,
             status_code=status.HTTP_200_OK,
         )
+
 
 ###############################################################################
 def get_router() -> APIRouter:

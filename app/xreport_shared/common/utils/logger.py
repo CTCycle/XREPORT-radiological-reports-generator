@@ -12,10 +12,12 @@ LOGS_DIR.mkdir(parents=True, exist_ok=True)
 current_timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
 log_filename = LOGS_DIR / f"XREPORT_{current_timestamp}.log"
 
+
 ###############################################################################
 class RoutineAccessFilter(logging.Filter):
     """Demote successful HTTP access records to DEBUG so polling stays out of the console."""
 
+    # -------------------------------------------------------------------------
     def filter(self, record: logging.LogRecord) -> bool:
         # uvicorn access args: (client, method, path, http_version, status_code)
         args = record.args

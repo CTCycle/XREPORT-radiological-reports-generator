@@ -79,11 +79,13 @@ MEASUREMENT_FIELDS = (
     "last_worker_phase",
 )
 
+
 ###############################################################################
 def utc_now() -> str:
     """Return a stable ISO-8601 representation for receipt timestamps."""
 
     return datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+
 
 ###############################################################################
 def normalize_group(value: str) -> str:
@@ -95,6 +97,7 @@ def normalize_group(value: str) -> str:
         raise ValueError(f"Unknown group {value!r}; expected one of: {choices}")
     return group
 
+
 ###############################################################################
 def normalize_execution_lane(value: str) -> str:
     """Normalize the device lane used by the generated workload matrix."""
@@ -104,6 +107,7 @@ def normalize_execution_lane(value: str) -> str:
         choices = ", ".join(sorted(EXECUTION_LANES))
         raise ValueError(f"Unknown execution lane {value!r}; expected one of: {choices}")
     return lane
+
 
 ###############################################################################
 def normalize_start_mode(value: str) -> str:
@@ -115,6 +119,7 @@ def normalize_start_mode(value: str) -> str:
         raise ValueError(f"Unknown start mode {value!r}; expected one of: {choices}")
     return mode
 
+
 ###############################################################################
 def _sha256(path: Path) -> str:
     digest = hashlib.sha256()
@@ -122,6 +127,7 @@ def _sha256(path: Path) -> str:
         for chunk in iter(lambda: source.read(1024 * 1024), b""):
             digest.update(chunk)
     return digest.hexdigest()
+
 
 ###############################################################################
 @dataclass(frozen=True)
@@ -158,6 +164,7 @@ class FixtureDefinition:
             "de_identification": self.de_identification,
         }
 
+
 ###############################################################################
 @dataclass(frozen=True)
 class ResourceRef:
@@ -169,6 +176,7 @@ class ResourceRef:
     # -------------------------------------------------------------------------
     def to_dict(self) -> dict[str, str]:
         return {"kind": self.kind, "name": self.name}
+
 
 ###############################################################################
 @dataclass(frozen=True)
@@ -189,6 +197,7 @@ class MultipartPart:
             "size_bytes": len(self.content),
             "sha256": hashlib.sha256(self.content).hexdigest(),
         }
+
 
 ###############################################################################
 @dataclass(frozen=True)
@@ -218,6 +227,7 @@ class OperationSpec:
             "creates": [resource.to_dict() for resource in self.creates],
             "multipart": [part.to_dict() for part in self.multipart],
         }
+
 
 ###############################################################################
 @dataclass(frozen=True)
@@ -258,6 +268,7 @@ class ScenarioDefinition:
             "operations": [operation.to_dict() for operation in self.operations],
         }
 
+
 ###############################################################################
 def training_payload(
     fixture: FixtureDefinition,
@@ -289,6 +300,7 @@ def training_payload(
         "warmup_steps": 1000,
     }
 
+
 ###############################################################################
 def validation_payload(fixture: FixtureDefinition) -> dict[str, Any]:
     return {
@@ -297,6 +309,7 @@ def validation_payload(fixture: FixtureDefinition) -> dict[str, Any]:
         "sample_size": 1.0,
         "seed": 42,
     }
+
 
 ###############################################################################
 def evaluation_payload(fixture: FixtureDefinition) -> dict[str, Any]:
@@ -307,6 +320,7 @@ def evaluation_payload(fixture: FixtureDefinition) -> dict[str, Any]:
         "seed": 42,
     }
 
+
 ###############################################################################
 def inference_payload(fixture: FixtureDefinition) -> dict[str, Any]:
     return {
@@ -314,6 +328,7 @@ def inference_payload(fixture: FixtureDefinition) -> dict[str, Any]:
         "generation_profile": "deterministic",
         "clinical_context": "",
     }
+
 
 ###############################################################################
 def inference_multipart(fixture: FixtureDefinition) -> tuple[MultipartPart, ...]:
@@ -334,6 +349,7 @@ def inference_multipart(fixture: FixtureDefinition) -> tuple[MultipartPart, ...]
         MultipartPart("images", image_path.read_bytes(), image_path.name, content_type),
     )
 
+
 ###############################################################################
 def processing_payload(
     fixture: FixtureDefinition, custom_name: str
@@ -346,6 +362,7 @@ def processing_payload(
         "tokenizer": "distilbert-base-uncased",
         "max_report_size": 200,
     }
+
 
 ###############################################################################
 def _operation(
@@ -372,6 +389,7 @@ def _operation(
         multipart=tuple(multipart),
     )
 
+
 ###############################################################################
 def _lane_uses_gpu(execution_lane: str) -> bool:
     """Return the request value for a GPU-backed training operation.
@@ -383,6 +401,7 @@ def _lane_uses_gpu(execution_lane: str) -> bool:
 
     return normalize_execution_lane(execution_lane) in {"cuda", "unavailable-gpu"}
 
+
 ###############################################################################
 def _lane_device_label(execution_lane: str) -> str:
     lane = normalize_execution_lane(execution_lane)
@@ -391,6 +410,7 @@ def _lane_device_label(execution_lane: str) -> str:
         "cpu": "cpu",
         "unavailable-gpu": "cpu-fallback",
     }[lane]
+
 
 ###############################################################################
 def build_scenarios(
@@ -733,6 +753,7 @@ def build_scenarios(
         for scenario in scenarios
     )
 
+
 ###############################################################################
 def build_plan(
     group: str = "ALL",
@@ -840,6 +861,7 @@ def build_plan(
         ],
     }
 
+
 ###############################################################################
 class ApiFailure(RuntimeError):
     """Raised when an API response is outside an operation's contract."""
@@ -851,6 +873,7 @@ class ApiFailure(RuntimeError):
         self.path = path
         self.status = status
         self.body = body
+
 
 ###############################################################################
 class ApiClient:
@@ -928,6 +951,7 @@ class ApiClient:
         if accepted is None and status >= 400:
             raise ApiFailure(method, path, status, body)
         return {"status": status, "body": body}
+
 
 ###############################################################################
 class ApiOperations:
@@ -1016,6 +1040,7 @@ class ApiOperations:
                 expected_statuses={200, 404},
             )
         return state
+
 
 ###############################################################################
 class ResourceSampler:
@@ -1158,6 +1183,7 @@ class ResourceSampler:
                     matches.append(line.strip())
         sample["device_log_matches"] = matches[-12:]
 
+
 ###############################################################################
 class ResourceMonitor:
     """Capture resource samples until a scenario's jobs reach terminal state."""
@@ -1193,6 +1219,7 @@ class ResourceMonitor:
         while not self._stop.wait(self.interval_seconds):
             self.samples.append(self.sampler.sample())
 
+
 ###############################################################################
 def _worker_pid_from_status(status: Any) -> int | None:
     """Extract a worker PID from either the job result or diagnostics fields."""
@@ -1213,6 +1240,7 @@ def _worker_pid_from_status(status: Any) -> int | None:
         if isinstance(candidate, int) and not isinstance(candidate, bool) and candidate > 0:
             return candidate
     return None
+
 
 ###############################################################################
 class JobPoller:
@@ -1330,12 +1358,14 @@ class JobPoller:
                     }
                 )
 
+
 ###############################################################################
 def _body(state: dict[str, Any], key: str) -> Any:
     response = state.get(key, {})
     if isinstance(response, dict) and "body" in response:
         return response["body"]
     return response
+
 
 ###############################################################################
 def _names(body: Any, key: str) -> set[str]:
@@ -1351,6 +1381,7 @@ def _names(body: Any, key: str) -> set[str]:
         elif isinstance(value, dict) and isinstance(value.get("name"), str):
             result.add(value["name"])
     return result
+
 
 ###############################################################################
 @dataclass
@@ -1406,6 +1437,7 @@ class ResourceTracker:
             "preexisting": [resource.to_dict() for resource in self.preexisting],
         }
 
+
 ###############################################################################
 class CleanupManager:
     """Remove task-created records and verify the post-run inventory."""
@@ -1452,6 +1484,7 @@ class CleanupManager:
             result["errors"].append({"phase": "post_cleanup_inventory", "error": str(exc)})
         return result
 
+
 ###############################################################################
 def _training_checkpoint_from_job(job: dict[str, Any]) -> str | None:
     status = job.get("last_status")
@@ -1464,6 +1497,7 @@ def _training_checkpoint_from_job(job: dict[str, Any]) -> str | None:
     if not isinstance(checkpoint_path, str):
         return None
     return Path(checkpoint_path).name
+
 
 ###############################################################################
 def _record_training_observations(job: dict[str, Any]) -> None:
@@ -1526,6 +1560,7 @@ def _record_training_observations(job: dict[str, Any]) -> None:
     if worker_pids and not isinstance(job.get("worker_pid"), int):
         job["worker_pid"] = worker_pids[-1]
 
+
 ###############################################################################
 def _record_worker_cleanup(job: dict[str, Any]) -> None:
     """Record whether observed worker processes remain after terminal status."""
@@ -1560,6 +1595,7 @@ def _record_worker_cleanup(job: dict[str, Any]) -> None:
         "status": "orphaned" if alive else "clean",
         "processes": processes,
     }
+
 
 ###############################################################################
 def _attribute_job_resources(
@@ -1613,6 +1649,7 @@ def _attribute_job_resources(
         "gpu_attribution": "host-level samples; per-job GPU attribution unavailable",
     }
 
+
 ###############################################################################
 def _running_job_entries(response: Any) -> list[dict[str, Any]]:
     """Return normalized running-job entries from the inventory response."""
@@ -1623,6 +1660,7 @@ def _running_job_entries(response: Any) -> list[dict[str, Any]]:
         return []
     return [job for job in jobs if isinstance(job, dict)]
 
+
 ###############################################################################
 def _job_id_from_entry(entry: dict[str, Any]) -> str | None:
     for key in ("job_id", "id"):
@@ -1630,6 +1668,7 @@ def _job_id_from_entry(entry: dict[str, Any]) -> str | None:
         if isinstance(value, str) and value:
             return value
     return None
+
 
 ###############################################################################
 def _assert_device_lane_observed(
@@ -1666,6 +1705,7 @@ def _assert_device_lane_observed(
                 "observed_device_log_matches": matches[-12:],
             }
         )
+
 
 ###############################################################################
 def run_scenario(
@@ -1895,6 +1935,7 @@ def run_scenario(
     )
     return batch
 
+
 ###############################################################################
 class ReceiptSerializer:
     """Write stable, human-readable JSON receipts without status inference."""
@@ -1907,6 +1948,7 @@ class ReceiptSerializer:
             json.dumps(receipt, indent=2, sort_keys=True, default=str) + "\n",
             encoding="utf-8",
         )
+
 
 ###############################################################################
 def _repository_metadata() -> dict[str, Any]:
@@ -1939,6 +1981,7 @@ def _repository_metadata() -> dict[str, Any]:
         metadata["error"] = "git metadata unavailable"
     return metadata
 
+
 ###############################################################################
 def _host_metadata() -> dict[str, Any]:
     return {
@@ -1948,6 +1991,7 @@ def _host_metadata() -> dict[str, Any]:
         "processor": platform.processor(),
         "cpu_count": os.cpu_count(),
     }
+
 
 ###############################################################################
 def database_integrity(resource_root: Path) -> dict[str, Any]:
@@ -1986,6 +2030,7 @@ def database_integrity(resource_root: Path) -> dict[str, Any]:
         if connection is not None:
             connection.close()
     return result
+
 
 ###############################################################################
 def run_cold_start_probes(
@@ -2044,6 +2089,7 @@ def run_cold_start_probes(
             }
         probes.append(probe)
     return probes
+
 
 ###############################################################################
 def generate_scaled_fixture(
@@ -2136,6 +2182,7 @@ def generate_scaled_fixture(
         "scale": scale,
     }
 
+
 ###############################################################################
 def _arguments() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
@@ -2188,6 +2235,7 @@ def _arguments() -> argparse.Namespace:
         help="Fresh backend-app import probes for S51/ALL (default: 10).",
     )
     return parser.parse_args()
+
 
 ###############################################################################
 def main() -> int:

@@ -37,6 +37,7 @@ AGGREGATE_VALUE_COLUMNS = (
     "p95",
 )
 
+
 ###############################################################################
 class ValidationRepository(RepositorySupport):
     """Persistence boundary for validation and checkpoint evaluation reports."""

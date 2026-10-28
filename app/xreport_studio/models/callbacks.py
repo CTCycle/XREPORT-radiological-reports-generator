@@ -12,9 +12,11 @@ from keras.callbacks import Callback
 
 from xreport_shared.common.utils.logger import logger
 
+
 ###############################################################################
 class WorkerInterrupted(RuntimeError):
     pass
+
 
 ###############################################################################
 class TrainingInterruptCallback(Callback):
@@ -91,6 +93,7 @@ class TrainingInterruptCallback(Callback):
     def on_epoch_end(self, epoch: int, logs: dict | None = None) -> None:
         self.raise_if_interrupted()
         self.apply_stop_if_requested()
+
 
 ###############################################################################
 class TrainingProgressCallback(Callback):
@@ -224,6 +227,7 @@ class TrainingProgressCallback(Callback):
 
         if self.progress_callback is not None:
             self.progress_callback(message)
+
 
 ###############################################################################
 class RealTimeMetricsCallback(Callback):
@@ -414,6 +418,7 @@ class RealTimeMetricsCallback(Callback):
             payload["epoch_boundary"] = self.epoch_boundaries[-1]
         self.progress_callback(payload)
 
+
 ###############################################################################
 class EpochCheckpointCallback(Callback):
     """Keep the checkpoint folder resumable after every completed epoch.
@@ -454,6 +459,7 @@ class EpochCheckpointCallback(Callback):
             self.metadata,
         )
         logger.info(f"Epoch {epoch + 1} checkpoint saved")
+
 
 ###############################################################################
 def initialize_training_callbacks(

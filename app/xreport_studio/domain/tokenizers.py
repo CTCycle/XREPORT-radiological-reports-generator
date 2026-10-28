@@ -4,6 +4,7 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from xreport_studio.configurations.tokenizers import TOKENIZER_ID_PATTERN
 
+
 ###############################################################################
 class TokenizerOption(BaseModel):
     """One tokenizer offered by the catalogue."""
@@ -16,9 +17,11 @@ class TokenizerOption(BaseModel):
     cached: bool
     note: str | None = None
 
+
 ###############################################################################
 class TokenizerCatalogueResponse(BaseModel):
     tokenizers: list[TokenizerOption]
+
 
 ###############################################################################
 class TokenizerCheckRequest(BaseModel):
@@ -26,6 +29,7 @@ class TokenizerCheckRequest(BaseModel):
         ..., min_length=1, max_length=128, pattern=TOKENIZER_ID_PATTERN
     )
     model_config = ConfigDict(extra="forbid")
+
 
 ###############################################################################
 class TokenizerCheckResponse(BaseModel):

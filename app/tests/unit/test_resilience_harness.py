@@ -26,12 +26,14 @@ _MINIMAL_PNG = base64.b64decode(
     "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg=="
 )
 
+
 ###############################################################################
 def _synthetic_fixture_root(tmp_path: Path) -> Path:
     images = tmp_path / "images"
     images.mkdir()
     (images / "sample.png").write_bytes(_MINIMAL_PNG)
     return tmp_path
+
 
 ###############################################################################
 def test_execution_lane_and_scale_are_visible_in_the_scenario_contract(
@@ -71,6 +73,7 @@ def test_execution_lane_and_scale_are_visible_in_the_scenario_contract(
     )
     assert cancellation.expected_terminal_statuses == ("cancelled",)
 
+
 ###############################################################################
 def test_training_observation_records_pid_phase_latency_and_cleanup() -> None:
     job = {
@@ -103,6 +106,7 @@ def test_training_observation_records_pid_phase_latency_and_cleanup() -> None:
     assert job["last_worker_phase"] == "first_batch_completed"
     assert job["worker_cleanup"]["status"] in {"clean", "orphaned", "unmeasurable"}
 
+
 ###############################################################################
 def test_device_lane_assertion_fails_when_provenance_is_missing(tmp_path: Path) -> None:
     scenario = resilience.build_scenarios(
@@ -117,8 +121,10 @@ def test_device_lane_assertion_fails_when_provenance_is_missing(tmp_path: Path) 
     assert batch["errors"]
     assert batch["errors"][0]["phase"] == "device_provenance"
 
+
 ###############################################################################
 def test_job_poller_rejects_an_unexpected_terminal_status() -> None:
+
 
     ###############################################################################
     class FakeApi:

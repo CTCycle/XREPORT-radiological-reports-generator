@@ -4,6 +4,7 @@ from typing import Any
 
 from xreport_shared.common.utils.logger import logger
 
+
 ###############################################################################
 class DeviceConfig:
 

@@ -22,20 +22,6 @@ from xreport_inference.services.inference_catalog import InferenceModelCatalog
 from xreport_inference.services.model_installation import ModelInstallationManager
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 ###############################################################################
 def _study_images() -> list[StudyImage]:
     return [
@@ -51,6 +37,7 @@ def _study_images() -> list[StudyImage]:
         ),
     ]
 
+
 ###############################################################################
 @pytest.mark.parametrize(
     ("profile", "max_new_tokens", "num_beams"),
@@ -60,11 +47,13 @@ def test_cxrmate_multi_uses_all_images_profile_and_stopping_criteria(
     profile: str, max_new_tokens: int, num_beams: int
 ) -> None:
 
+
     ###############################################################################
     class ImageProcessorStub:
         size = {"shortest_edge": 4}
         image_mean = (0.5, 0.5, 0.5)
         image_std = (0.5, 0.5, 0.5)
+
 
     ###############################################################################
     class TokenizerStub:
@@ -72,6 +61,7 @@ def test_cxrmate_multi_uses_all_images_profile_and_stopping_criteria(
         bos_token_id = 11
         eos_token_id = 12
         pad_token_id = 13
+
 
     ###############################################################################
     class ModelStub:
@@ -119,6 +109,7 @@ def test_cxrmate_multi_uses_all_images_profile_and_stopping_criteria(
         "impression": "impression",
     }
 
+
 ###############################################################################
 @pytest.mark.parametrize(
     ("profile", "max_new_tokens", "num_beams"),
@@ -127,6 +118,7 @@ def test_cxrmate_multi_uses_all_images_profile_and_stopping_criteria(
 def test_cxrmate2_forwards_study_and_profile_to_published_processor(
     profile: str, max_new_tokens: int, num_beams: int
 ) -> None:
+
 
     ###############################################################################
     class ProcessorStub:
@@ -146,6 +138,7 @@ def test_cxrmate2_forwards_study_and_profile_to_published_processor(
         # -------------------------------------------------------------------------
         def split_and_decode_sections(self, _generated_ids):
             return ["finding"], ["impression"]
+
 
     ###############################################################################
     class ModelStub:
@@ -185,6 +178,7 @@ def test_cxrmate2_forwards_study_and_profile_to_published_processor(
         "impression": "impression",
     }
 
+
 ###############################################################################
 def test_generation_limits_override_profile_without_max_length() -> None:
     adapter = CXRMate2Adapter()
@@ -196,8 +190,10 @@ def test_generation_limits_override_profile_without_max_length() -> None:
     assert detailed == {"max_new_tokens": 512, "num_beams": 2, "do_sample": False}
     assert concise["max_new_tokens"] == 160 and concise["num_beams"] == 1
 
+
 ###############################################################################
 def test_cxrmate2_casts_generation_time_deltas_to_model_dtype() -> None:
+
 
     ###############################################################################
     class ModelStub:
@@ -223,6 +219,7 @@ def test_cxrmate2_casts_generation_time_deltas_to_model_dtype() -> None:
 
     assert prepared["time_deltas"].dtype is torch.bfloat16
 
+
 ###############################################################################
 @pytest.mark.parametrize(
     ("profile", "max_new_tokens"),
@@ -244,6 +241,7 @@ def test_chexone_uses_published_multi_image_vision_path_and_strips_prompt(
 
     monkeypatch.setattr(adapters_module, "process_vision_info", process_vision_info)
 
+
     ###############################################################################
     class ProcessorStub:
 
@@ -261,6 +259,7 @@ def test_chexone_uses_published_multi_image_vision_path_and_strips_prompt(
         # -------------------------------------------------------------------------
         def __call__(self, **kwargs: object):
             self.processor_call = kwargs
+
 
             ###############################################################################
             class VisionInputs(dict[str, torch.Tensor]):
@@ -281,6 +280,7 @@ def test_chexone_uses_published_multi_image_vision_path_and_strips_prompt(
             return [
                 "No focal airspace opacity. No pleural effusion or pneumothorax."
             ]
+
 
     ###############################################################################
     class ModelStub:
@@ -324,6 +324,7 @@ def test_chexone_uses_published_multi_image_vision_path_and_strips_prompt(
         "findings": "No focal airspace opacity. No pleural effusion or pneumothorax."
     }
 
+
 ###############################################################################
 @pytest.mark.parametrize(
     ("profile", "max_new_tokens"),
@@ -333,6 +334,7 @@ def test_medgemma_uses_multi_image_context_raw_report_contract_and_profile(
     profile: str, max_new_tokens: int
 ) -> None:
     images = _study_images()
+
 
     ###############################################################################
     class ProcessorStub:
@@ -353,6 +355,7 @@ def test_medgemma_uses_multi_image_context_raw_report_contract_and_profile(
         def decode(self, generated, **_kwargs: object) -> str:
             assert torch.equal(generated, torch.tensor([3, 4]))
             return "raw report"
+
 
     ###############################################################################
     class ModelStub:
@@ -385,14 +388,6 @@ def test_medgemma_uses_multi_image_context_raw_report_contract_and_profile(
     assert result.display_sections == {"raw_report": "raw report"}
 
 
-
-
-
-
-
-
-
-
 ###############################################################################
 def _image() -> InferenceImage:
     return InferenceImage(
@@ -401,6 +396,7 @@ def _image() -> InferenceImage:
         data=b"fixture",
         size_bytes=7,
     )
+
 
 ###############################################################################
 def _setup_job(
@@ -418,8 +414,10 @@ def _setup_job(
     image_store.store(request_id, [_image()])
     image_store.link_job(job_id, request_id)
 
+
 ###############################################################################
 def _runtime_stub(provider: Any) -> Any:
+
 
     ###############################################################################
     class RuntimeStub:
@@ -435,6 +433,7 @@ def _runtime_stub(provider: Any) -> Any:
             )
 
     return RuntimeStub()
+
 
 ###############################################################################
 def test_successful_generation_result_exposes_persisted_request_id() -> None:
@@ -469,6 +468,7 @@ def test_successful_generation_result_exposes_persisted_request_id() -> None:
     assert result["request_id"] == request_id
     repository.save_generated_reports.assert_called_once()
     assert repository.save_generated_reports.call_args.kwargs["request_id"] == request_id
+
 
 ###############################################################################
 def test_per_image_mode_runs_each_image_and_keeps_going_after_a_failure() -> None:
@@ -522,6 +522,7 @@ def test_per_image_mode_runs_each_image_and_keeps_going_after_a_failure() -> Non
     saved = repository.save_generated_reports.call_args.args[0]
     assert [row["image"] for row in saved] == ["a.png", "c.png"]
 
+
 ###############################################################################
 def test_cancelled_after_generation_does_not_persist_partial_reports() -> None:
     manager = JobManager()
@@ -529,6 +530,7 @@ def test_cancelled_after_generation_does_not_persist_partial_reports() -> None:
     job_id = "cancel-after-generation"
     request_id = "request-cancelled"
     _setup_job(manager, image_store, job_id=job_id, request_id=request_id)
+
 
     ###############################################################################
     class CancellingProvider:
@@ -564,6 +566,7 @@ def test_cancelled_after_generation_does_not_persist_partial_reports() -> None:
     repository.save_generated_reports.assert_not_called()
     assert image_store.get(request_id) is None
 
+
 ###############################################################################
 def test_timeout_does_not_persist_reports() -> None:
     manager = JobManager()
@@ -593,6 +596,7 @@ def test_timeout_does_not_persist_reports() -> None:
 
     repository.save_generated_reports.assert_not_called()
     assert image_store.get(request_id) is None
+
 
 ###############################################################################
 def test_persistence_failure_fails_inference_job() -> None:
@@ -632,11 +636,6 @@ def test_persistence_failure_fails_inference_job() -> None:
     assert image_store.get(request_id) is None
 
 
-
-
-
-
-
 ###############################################################################
 def test_xreport_runtime_metadata_reports_requested_and_resolved_devices(
     monkeypatch,
@@ -658,23 +657,6 @@ def test_xreport_runtime_metadata_reports_requested_and_resolved_devices(
         "cuda_available": True,
         "cuda_used": True,
     }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 ###############################################################################
@@ -712,6 +694,7 @@ def test_generation_rejects_degraded_public_models_before_starting_a_job() -> No
         )
 
     job_manager.start_job.assert_not_called()
+
 
 ###############################################################################
 def test_inference_api_returns_conflict_for_a_degraded_public_model() -> None:
@@ -759,6 +742,7 @@ def test_inference_api_returns_conflict_for_a_degraded_public_model() -> None:
     }
     job_manager.start_job.assert_not_called()
 
+
 ###############################################################################
 def test_generation_rejects_gated_public_models_before_starting_a_job() -> None:
     model_ref = "huggingface:google/medgemma-1.5-4b-it"
@@ -796,6 +780,7 @@ def test_generation_rejects_gated_public_models_before_starting_a_job() -> None:
         )
 
     job_manager.start_job.assert_not_called()
+
 
 ###############################################################################
 def test_generation_allows_a_ready_gated_public_model() -> None:
@@ -843,6 +828,7 @@ def test_generation_allows_a_ready_gated_public_model() -> None:
     )
 
     job_manager.start_job.assert_called_once()
+
 
 ###############################################################################
 @pytest.mark.parametrize("job_type", ["inference", "model_maintenance"])

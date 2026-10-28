@@ -9,6 +9,7 @@ os.environ["XREPORT_APP"] = "xreport"
 from xreport_shared.source_server import serve  # noqa: E402
 
 
+###############################################################################
 def main() -> None:
     from xreport_inference.app import app
 

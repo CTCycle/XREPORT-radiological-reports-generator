@@ -12,6 +12,7 @@ from dataclasses import dataclass
 TOKENIZER_ID_PATTERN = r"^[A-Za-z0-9][A-Za-z0-9._-]*(/[A-Za-z0-9][A-Za-z0-9._-]*)?$"
 DEFAULT_TOKENIZER = "distilbert-base-uncased"
 
+
 ###############################################################################
 @dataclass(frozen=True)
 class TokenizerEntry:
@@ -54,6 +55,7 @@ TOKENIZER_CATALOGUE: tuple[TokenizerEntry, ...] = (
     TokenizerEntry("t5-small", "T5 small", "T5 family", "sentencepiece", False, _NO_START_TOKEN),
     TokenizerEntry("google/flan-t5-base", "Flan-T5 base", "T5 family", "sentencepiece", False, _NO_START_TOKEN),
 )
+
 
 ###############################################################################
 def catalogue_entry(tokenizer_id: str) -> TokenizerEntry | None:

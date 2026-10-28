@@ -33,6 +33,7 @@ LifecycleCallback = Callable[[dict[str, Any]], None]
 ProgressCallback = Callable[..., None]
 IdleTimeoutProvider = Callable[[], int]
 
+
 ###############################################################################
 def release_framework_memory(*, keras_session: bool = False) -> None:
     """Collect dropped model graphs and return cached CUDA blocks to the driver."""
@@ -46,6 +47,7 @@ def release_framework_memory(*, keras_session: bool = False) -> None:
     if torch.cuda.is_available():
         torch.cuda.empty_cache()
         torch.cuda.ipc_collect()
+
 
 ###############################################################################
 class InferenceRuntimeCoordinator:

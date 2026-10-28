@@ -14,10 +14,12 @@ from typing import IO
 LOCK_FILENAME = ".xreport.lock"
 
 
+###############################################################################
 class DataFolderInUseError(RuntimeError):
     """Raised when another process already owns the data folder."""
 
 
+###############################################################################
 class DataFolderLock:
 
     # -------------------------------------------------------------------------

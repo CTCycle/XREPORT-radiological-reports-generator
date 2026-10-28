@@ -13,6 +13,7 @@ from xreport_shared.services.errors import BadRequestError, PayloadTooLargeError
 from xreport_studio.services.preparation import PreparationService, count_image_files, scan_image_folder
 from xreport_studio.repositories.serialization.dataset import DatasetIntegrityError, DatasetRepository
 
+
 ###############################################################################
 def test_checkpoint_names_reject_path_separators_cross_platform() -> None:
     for value in ("nested/name", "nested\\name"):
@@ -23,6 +24,7 @@ def test_checkpoint_names_reject_path_separators_cross_platform() -> None:
         else:
             raise AssertionError(f"Expected path separator rejection for {value!r}")
 
+
 ###############################################################################
 def test_upload_sanitizes_windows_style_filename() -> None:
     response = UploadService(UploadState()).upload_dataset(
@@ -32,6 +34,7 @@ def test_upload_sanitizes_windows_style_filename() -> None:
 
     assert response.filename == "dataset.csv"
     assert response.dataset_name == "dataset"
+
 
 ###############################################################################
 def test_image_scanning_counts_recursively_and_filters_required_stems(
@@ -54,6 +57,7 @@ def test_image_scanning_counts_recursively_and_filters_required_stems(
 
     assert [Path(path).name for path in matched] == ["two.PNG"]
 
+
 ###############################################################################
 def _preparation_service(upload_state: UploadState, repository) -> PreparationService:
     service = PreparationService.__new__(PreparationService)
@@ -63,6 +67,7 @@ def _preparation_service(upload_state: UploadState, repository) -> PreparationSe
     service.upload_state = upload_state
     service.dataset_repository = repository
     return service
+
 
 ###############################################################################
 def test_load_dataset_reports_unmatched_rows_before_persisting(tmp_path: Path) -> None:
@@ -101,6 +106,7 @@ def test_load_dataset_reports_unmatched_rows_before_persisting(tmp_path: Path) -
     assert preview.unmatched_records == 1
     assert saved == []
     assert upload_state.contains(upload_id) is True
+
 
 ###############################################################################
 def test_load_dataset_confirmation_persists_explicit_partial_import(
@@ -143,6 +149,7 @@ def test_load_dataset_confirmation_persists_explicit_partial_import(
     assert len(saved[0]) == 1
     assert upload_state.contains(upload_id) is False
 
+
 ###############################################################################
 def test_load_dataset_reports_increasing_progress_phases(tmp_path: Path) -> None:
     (tmp_path / "present.jpg").write_bytes(b"image")
@@ -173,6 +180,7 @@ def test_load_dataset_reports_increasing_progress_phases(tmp_path: Path) -> None
     assert values == sorted(values)
     assert values[0] < 25 and values[-1] >= 75
     assert reports[-1][1] == "Saving records to database"
+
 
 ###############################################################################
 def test_load_dataset_matches_image_stems_case_insensitively(tmp_path: Path) -> None:
@@ -210,6 +218,7 @@ def test_load_dataset_matches_image_stems_case_insensitively(tmp_path: Path) -> 
     assert len(saved) == 1
     assert saved[0].iloc[0]["image_path"] == str(image_path)
 
+
 ###############################################################################
 def test_load_dataset_rejects_no_matching_rows_without_persisting(
     tmp_path: Path,
@@ -245,6 +254,7 @@ def test_load_dataset_rejects_no_matching_rows_without_persisting(
     assert saved == []
     assert upload_state.contains(upload_id) is True
 
+
 ###############################################################################
 def test_load_dataset_rejects_missing_image_column_without_clearing_upload(
     tmp_path: Path,
@@ -275,6 +285,7 @@ def test_load_dataset_rejects_missing_image_column_without_clearing_upload(
 
     assert upload_state.contains(upload_id) is True
 
+
 ###############################################################################
 def test_load_dataset_rejects_missing_text_column_without_clearing_upload(
     tmp_path: Path,
@@ -304,6 +315,7 @@ def test_load_dataset_rejects_missing_text_column_without_clearing_upload(
 
     assert upload_state.contains(upload_id) is True
 
+
 ###############################################################################
 def test_load_dataset_requires_the_explicit_upload_id(tmp_path: Path) -> None:
     image_folder = tmp_path
@@ -330,6 +342,7 @@ def test_load_dataset_requires_the_explicit_upload_id(tmp_path: Path) -> None:
             )
         )
 
+
 ###############################################################################
 def test_validate_img_paths_fails_closed_for_deleted_images(tmp_path: Path) -> None:
     repository = DatasetRepository.__new__(DatasetRepository)
@@ -337,6 +350,7 @@ def test_validate_img_paths_fails_closed_for_deleted_images(tmp_path: Path) -> N
         repository.validate_img_paths(
             pd.DataFrame({"path": [str(tmp_path / "does-not-exist.png")]})
         )
+
 
 ###############################################################################
 def test_upload_accepts_exact_payload_limit(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -359,6 +373,7 @@ def test_upload_accepts_exact_payload_limit(monkeypatch: pytest.MonkeyPatch) -> 
     assert response.success is True
     assert response.upload_id
 
+
 ###############################################################################
 def test_upload_rejects_payload_over_limit_before_parsing(
     monkeypatch: pytest.MonkeyPatch,
@@ -379,6 +394,7 @@ def test_upload_rejects_payload_over_limit_before_parsing(
         )
 
     assert parser_called is False
+
 
 ###############################################################################
 def test_upload_ids_keep_parsed_contents_independent() -> None:

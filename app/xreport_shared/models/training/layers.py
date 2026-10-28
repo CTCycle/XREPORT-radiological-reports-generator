@@ -6,6 +6,7 @@ from keras import activations, layers, ops
 from keras.config import floatx
 from keras.saving import register_keras_serializable
 
+
 ###############################################################################
 @register_keras_serializable(package="CustomLayers", name="PositionalEmbedding")
 class PositionalEmbedding(layers.Layer):
@@ -86,6 +87,7 @@ class PositionalEmbedding(layers.Layer):
     ) -> PositionalEmbedding:
         return cls(**config)
 
+
 ###############################################################################
 @register_keras_serializable(package="CustomLayers", name="AddNorm")
 class AddNorm(layers.Layer):
@@ -122,6 +124,7 @@ class AddNorm(layers.Layer):
     @classmethod
     def from_config(cls: type[AddNorm], config: dict[str, Any]) -> AddNorm:
         return cls(**config)
+
 
 ###############################################################################
 @register_keras_serializable(package="CustomLayers", name="FeedForward")
@@ -183,6 +186,7 @@ class FeedForward(layers.Layer):
     def from_config(cls: type[FeedForward], config: dict[str, Any]) -> FeedForward:
         return cls(**config)
 
+
 ###############################################################################
 @register_keras_serializable(package="CustomLayers", name="SoftMaxClassifier")
 class SoftMaxClassifier(layers.Layer):
@@ -242,6 +246,7 @@ class SoftMaxClassifier(layers.Layer):
         cls: type[SoftMaxClassifier], config: dict[str, Any]
     ) -> SoftMaxClassifier:
         return cls(**config)
+
 
 ###############################################################################
 @register_keras_serializable(package="Encoders", name="TransformerEncoder")
@@ -343,6 +348,7 @@ class TransformerEncoder(layers.Layer):
         cls: type[TransformerEncoder], config: dict[str, Any]
     ) -> TransformerEncoder:
         return cls(**config)
+
 
 ###############################################################################
 @register_keras_serializable(package="Decoders", name="TransformerDecoder")

@@ -9,6 +9,7 @@ from sqlalchemy.orm import Mapped, mapped_column
 from xreport_shared.repositories.schemas.normalization import normalize_key
 from xreport_shared.repositories.schemas.types import UTCDateTime
 
+
 ###############################################################################
 class CheckpointColumns:
     """Checkpoint registry columns; each application maps its own table."""
@@ -29,6 +30,7 @@ class CheckpointColumns:
         UTCDateTime(), nullable=False, default=lambda: datetime.now(timezone.utc)
     )
     __table_args__ = (UniqueConstraint("name_key", name="uq_checkpoints_name_key"),)
+
 
 ###############################################################################
 @event.listens_for(CheckpointColumns, "before_insert", propagate=True)

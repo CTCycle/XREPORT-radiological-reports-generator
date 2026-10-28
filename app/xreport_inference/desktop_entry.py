@@ -38,12 +38,14 @@ _SAFE_INHERITED_ENVIRONMENT = {
 
 _STARTUP_STARTED = perf_counter()
 
+
 ###############################################################################
 def _startup_log(phase: str) -> None:
     print(
         f"[startup] phase={phase} elapsed_ms={(perf_counter() - _STARTUP_STARTED) * 1000:.0f}",
         flush=True,
     )
+
 
 ###############################################################################
 def _atomic_json(path: Path, payload: dict[str, Any]) -> None:
@@ -54,10 +56,12 @@ def _atomic_json(path: Path, payload: dict[str, Any]) -> None:
     )
     os.replace(temporary, path)
 
+
 ###############################################################################
 def _remove_file(path: Path | None) -> None:
     if path is not None:
         path.unlink(missing_ok=True)
+
 
 ###############################################################################
 def _write_ready(
@@ -87,6 +91,7 @@ def _write_ready(
         },
     )
 
+
 ###############################################################################
 def _sanitize_inherited_environment() -> None:
     """Drop arbitrary parent variables before loading the packaged .env.
@@ -114,6 +119,7 @@ def _sanitize_inherited_environment() -> None:
         if key not in keep:
             os.environ.pop(key, None)
 
+
 ###############################################################################
 def _parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="XREPORT packaged backend")
@@ -124,6 +130,7 @@ def _parse_args() -> argparse.Namespace:
     parser.add_argument("--variant", choices=("cpu", "cuda"), required=True)
     parser.add_argument("--version", required=True)
     return parser.parse_args()
+
 
 ###############################################################################
 def _prepare_contract(arguments: argparse.Namespace) -> tuple[Path, Path]:
@@ -143,6 +150,7 @@ def _prepare_contract(arguments: argparse.Namespace) -> tuple[Path, Path]:
     os.environ["XREPORT_SESSION_FILE"] = str(session_file)
     return ready_file, session_file
 
+
 ###############################################################################
 def _validate_runtime(arguments: argparse.Namespace) -> None:
     layout_module = import_module("xreport_shared.common.runtime_layout")
@@ -152,6 +160,7 @@ def _validate_runtime(arguments: argparse.Namespace) -> None:
         or layout.release_version != arguments.version
     ):
         raise RuntimeError("Desktop entry arguments do not match the runtime contract")
+
 
 ###############################################################################
 def _create_listener(arguments: argparse.Namespace) -> tuple[socket.socket, int]:
@@ -167,6 +176,7 @@ def _create_listener(arguments: argparse.Namespace) -> tuple[socket.socket, int]
     listener.listen(128)
     listener.set_inheritable(True)
     return listener, int(listener.getsockname()[1])
+
 
 ###############################################################################
 def _configure_server_environment(port: int) -> None:
@@ -192,6 +202,7 @@ def _configure_server_environment(port: int) -> None:
     matplotlib_root.mkdir(parents=True, exist_ok=True)
     os.environ["PYTHONPYCACHEPREFIX"] = str(python_cache_root)
     os.environ["MPLCONFIGDIR"] = str(matplotlib_root)
+
 
 ###############################################################################
 def _run_server(
@@ -230,6 +241,7 @@ def _run_server(
     )
     _startup_log("server_configured")
     server.run(sockets=[listener])
+
 
 ###############################################################################
 def main() -> int:

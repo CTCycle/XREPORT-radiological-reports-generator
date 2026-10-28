@@ -14,10 +14,12 @@ IMPORT = re.compile(r"""(?:from\s+|import\s*\(\s*|import\s+)['"]([^'"]+)['"]""")
 STYLE = re.compile(r"""(?:styleUrls?|templateUrl)\s*:\s*(\[[^\]]*\]|['"][^'"]+['"])""")
 
 
+###############################################################################
 def _sources(project: str) -> list[Path]:
     return sorted((CLIENT_ROOT / "projects" / project / "src").rglob("*.ts"))
 
 
+###############################################################################
 def _references(path: Path) -> list[str]:
     text = path.read_text(encoding="utf-8")
     styles = [item for match in STYLE.finditer(text) for item in re.findall(r"""['"]([^'"]+)['"]""", match.group(1))]

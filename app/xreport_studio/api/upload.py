@@ -9,6 +9,7 @@ from xreport_studio.domain.training import DatasetUploadResponse
 if TYPE_CHECKING:
     from xreport_studio.services.upload import UploadService
 
+
 ###############################################################################
 class UploadEndpoint:
     """Endpoint for dataset upload operations."""
@@ -51,6 +52,7 @@ class UploadEndpoint:
             response_model=DatasetUploadResponse,
             status_code=status.HTTP_200_OK,
         )
+
 
 ###############################################################################
 def get_router() -> APIRouter:

@@ -14,10 +14,12 @@ from xreport_shared.repositories.checkpoints import CheckpointRepository
 from xreport_studio.repositories.schemas.studio import CheckpointEvaluation
 
 
+###############################################################################
 @pytest.fixture
 def api_context(studio_context):
     """These tests exercise XREPORT Studio, not the inference application."""
     return studio_context
+
 
 ###############################################################################
 def _create_checkpoint_fixture(name: str) -> Path:
@@ -37,6 +39,7 @@ def _create_checkpoint_fixture(name: str) -> Path:
     )
     CheckpointRepository().register_completed_checkpoint(name, checkpoint_dir)
     return checkpoint_dir
+
 
 ###############################################################################
 def test_delete_checkpoint_removes_the_entire_checkpoint_directory(
@@ -61,6 +64,7 @@ def test_delete_checkpoint_removes_the_entire_checkpoint_directory(
             repository.delete_checkpoint(checkpoint_name)
         shutil.rmtree(checkpoint_dir, ignore_errors=True)
 
+
 ###############################################################################
 def test_delete_checkpoint_rejects_path_traversal(
     api_context: APIRequestContext,
@@ -68,6 +72,7 @@ def test_delete_checkpoint_rejects_path_traversal(
     response = api_context.delete("/api/training/checkpoints/%2e%2e%2f%2e%2e%2f")
 
     assert response.status == 400
+
 
 ###############################################################################
 def test_delete_checkpoint_rejects_referenced_checkpoint(
@@ -105,6 +110,7 @@ def test_delete_checkpoint_rejects_referenced_checkpoint(
         if repository.get_checkpoint(checkpoint_name) is not None:
             repository.delete_checkpoint(checkpoint_name)
         shutil.rmtree(checkpoint_dir, ignore_errors=True)
+
 
 ###############################################################################
 def test_resume_rejects_unknown_checkpoint(api_context: APIRequestContext) -> None:

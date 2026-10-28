@@ -5,6 +5,7 @@ import uuid
 
 import pytest
 
+
 ###############################################################################
 @pytest.fixture
 def seeded_history() -> str:

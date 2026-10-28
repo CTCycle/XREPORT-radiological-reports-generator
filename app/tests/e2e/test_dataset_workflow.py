@@ -11,12 +11,14 @@ import time
 from xreport_shared.common.path import RESOURCES_DIR
 
 
+###############################################################################
 @pytest.fixture
 def api_context(studio_context):
     """These tests exercise XREPORT Studio, not the inference application."""
     return studio_context
 
 
+###############################################################################
 @pytest.fixture(scope="session")
 def base_url(studio_base_url):
     return studio_base_url
@@ -28,6 +30,7 @@ _API_ONE_PIXEL_PNG = (
     b"\x00\x00\x00\x0bIDATx\x9cc\xf8\xcf\xc0\xf0\x1f\x00"
     b"\x05\x00\x01\xff\x89\x99=\x1d\x00\x00\x00\x00IEND\xaeB`\x82"
 )
+
 
 ###############################################################################
 def _load_dataset(api_context: APIRequestContext, request: dict[str, object]) -> dict[str, object]:
@@ -51,6 +54,7 @@ def _dataset_names(api_context: APIRequestContext) -> list[dict[str, object]]:
     response = api_context.get("/api/preparation/dataset/names")
     assert response.ok, response.text()
     return response.json()["datasets"]
+
 
 ###############################################################################
 def test_s21_partial_import_requires_confirmation_and_persists_matched_row(
@@ -126,6 +130,7 @@ def test_s21_partial_import_requires_confirmation_and_persists_matched_row(
         if imported:
             api_context.delete(f"/api/preparation/dataset/{dataset_name}")
 
+
 ###############################################################################
 def test_s21_no_matching_rows_fail_without_persisting_source(
     api_context: APIRequestContext,
@@ -163,6 +168,7 @@ def test_s21_no_matching_rows_fail_without_persisting_source(
 
 
 _ONE_PIXEL_PNG = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAIAAACQd1PeAAAADUlEQVR4nGP4z8AAAAMBAQDJ/pLvAAAAAElFTkSuQmCC"
+
 
 ###############################################################################
 def test_s21_dataset_page_shows_and_confirms_partial_import(
@@ -240,6 +246,7 @@ def test_s21_dataset_page_shows_and_confirms_partial_import(
     finally:
         if imported:
             api_context.delete(f"/api/preparation/dataset/{dataset_name}")
+
 
 ###############################################################################
 def test_s23_viewer_navigation_and_long_source_path_row_containment(
@@ -363,6 +370,7 @@ def test_s23_viewer_navigation_and_long_source_path_row_containment(
                 assert cleanup.ok, cleanup.text()
         finally:
             shutil.rmtree(fixture_root, ignore_errors=True)
+
 
 ###############################################################################
 def test_s23_source_delete_requires_processed_dataset_cleanup(

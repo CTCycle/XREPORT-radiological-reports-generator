@@ -8,12 +8,14 @@ import os
 import re
 
 
+###############################################################################
 @pytest.fixture
 def api_context(studio_context):
     """These tests exercise XREPORT Studio, not the inference application."""
     return studio_context
 
 
+###############################################################################
 @pytest.fixture(scope="session")
 def base_url(studio_base_url):
     return studio_base_url
@@ -25,6 +27,7 @@ _API_ONE_PIXEL_PNG = (
     b"\x00\x00\x00\x0bIDATx\x9cc\xf8\xcf\xc0\xf0\x1f\x00"
     b"\x05\x00\x01\xff\x89\x99=\x1d\x00\x00\x00\x00IEND\xaeB`\x82"
 )
+
 
 ###############################################################################
 def test_s15_filesystem_validation(
@@ -70,6 +73,7 @@ def test_s15_filesystem_validation(
 _ONE_PIXEL_PNG = (
     "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAIAAACQd1PeAAAADUlEQVR4nGP4z8AAAAMBAQDJ/pLvAAAAAElFTkSuQmCC"
 )
+
 
 ###############################################################################
 def test_s15_dataset_folder_access_and_recovery(

@@ -13,6 +13,7 @@ PYPROJECT = tomllib.loads((ROOT / "app/server/pyproject.toml").read_text(encodin
 LOCK = tomllib.loads((ROOT / "app/server/uv.lock").read_text(encoding="utf-8"))
 
 
+###############################################################################
 def _function_body(name: str) -> str:
     match = re.search(rf"^function {re.escape(name)} \{{", LAUNCHER, re.MULTILINE)
     assert match, f"{name} not found"
@@ -21,6 +22,7 @@ def _function_body(name: str) -> str:
     return LAUNCHER[match.start():end]
 
 
+###############################################################################
 def _distribution_name(requirement: str) -> str:
     return re.split(r"[<>=!~;\[]", requirement, maxsplit=1)[0].strip().lower()
 

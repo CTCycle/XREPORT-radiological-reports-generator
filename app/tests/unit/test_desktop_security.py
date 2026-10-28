@@ -35,6 +35,7 @@ from verify_release_validation_manifest import (  # noqa: E402
 )
 from verify_runtime_bundle import verify_archive, verify_portable  # noqa: E402
 
+
 ###############################################################################
 def _copy_archive_with_member(
     source_path: Path,
@@ -49,6 +50,7 @@ def _copy_archive_with_member(
         for info in source.infolist():
             target.writestr(info, source.read(info))
         target.writestr(member_name, payload)
+
 
 ###############################################################################
 def _build_runtime_bundle(
@@ -96,6 +98,7 @@ def _build_runtime_bundle(
     )
     return output, json.loads(audit.read_text(encoding="utf-8")), completed.stdout, staging, script
 
+
 ###############################################################################
 def _assert_log_staging_is_rejected(
     tmp_path: Path, staging: Path, script: Path
@@ -126,6 +129,7 @@ def _assert_log_staging_is_rejected(
     )
     assert rejected.returncode != 0
     assert "forbidden runtime staging entry" in rejected.stderr
+
 
 ###############################################################################
 def test_packaged_layout_seeds_data_without_overwriting_user_edits(
@@ -166,6 +170,7 @@ def test_packaged_layout_seeds_data_without_overwriting_user_edits(
     assert persistent_model.joinpath("model.bin").read_bytes() == b"persistent"
     assert persistent_database.read_bytes() == b"database"
 
+
 ###############################################################################
 def test_desktop_token_rejects_missing_or_wrong_values(monkeypatch) -> None:
     token = "a" * 64
@@ -174,6 +179,7 @@ def test_desktop_token_rejects_missing_or_wrong_values(monkeypatch) -> None:
     assert token_matches(token)
     assert not token_matches("b" * 64)
     assert not token_matches(None)
+
 
 ###############################################################################
 def test_runtime_bundle_rejects_mutable_or_log_artifacts(tmp_path: Path) -> None:
@@ -297,6 +303,7 @@ def test_runtime_bundle_rejects_mutable_or_log_artifacts(tmp_path: Path) -> None
             expected_variant="cpu",
         )
 
+
 ###############################################################################
 def test_desktop_build_inputs_are_locked_and_placeholder_free() -> None:
     requirements = (
@@ -312,6 +319,7 @@ def test_desktop_build_inputs_are_locked_and_placeholder_free() -> None:
     assert "Desktop runtime has not been generated" in build_rs
     assert "runtime archive placeholder" not in build_rs
 
+
 ###############################################################################
 def test_packaged_desktop_processes_are_windowless() -> None:
     desktop_root = Path(__file__).parents[2] / "desktop"
@@ -326,6 +334,7 @@ def test_packaged_desktop_processes_are_windowless() -> None:
     assert "creation_flags(&mut command, 0x08000000)" in backend
     assert 'windows_subsystem = "windows"' in shell
 
+
 ###############################################################################
 def test_frozen_backend_supports_spawned_training_workers() -> None:
     entrypoint = (
@@ -334,6 +343,7 @@ def test_frozen_backend_supports_spawned_training_workers() -> None:
 
     assert "import multiprocessing" in entrypoint
     assert "multiprocessing.freeze_support()" in entrypoint
+
 
 ###############################################################################
 def test_development_shell_does_not_require_release_runtime_archive() -> None:
@@ -344,6 +354,7 @@ def test_development_shell_does_not_require_release_runtime_archive() -> None:
     assert "[switch]$Development" in launcher
     assert "Properties.Remove('resources')" in launcher
     assert "-ReleaseVersion $Version -Development" in launcher
+
 
 ###############################################################################
 def test_packaged_client_keeps_the_startup_shell_assets() -> None:
@@ -357,6 +368,7 @@ def test_packaged_client_keeps_the_startup_shell_assets() -> None:
     assert "startup.css" in index
     assert "desktop-startup" in shell
     assert startup_css.is_file()
+
 
 ###############################################################################
 def test_desktop_release_uses_separate_build_and_approval_phases() -> None:
@@ -393,6 +405,7 @@ def test_desktop_release_uses_separate_build_and_approval_phases() -> None:
         "Cleanup",
     ):
         assert scenario in native_driver
+
 
 ###############################################################################
 def test_approved_release_manifest_binds_sha_and_source_commit(tmp_path: Path) -> None:
@@ -450,15 +463,6 @@ def test_approved_release_manifest_binds_sha_and_source_commit(tmp_path: Path) -
         )
 
 
-
-
-
-
-
-
-
-
-
 ###############################################################################
 def _security_app() -> FastAPI:
     application = FastAPI()
@@ -477,6 +481,7 @@ def _security_app() -> FastAPI:
         return JSONResponse({"status": "accepted"})
 
     return application
+
 
 ###############################################################################
 def test_browser_session_can_probe_health_but_not_shutdown(monkeypatch) -> None:

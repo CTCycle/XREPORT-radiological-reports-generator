@@ -5,6 +5,7 @@ from xreport_shared.domain.system import CudaStatus, MemoryUsage, SystemStatusRe
 
 BYTES_PER_GB = 1024**3
 
+
 ###############################################################################
 class SystemStatusService:
 
@@ -50,6 +51,7 @@ class SystemStatusService:
     def get_status(self) -> SystemStatusResponse:
         cuda, vram = self.read_gpu()
         return SystemStatusResponse(ram=self.read_ram(), cuda=cuda, vram=vram)
+
 
 ###############################################################################
 def get_system_status_service() -> SystemStatusService:

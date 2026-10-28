@@ -31,6 +31,7 @@ print(json.dumps({
 APPLICATION_MODULES = {"studio": "xreport_studio.app"}
 
 
+###############################################################################
 def _probe(profile: str, resources: Path) -> dict:
     import json
     import os

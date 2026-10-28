@@ -32,6 +32,7 @@ from xreport_shared.common.path import (
     UV_CACHE_DIR,
 )
 
+
 ###############################################################################
 def configure_model_cache() -> Path:
     """Configure every disposable cache through the canonical runtime root."""

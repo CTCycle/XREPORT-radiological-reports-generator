@@ -17,11 +17,13 @@ COLUMNS = (
     ("end_token_id", sa.Integer()),
 )
 
+
 ###############################################################################
 def upgrade() -> None:
     with op.batch_alter_table("processing_runs", schema=None) as batch_op:
         for name, kind in COLUMNS:
             batch_op.add_column(sa.Column(name, kind, nullable=True))
+
 
 ###############################################################################
 def downgrade() -> None:

@@ -16,6 +16,7 @@ from xreport_studio.domain.validation import (
 )
 from xreport_shared.common.utils.logger import logger
 
+
 ###############################################################################
 @dataclass(frozen=True)
 class ImageMeasurement:
@@ -28,6 +29,7 @@ class ImageMeasurement:
     maximum: float
     noise_std: float
     noise_ratio: float
+
 
 ###############################################################################
 class DatasetValidator:
@@ -316,6 +318,7 @@ class DatasetValidator:
             processed,
         )
 
+
 ###############################################################################
 def summarize_distribution(values: Sequence[float | int | None]) -> dict[str, Any] | None:
     """Summarize a measure; missing values are excluded, never counted as zero.
@@ -340,6 +343,7 @@ def summarize_distribution(values: Sequence[float | int | None]) -> dict[str, An
         "p75": float(p75),
         "p95": float(p95),
     }
+
 
 ###############################################################################
 def histogram_bins(

@@ -7,10 +7,12 @@ from playwright.sync_api import APIRequestContext
 import pytest
 
 
+###############################################################################
 @pytest.fixture
 def api_context(studio_context):
     """These tests exercise XREPORT Studio, not the inference application."""
     return studio_context
+
 
 ###############################################################################
 def test_upload_parses_semicolon_csv_and_preserves_utf8_text(
@@ -40,6 +42,7 @@ def test_upload_parses_semicolon_csv_and_preserves_utf8_text(
     assert payload["row_count"] == 2
     assert payload["columns"] == ["id", "image", "text"]
 
+
 ###############################################################################
 def test_upload_parses_comma_csv(api_context: APIRequestContext) -> None:
     response = api_context.post(
@@ -59,6 +62,7 @@ def test_upload_parses_comma_csv(api_context: APIRequestContext) -> None:
     assert payload["row_count"] == 1
     assert payload["columns"] == ["id", "image", "text"]
     assert payload["upload_id"]
+
 
 ###############################################################################
 def test_upload_parses_xlsx_workbook(api_context: APIRequestContext) -> None:
@@ -89,6 +93,7 @@ def test_upload_parses_xlsx_workbook(api_context: APIRequestContext) -> None:
     assert payload["columns"] == ["id", "image", "text"]
     assert payload["upload_id"]
 
+
 ###############################################################################
 @pytest.mark.parametrize(
     ("filename", "contents"),
@@ -112,6 +117,7 @@ def test_upload_rejects_empty_or_corrupt_workbooks(
 
     assert response.status == 400
 
+
 ###############################################################################
 def test_upload_rejects_unsupported_file_types(api_context: APIRequestContext) -> None:
     response = api_context.post(
@@ -126,6 +132,7 @@ def test_upload_rejects_unsupported_file_types(api_context: APIRequestContext) -
     )
 
     assert response.status == 400
+
 
 ###############################################################################
 def test_upload_assigns_independent_ids(api_context: APIRequestContext) -> None:

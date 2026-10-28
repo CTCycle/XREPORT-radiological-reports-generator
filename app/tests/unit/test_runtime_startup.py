@@ -20,14 +20,6 @@ from tests.conftest import run_async_in_thread
 from xreport_shared.configurations.settings import DatabaseSettings, GlobalSettings, InferenceSettings, JobsSettings, ServerSettings
 
 
-
-
-
-
-
-
-
-
 ###############################################################################
 @pytest.fixture(autouse=True)
 def reset_environment_state() -> None:
@@ -36,6 +28,7 @@ def reset_environment_state() -> None:
     yield
     environment._environment_state.cache_clear()
     database_config.clear_database_configuration_error()
+
 
 ###############################################################################
 def _configure_environment_paths(tmp_path, monkeypatch: pytest.MonkeyPatch):
@@ -48,6 +41,7 @@ def _configure_environment_paths(tmp_path, monkeypatch: pytest.MonkeyPatch):
     monkeypatch.setattr(database_config, "DATABASE_CONFIG_FILE_PATH", settings_dir.parent / "database-config.json")
     monkeypatch.setattr(database_config, "DATABASE_FILE_PATH", settings_dir.parent / "database.db")
     return env_path, example_path
+
 
 ###############################################################################
 def test_missing_env_is_seeded_from_template_and_loaded(tmp_path, monkeypatch) -> None:
@@ -62,6 +56,7 @@ def test_missing_env_is_seeded_from_template_and_loaded(tmp_path, monkeypatch) -
     assert env_path.read_bytes() == contents
     assert os.environ["XREPORT_TEST_ENV"] == "from-template"
 
+
 ###############################################################################
 def test_existing_env_is_never_overwritten_by_template(tmp_path, monkeypatch) -> None:
     env_path, example_path = _configure_environment_paths(tmp_path, monkeypatch)
@@ -73,6 +68,7 @@ def test_existing_env_is_never_overwritten_by_template(tmp_path, monkeypatch) ->
 
     assert env_path.read_bytes() == b"XREPORT_TEST_ENV=existing\n"
     assert os.environ["XREPORT_TEST_ENV"] == "existing"
+
 
 ###############################################################################
 def test_explicit_resource_root_override_survives_environment_loading(
@@ -90,6 +86,7 @@ def test_explicit_resource_root_override_survives_environment_loading(
 
     assert os.environ["XREPORT_RESOURCES_DIR"] == "from-process"
     assert os.environ["XREPORT_TEST_ENV"] == "from-file"
+
 
 ###############################################################################
 def test_stray_database_keys_are_ignored_and_purged(tmp_path, monkeypatch) -> None:
@@ -161,11 +158,6 @@ def test_supported_runtime_settings_are_loaded_from_dotenv(tmp_path, monkeypatch
 
     assert response.status_code == 200
     assert response.headers["access-control-allow-origin"] == "https://ui.example"
-
-
-
-
-
 
 
 ###############################################################################
@@ -294,9 +286,6 @@ print(json.dumps({
         assert payload["serializer_type"] == "ModelSerializer"
 
 
-
-
-
 ###############################################################################
 def test_model_cache_bootstrap_overwrites_hostile_global_cache_values(
     monkeypatch,
@@ -356,15 +345,7 @@ def test_model_cache_bootstrap_overwrites_hostile_global_cache_values(
         assert not path.is_relative_to(model_cache.RUNTIME_CACHE_DIR)
 
 
-
-
-
-
-
-
-
-
-
+###############################################################################
 def _clear_runtime_environment(monkeypatch: pytest.MonkeyPatch) -> None:
     for name in (
         "INFERENCE_HF_LOCAL_ONLY",
@@ -378,6 +359,7 @@ def _clear_runtime_environment(monkeypatch: pytest.MonkeyPatch) -> None:
         monkeypatch.delenv(name, raising=False)
 
 
+###############################################################################
 def test_runtime_environment_defaults(monkeypatch: pytest.MonkeyPatch) -> None:
     _clear_runtime_environment(monkeypatch)
 
@@ -398,6 +380,7 @@ def test_runtime_environment_defaults(monkeypatch: pytest.MonkeyPatch) -> None:
     )
 
 
+###############################################################################
 @pytest.mark.parametrize("value", ["0", "-1", "abc"])
 def test_dataset_upload_max_mb_rejects_invalid_values(
     value: str, monkeypatch: pytest.MonkeyPatch
@@ -409,6 +392,7 @@ def test_dataset_upload_max_mb_rejects_invalid_values(
         get_runtime_environment_settings()
 
 
+###############################################################################
 @pytest.mark.parametrize("value", ["1", "true", "YES", " on "])
 def test_environment_boolean_accepts_true_spellings(
     value: str, monkeypatch: pytest.MonkeyPatch
@@ -419,6 +403,7 @@ def test_environment_boolean_accepts_true_spellings(
     assert get_runtime_environment_settings().inference_hf_local_only is True
 
 
+###############################################################################
 @pytest.mark.parametrize("value", ["0", "false", "NO", " off "])
 def test_environment_boolean_accepts_false_spellings(
     value: str, monkeypatch: pytest.MonkeyPatch
@@ -429,6 +414,7 @@ def test_environment_boolean_accepts_false_spellings(
     assert get_runtime_environment_settings().inference_hf_local_only is False
 
 
+###############################################################################
 def test_runtime_environment_normalizes_device_and_cors_lists(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -452,6 +438,7 @@ def test_runtime_environment_normalizes_device_and_cors_lists(
     )
 
 
+###############################################################################
 @pytest.mark.parametrize("value", ["maybe", "2", "enabled"])
 def test_invalid_runtime_boolean_is_rejected(
     value: str, monkeypatch: pytest.MonkeyPatch
@@ -463,6 +450,7 @@ def test_invalid_runtime_boolean_is_rejected(
         get_runtime_environment_settings()
 
 
+###############################################################################
 @pytest.mark.parametrize("value", ["gpu", "mps"])
 def test_invalid_device_is_rejected(
     value: str, monkeypatch: pytest.MonkeyPatch
@@ -474,6 +462,7 @@ def test_invalid_device_is_rejected(
         get_runtime_environment_settings()
 
 
+###############################################################################
 def test_blank_device_uses_auto_default(monkeypatch: pytest.MonkeyPatch) -> None:
     _clear_runtime_environment(monkeypatch)
     monkeypatch.setenv("INFERENCE_DEVICE", "   ")
@@ -481,6 +470,7 @@ def test_blank_device_uses_auto_default(monkeypatch: pytest.MonkeyPatch) -> None
     assert get_runtime_environment_settings().inference_device == "auto"
 
 
+###############################################################################
 def test_wildcard_cors_origin_cannot_use_credentials(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -492,6 +482,7 @@ def test_wildcard_cors_origin_cannot_use_credentials(
         get_runtime_environment_settings()
 
 
+###############################################################################
 def test_inference_policy_is_composed_from_environment(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -527,6 +518,7 @@ def test_inference_policy_is_composed_from_environment(
     assert settings.inference.model_timeout == 600
 
 
+###############################################################################
 def test_cors_is_disabled_when_origins_are_empty(monkeypatch: pytest.MonkeyPatch) -> None:
     _clear_runtime_environment(monkeypatch)
     from xreport_inference.app import create_app
@@ -543,6 +535,7 @@ def test_cors_is_disabled_when_origins_are_empty(monkeypatch: pytest.MonkeyPatch
     assert "access-control-allow-origin" not in response.headers
 
 
+###############################################################################
 def test_cors_preflight_allows_configured_origin_and_rejects_other_origin(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -579,9 +572,6 @@ def test_cors_preflight_allows_configured_origin_and_rejects_other_origin(
     assert "access-control-allow-origin" not in denied.headers
 
 
-
-
-
 ###############################################################################
 def test_source_layout_defaults_to_repository_data(monkeypatch) -> None:
     repository_root = Path(__file__).resolve().parents[3]
@@ -592,6 +582,7 @@ def test_source_layout_defaults_to_repository_data(monkeypatch) -> None:
 
     assert layout.mode == "source"
     assert layout.resources_root == repository_root / "data"
+
 
 ###############################################################################
 def test_source_layout_accepts_an_explicit_resource_root(monkeypatch, tmp_path) -> None:
@@ -604,11 +595,7 @@ def test_source_layout_accepts_an_explicit_resource_root(monkeypatch, tmp_path) 
     assert layout.resources_root == selected_root.resolve()
 
 
-
-
-
-
-
+###############################################################################
 @pytest.fixture
 def client_build(tmp_path, monkeypatch):
     index = tmp_path / "index.html"
@@ -619,6 +606,7 @@ def client_build(tmp_path, monkeypatch):
     return tmp_path
 
 
+###############################################################################
 def test_source_static_mode_serves_root_assets_and_angular_routes(
     client_build, monkeypatch
 ):
@@ -639,6 +627,7 @@ def test_source_static_mode_serves_root_assets_and_angular_routes(
     assert "source-spa" in route.text
 
 
+###############################################################################
 def test_source_static_mode_keeps_api_paths_out_of_spa_fallback(
     client_build, monkeypatch
 ):
@@ -661,6 +650,7 @@ def test_source_static_mode_keeps_api_paths_out_of_spa_fallback(
     assert "source-spa" not in unknown_api_root.text
 
 
+###############################################################################
 def test_database_recovery_health_and_spa_remain_available(client_build, monkeypatch):
     monkeypatch.setenv("XREPORT_SERVE_CLIENT", "1")
     monkeypatch.delenv("XREPORT_LAUNCH_TOKEN", raising=False)
@@ -676,6 +666,7 @@ def test_database_recovery_health_and_spa_remain_available(client_build, monkeyp
     assert health.json()["status"] == "database_recovery"
 
 
+###############################################################################
 def test_source_static_mode_rejects_traversal(client_build, monkeypatch):
     monkeypatch.setenv("XREPORT_SERVE_CLIENT", "1")
     outside = client_build.parent / "secret.txt"
@@ -687,6 +678,7 @@ def test_source_static_mode_rejects_traversal(client_build, monkeypatch):
     assert "must not be served" not in response.body.decode()
 
 
+###############################################################################
 def test_default_source_root_still_redirects_to_docs(client_build, monkeypatch):
     monkeypatch.delenv("XREPORT_SERVE_CLIENT", raising=False)
     monkeypatch.delenv("XREPORT_LAUNCH_TOKEN", raising=False)
@@ -699,6 +691,7 @@ def test_default_source_root_still_redirects_to_docs(client_build, monkeypatch):
     assert response.headers["location"].endswith("/docs")
 
 
+###############################################################################
 def test_source_shutdown_requires_launcher_token(client_build, monkeypatch):
     monkeypatch.delenv("XREPORT_SERVE_CLIENT", raising=False)
     monkeypatch.setenv("XREPORT_LAUNCH_TOKEN", "launcher-secret-token")
@@ -716,6 +709,7 @@ def test_source_shutdown_requires_launcher_token(client_build, monkeypatch):
     assert application.state.desktop_shutdown_event.is_set()
 
 
+###############################################################################
 def test_source_static_mode_requires_a_built_index(tmp_path, monkeypatch):
     monkeypatch.setattr(app_module, "PACKAGED_MODE", False)
     monkeypatch.setattr(app_module, "CLIENT_DIST_DIR", tmp_path)
@@ -723,11 +717,6 @@ def test_source_static_mode_requires_a_built_index(tmp_path, monkeypatch):
 
     with pytest.raises(FileNotFoundError, match="Built Angular frontend"):
         inference_app.create_app()
-
-
-
-
-
 
 
 ###############################################################################
@@ -774,21 +763,6 @@ print(json.dumps({
     assert payload["loaded_heavy_modules"] == []
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 ###############################################################################
 def _database_settings() -> DatabaseSettings:
     return DatabaseSettings(
@@ -806,6 +780,7 @@ def _database_settings() -> DatabaseSettings:
         sqlite_path=Path("database.db").resolve(),
     )
 
+
 ###############################################################################
 def _server_settings(database: DatabaseSettings) -> ServerSettings:
     return ServerSettings(
@@ -819,6 +794,7 @@ def _server_settings(database: DatabaseSettings) -> ServerSettings:
             model_idle_timeout=300,
         ),
     )
+
 
 ###############################################################################
 def test_startup_validations_prepares_database_and_composes_settings_once(
@@ -846,6 +822,7 @@ def test_startup_validations_prepares_database_and_composes_settings_once(
     assert result is settings
     assert prepared == [database]
     assert composed == [True]
+
 
 ###############################################################################
 def test_app_lifespan_uses_returned_settings_for_state_and_health(monkeypatch) -> None:

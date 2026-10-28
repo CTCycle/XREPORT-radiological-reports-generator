@@ -62,6 +62,7 @@ if TYPE_CHECKING:
 
 MAX_INFERENCE_IMAGES = 16
 
+
 ###############################################################################
 def map_inference_failure(exc: Exception) -> JobExecutionError:
     if isinstance(exc, JobExecutionError):
@@ -97,9 +98,11 @@ def map_inference_failure(exc: Exception) -> JobExecutionError:
         recoverable=recoverable,
     )
 
+
 ###############################################################################
 def _sanitize_filename(filename: str) -> str:
     return Path(filename.replace("\\", "/")).name
+
 
 ###############################################################################
 class InferenceImageStore:
@@ -138,10 +141,12 @@ class InferenceImageStore:
                 return
             self.storage.pop(request_id, None)
 
+
 ###############################################################################
 @lru_cache(maxsize=1)
 def get_inference_image_store() -> InferenceImageStore:
     return InferenceImageStore()
+
 
 ###############################################################################
 @lru_cache(maxsize=1)
@@ -154,10 +159,12 @@ def get_huggingface_provider() -> HuggingFaceProvider:
         settings_provider=get_inference_settings,
     )
 
+
 ###############################################################################
 @lru_cache(maxsize=1)
 def get_model_installation_manager() -> ModelInstallationManager:
     return ModelInstallationManager()
+
 
 ###############################################################################
 @lru_cache(maxsize=1)
@@ -170,6 +177,7 @@ def get_inference_runtime() -> InferenceRuntimeCoordinator:
         checkpoint_repository=CheckpointRepository(),
         idle_timeout_provider=lambda: get_inference_settings().model_idle_timeout,
     )
+
 
 ###############################################################################
 def report_installation_lifecycle(
@@ -203,6 +211,7 @@ def report_installation_lifecycle(
         progress = start
     job_manager.update_progress(job_id, progress)
     job_manager.update_result(job_id, {"lifecycle": payload})
+
 
 ###############################################################################
 def report_inference_progress(
@@ -252,6 +261,7 @@ def report_inference_progress(
         )
     if provenance is not None:
         job_manager.update_result(job_id, {"provenance": provenance})
+
 
 ###############################################################################
 def generate_per_image(
@@ -310,6 +320,7 @@ def generate_per_image(
         "image_errors": errors,
     }
     return ProviderGenerationResult(reports, display_sections, metadata, provenance)
+
 
 ###############################################################################
 def run_inference_job(
@@ -444,6 +455,7 @@ def run_inference_job(
         "provenance": persisted_provenance or provenance,
     }
 
+
 ###############################################################################
 def run_model_maintenance_job(
     *,
@@ -502,6 +514,7 @@ def run_model_maintenance_job(
             ),
         )
         raise
+
 
 ###############################################################################
 class InferenceService:
@@ -983,6 +996,7 @@ class InferenceService:
             raise InternalServiceError(
                 detail=str(e),
             ) from e
+
 
 ###############################################################################
 @lru_cache(maxsize=1)

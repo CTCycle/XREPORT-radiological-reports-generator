@@ -17,6 +17,7 @@ from xreport_shared.configurations import DatabaseSettings
 from xreport_shared.repositories.database.engine import Database
 from xreport_shared.repositories.database.schema import ApplicationSchema, application_schema
 
+
 ###############################################################################
 def _postgres_settings() -> DatabaseSettings:
     if os.getenv("XREPORT_RUN_POSTGRES_INTEGRATION", "false").lower() != "true":
@@ -35,6 +36,7 @@ def _postgres_settings() -> DatabaseSettings:
         connect_timeout=10,
         insert_batch_size=100,
     )
+
 
 ###############################################################################
 def _drop_postgres_database(settings: DatabaseSettings) -> None:
@@ -66,6 +68,7 @@ def _drop_postgres_database(settings: DatabaseSettings) -> None:
     finally:
         admin_engine.dispose()
 
+
 ###############################################################################
 @pytest.fixture
 def postgres_settings() -> Iterator[DatabaseSettings]:
@@ -77,12 +80,14 @@ def postgres_settings() -> Iterator[DatabaseSettings]:
     finally:
         _drop_postgres_database(settings)
 
+
 ###############################################################################
 def _schema_revision(database: Database, schema: ApplicationSchema) -> str:
     with database.engine.connect() as connection:
         return connection.execute(
             text(f"SELECT version_num FROM {schema.version_table}")
         ).scalar_one()
+
 
 ###############################################################################
 @pytest.mark.parametrize("profile", ["xreport", "studio"])
@@ -122,6 +127,7 @@ def test_postgresql_migrations_and_restart_persistence(
     finally:
         restarted_database.engine.dispose()
 
+
 ###############################################################################
 @pytest.mark.parametrize(("profile", "owner"), [("xreport", "studio"), ("studio", "xreport")])
 def test_postgresql_database_of_the_other_application_is_rejected(
@@ -142,6 +148,7 @@ def test_postgresql_database_of_the_other_application_is_rejected(
         ) | {owner_schema.version_table}
     finally:
         database.engine.dispose()
+
 
 ###############################################################################
 def test_postgresql_concurrent_initializers_use_advisory_locks(
@@ -166,6 +173,7 @@ def test_postgresql_concurrent_initializers_use_advisory_locks(
         assert _schema_revision(database, schema) == initializer.schema_head(schema)
     finally:
         database.engine.dispose()
+
 
 ###############################################################################
 def test_postgresql_connection_failure_does_not_leak_credentials(

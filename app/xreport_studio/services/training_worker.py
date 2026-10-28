@@ -32,19 +32,23 @@ CRITICAL_PROGRESS_TYPES = {
     "training_update",
 }
 
+
 ###############################################################################
 def _worker_exception_message(exc: BaseException) -> str:
     message = str(exc).strip()
     return message or type(exc).__name__
+
 
 ###############################################################################
 def _worker_exception_traceback(exc: BaseException) -> str:
     trace = "".join(traceback.format_exception(type(exc), exc, exc.__traceback__))
     return trace[:MAX_WORKER_TRACEBACK_LENGTH]
 
+
 ###############################################################################
 def _is_critical_progress_message(message: dict[str, Any]) -> bool:
     return message.get("type") in CRITICAL_PROGRESS_TYPES
+
 
 ###############################################################################
 def _evict_plot_messages(target_queue: Any) -> bool:
@@ -74,6 +78,7 @@ def _evict_plot_messages(target_queue: Any) -> bool:
         except Exception:  # noqa: BLE001
             return False
     return removed
+
 
 ###############################################################################
 def _put_progress_message(
@@ -117,6 +122,7 @@ def _put_progress_message(
         logger.warning("Dropped critical training progress message: %s", message.get("type"))
         return False
 
+
 ###############################################################################
 class ProcessLike(Protocol):
 
@@ -136,6 +142,7 @@ class ProcessLike(Protocol):
 
     # -------------------------------------------------------------------------
     def join(self, timeout: float | None = None) -> None: ...
+
 
 ###############################################################################
 class QueueProgressReporter:
@@ -204,6 +211,7 @@ class QueueProgressReporter:
             message,
             critical=_is_critical_progress_message(message),
         )
+
 
 ###############################################################################
 class WorkerChannels:
@@ -299,6 +307,7 @@ class WorkerChannels:
         except Exception:  # noqa: BLE001
             logger.exception("Failed to report training worker result")
             raise
+
 
 ###############################################################################
 class ProcessWorker:
@@ -510,6 +519,7 @@ class ProcessWorker:
             return None
         return self.process.pid
 
+
 ###############################################################################
 def process_target(
     target: Callable[..., None],
@@ -540,6 +550,7 @@ def process_target(
             status="cancelled" if worker.is_interrupted() else "completed",
         )
 
+
 ###############################################################################
 def prepare_training_data(
     configuration: dict[str, Any],
@@ -565,6 +576,7 @@ def prepare_training_data(
         validation_data = serializer.validate_img_paths(validation_data)
 
     return train_data, validation_data, metadata
+
 
 ###############################################################################
 def load_resume_training_data(
@@ -597,6 +609,7 @@ def load_resume_training_data(
 
     return train_data, validation_data
 
+
 ###############################################################################
 def require_torch_backend() -> None:
     import keras
@@ -607,6 +620,7 @@ def require_torch_backend() -> None:
             f"Studio training requires KERAS_BACKEND=torch, but Keras uses '{backend}'"
         )
 
+
 ###############################################################################
 def loader_configuration(
     configuration: dict[str, Any], device_name: str
@@ -614,6 +628,7 @@ def loader_configuration(
     # Pinned host memory only speeds up host-to-CUDA copies.
     pin_memory = bool(configuration.get("pin_memory", False)) and device_name != "cpu"
     return {**configuration, "pin_memory": pin_memory}
+
 
 ###############################################################################
 def training_result(history: dict[str, Any], checkpoint_path: str) -> dict[str, Any]:
@@ -624,6 +639,7 @@ def training_result(history: dict[str, Any], checkpoint_path: str) -> dict[str, 
         "final_val_loss": (metrics.get("val_loss") or [0])[-1],
         "checkpoint_path": checkpoint_path,
     }
+
 
 ###############################################################################
 def keep_saved_epoch(checkpoint_path: str | None, created_by_run: bool) -> dict[str, Any]:
@@ -647,6 +663,7 @@ def keep_saved_epoch(checkpoint_path: str | None, created_by_run: bool) -> dict[
         shutil.rmtree(path, ignore_errors=True)
     return {}
 
+
 ###############################################################################
 def register_saved_epoch(result: dict[str, Any]) -> None:
     if not result:
@@ -657,6 +674,7 @@ def register_saved_epoch(result: dict[str, Any]) -> None:
         logger.info(f"Kept checkpoint {path.name} at epoch {result['epochs']}")
     except Exception as exc:  # noqa: BLE001
         logger.warning(f"Could not register saved epoch of {path.name}: {exc}")
+
 
 ###############################################################################
 def run_training_process(  # noqa: PLR0915 - lifecycle boundaries are intentionally explicit
@@ -783,6 +801,7 @@ def run_training_process(  # noqa: PLR0915 - lifecycle boundaries are intentiona
     except Exception as exc:  # noqa: BLE001
         register_saved_epoch(keep_saved_epoch(checkpoint_path, created_by_run=True))
         worker.report_failure(exc)
+
 
 ###############################################################################
 def run_resume_training_process(  # noqa: PLR0915 - lifecycle boundaries are intentionally explicit

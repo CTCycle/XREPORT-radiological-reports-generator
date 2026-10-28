@@ -30,6 +30,7 @@ from xreport_shared.repositories.serialization.support import RepositorySupport
 
 VALID_EXTENSIONS = VALID_IMAGE_EXTENSIONS
 
+
 ###############################################################################
 def sample_dataset(
     dataset: pd.DataFrame,
@@ -42,9 +43,11 @@ def sample_dataset(
     sample_count = min(len(dataset), max(1, math.ceil(len(dataset) * sample_size)))
     return dataset.sample(n=sample_count, random_state=seed)
 
+
 ###############################################################################
 class DatasetIntegrityError(ValueError):
     """Raised when a dataset contains missing or unusable image paths."""
+
 
 ###############################################################################
 class DatasetRepository(RepositorySupport):

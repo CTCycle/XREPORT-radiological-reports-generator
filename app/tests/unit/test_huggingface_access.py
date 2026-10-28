@@ -23,6 +23,7 @@ def test_status_reports_source_without_exposing_the_token(
     assert service.get_status().source == "environment"
     assert "hf_" not in service.get_status().model_dump_json()
 
+
 ###############################################################################
 def test_save_token_rejects_invalid_token_and_environment_override(
     monkeypatch: pytest.MonkeyPatch,

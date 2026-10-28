@@ -28,6 +28,7 @@ from scripts.validate_inference_model import validate_cached_model  # noqa: E402
 
 SUMMARY_DIR = ROOT_DIR / "assets" / "QA" / "inference_validation_runs"
 
+
 ###############################################################################
 def _arguments() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
@@ -39,6 +40,7 @@ def _arguments() -> argparse.Namespace:
     parser.add_argument("--fixture-sha256", type=str, action="append", required=True)
     return parser.parse_args()
 
+
 ###############################################################################
 def _deferred_state(model: object) -> str:
     if bool(getattr(model, "gated", False)):
@@ -47,10 +49,12 @@ def _deferred_state(model: object) -> str:
         return "deferred_not_installed"
     return "deferred_resource_unavailable"
 
+
 ###############################################################################
 def _summary_path() -> Path:
     stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
     return SUMMARY_DIR / f"public-inference-models-{stamp}.json"
+
 
 ###############################################################################
 def main() -> int:

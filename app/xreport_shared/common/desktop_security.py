@@ -18,6 +18,7 @@ BOOTSTRAP_PATH = "/__xreport/bootstrap"
 SHUTDOWN_PATH = "/__xreport/shutdown"
 HEALTH_PATH = "/api/health"
 
+
 ###############################################################################
 def desktop_token() -> str:
     token = os.getenv("XREPORT_DESKTOP_TOKEN", "")
@@ -25,9 +26,11 @@ def desktop_token() -> str:
         raise RuntimeError("Packaged XREPORT desktop token is missing or too short")
     return token
 
+
 ###############################################################################
 def token_matches(candidate: str | None) -> bool:
     return bool(candidate) and hmac.compare_digest(candidate, desktop_token())
+
 
 ###############################################################################
 def _security_headers(response: Response) -> Response:
@@ -49,6 +52,7 @@ def _security_headers(response: Response) -> Response:
     response.headers.setdefault("Cross-Origin-Opener-Policy", "same-origin")
     response.headers.setdefault("Cache-Control", "no-store")
     return response
+
 
 ###############################################################################
 class DesktopSecurityMiddleware(BaseHTTPMiddleware):
@@ -107,6 +111,7 @@ class DesktopSecurityMiddleware(BaseHTTPMiddleware):
 
         response = await call_next(request)
         return _security_headers(response)
+
 
 ###############################################################################
 def install_shutdown_event(application: Any) -> asyncio.Event:

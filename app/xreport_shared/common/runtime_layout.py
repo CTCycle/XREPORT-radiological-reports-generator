@@ -38,10 +38,12 @@ STORAGE_ENTRIES = (
     STUDIO_DATA_DIRNAME,
 )
 
+
 ###############################################################################
 def storage_pointer_path(bootstrap_dir: Path) -> Path:
     """Return the pointer file that records a user-selected storage root."""
     return bootstrap_dir / STORAGE_POINTER_FILENAME
+
 
 ###############################################################################
 def read_storage_pointer(bootstrap_dir: Path) -> str | None:
@@ -51,6 +53,7 @@ def read_storage_pointer(bootstrap_dir: Path) -> str | None:
         return None
     value = payload.get("storage_root") if isinstance(payload, dict) else None
     return value.strip() if isinstance(value, str) and value.strip() else None
+
 
 ###############################################################################
 def write_storage_pointer(bootstrap_dir: Path, storage_root: Path | None) -> None:
@@ -71,6 +74,7 @@ def write_storage_pointer(bootstrap_dir: Path, storage_root: Path | None) -> Non
         json.dump(payload, temporary, indent=2)
     os.replace(temporary_path, pointer)
 
+
 ###############################################################################
 def app_profile_from_environment() -> str:
     """Return the application profile selected by XREPORT_APP (default xreport)."""
@@ -81,9 +85,11 @@ def app_profile_from_environment() -> str:
         )
     return profile
 
+
 ###############################################################################
 def _truthy(value: str | None) -> bool:
     return (value or "").strip().lower() in {"1", "true", "yes", "on"}
+
 
 ###############################################################################
 @dataclass(frozen=True)
@@ -233,6 +239,7 @@ class RuntimeLayout:
             storage_source="pointer" if configured_storage else "default",
         )
 
+
 ###############################################################################
 def _atomic_copy_if_missing(source: Path, destination: Path) -> bool:
     if destination.exists():
@@ -252,6 +259,7 @@ def _atomic_copy_if_missing(source: Path, destination: Path) -> bool:
         temporary_path.unlink(missing_ok=True)
         return False
     return True
+
 
 ###############################################################################
 def _validate_manifest_contract(
@@ -292,6 +300,7 @@ def _validate_manifest_contract(
             "Packaged runtime manifest creation timestamp must include a timezone"
         )
 
+
 ###############################################################################
 def ensure_packaged_data(layout: RuntimeLayout) -> None:
     """Create the data tree and seed first-run files without overwriting edits."""
@@ -307,6 +316,7 @@ def ensure_packaged_data(layout: RuntimeLayout) -> None:
     for name in ("logs", "models", "checkpoints", "templates", "validation_receipts"):
         (layout.resources_root / name).mkdir(parents=True, exist_ok=True)
     layout.cache_root.mkdir(parents=True, exist_ok=True)
+
 
 ###############################################################################
 def validate_runtime_manifest(layout: RuntimeLayout) -> dict[str, object]:
@@ -329,6 +339,7 @@ def validate_runtime_manifest(layout: RuntimeLayout) -> dict[str, object]:
     ):
         raise RuntimeError("Packaged runtime manifest has an invalid payload hash")
     return payload
+
 
 ###############################################################################
 def runtime_layout_from_environment() -> RuntimeLayout:

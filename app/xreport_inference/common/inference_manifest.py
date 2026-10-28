@@ -12,14 +12,17 @@ SUPPORTED_ADAPTERS = frozenset(
 SUPPORTED_MODEL_LOADERS = frozenset({"auto_model", "image_text_to_text", "causal_lm"})
 SUPPORTED_DTYPES = frozenset({"auto", "float32", "float16", "bfloat16"})
 
+
 ###############################################################################
 def is_pinned_revision(revision: str | None) -> bool:
     return bool(revision and REVISION_PATTERN.fullmatch(revision))
+
 
 ###############################################################################
 def _validate_pinned_revision(repository_id: str, manifest: Mapping[str, Any]) -> None:
     if not is_pinned_revision(manifest.get("revision")):
         raise RuntimeError(f"{repository_id} requires a pinned 40-character revision")
+
 
 ###############################################################################
 def _validate_remote_code(repository_id: str, manifest: Mapping[str, Any]) -> None:
@@ -29,6 +32,7 @@ def _validate_remote_code(repository_id: str, manifest: Mapping[str, Any]) -> No
         raise RuntimeError(
             f"Remote code is not approved for pinned repository {repository_id}"
         )
+
 
 ###############################################################################
 def _require_manifest_fields(repository_id: str, manifest: Mapping[str, Any]) -> None:
@@ -46,6 +50,7 @@ def _require_manifest_fields(repository_id: str, manifest: Mapping[str, Any]) ->
             + ", ".join(missing_fields)
         )
 
+
 ###############################################################################
 def _validate_string_choice(
     manifest: Mapping[str, Any],
@@ -59,6 +64,7 @@ def _validate_string_choice(
     if value not in allowed_values:
         raise RuntimeError(f"{unsupported_label}: {value}")
 
+
 ###############################################################################
 def _validate_max_current_images(manifest: Mapping[str, Any]) -> None:
     value = manifest["max_current_images"]
@@ -66,6 +72,7 @@ def _validate_max_current_images(manifest: Mapping[str, Any]) -> None:
         raise RuntimeError("max_current_images must be an integer")
     if value < 1:
         raise RuntimeError("max_current_images must be at least 1")
+
 
 ###############################################################################
 def validate_manifest(

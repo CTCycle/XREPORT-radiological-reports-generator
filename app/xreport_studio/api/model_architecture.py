@@ -17,6 +17,7 @@ from xreport_studio.domain.model_architecture import (
 if TYPE_CHECKING:
     from xreport_studio.services.model_architecture import ModelArchitectureService
 
+
 ###############################################################################
 class ModelArchitectureEndpoint:
 
@@ -135,6 +136,7 @@ class ModelArchitectureEndpoint:
             response_model=CheckpointArchitectureResponse,
             status_code=status.HTTP_200_OK,
         )
+
 
 ###############################################################################
 def get_router() -> APIRouter:

@@ -9,12 +9,6 @@ from playwright.sync_api import APIRequestContext
 """Cross-layer contract check for the catalog-backed inference API."""
 
 
-
-
-
-
-
-
 ###############################################################################
 def test_inference_catalog_is_reachable_and_unknown_models_are_rejected(
     api_context: APIRequestContext,
@@ -86,6 +80,7 @@ def test_inference_catalog_is_reachable_and_unknown_models_are_rejected(
         "huggingface:aehrc/cxrmate-ed"
     }
 
+
 ###############################################################################
 def _image_upload(
     filename: str = "scan.png",
@@ -93,6 +88,7 @@ def _image_upload(
     data: bytes = b"image-fixture",
 ) -> dict[str, Any]:
     return {"name": filename, "mimeType": content_type, "buffer": data}
+
 
 ###############################################################################
 def test_inference_generate_enforces_model_context_profile_and_image_limits(
@@ -193,6 +189,7 @@ def test_inference_generate_enforces_model_context_profile_and_image_limits(
     assert invalid_profile.status == 422
     assert set(invalid_profile.json()) == {"detail"}
 
+
 ###############################################################################
 def test_inference_generate_rejects_image_payload_over_total_limit(
     api_base_url: str,
@@ -233,6 +230,7 @@ def test_inference_generate_rejects_image_payload_over_total_limit(
     assert response.status_code == 413
     assert response.json() == {"detail": "Total image payload exceeds 64 MB limit"}
 
+
 ###############################################################################
 def test_inference_catalog_exposes_chexone_findings_only_contract(
     api_context: APIRequestContext,
@@ -249,6 +247,7 @@ def test_inference_catalog_exposes_chexone_findings_only_contract(
     assert chexone["output_sections"] == ["findings"]
     assert chexone["capabilities"]["findings"] is True
     assert chexone["capabilities"]["impression"] is False
+
 
 ###############################################################################
 def test_inference_history_contract_filters_and_missing_entries(
@@ -283,6 +282,7 @@ def test_inference_history_contract_filters_and_missing_entries(
         == 404
     )
     assert api_context.delete(f"/api/inference/history/{missing}").status == 404
+
 
 ###############################################################################
 def test_inference_history_crud_preserves_original_output(
@@ -370,7 +370,6 @@ def test_inference_history_crud_preserves_original_output(
     assert deleted.ok
     assert deleted.json()["success"] is True
     assert api_context.get(f"/api/inference/history/{seeded_history}").status == 404
-
 
 
 ###############################################################################

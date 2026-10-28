@@ -20,9 +20,11 @@ CONFIG_SCHEMA_VERSION = 1
 _CONFIG_LOCK = RLock()
 _BOOTSTRAP_ERROR: str | None = None
 
+
 ###############################################################################
 class DatabaseConfigurationError(RuntimeError):
     """Raised when database configuration cannot be safely loaded or saved."""
+
 
 ###############################################################################
 class DatabaseConfiguration(BaseModel):
@@ -116,6 +118,7 @@ class DatabaseConfiguration(BaseModel):
         values["password_configured"] = bool(self.password)
         return values
 
+
 ###############################################################################
 class _StoredDatabaseConfiguration(BaseModel):
     model_config = ConfigDict(extra="forbid", strict=True, hide_input_in_errors=True)
@@ -134,11 +137,13 @@ class _StoredDatabaseConfiguration(BaseModel):
     connect_timeout: int = 30
     insert_batch_size: int = 1000
 
+
 ###############################################################################
 @dataclass(frozen=True)
 class DatabaseConfigurationStatus:
     configuration: DatabaseConfiguration | None
     error: str | None
+
 
 ###############################################################################
 def _clean(value: str | None) -> str | None:
@@ -146,6 +151,7 @@ def _clean(value: str | None) -> str | None:
         return None
     result = value.strip()
     return result or None
+
 
 ###############################################################################
 def _safe_validation_message(error: ValidationError) -> str:
@@ -156,12 +162,14 @@ def _safe_validation_message(error: ValidationError) -> str:
     ]
     return "; ".join(messages) or "Database configuration is invalid."
 
+
 ###############################################################################
 class _DataBlob(ctypes.Structure):
     _fields_ = [
         ("cbData", wintypes.DWORD),
         ("pbData", ctypes.POINTER(ctypes.c_ubyte)),
     ]
+
 
 ###############################################################################
 def _protect_password(password: str) -> str:
@@ -211,6 +219,7 @@ def _protect_password(password: str) -> str:
     finally:
         local_free(protected.pbData)
 
+
 ###############################################################################
 def _unprotect_password(value: str | None) -> str | None:
     if not value:
@@ -258,12 +267,14 @@ def _unprotect_password(value: str | None) -> str | None:
     finally:
         local_free(unprotected.pbData)
 
+
 ###############################################################################
 def _stored_payload(configuration: DatabaseConfiguration) -> dict[str, Any]:
     values = configuration.model_dump(mode="json", exclude={"password"})
     values["schema_version"] = CONFIG_SCHEMA_VERSION
     values["password_protected"] = _protect_password(configuration.password or "")
     return values
+
 
 ###############################################################################
 def _atomic_write(path: Path, data: bytes) -> None:
@@ -290,6 +301,7 @@ def _atomic_write(path: Path, data: bytes) -> None:
             "Could not safely save database settings in the application data directory."
         ) from exc
 
+
 ###############################################################################
 def save_database_configuration(
     configuration: DatabaseConfiguration,
@@ -310,6 +322,7 @@ def save_database_configuration(
     with _CONFIG_LOCK:
         _atomic_write(path, payload)
         _BOOTSTRAP_ERROR = None
+
 
 ###############################################################################
 def read_database_configuration(
@@ -345,6 +358,7 @@ def read_database_configuration(
                 "Database settings could not be read safely. Use the Database section in Settings to repair them."
             ) from exc
 
+
 ###############################################################################
 def read_database_configuration_status(
     *, path: Path | None = None
@@ -356,11 +370,13 @@ def read_database_configuration_status(
     except DatabaseConfigurationError as exc:
         return DatabaseConfigurationStatus(configuration=None, error=str(exc))
 
+
 ###############################################################################
 def load_database_settings():
     if _BOOTSTRAP_ERROR:
         raise DatabaseConfigurationError(_BOOTSTRAP_ERROR)
     return read_database_configuration().to_database_settings()
+
 
 ###############################################################################
 def bootstrap_database_configuration() -> str | None:
@@ -387,6 +403,7 @@ def bootstrap_database_configuration() -> str | None:
             return _BOOTSTRAP_ERROR
         _BOOTSTRAP_ERROR = None
         return None
+
 
 ###############################################################################
 def clear_database_configuration_error() -> None:

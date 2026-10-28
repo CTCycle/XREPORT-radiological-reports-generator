@@ -51,6 +51,7 @@ class UploadState:
         with self.lock:
             return upload_id in self.storage
 
+
 ###############################################################################
 class UploadService:
 
@@ -126,6 +127,7 @@ class UploadService:
             raise BadRequestError(
                 detail=f"Failed to parse file: {str(e)}",
             ) from e
+
 
 ###############################################################################
 @lru_cache(maxsize=1)

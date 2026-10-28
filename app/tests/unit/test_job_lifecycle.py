@@ -23,14 +23,11 @@ from xreport_studio.services.upload import UploadState
 from xreport_studio.services.validation_runs import ValidationService
 
 
-
-
-
-
 ###############################################################################
 def blocking_runner(release: threading.Event) -> dict[str, object]:
     release.wait(timeout=3.0)
     return {}
+
 
 ###############################################################################
 def test_cancel_running_job_marks_stop_requested_only() -> None:
@@ -61,6 +58,7 @@ def test_cancel_running_job_marks_stop_requested_only() -> None:
     assert final_status is not None
     assert final_status["status"] == "cancelled"
 
+
 ###############################################################################
 def test_cancel_pending_job_transitions_to_cancelled() -> None:
     manager = JobManager()
@@ -78,11 +76,10 @@ def test_cancel_pending_job_transitions_to_cancelled() -> None:
     assert status["status"] == "cancelled"
 
 
-
-
 ###############################################################################
 def _snapshot_failure() -> dict[str, object]:
     raise RuntimeError("checkpoint snapshot could not be loaded")
+
 
 ###############################################################################
 def test_generic_job_failure_uses_generic_execution_taxonomy() -> None:
@@ -100,6 +97,7 @@ def test_generic_job_failure_uses_generic_execution_taxonomy() -> None:
         "phase": "execution",
         "recoverable": True,
     }
+
 
 ###############################################################################
 def test_inference_failure_taxonomy_is_injected_by_feature() -> None:
@@ -121,6 +119,7 @@ def test_inference_failure_taxonomy_is_injected_by_feature() -> None:
         "phase": "loading",
         "recoverable": True,
     }
+
 
 ###############################################################################
 def test_typed_job_failure_is_used_without_a_mapper() -> None:
@@ -148,30 +147,14 @@ def test_typed_job_failure_is_used_without_a_mapper() -> None:
     }
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 ###############################################################################
 def test_training_start_rejects_an_existing_checkpoint_name() -> None:
+
+
+    ###############################################################################
     class CheckpointRepositoryStub:
+
+        # -------------------------------------------------------------------------
         def get_checkpoint(self, name: str) -> object | None:
             return object() if name == "existing_run" else None
 
@@ -185,6 +168,7 @@ def test_training_start_rejects_an_existing_checkpoint_name() -> None:
         service.ensure_checkpoint_name_is_free("existing_run!")
     service.ensure_checkpoint_name_is_free("new_run")
 
+
 ###############################################################################
 def test_concurrent_training_starts_are_atomically_rejected(
     monkeypatch: pytest.MonkeyPatch,
@@ -195,6 +179,7 @@ def test_concurrent_training_starts_are_atomically_rejected(
         training_runtime=TrainingRuntime(),
         checkpoint_repository=object(),  # type: ignore[arg-type]
     )
+
 
     ###############################################################################
     class DatasetRepositoryStub:
@@ -298,6 +283,7 @@ def test_concurrent_training_starts_are_atomically_rejected(
     assert manager.get_job_status(job_id)["status"] == "completed"  # type: ignore[index]
     assert not manager.is_job_running("training")
 
+
 ###############################################################################
 def test_initial_result_is_visible_before_runner_starts() -> None:
     manager = JobManager()
@@ -317,6 +303,7 @@ def test_initial_result_is_visible_before_runner_starts() -> None:
     manager.threads[job_id].join(timeout=2)
 
     assert observed == {"worker_phase": "starting", "progress_percent": 0}
+
 
 ###############################################################################
 @pytest.mark.parametrize(
@@ -362,6 +349,7 @@ def test_concurrent_feature_job_starts_are_atomically_rejected(
 
     if feature == "dataset_processing":
 
+
         ###############################################################################
         class DatasetRepositoryStub:
 
@@ -406,6 +394,7 @@ def test_concurrent_feature_job_starts_are_atomically_rejected(
             return asyncio.run(service.run_validation(request))
 
     else:
+
 
         ###############################################################################
         class CheckpointRepositoryStub:
@@ -478,6 +467,7 @@ def test_concurrent_feature_job_starts_are_atomically_rejected(
     assert not manager.threads[job_id].is_alive()
     assert manager.get_job_status(job_id)["status"] == "completed"  # type: ignore[index]
     assert not manager.is_job_running(job_type)
+
 
 ###############################################################################
 @pytest.mark.parametrize(

@@ -46,6 +46,7 @@ SHAPE_FIELDS = (
     "classifier_units",
 )
 
+
 ###############################################################################
 @dataclass(frozen=True)
 class ImageEncoderSpec:
@@ -73,6 +74,7 @@ ENCODER_REGISTRY: dict[str, ImageEncoderSpec] = {
     ),
 }
 
+
 ###############################################################################
 @dataclass(frozen=True)
 class BuiltinPreset:
@@ -82,6 +84,7 @@ class BuiltinPreset:
     architecture: ModelArchitecture
 
 
+###############################################################################
 def shared_stacks(
     heads: int, head_dim_mode: str, ffn_units: int, dropout: float
 ) -> dict[str, Any]:
@@ -153,7 +156,8 @@ BUILTIN_PRESETS: dict[str, BuiltinPreset] = {
     )
 }
 
-# -----------------------------------------------------------------------------
+
+###############################################################################
 def encoder_options() -> list[EncoderOption]:
     return [
         EncoderOption(
@@ -172,7 +176,8 @@ def encoder_options() -> list[EncoderOption]:
         for spec in ENCODER_REGISTRY.values()
     ]
 
-# -----------------------------------------------------------------------------
+
+###############################################################################
 def stack_kwargs(architecture: ModelArchitecture, stack: Stack) -> dict[str, Any]:
     """Keyword arguments of the transformer encoder or decoder layers of a stack."""
     return {
@@ -189,16 +194,19 @@ def stack_kwargs(architecture: ModelArchitecture, stack: Stack) -> dict[str, Any
 # These mirror the Keras layers in layers.py and encoder.py; unit tests compare
 # them with the parameter counts and weight shapes of the built layers.
 
-# -----------------------------------------------------------------------------
+
+###############################################################################
 def attention_parameters(width: int, heads: int, key_dim: int) -> int:
     # query, key and value projections (with bias) plus the output projection
     return 4 * width * heads * key_dim + 3 * heads * key_dim + width
 
 
+###############################################################################
 def feed_forward_parameters(width: int, units: int) -> int:
     return width * units + units + units * width + width
 
 
+###############################################################################
 def encoder_block_parameters(architecture: ModelArchitecture) -> int:
     width = architecture.embedding_dims
     attention = attention_parameters(
@@ -209,6 +217,7 @@ def encoder_block_parameters(architecture: ModelArchitecture) -> int:
     )
 
 
+###############################################################################
 def decoder_block_parameters(architecture: ModelArchitecture) -> int:
     width = architecture.embedding_dims
     attention = attention_parameters(
@@ -219,22 +228,26 @@ def decoder_block_parameters(architecture: ModelArchitecture) -> int:
     )
 
 
+###############################################################################
 def embedding_parameters(
     architecture: ModelArchitecture, vocabulary_size: int, sequence_length: int
 ) -> int:
     return (vocabulary_size + sequence_length) * architecture.embedding_dims
 
 
+###############################################################################
 def classifier_parameters(architecture: ModelArchitecture, vocabulary_size: int) -> int:
     units = architecture.classifier_units
     return architecture.embedding_dims * units + units + units * vocabulary_size + vocabulary_size
 
 
+###############################################################################
 def projection_parameters(architecture: ModelArchitecture) -> int:
     features = ENCODER_REGISTRY[architecture.image_encoder].feature_dims
     return features * architecture.embedding_dims + architecture.embedding_dims
 
-# -----------------------------------------------------------------------------
+
+###############################################################################
 def describe(
     architecture: ModelArchitecture,
     vocabulary_size: int = REFERENCE_VOCABULARY_SIZE,
@@ -395,7 +408,8 @@ def describe(
 
     return ArchitectureGraph(nodes=nodes, edges=edges), stats
 
-# -----------------------------------------------------------------------------
+
+###############################################################################
 def effective_settings(architecture: ModelArchitecture) -> dict[str, Any]:
     """Settings that act on the model, with head size resolved to its real value.
 
@@ -428,7 +442,8 @@ def effective_settings(architecture: ModelArchitecture) -> dict[str, Any]:
         "temperature": architecture.temperature,
     }
 
-# -----------------------------------------------------------------------------
+
+###############################################################################
 def compare_architectures(
     architecture: ModelArchitecture,
     reference: ModelArchitecture,
@@ -471,7 +486,8 @@ def compare_architectures(
         message=message,
     )
 
-# -----------------------------------------------------------------------------
+
+###############################################################################
 def weight_shapes(
     architecture: ModelArchitecture, vocabulary_size: int, sequence_length: int
 ) -> dict[tuple[str, str, str], tuple[int, ...]]:
@@ -528,7 +544,8 @@ def weight_shapes(
     shapes[("classifier", "", "dense2/bias")] = (vocabulary_size,)
     return shapes
 
-# -----------------------------------------------------------------------------
+
+###############################################################################
 def _block_range(blocks: list[int]) -> str:
     runs: list[str] = []
     start = previous = blocks[0]
@@ -541,7 +558,8 @@ def _block_range(blocks: list[int]) -> str:
             start = previous = block
     return ", ".join(runs)
 
-# -----------------------------------------------------------------------------
+
+###############################################################################
 def compare_weights(
     architecture: ModelArchitecture,
     checkpoint: ModelArchitecture,
@@ -589,7 +607,8 @@ def compare_weights(
         mismatches=mismatches,
     )
 
-# -----------------------------------------------------------------------------
+
+###############################################################################
 def architecture_from_configuration(
     configuration: dict[str, Any],
 ) -> tuple[ModelArchitecture, bool]:

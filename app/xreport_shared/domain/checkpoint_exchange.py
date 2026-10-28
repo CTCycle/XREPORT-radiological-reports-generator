@@ -16,6 +16,7 @@ ENCODER_REPOSITORY = "microsoft/beit-base-patch16-224"
 # because the shared encoder that XREPORT Inference loads needs it.
 ENCODER_REVISION = "f02e8f77db4703e3fbd3766e3375a4619c5a4863"
 
+
 ###############################################################################
 class ManifestFile(BaseModel):
     model_config = ConfigDict(extra="forbid")
@@ -23,6 +24,7 @@ class ManifestFile(BaseModel):
     path: str
     size: int = Field(ge=0)
     sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
+
 
 ###############################################################################
 class ManifestProducer(BaseModel):
@@ -32,6 +34,7 @@ class ManifestProducer(BaseModel):
     version: str
     keras: str | None = None
     torch: str | None = None
+
 
 ###############################################################################
 class ManifestTokenizer(BaseModel):
@@ -45,6 +48,7 @@ class ManifestTokenizer(BaseModel):
     start_token_id: int | None = None
     end_token_id: int | None = None
 
+
 ###############################################################################
 class ManifestEncoder(BaseModel):
     model_config = ConfigDict(extra="forbid")
@@ -52,6 +56,7 @@ class ManifestEncoder(BaseModel):
     repository: str
     revision: str
     bundled: bool
+
 
 ###############################################################################
 class ManifestProvenance(BaseModel):
@@ -61,6 +66,7 @@ class ManifestProvenance(BaseModel):
     epochs: int | None = None
     final_loss: float | None = None
     final_val_loss: float | None = None
+
 
 ###############################################################################
 class ExchangeManifest(BaseModel):
@@ -78,16 +84,19 @@ class ExchangeManifest(BaseModel):
     provenance: ManifestProvenance
     files: list[ManifestFile]
 
+
 ###############################################################################
 class ExportRequest(BaseModel):
     checkpoint: str
     include_encoder: bool = False
+
 
 ###############################################################################
 class ExportResult(BaseModel):
     filename: str
     size: int
     content_sha256: str
+
 
 ###############################################################################
 class ImportOutcome(BaseModel):

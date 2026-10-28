@@ -10,10 +10,12 @@ from PIL import Image, ImageOps
 from torch.utils.data import DataLoader, Dataset
 from torchvision import transforms
 
-# -----------------------------------------------------------------------------
+
+###############################################################################
 def to_channels_last(image: torch.Tensor) -> torch.Tensor:
     # Module-level (not a lambda) so spawned DataLoader workers can pickle it.
     return image.permute(1, 2, 0)
+
 
 ###############################################################################
 class XRAYDataset(Dataset):
@@ -68,6 +70,7 @@ class XRAYDataset(Dataset):
         output_text = torch.from_numpy(token_array[1:])
 
         return (image, input_text), output_text  # type: ignore
+
 
 ###############################################################################
 class XRAYDataLoader:

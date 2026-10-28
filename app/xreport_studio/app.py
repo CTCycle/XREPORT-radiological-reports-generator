@@ -12,6 +12,7 @@ from xreport_shared.app_factory import create_application
 PROFILE = "studio"
 TITLE = "XREPORT Studio"
 
+
 ###############################################################################
 def create_app() -> FastAPI:
     from xreport_shared.api.checkpoint_exchange import get_export_router

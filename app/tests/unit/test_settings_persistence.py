@@ -31,18 +31,6 @@ from xreport_inference.repositories.schemas.inference import InferenceReport, In
 from xreport_shared.common.database_switch import DatabaseRequestGate
 
 
-
-
-
-
-
-
-
-
-
-
-
-
 ###############################################################################
 def _application_sqlite_settings(path: Path) -> DatabaseSettings:
     return DatabaseSettings(
@@ -60,6 +48,7 @@ def _application_sqlite_settings(path: Path) -> DatabaseSettings:
         sqlite_path=path,
     )
 
+
 ###############################################################################
 def _database(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> ApplicationDatabase:
     path = tmp_path / "database.db"
@@ -75,6 +64,7 @@ def _database(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> ApplicationDat
             }
         )
     return database
+
 
 ###############################################################################
 def test_fresh_upgrade_uses_typed_defaults(
@@ -103,6 +93,7 @@ _GENERATION_DEFAULTS = {
     "detailed_num_beams": 0,
 }
 
+
 ###############################################################################
 def test_public_projection_contains_only_application_settings(tmp_path, monkeypatch) -> None:
     database = _database(tmp_path, monkeypatch)
@@ -121,6 +112,7 @@ def test_public_projection_contains_only_application_settings(tmp_path, monkeypa
         "inference": {"model_timeout": 600, "model_idle_timeout": 300, **_GENERATION_DEFAULTS},
         "theme_preference": None,
     }
+
 
 ###############################################################################
 @pytest.mark.usefixtures("studio_profile")
@@ -143,6 +135,7 @@ def test_studio_settings_have_no_inference_controls(tmp_path) -> None:
             ApplicationSettingsPatch.model_validate({"inference": {"model_timeout": 5}})
         )
 
+
 ###############################################################################
 def test_generation_limits_persist_and_reject_out_of_range(tmp_path, monkeypatch) -> None:
     service = SettingsService(ApplicationSettingsRepository(_database(tmp_path, monkeypatch)))
@@ -157,6 +150,7 @@ def test_generation_limits_persist_and_reject_out_of_range(tmp_path, monkeypatch
     for patch in ({"max_new_tokens_detailed": 4097}, {"detailed_num_beams": 9}):
         with pytest.raises(ValueError):
             ApplicationSettingsPatch.model_validate({"inference": patch})
+
 
 ###############################################################################
 def test_update_and_reset_change_application_settings(tmp_path, monkeypatch) -> None:
@@ -180,6 +174,7 @@ def test_update_and_reset_change_application_settings(tmp_path, monkeypatch) -> 
     persisted = repository.get_settings()
     assert persisted.theme_preference is None
 
+
 ###############################################################################
 def test_theme_preference_is_saved_and_reset_with_active_database(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
@@ -197,6 +192,7 @@ def test_theme_preference_is_saved_and_reset_with_active_database(
     reset = service.reset_settings()
     assert reset.values.theme_preference is None
     assert repository.get_settings().theme_preference is None
+
 
 ###############################################################################
 def test_public_settings_are_restored_after_reopening_the_database(
@@ -225,6 +221,7 @@ def test_public_settings_are_restored_after_reopening_the_database(
     finally:
         reopened.engine.dispose()
 
+
 ###############################################################################
 def test_patch_rejects_empty_unknown_and_null_values() -> None:
     with pytest.raises(ValueError):
@@ -234,11 +231,13 @@ def test_patch_rejects_empty_unknown_and_null_values() -> None:
     with pytest.raises(ValueError):
         ApplicationSettingsPatch.model_validate({"global": {"seed": None}})
 
+
 ###############################################################################
 def test_repository_rejects_private_columns(tmp_path, monkeypatch) -> None:
     repository = ApplicationSettingsRepository(_database(tmp_path, monkeypatch))
     with pytest.raises(ValueError, match="Unsupported application setting"):
         repository.update_public_settings({"inference_device": "cuda"})
+
 
 ###############################################################################
 def test_repository_validates_candidate_before_persisting(tmp_path, monkeypatch) -> None:
@@ -246,6 +245,7 @@ def test_repository_validates_candidate_before_persisting(tmp_path, monkeypatch)
     with pytest.raises(ValueError):
         repository.update_public_settings({"global_seed": -1})
     assert repository.get_settings().global_seed == 123
+
 
 ###############################################################################
 def test_persistence_failure_is_translated_to_safe_service_error(
@@ -264,29 +264,10 @@ def test_persistence_failure_is_translated_to_safe_service_error(
         )
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 ###############################################################################
 def _sqlite(path: Path) -> DatabaseConfiguration:
     return DatabaseConfiguration(backend="sqlite", sqlite_path=path)
+
 
 ###############################################################################
 def _seed_database(settings, seed: int) -> None:
@@ -298,15 +279,18 @@ def _seed_database(settings, seed: int) -> None:
     finally:
         database.engine.dispose()
 
+
 ###############################################################################
 def test_sqlite_configuration_requires_an_absolute_path(tmp_path: Path) -> None:
     with pytest.raises(ValidationError, match="absolute"):
         DatabaseConfiguration(backend="sqlite", sqlite_path=Path("relative.db"))
 
+
 ###############################################################################
 def test_postgres_configuration_requires_connection_identity() -> None:
     with pytest.raises(ValidationError, match="host"):
         DatabaseConfiguration(backend="postgresql")
+
 
 ###############################################################################
 @pytest.mark.skipif(os.name != "nt", reason="Windows DPAPI is the credential store")
@@ -329,6 +313,7 @@ def test_database_config_protects_password_and_roundtrips(tmp_path: Path) -> Non
     assert "password" not in payload
     assert database_config.read_database_configuration(path=path).password == "top-secret-value"
 
+
 ###############################################################################
 def test_invalid_database_config_is_preserved_for_recovery(tmp_path: Path) -> None:
     path = tmp_path / "database-config.json"
@@ -340,6 +325,7 @@ def test_invalid_database_config_is_preserved_for_recovery(tmp_path: Path) -> No
     assert status.configuration is None
     assert status.error
     assert path.read_bytes() == original
+
 
 ###############################################################################
 def test_connection_test_reports_an_unavailable_postgres_server() -> None:
@@ -358,6 +344,7 @@ def test_connection_test_reports_an_unavailable_postgres_server() -> None:
     assert result.connected is False
     assert result.schema_ready is False
     assert result.detail
+
 
 ###############################################################################
 def test_sqlite_switch_reloads_active_database_settings_and_can_roll_back(
@@ -413,6 +400,7 @@ def test_sqlite_switch_reloads_active_database_settings_and_can_roll_back(
     finally:
         database_backend.reset_database()
 
+
 ###############################################################################
 def test_database_switch_is_blocked_while_a_job_runs(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(
@@ -423,21 +411,6 @@ def test_database_switch_is_blocked_while_a_job_runs(monkeypatch: pytest.MonkeyP
 
     with pytest.raises(DatabaseSwitchBusyError, match="active background jobs"):
         DatabaseSettingsService().switch_database(_sqlite(Path.cwd() / "unused.db"))
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 ###############################################################################
@@ -456,6 +429,7 @@ def _sqlite_settings(path: Path) -> DatabaseSettings:
         insert_batch_size=1000,
         sqlite_path=path,
     )
+
 
 ###############################################################################
 def _postgres_settings() -> DatabaseSettings:
@@ -476,6 +450,7 @@ def _postgres_settings() -> DatabaseSettings:
 ###############################################################################
 APPLICATION_PROFILES = pytest.mark.parametrize("profile", ["xreport", "studio"])
 
+
 ###############################################################################
 def _alembic_config(path: Path, schema: ApplicationSchema) -> Config:
     config = Config(
@@ -485,6 +460,7 @@ def _alembic_config(path: Path, schema: ApplicationSchema) -> Config:
     config.set_main_option("sqlalchemy.url", f"sqlite:///{path.as_posix()}")
     return config
 
+
 ###############################################################################
 def _database_tables(path: Path) -> set[str]:
     engine = sqlalchemy.create_engine(f"sqlite:///{path}")
@@ -492,6 +468,7 @@ def _database_tables(path: Path) -> set[str]:
         return set(sqlalchemy.inspect(engine).get_table_names())
     finally:
         engine.dispose()
+
 
 ###############################################################################
 def _schema_revision(path: Path, schema: ApplicationSchema) -> str:
@@ -503,6 +480,7 @@ def _schema_revision(path: Path, schema: ApplicationSchema) -> str:
             ).scalar_one()
     finally:
         engine.dispose()
+
 
 ###############################################################################
 def _insert_checkpoint(path: Path, name: str) -> None:
@@ -516,6 +494,7 @@ def _insert_checkpoint(path: Path, name: str) -> None:
             )
     finally:
         engine.dispose()
+
 
 ###############################################################################
 @APPLICATION_PROFILES
@@ -532,6 +511,7 @@ def test_sqlite_startup_creates_only_the_application_schema(
     }
     assert _schema_revision(database_path, schema) == initializer.schema_head(schema)
 
+
 ###############################################################################
 def test_application_schemas_do_not_share_application_tables() -> None:
     inference = set(application_schema("xreport").metadata.tables)
@@ -540,6 +520,7 @@ def test_application_schemas_do_not_share_application_tables() -> None:
     assert inference & studio == {"application_settings", "checkpoints"}
     assert {"inference_runs", "inference_reports"} <= inference - studio
     assert {"datasets", "checkpoint_evaluations"} <= studio - inference
+
 
 ###############################################################################
 @APPLICATION_PROFILES
@@ -573,6 +554,7 @@ def test_database_at_head_preserves_settings_and_records(tmp_path, profile) -> N
         engine.dispose()
     assert _schema_revision(database_path, schema) == initializer.schema_head(schema)
 
+
 ###############################################################################
 @pytest.mark.parametrize(
     ("profile", "owner"), [("xreport", "studio"), ("studio", "xreport")]
@@ -591,6 +573,7 @@ def test_database_of_the_other_application_is_rejected_without_modification(
         )
 
     assert _database_tables(database_path) == tables
+
 
 ###############################################################################
 def test_retired_shared_schema_database_is_rejected(tmp_path) -> None:
@@ -611,6 +594,7 @@ def test_retired_shared_schema_database_is_rejected(tmp_path) -> None:
         initializer.prepare_database_for_startup(_sqlite_settings(database_path))
 
     assert _database_tables(database_path) == {"alembic_version"}
+
 
 ###############################################################################
 @APPLICATION_PROFILES
@@ -634,6 +618,7 @@ def test_unknown_database_revision_is_rejected_without_modification(
 
     assert _schema_revision(database_path, schema) == "f48a7c2e91b6"
 
+
 ###############################################################################
 @APPLICATION_PROFILES
 def test_nonempty_unversioned_schema_is_rejected_without_implicit_adoption(
@@ -655,6 +640,7 @@ def test_nonempty_unversioned_schema_is_rejected_without_implicit_adoption(
 
     assert schema.version_table not in _database_tables(database_path)
 
+
 ###############################################################################
 def test_unknown_partial_schema_is_rejected_without_stamping(tmp_path) -> None:
     database_path = tmp_path / "database.db"
@@ -672,6 +658,7 @@ def test_unknown_partial_schema_is_rejected_without_stamping(tmp_path) -> None:
 
     assert _database_tables(database_path) == {"checkpoints"}
 
+
 ###############################################################################
 def test_failed_migration_rolls_back_database_changes(tmp_path, monkeypatch) -> None:
     database_path = tmp_path / "database.db"
@@ -686,6 +673,7 @@ def test_failed_migration_rolls_back_database_changes(tmp_path, monkeypatch) -> 
         initializer.initialize_database(_sqlite_settings(database_path))
 
     assert _database_tables(database_path) == set()
+
 
 ###############################################################################
 @APPLICATION_PROFILES
@@ -706,6 +694,7 @@ def test_head_schema_drift_blocks_startup(tmp_path, profile: str) -> None:
         initializer.prepare_database_for_startup(
             _sqlite_settings(database_path), schema
         )
+
 
 ###############################################################################
 def test_sqlite_enforces_foreign_keys_and_cascades_report_deletion(
@@ -768,6 +757,7 @@ def test_sqlite_enforces_foreign_keys_and_cascades_report_deletion(
     finally:
         database.engine.dispose()
 
+
 ###############################################################################
 def test_concurrent_sqlite_initialization_is_safe(tmp_path, monkeypatch) -> None:
     database_path = tmp_path / "database.db"
@@ -782,6 +772,7 @@ def test_concurrent_sqlite_initialization_is_safe(tmp_path, monkeypatch) -> None
 
     schema = application_schema()
     assert _schema_revision(database_path, schema) == initializer.schema_head(schema)
+
 
 ###############################################################################
 def test_postgres_startup_failure_does_not_leak_credentials(monkeypatch) -> None:
@@ -802,6 +793,7 @@ def test_postgres_startup_failure_does_not_leak_credentials(monkeypatch) -> None
         initializer.prepare_database_for_startup(_postgres_settings())
 
     assert "secret" not in str(exc_info.value).lower()
+
 
 ###############################################################################
 @pytest.mark.parametrize(
@@ -830,6 +822,7 @@ def test_postgres_check_constraint_normalization_matches_orm(
         initializer._normalize_check_expression(reflected)
     )
 
+
 ###############################################################################
 def test_postgres_schema_drift_ignores_unique_constraint_backing_indexes(
     monkeypatch: pytest.MonkeyPatch,
@@ -842,6 +835,7 @@ def test_postgres_schema_drift_ignores_unique_constraint_backing_indexes(
         sqlalchemy.Column("name_key", sqlalchemy.String, nullable=False),
         sqlalchemy.UniqueConstraint("name_key", name="uq_sample_name_key"),
     )
+
 
     ###############################################################################
     class ReflectedSchema:
@@ -880,10 +874,6 @@ def test_postgres_schema_drift_ignores_unique_constraint_backing_indexes(
             assert initializer._semantic_constraint_diffs(connection, metadata) == []
     finally:
         engine.dispose()
-
-
-
-
 
 
 ###############################################################################

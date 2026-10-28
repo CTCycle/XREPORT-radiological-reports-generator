@@ -50,6 +50,7 @@ from xreport_shared.configurations import ServerSettings
 
 DATASET_NAME_EMPTY_ERROR = "Dataset name cannot be empty"
 
+
 ###############################################################################
 def _iter_image_paths(folder_path: str) -> Iterator[Path]:
     directory_path = Path(folder_path)
@@ -60,6 +61,7 @@ def _iter_image_paths(folder_path: str) -> Iterator[Path]:
         for filename in filenames:
             if Path(filename).suffix.lower() in VALID_IMAGE_EXTENSIONS:
                 yield Path(root) / filename
+
 
 ###############################################################################
 def scan_image_folder(
@@ -73,9 +75,11 @@ def scan_image_folder(
         if required is None or image_path.stem.casefold() in required
     ]
 
+
 ###############################################################################
 def count_image_files(folder_path: str) -> int:
     return sum(1 for _ in _iter_image_paths(folder_path))
+
 
 ###############################################################################
 class PreparationService:
@@ -666,6 +670,7 @@ class PreparationService:
             )
 
         return str(Path(path).resolve())
+
 
 ###############################################################################
 @lru_cache(maxsize=1)

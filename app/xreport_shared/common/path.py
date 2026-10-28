@@ -58,6 +58,7 @@ DATABASE_FILE_PATH = RESOURCES_DIR / "database.db"
 DATABASE_CONFIG_FILE_PATH = RESOURCES_DIR / "database-config.json"
 CLIENT_DIST_DIR = RUNTIME_LAYOUT.client_dist_dir
 
+
 ###############################################################################
 def is_within_allowed_roots(path: Path) -> bool:
     """Return whether a user/model path is inside runtime or data storage."""

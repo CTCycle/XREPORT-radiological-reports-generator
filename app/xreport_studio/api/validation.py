@@ -17,6 +17,7 @@ from xreport_studio.domain.validation import (
 if TYPE_CHECKING:
     from xreport_studio.services.validation_runs import ValidationService
 
+
 ###############################################################################
 class ValidationEndpoint:
 
@@ -137,6 +138,7 @@ class ValidationEndpoint:
             response_model=ValidationReportResponse,
             status_code=status.HTTP_200_OK,
         )
+
 
 ###############################################################################
 def get_router() -> APIRouter:

@@ -46,6 +46,7 @@ from xreport_shared.services.errors import (
 CUSTOM_PRESET_PREFIX = "custom-"
 CHECKPOINT_REFERENCE_PREFIX = "checkpoint:"
 
+
 ###############################################################################
 class ModelArchitectureService:
 
@@ -283,6 +284,7 @@ class ModelArchitectureService:
             ),
             shape_fields=list(SHAPE_FIELDS),
         )
+
 
 ###############################################################################
 @lru_cache(maxsize=1)

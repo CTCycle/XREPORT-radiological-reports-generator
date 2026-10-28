@@ -25,6 +25,7 @@ from xreport_shared.domain.jobs import (
 if TYPE_CHECKING:
     from xreport_studio.services.preparation import PreparationService
 
+
 ###############################################################################
 class PreparationEndpoint:
 
@@ -182,6 +183,7 @@ class PreparationEndpoint:
             response_model=FolderSelectionResponse,
             status_code=status.HTTP_200_OK,
         )
+
 
 ###############################################################################
 def get_router() -> APIRouter:

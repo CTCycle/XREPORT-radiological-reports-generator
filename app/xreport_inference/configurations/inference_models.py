@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from xreport_inference.domain.inference import InferenceManifestEntry
 
+
 ###############################################################################
 def _entry(payload: dict[str, object]) -> InferenceManifestEntry:
     return InferenceManifestEntry.model_validate(payload)
@@ -327,6 +328,7 @@ if len({entry.model_ref for entry in EMBEDDED_INFERENCE_MODELS}) != len(
     EMBEDDED_INFERENCE_MODELS
 ):
     raise RuntimeError("The embedded inference catalogue contains duplicate refs")
+
 
 ###############################################################################
 def embedded_inference_models() -> list[InferenceManifestEntry]:

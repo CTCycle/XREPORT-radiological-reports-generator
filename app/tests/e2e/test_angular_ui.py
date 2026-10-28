@@ -7,6 +7,7 @@ from pathlib import Path
 
 from playwright.sync_api import Page, Route, TimeoutError as PlaywrightTimeoutError, expect
 
+
 ###############################################################################
 def test_inference_route_renders_catalog_and_navigation(
     page: Page,
@@ -23,6 +24,7 @@ def test_inference_route_renders_catalog_and_navigation(
 
     page.goto(f"{base_url}/dataset")
     expect(page).to_have_url(f"{base_url}/inference")
+
 
 ###############################################################################
 def test_model_update_check_shows_progress_then_result(
@@ -55,6 +57,7 @@ def test_model_update_check_shows_progress_then_result(
     expect(page.get_by_text(f"Update available: {'a' * 12} → {'b' * 12}")).to_be_visible()
     expect(page.get_by_role("button", name="Check for updates")).to_be_enabled()
 
+
 ###############################################################################
 def test_reports_route_renders_history_or_explicit_empty_state(
     page: Page,
@@ -73,6 +76,7 @@ def test_reports_route_renders_history_or_explicit_empty_state(
     assert overflow
 
 
+###############################################################################
 def test_checkpoint_import_rejects_manifestless_archive_in_live_ui(
     page: Page,
     base_url: str,
@@ -97,6 +101,7 @@ def test_checkpoint_import_rejects_manifestless_archive_in_live_ui(
     )
     expect(dialog.get_by_role("progressbar")).to_have_count(0)
     expect(dialog.get_by_role("button", name="Cancel import")).to_have_count(0)
+
 
 ###############################################################################
 def test_reports_detail_edit_reload_and_confirmed_delete(
@@ -195,6 +200,7 @@ def test_reports_detail_edit_reload_and_confirmed_delete(
     page.get_by_role("button", name="Delete session").click()
     expect(page).to_have_url(f"{base_url}/reports")
     expect(page.locator(f'a.report-card[href="/reports/{seeded_history}"]')).to_have_count(0)
+
 
 ###############################################################################
 def test_inference_draft_edit_save_and_reports_recovery(
@@ -310,6 +316,7 @@ def test_inference_draft_edit_save_and_reports_recovery(
         "Clear lungs after review."
     )
 
+
 ###############################################################################
 def test_desktop_catalogue_matches_details_height_and_keeps_internal_scroll(
     page: Page,
@@ -351,6 +358,7 @@ def test_desktop_catalogue_matches_details_height_and_keeps_internal_scroll(
         """,
     )
     assert abs(filtered_metrics["catalogHeight"] - filtered_metrics["detailsHeight"]) <= 1
+
 
 ###############################################################################
 def test_startup_gate_holds_inference_until_backend_health(
@@ -403,6 +411,7 @@ def test_startup_gate_holds_inference_until_backend_health(
     assert health_calls == 3
     page.screenshot(path=str(qa_dir / "xreport-startup-ready.png"), full_page=False)
     page.unroute("**/api/health", respond_to_health)
+
 
 ###############################################################################
 def test_startup_timing_retry_and_post_ready_feature_error(
@@ -478,6 +487,7 @@ def test_startup_timing_retry_and_post_ready_feature_error(
         path=str(qa_dir / "startup-feature-error-after-ready.png"), full_page=False
     )
 
+
 ###############################################################################
 def test_chexone_details_render_findings_only_catalog_contract(
     page: Page,
@@ -508,6 +518,7 @@ def test_chexone_details_render_findings_only_catalog_contract(
     expect(details.get_by_text("Impression", exact=True)).to_have_count(0)
     assert not console_errors, console_errors
     assert not request_failures, request_failures
+
 
 ###############################################################################
 def test_settings_route_persists_and_resets_runtime_values(
@@ -560,6 +571,7 @@ def test_settings_route_persists_and_resets_runtime_values(
         page.get_by_role("button", name="Reset to defaults").click()
         expect(page.get_by_text("Settings reset to defaults.", exact=True)).to_be_visible()
 
+
 ###############################################################################
 def test_database_settings_are_drafts_until_confirmation_and_failed_probe_keeps_active_backend(
     page: Page,
@@ -609,6 +621,7 @@ def test_database_settings_are_drafts_until_confirmation_and_failed_probe_keeps_
     expect(page.get_by_label("Database file path")).to_have_value(active_path)
     expect(page.locator(".database-status")).to_contain_text("Connected to SQLite")
 
+
 ###############################################################################
 def test_settings_autosave_failure_reverts_value_and_shows_error(
     page: Page,
@@ -635,6 +648,7 @@ def test_settings_autosave_failure_reverts_value_and_shows_error(
     expect(feedback).to_contain_text("simulated settings write failure")
     expect(feedback).to_contain_text("failed changes were reverted")
     expect(seed).to_have_value(previous_seed)
+
 
 ###############################################################################
 def test_affected_pages_render_responsive_layouts_and_capture_qa_evidence(
@@ -772,6 +786,7 @@ def test_affected_pages_render_responsive_layouts_and_capture_qa_evidence(
 
     assert not console_errors, console_errors
     assert not request_failures, request_failures
+
 
 ###############################################################################
 def test_s52_responsive_route_modal_and_reduced_motion_matrix(
@@ -962,6 +977,7 @@ def test_s52_responsive_route_modal_and_reduced_motion_matrix(
     assert not page_errors, page_errors
     assert not request_failures, request_failures
 
+
 ###############################################################################
 def test_s52_semantic_metadata_and_keyboard_only_smoke(
     page: Page,
@@ -1021,6 +1037,7 @@ def test_s52_semantic_metadata_and_keyboard_only_smoke(
     assert advanced_tab_id
     expect(advanced_panel).to_have_attribute("aria-labelledby", advanced_tab_id)
     expect(advanced_panel.get_by_role("heading", name="Advanced")).to_be_visible()
+
 
 ###############################################################################
 def _assert_s52_semantic_route_metadata(page: Page, route_name: str) -> None:
@@ -1101,6 +1118,7 @@ def _assert_s52_semantic_route_metadata(page: Page, route_name: str) -> None:
     else:
         raise AssertionError(f"Unexpected S52 route: {route_name}")
 
+
 ###############################################################################
 def _assert_s52_dialog_semantics(page: Page, dialog, *, require_description: bool) -> None:
     expect(dialog).to_have_attribute("role", "dialog")
@@ -1115,6 +1133,7 @@ def _assert_s52_dialog_semantics(page: Page, dialog, *, require_description: boo
     elif described_by:
         assert page.evaluate("id => Boolean(document.getElementById(id))", described_by)
 
+
 ###############################################################################
 def _focus_s52_with_tab(page: Page, target, max_tabs: int = 64) -> None:
     for _ in range(max_tabs):
@@ -1122,6 +1141,7 @@ def _focus_s52_with_tab(page: Page, target, max_tabs: int = 64) -> None:
             return
         page.keyboard.press("Tab")
     raise AssertionError(f"Keyboard Tab navigation did not reach {target}")
+
 
 ###############################################################################
 def _capture_s10_browser_errors(page: Page) -> dict[str, list[str]]:
@@ -1141,12 +1161,14 @@ def _capture_s10_browser_errors(page: Page) -> dict[str, list[str]]:
     )
     return errors
 
+
 ###############################################################################
 def _e2e_screenshot_dir(default_relative: str) -> Path:
     configured = os.environ.get("XREPORT_E2E_SCREENSHOT_DIR", "").strip()
     qa_dir = Path(configured) if configured else Path(__file__).parents[3] / "assets" / "QA" / default_relative
     qa_dir.mkdir(parents=True, exist_ok=True)
     return qa_dir
+
 
 ###############################################################################
 def _s10_qa_dir() -> Path:
@@ -1157,6 +1179,7 @@ def _s10_qa_dir() -> Path:
         return qa_dir
     return _e2e_screenshot_dir("validation_campaign/s10")
 
+
 ###############################################################################
 def _expect_s10_active_navigation(page: Page, label: str) -> None:
     active_links = page.locator(
@@ -1164,6 +1187,7 @@ def _expect_s10_active_navigation(page: Page, label: str) -> None:
     )
     expect(active_links).to_have_count(1)
     expect(active_links).to_have_attribute("aria-label", label)
+
 
 ###############################################################################
 def _expect_s10_route_surface(page: Page, path: str) -> None:
@@ -1179,6 +1203,7 @@ def _expect_s10_route_surface(page: Page, path: str) -> None:
         expect(page.get_by_role("heading", name="Settings")).to_be_visible()
     else:
         raise AssertionError(f"Unexpected S10 route: {path}")
+
 
 ###############################################################################
 def test_s10_direct_routes_refresh_navigation_and_clean_browser(
@@ -1232,6 +1257,7 @@ def test_s10_direct_routes_refresh_navigation_and_clean_browser(
     assert not errors["console"], errors["console"]
     assert not errors["page"], errors["page"]
     assert not errors["requests"], errors["requests"]
+
 
 ###############################################################################
 def test_s10_theme_preferences_follow_system_and_persist_across_routes(
@@ -1305,6 +1331,7 @@ def test_s10_theme_preferences_follow_system_and_persist_across_routes(
     assert not errors["console"], errors["console"]
     assert not errors["page"], errors["page"]
     assert not errors["requests"], errors["requests"]
+
 
 ###############################################################################
 def test_s10_guidance_version_dismiss_skip_completion_and_manual_replay(

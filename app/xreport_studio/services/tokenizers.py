@@ -17,6 +17,7 @@ from xreport_shared.models.training.processing import (
     resolve_special_tokens,
 )
 
+
 ###############################################################################
 def list_tokenizers() -> TokenizerCatalogueResponse:
     return TokenizerCatalogueResponse(
@@ -33,6 +34,7 @@ def list_tokenizers() -> TokenizerCatalogueResponse:
             for item in TOKENIZER_CATALOGUE
         ]
     )
+
 
 ###############################################################################
 def check_tokenizer(tokenizer_id: str) -> TokenizerCheckResponse:
@@ -76,6 +78,7 @@ def check_tokenizer(tokenizer_id: str) -> TokenizerCheckResponse:
         start_token_id=special.start_token_id,
         end_token_id=special.end_token_id,
     )
+
 
 ###############################################################################
 class TokenizerService:

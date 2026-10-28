@@ -16,6 +16,7 @@ from xreport_shared.repositories.database.schema import application_schema
 
 _SETTINGS_ID = 1
 
+
 ###############################################################################
 class ApplicationSettingsRepository:
     """Database authority for the active application's singleton settings row."""

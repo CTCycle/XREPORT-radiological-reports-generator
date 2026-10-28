@@ -16,6 +16,7 @@ from xreport_shared.repositories.database.utils import (
     validate_table_name,
 )
 
+
 ###############################################################################
 class RepositorySupport:
     """Shared database primitives for independent persistence repositories."""

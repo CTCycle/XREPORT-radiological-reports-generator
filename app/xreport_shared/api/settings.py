@@ -12,6 +12,7 @@ from xreport_shared.domain.settings import (
 if TYPE_CHECKING:
     from xreport_shared.services.settings import SettingsService
 
+
 ###############################################################################
 class SettingsEndpoint:
 
@@ -70,6 +71,7 @@ class SettingsEndpoint:
             response_model=ApplicationSettingsResponse,
             status_code=status.HTTP_200_OK,
         )
+
 
 ###############################################################################
 def get_router() -> APIRouter:

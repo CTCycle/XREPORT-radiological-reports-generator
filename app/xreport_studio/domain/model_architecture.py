@@ -32,6 +32,7 @@ SHARED_STACK_KEYS = {
     "dropout": "dropout",
 }
 
+
 ###############################################################################
 class ModelArchitecture(BaseModel):
     """Configurable, constrained XREPORT transformer architecture.
@@ -141,6 +142,7 @@ class ModelArchitecture(BaseModel):
             return getattr(self, f"{stack}_head_dim")
         return self.embedding_dims
 
+
 ###############################################################################
 class EncoderOption(BaseModel):
     id: str
@@ -155,9 +157,11 @@ class EncoderOption(BaseModel):
     inference_compatible: bool
     description: str
 
+
 ###############################################################################
 class EncodersResponse(BaseModel):
     encoders: list[EncoderOption]
+
 
 ###############################################################################
 class ArchitectureStats(BaseModel):
@@ -169,6 +173,7 @@ class ArchitectureStats(BaseModel):
     depth: int
     vocabulary_size: int
     sequence_length: int
+
 
 ###############################################################################
 class ArchitectureNode(BaseModel):
@@ -184,16 +189,19 @@ class ArchitectureNode(BaseModel):
     fixed: bool = False
     properties: dict[str, Any] = Field(default_factory=dict)
 
+
 ###############################################################################
 class ArchitectureEdge(BaseModel):
     source: str
     target: str
     label: str = ""
 
+
 ###############################################################################
 class ArchitectureGraph(BaseModel):
     nodes: list[ArchitectureNode]
     edges: list[ArchitectureEdge]
+
 
 ###############################################################################
 class FieldChange(BaseModel):
@@ -202,6 +210,7 @@ class FieldChange(BaseModel):
     after: Any
     scope: ChangeScope
 
+
 ###############################################################################
 class WeightMismatch(BaseModel):
     layer: str
@@ -209,11 +218,13 @@ class WeightMismatch(BaseModel):
     expected: list[int]
     found: list[int]
 
+
 ###############################################################################
 class WeightCompatibility(BaseModel):
     status: WeightStatus
     message: str
     mismatches: list[WeightMismatch]
+
 
 ###############################################################################
 class ArchitectureCompatibility(BaseModel):
@@ -224,10 +235,12 @@ class ArchitectureCompatibility(BaseModel):
     message: str
     weights: WeightCompatibility | None = None
 
+
 ###############################################################################
 class ArchitectureIssue(BaseModel):
     field: str | None = None
     message: str
+
 
 ###############################################################################
 class ArchitecturePreviewRequest(BaseModel):
@@ -240,6 +253,7 @@ class ArchitecturePreviewRequest(BaseModel):
     )
     model_config = ConfigDict(extra="forbid")
 
+
 ###############################################################################
 class ArchitecturePreviewResponse(BaseModel):
     valid: bool
@@ -249,6 +263,7 @@ class ArchitecturePreviewResponse(BaseModel):
     stats: ArchitectureStats | None = None
     compatibility: ArchitectureCompatibility | None = None
     shape_fields: list[str] = Field(default_factory=list)
+
 
 ###############################################################################
 class ArchitecturePreset(BaseModel):
@@ -262,10 +277,12 @@ class ArchitecturePreset(BaseModel):
     created_at: datetime | None = None
     updated_at: datetime | None = None
 
+
 ###############################################################################
 class ArchitecturePresetsResponse(BaseModel):
     presets: list[ArchitecturePreset]
     hidden_builtins: int = 0
+
 
 ###############################################################################
 class ArchitecturePresetRequest(BaseModel):
@@ -273,6 +290,7 @@ class ArchitecturePresetRequest(BaseModel):
     description: str = Field(default="", max_length=500)
     architecture: ModelArchitecture
     model_config = ConfigDict(extra="forbid")
+
 
 ###############################################################################
 class CheckpointArchitectureResponse(BaseModel):

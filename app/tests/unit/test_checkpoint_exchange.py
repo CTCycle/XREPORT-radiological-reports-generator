@@ -24,6 +24,7 @@ from xreport_studio.services.training import TrainingRuntime, TrainingService
 REVISION = "a" * 40
 
 
+###############################################################################
 @pytest.mark.parametrize("first,second", [
     ("training", "checkpoint_export"), ("checkpoint_export", "training"),
 ])
@@ -52,15 +53,20 @@ def test_export_training_and_deletion_are_serialized(first: str, second: str) ->
 
 ###############################################################################
 class FakeCheckpoints:
+
+    # -------------------------------------------------------------------------
     def __init__(self) -> None:
         self.records: dict[str, SimpleNamespace] = {}
 
+    # -------------------------------------------------------------------------
     def get_checkpoint(self, name: str):
         return self.records.get(name)
 
+    # -------------------------------------------------------------------------
     def verify_artifact(self, name: str):
         return self.records[name]
 
+    # -------------------------------------------------------------------------
     def register_completed_checkpoint(self, name: str, path: Path):
         record = SimpleNamespace(
             name=name,
@@ -75,6 +81,7 @@ class FakeCheckpoints:
 class Node:
     """One simulated machine: its own checkpoint, encoder and tokenizer roots."""
 
+    # -------------------------------------------------------------------------
     def __init__(self, root: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         self.root = root
         self.checkpoints_dir = root / "checkpoints"
@@ -98,12 +105,14 @@ class Node:
             self.repository, self.jobs  # type: ignore[arg-type]
         )
 
+    # -------------------------------------------------------------------------
     def install_encoder(self) -> None:
         snapshot = exchange.encoder_snapshot_dir(REVISION)
         snapshot.mkdir(parents=True, exist_ok=True)
         (snapshot / "config.json").write_text("{}")
         (snapshot / "model.safetensors").write_bytes(b"w")
 
+    # -------------------------------------------------------------------------
     def create_checkpoint(self, name: str, payload: bytes = b"keras") -> Path:
         path = self.checkpoints_dir / name
         (path / "configuration").mkdir(parents=True)
@@ -128,6 +137,7 @@ class Node:
         return path
 
 
+###############################################################################
 @pytest.fixture
 def stub_ml(monkeypatch: pytest.MonkeyPatch):
     def stage_tokenizer(_metadata, directory: Path):
@@ -143,11 +153,13 @@ def stub_ml(monkeypatch: pytest.MonkeyPatch):
     )
 
 
+###############################################################################
 def _export(node: Node, name: str, include_encoder: bool = False) -> Path:
     node.service.run_export(name, include_encoder)
     return node.exports_dir / f"{name}.xreportckpt"
 
 
+###############################################################################
 def _import(node: Node, archive: Path, rename_to: str | None = None) -> dict:
     staged = node.root / "upload.xreportckpt"
     staged.write_bytes(archive.read_bytes())
@@ -325,7 +337,6 @@ def test_incompatible_versions_and_lone_keras_are_rejected(
         consumer.service.assess_archive(lone)
 
 
-
 ###############################################################################
 def test_archive_built_with_a_different_encoder_revision_is_rejected(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, stub_ml
@@ -414,6 +425,7 @@ def test_export_refuses_archives_the_import_limits_would_reject(
     assert not (producer.exports_dir / "run1.xreportckpt").exists()
     assert not list(producer.exports_dir.glob(".export-*"))
 
+
 ###############################################################################
 def test_manifestless_four_file_archive_is_rejected(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, stub_ml
@@ -441,6 +453,7 @@ def _write_zip(path: Path, members: list[tuple[str, bytes]]) -> zipfile.ZipFile:
     return zipfile.ZipFile(path)
 
 
+###############################################################################
 @pytest.mark.parametrize(
     "name",
     [
@@ -458,6 +471,7 @@ def test_hostile_member_names_are_rejected(tmp_path: Path, name: str) -> None:
         inspect_archive(archive)
 
 
+###############################################################################
 def test_duplicate_symlink_and_oversized_archives_are_rejected(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -489,6 +503,7 @@ def test_duplicate_symlink_and_oversized_archives_are_rejected(
         inspect_archive(big)
 
 
+###############################################################################
 def test_streamed_size_is_enforced_against_the_declared_size(tmp_path: Path) -> None:
     archive = _write_zip(tmp_path / "a.zip", [("saved_model.keras", b"x" * 64)])
     with pytest.raises(ArchiveError, match="exceeds"):

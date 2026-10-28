@@ -15,6 +15,7 @@ from xreport_studio.app import create_app as create_studio_app  # noqa: E402
 SHARED_DIR = APP_DIR / "shared"
 APPLICATIONS = {"xreport": create_inference_app, "studio": create_studio_app}
 
+
 ###############################################################################
 def main() -> None:
     SHARED_DIR.mkdir(exist_ok=True)

@@ -41,11 +41,13 @@ from xreport_shared.domain.health import HealthResponse, ShutdownResponse
 from xreport_shared.services.startup_validation import run_startup_validations
 from xreport_shared.common.utils.logger import logger
 
+
 ###############################################################################
 def redirect_root_to_docs(*, serve_source_client: bool = False) -> RedirectResponse | FileResponse:
     if PACKAGED_MODE or serve_source_client:
         return FileResponse(CLIENT_DIST_DIR / "index.html")
     return RedirectResponse(FASTAPI_DOCS_ENDPOINT)
+
 
 ###############################################################################
 def health_check(request: Request) -> HealthResponse:
@@ -66,12 +68,14 @@ def health_check(request: Request) -> HealthResponse:
         runtime_port=request.url.port,
     )
 
+
 ###############################################################################
 def request_shutdown(request: Request) -> ShutdownResponse:
     event = getattr(request.app.state, "desktop_shutdown_event", None)
     if event is not None:
         event.set()
     return ShutdownResponse(status="shutting_down")
+
 
 ###############################################################################
 async def wait_for_desktop_shutdown(
@@ -80,6 +84,7 @@ async def wait_for_desktop_shutdown(
 ) -> None:
     await shutdown_event.wait()
     desktop_server.should_exit = True  # type: ignore[attr-defined]
+
 
 ###############################################################################
 def serve_packaged_frontend(path: str) -> FileResponse:
@@ -177,6 +182,7 @@ def install_runtime_routes(
             response_model=None,
         )
 
+
 ###############################################################################
 @asynccontextmanager
 async def app_lifespan(application: FastAPI) -> AsyncIterator[None]:
@@ -248,6 +254,7 @@ async def app_lifespan(application: FastAPI) -> AsyncIterator[None]:
                 await shutdown_task
             except asyncio.CancelledError:
                 pass
+
 
 ###############################################################################
 def create_application(

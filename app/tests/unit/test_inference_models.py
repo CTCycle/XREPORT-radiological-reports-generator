@@ -52,6 +52,7 @@ from xreport_inference.models.inference.providers.xreport import XReportCheckpoi
 
 HUGGINGFACE_REVISION = "a" * 40
 
+
 ###############################################################################
 def _huggingface_settings() -> InferenceSettings:
     return InferenceSettings(
@@ -61,11 +62,13 @@ def _huggingface_settings() -> InferenceSettings:
         model_idle_timeout=300,
     )
 
+
 ###############################################################################
 def _png() -> bytes:
     buffer = BytesIO()
     Image.new("RGB", (3, 2), "white").save(buffer, format="PNG")
     return buffer.getvalue()
+
 
 ###############################################################################
 class Inputs(dict[str, torch.Tensor]):
@@ -73,6 +76,7 @@ class Inputs(dict[str, torch.Tensor]):
     # -------------------------------------------------------------------------
     def to(self, *_args: object, **_kwargs: object) -> "Inputs":
         return self
+
 
 ###############################################################################
 def _huggingface_manifest() -> dict[str, object]:
@@ -86,6 +90,7 @@ def _huggingface_manifest() -> dict[str, object]:
         "max_current_images": 1,
         "preferred_dtype": "float32",
     }
+
 
 ###############################################################################
 def _patch_runtime(monkeypatch, model: MagicMock, processor: MagicMock) -> None:
@@ -103,6 +108,7 @@ def _patch_runtime(monkeypatch, model: MagicMock, processor: MagicMock) -> None:
         lambda _path, **_kwargs: model,
     )
 
+
 ###############################################################################
 def _processor_inputs() -> Inputs:
     return Inputs(
@@ -111,6 +117,7 @@ def _processor_inputs() -> Inputs:
             "pixel_values": torch.zeros((1, 3, 8, 9)),
         }
     )
+
 
 ###############################################################################
 def _stored_image() -> InferenceImage:
@@ -121,6 +128,7 @@ def _stored_image() -> InferenceImage:
         size_bytes=69,
     )
 
+
 ###############################################################################
 def test_validate_display_sections_accepts_non_empty_findings_only_contract() -> None:
     HuggingFaceProvider._validate_display_sections(
@@ -129,6 +137,7 @@ def test_validate_display_sections_accepts_non_empty_findings_only_contract() ->
         {"findings": "No acute cardiopulmonary abnormality."},
         ["findings"],
     )
+
 
 ###############################################################################
 def test_validate_display_sections_rejects_empty_findings_only_contract() -> None:
@@ -140,6 +149,7 @@ def test_validate_display_sections_rejects_empty_findings_only_contract() -> Non
             ["findings"],
         )
 
+
 ###############################################################################
 def test_validate_display_sections_keeps_two_section_contract_strict() -> None:
     with pytest.raises(RuntimeError, match="incomplete report sections"):
@@ -149,6 +159,7 @@ def test_validate_display_sections_keeps_two_section_contract_strict() -> None:
             {"findings": "Finding text"},
             ["findings", "impression"],
         )
+
 
 ###############################################################################
 def test_generate_uses_manifest_loaders_revision_and_records_dimensions(
@@ -241,6 +252,7 @@ def test_generate_uses_manifest_loaders_revision_and_records_dimensions(
         "adapter": "medgemma",
     }
 
+
 ###############################################################################
 def test_provider_rejects_unpinned_revision() -> None:
     manifest = _huggingface_manifest()
@@ -264,6 +276,7 @@ def test_provider_rejects_unpinned_revision() -> None:
     else:
         raise AssertionError("Unpinned revision was accepted")
 
+
 ###############################################################################
 def test_provider_rejects_multiple_images() -> None:
     image = InferenceImage(
@@ -284,6 +297,7 @@ def test_provider_rejects_multiple_images() -> None:
         assert "at most 1" in str(exc)
     else:
         raise AssertionError("Multiple images were accepted")
+
 
 ###############################################################################
 def test_cancellation_after_generation_discards_partial_output(monkeypatch) -> None:
@@ -324,6 +338,7 @@ def test_cancellation_after_generation_discards_partial_output(monkeypatch) -> N
     assert result.display_sections == {}
     assert result.metadata == []
     assert progress == []
+
 
 ###############################################################################
 def test_exif_transpose_rgb_conversion_and_processed_dimensions(monkeypatch) -> None:
@@ -366,6 +381,7 @@ def test_exif_transpose_rgb_conversion_and_processed_dimensions(monkeypatch) -> 
     assert result.metadata[0]["original_dimensions"] == {"width": 3, "height": 2}
     assert result.metadata[0]["processed_tensor_dimensions"] == [1, 3, 8, 9]
     assert progress
+
 
 ###############################################################################
 def test_switching_models_and_unload_clear_resident_provider_state(
@@ -428,6 +444,7 @@ def test_switching_models_and_unload_clear_resident_provider_state(
     assert provider._processor is None
     assert provider._adapter is None
 
+
 ###############################################################################
 def test_failed_model_load_leaves_no_resident_state(monkeypatch, tmp_path) -> None:
     monkeypatch.setattr(
@@ -466,6 +483,7 @@ def test_failed_model_load_leaves_no_resident_state(monkeypatch, tmp_path) -> No
     assert provider.loaded_repository is None
     assert provider._model is None
 
+
 ###############################################################################
 def _resident_coordinator(**kwargs: Any) -> tuple[InferenceRuntimeCoordinator, MagicMock]:
     provider = MagicMock()
@@ -479,6 +497,7 @@ def _resident_coordinator(**kwargs: Any) -> tuple[InferenceRuntimeCoordinator, M
         **kwargs,
     )
     return coordinator, provider
+
 
 ###############################################################################
 def test_release_never_interrupts_a_run_holding_the_residency_lock() -> None:
@@ -505,6 +524,7 @@ def test_release_never_interrupts_a_run_holding_the_residency_lock() -> None:
     assert coordinator.release(blocking=False) is True
     assert coordinator.resident_model is None
 
+
 ###############################################################################
 def test_idle_watcher_releases_only_after_timeout_and_when_lock_is_free() -> None:
     coordinator, provider = _resident_coordinator(idle_timeout_provider=lambda: 1)
@@ -522,6 +542,7 @@ def test_idle_watcher_releases_only_after_timeout_and_when_lock_is_free() -> Non
     assert coordinator.resident_model is None
     assert coordinator._idle_watcher is None
 
+
 ###############################################################################
 def test_idle_watcher_keeps_model_when_timeout_is_disabled() -> None:
     coordinator, provider = _resident_coordinator(idle_timeout_provider=lambda: 0)
@@ -536,6 +557,7 @@ def test_idle_watcher_keeps_model_when_timeout_is_disabled() -> None:
     assert watcher is not None
     watcher.join(5)
     assert coordinator._idle_watcher is None
+
 
 ###############################################################################
 def test_xreport_checkpoint_stays_resident_until_released(monkeypatch, tmp_path) -> None:
@@ -568,6 +590,7 @@ def test_xreport_checkpoint_stays_resident_until_released(monkeypatch, tmp_path)
     assert coordinator.resident_model is None
     assert coordinator._xreport_model is None
     framework_release.assert_called_once_with(keras_session=True)
+
 
 ###############################################################################
 def test_generation_reads_timeout_provider_once_for_start_deadline(monkeypatch) -> None:
@@ -618,12 +641,14 @@ def test_generation_reads_timeout_provider_once_for_start_deadline(monkeypatch) 
     assert timeout_reads == 1
     assert deadlines == [105.0]
 
+
 ###############################################################################
 def test_study_generation_runs_in_inference_mode_and_receives_stopping_criteria(
     monkeypatch,
 ) -> None:
     provider = HuggingFaceProvider(_huggingface_settings())
     observed: dict[str, object] = {}
+
 
     ###############################################################################
     class StudyAdapter:
@@ -682,6 +707,7 @@ def test_study_generation_runs_in_inference_mode_and_receives_stopping_criteria(
         "cuda_used": False,
     }
 
+
 ###############################################################################
 def test_device_policy_and_dtype_selection(monkeypatch) -> None:
     assert HuggingFaceProvider(_huggingface_settings())._device_map() == "cpu"
@@ -706,6 +732,7 @@ def test_device_policy_and_dtype_selection(monkeypatch) -> None:
     )
     assert HuggingFaceProvider._dtype("auto") is torch.float16
 
+
 ###############################################################################
 def test_move_inputs_preserves_integer_ids_and_casts_floating_inputs() -> None:
     model = SimpleNamespace(device=torch.device("cpu"), dtype=torch.float16)
@@ -722,6 +749,7 @@ def test_move_inputs_preserves_integer_ids_and_casts_floating_inputs() -> None:
     assert moved["pixel_values"].dtype is torch.float16
     assert moved["pixel_values"].device == torch.device("cpu")
 
+
 ###############################################################################
 def test_move_inputs_casts_nested_generation_inputs() -> None:
     model = SimpleNamespace(device=torch.device("cpu"), dtype=torch.bfloat16)
@@ -735,6 +763,7 @@ def test_move_inputs_casts_nested_generation_inputs() -> None:
     assert moved["time_deltas"][0].dtype is torch.bfloat16
     assert moved["time_deltas"][0].device == torch.device("cpu")
     assert moved["input_ids"][0].dtype is torch.long
+
 
 ###############################################################################
 def test_move_inputs_uses_accelerate_input_device_map(monkeypatch) -> None:
@@ -766,6 +795,7 @@ def test_move_inputs_uses_accelerate_input_device_map(monkeypatch) -> None:
     assert runtime["cuda_available"] is True
     assert runtime["cuda_used"] is True
 
+
 ###############################################################################
 def test_move_inputs_supports_mocked_cuda_without_casting_token_ids(monkeypatch) -> None:
     calls: list[tuple[object, ...]] = []
@@ -788,6 +818,7 @@ def test_move_inputs_supports_mocked_cuda_without_casting_token_ids(monkeypatch)
     assert calls[0][1]["dtype"] is torch.long
     assert calls[1][1]["dtype"] is torch.float16
     assert calls[0][1]["device"] == torch.device("cuda:0")
+
 
 ###############################################################################
 def test_provider_reuses_same_resident_model(monkeypatch, tmp_path) -> None:
@@ -827,11 +858,6 @@ def test_provider_reuses_same_resident_model(monkeypatch, tmp_path) -> None:
     assert load_calls == 1
 
 
-
-
-
-
-
 ###############################################################################
 def test_embedded_catalog_contains_unique_sha_pinned_public_models() -> None:
     models = embedded_inference_models()
@@ -860,6 +886,7 @@ def test_embedded_catalog_contains_unique_sha_pinned_public_models() -> None:
         "huggingface:google/medgemma-1.5-4b-it": "a22ad3bcad11b2438bee9fc4bc53d1cb127d81b42931b0e1192e6170418c0163",
     }
 
+
 ###############################################################################
 def test_embedded_chexone_manifest_declares_findings_only() -> None:
     chexone = next(
@@ -873,19 +900,11 @@ def test_embedded_chexone_manifest_declares_findings_only() -> None:
     assert chexone.capabilities.impression is False
     assert chexone.capabilities.grounding is True
 
+
 ###############################################################################
 def test_runtime_rejects_incomplete_model_manifest() -> None:
     with pytest.raises(RuntimeError, match="manifest is incomplete"):
         InferenceRuntimeCoordinator._require_complete_manifest({"revision": "6" * 40})
-
-
-
-
-
-
-
-
-
 
 
 ###############################################################################
@@ -896,6 +915,7 @@ def _catalog_settings(*, hf_local_only: bool = True) -> InferenceSettings:
         model_timeout=600,
         model_idle_timeout=300,
     )
+
 
 ###############################################################################
 class _InstallationManager(ModelInstallationManager):
@@ -911,6 +931,7 @@ class _InstallationManager(ModelInstallationManager):
     def inspect(self, manifest: Mapping[str, Any]) -> dict[str, Any]:
         return self.inspector(manifest)
 
+
 ###############################################################################
 def _not_installed() -> dict[str, Any]:
     return {
@@ -923,6 +944,7 @@ def _not_installed() -> dict[str, Any]:
         "candidate_path": None,
         "candidate_revision": None,
     }
+
 
 ###############################################################################
 def _catalog(
@@ -939,6 +961,7 @@ def _catalog(
         checkpoint_repository=repository,
     )
 
+
 ###############################################################################
 def _checkpoint(name: str = "checkpoint_epoch_48", *, complete: bool = True) -> object:
     return SimpleNamespace(
@@ -947,6 +970,7 @@ def _checkpoint(name: str = "checkpoint_epoch_48", *, complete: bool = True) -> 
         path=Path("data/models/checkpoints") / name,
         artifact_complete=complete,
     )
+
 
 ###############################################################################
 def test_catalog_exposes_available_public_and_custom_model_sources() -> None:
@@ -962,6 +986,7 @@ def test_catalog_exposes_available_public_and_custom_model_sources() -> None:
     assert response.providers["xreport"].status == "ready"
     assert all(model.available_actions == ["download"] for model in public)
 
+
 ###############################################################################
 def test_catalog_disables_public_models_when_huggingface_runtime_is_disabled() -> None:
     catalog = _catalog([_checkpoint()])
@@ -973,12 +998,14 @@ def test_catalog_disables_public_models_when_huggingface_runtime_is_disabled() -
     assert all(model.status == "disabled" for model in public)
     assert response.providers["huggingface"].status == "disabled"
 
+
 ###############################################################################
 def test_catalog_hides_xreport_provider_without_registered_checkpoints() -> None:
     response = _catalog([]).list_models()
 
     assert not any(model.provider == "xreport" for model in response.models)
     assert response.providers["xreport"].status == "not_installed"
+
 
 ###############################################################################
 def test_catalog_exposes_chexone_findings_only_contract() -> None:
@@ -994,6 +1021,7 @@ def test_catalog_exposes_chexone_findings_only_contract() -> None:
     assert chexone.provider == "huggingface"
     assert chexone.origin == "public"
     assert chexone.adapter == "chexone"
+
 
 ###############################################################################
 def test_catalog_marks_verified_active_installation_ready() -> None:
@@ -1044,6 +1072,7 @@ def test_catalog_marks_verified_active_installation_ready() -> None:
 INSTALLATION_REVISION = "a" * 40
 NEXT_REVISION = "b" * 40
 
+
 ###############################################################################
 def _installation_manifest(revision: str = INSTALLATION_REVISION) -> dict[str, object]:
     return {
@@ -1052,6 +1081,7 @@ def _installation_manifest(revision: str = INSTALLATION_REVISION) -> dict[str, o
         "required_files": ["config.json", "tokenizer.json"],
         "weight_file_sets": [["model.safetensors"]],
     }
+
 
 ###############################################################################
 def _active_metadata(
@@ -1070,6 +1100,7 @@ def _active_metadata(
     }
     payload.update(updates)
     return payload
+
 
 ###############################################################################
 class FakeApi:
@@ -1094,6 +1125,7 @@ class FakeApi:
             ],
         )
 
+
 ###############################################################################
 class CompleteResponse:
     status_code = 200
@@ -1115,10 +1147,12 @@ class CompleteResponse:
     def close(self) -> None:
         return None
 
+
 ###############################################################################
 def complete_get(url: str, **_kwargs: object) -> CompleteResponse:
     filename = url.rsplit("/", 1)[-1].split("?", 1)[0]
     return CompleteResponse(b"ok" if filename == "model.safetensors" else b"{}")
+
 
 ###############################################################################
 @pytest.fixture
@@ -1171,6 +1205,7 @@ def manager_paths(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> Path:
         path.mkdir(parents=True, exist_ok=True)
     return root
 
+
 ###############################################################################
 def test_stage_downloads_only_approved_files_and_records_verified_candidate(
     manager_paths: Path,
@@ -1204,6 +1239,7 @@ def test_stage_downloads_only_approved_files_and_records_verified_candidate(
     assert metadata["integrity"] == "verified"
     assert metadata["candidate"]["revision"] == INSTALLATION_REVISION
 
+
 ###############################################################################
 def test_stage_reuses_interrupted_staging_directory(
     manager_paths: Path,
@@ -1230,6 +1266,7 @@ def test_stage_reuses_interrupted_staging_directory(
 
     assert target.path == partial
 
+
 ###############################################################################
 def test_http_downloader_resumes_partial_weight_file(
     manager_paths: Path,
@@ -1247,6 +1284,7 @@ def test_http_downloader_resumes_partial_weight_file(
     partial.parent.mkdir(parents=True)
     partial.write_bytes(b"o")
     calls: list[dict[str, object]] = []
+
 
     ###############################################################################
     class FakeResponse:
@@ -1286,6 +1324,7 @@ def test_http_downloader_resumes_partial_weight_file(
     assert (partial.parent / "model.safetensors").read_bytes() == b"ok"
     assert any(call.get("headers") == {"Range": "bytes=1-"} for call in calls)
 
+
 ###############################################################################
 def test_check_update_reports_update_only_against_an_active_revision(
     manager_paths: Path,
@@ -1308,6 +1347,7 @@ def test_check_update_reports_update_only_against_an_active_revision(
     assert outdated["update_available"] is True
     assert outdated["installed_revision"] == INSTALLATION_REVISION
 
+
 ###############################################################################
 def test_gated_file_download_reports_access_required(
     monkeypatch: pytest.MonkeyPatch,
@@ -1329,6 +1369,7 @@ def test_gated_file_download_reports_access_required(
             partial=Path("config.json.incomplete"),
             name="config.json",
         )
+
 
 ###############################################################################
 def test_activation_preserves_previous_revision_for_rollback(
@@ -1358,6 +1399,7 @@ def test_activation_preserves_previous_revision_for_rollback(
     assert metadata["rollback"]["revision"] == INSTALLATION_REVISION
     assert (installation_module.HF_ROLLBACK_DIR / "example__report-model").exists()
 
+
 ###############################################################################
 def test_corrupt_active_snapshot_is_marked_and_rejected(manager_paths: Path) -> None:
     del manager_paths
@@ -1383,6 +1425,7 @@ def test_corrupt_active_snapshot_is_marked_and_rejected(manager_paths: Path) -> 
     metadata = manager.read_metadata("example/report-model")
     assert metadata["state"] == "corrupt"
     assert metadata["integrity"] == "failed"
+
 
 ###############################################################################
 def test_cancelled_maintenance_preserves_working_active_revision(
@@ -1417,6 +1460,7 @@ def test_cancelled_maintenance_preserves_working_active_revision(
     assert metadata["interruption"]["resumable"] is True
     assert not partial.exists()
 
+
 ###############################################################################
 def test_failed_first_install_keeps_resumable_staging(manager_paths: Path) -> None:
     del manager_paths
@@ -1433,6 +1477,7 @@ def test_failed_first_install_keeps_resumable_staging(manager_paths: Path) -> No
     manager.record_error("example/report-model", "cancelled", interrupted=True)
 
     assert partial.exists()
+
 
 ###############################################################################
 def test_delete_local_removes_only_repository_owned_storage_and_reports_bytes(
@@ -1477,16 +1522,6 @@ def test_delete_local_removes_only_repository_owned_storage_and_reports_bytes(
     assert unrelated.exists()
 
 
-
-
-
-
-
-
-
-
-
-
 ###############################################################################
 def _write_checkpoint_files(checkpoint_dir: Path, *, valid_model: bool) -> None:
     configuration_dir = checkpoint_dir / "configuration"
@@ -1499,6 +1534,7 @@ def _write_checkpoint_files(checkpoint_dir: Path, *, valid_model: bool) -> None:
             archive.writestr("metadata.json", "{}")
     else:
         model_path.write_bytes(b"not-a-keras-archive")
+
 
 ###############################################################################
 def test_checkpoint_validation_accepts_complete_and_rejects_incomplete_or_corrupt(
@@ -1519,10 +1555,12 @@ def test_checkpoint_validation_accepts_complete_and_rejects_incomplete_or_corrup
         provider.validate_checkpoint(corrupt)
     assert provider.validate_checkpoint(complete) == "complete"
 
+
 ###############################################################################
 def test_generate_rejects_empty_checkpoint_report(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+
 
     ###############################################################################
     class FakeModel:
@@ -1530,6 +1568,7 @@ def test_generate_rejects_empty_checkpoint_report(
         # -------------------------------------------------------------------------
         def summary(self, *, expand_nested: bool) -> None:
             del expand_nested
+
 
     ###############################################################################
     class FakeGenerator:
@@ -1543,12 +1582,14 @@ def test_generate_rejects_empty_checkpoint_report(
         def load_tokenizer_and_configuration(self):
             return FakeTokenizer(), {}
 
+
     ###############################################################################
     class FakeTokenizer:
 
         # -------------------------------------------------------------------------
         def get_vocab(self) -> dict[str, int]:
             return {"[CLS]": 0}
+
 
     ###############################################################################
     class FakeDataLoader:

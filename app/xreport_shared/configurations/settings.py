@@ -8,6 +8,7 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from .runtime_environment import get_runtime_environment_settings
 
+
 ###############################################################################
 @dataclass(frozen=True)
 class DatabaseSettings:
@@ -24,15 +25,18 @@ class DatabaseSettings:
     insert_batch_size: int
     sqlite_path: Path | None = None
 
+
 ###############################################################################
 @dataclass(frozen=True)
 class GlobalSettings:
     seed: int
 
+
 ###############################################################################
 @dataclass(frozen=True)
 class JobsSettings:
     polling_interval: float
+
 
 ###############################################################################
 @dataclass(frozen=True)
@@ -46,6 +50,7 @@ class InferenceSettings:
     max_new_tokens_detailed: int = 0
     detailed_num_beams: int = 0
 
+
 ###############################################################################
 @dataclass(frozen=True)
 class ServerSettings:
@@ -54,6 +59,7 @@ class ServerSettings:
     jobs: JobsSettings
     # Only XREPORT Inference persists inference controls; Studio has none.
     inference: InferenceSettings | None
+
 
 ###############################################################################
 class ApplicationSettingsValues(BaseModel):
@@ -68,6 +74,7 @@ class ApplicationSettingsValues(BaseModel):
         allow_inf_nan=False,
     )
     theme_preference: Literal["light", "dark", "system"] | None = None
+
 
 ###############################################################################
 class InferenceSettingsValues(ApplicationSettingsValues):
@@ -99,9 +106,11 @@ DEFAULT_INFERENCE_SETTINGS = InferenceSettingsValues(
     theme_preference=None,
 )
 
+
 ###############################################################################
 def default_application_settings(profile: str) -> ApplicationSettingsValues:
     return DEFAULT_STUDIO_SETTINGS if profile == "studio" else DEFAULT_INFERENCE_SETTINGS
+
 
 ###############################################################################
 def application_settings_to_server_settings(

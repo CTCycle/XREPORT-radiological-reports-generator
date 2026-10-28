@@ -11,10 +11,12 @@ from xreport_shared.configurations import get_database_settings
 from xreport_shared.repositories.database.engine import Database
 from xreport_shared.repositories.database.schema import ApplicationSchema
 
+
 ###############################################################################
 def _configured_url() -> str | None:
     value = (context.config.get_main_option("sqlalchemy.url") or "").strip()
     return value or None
+
 
 ###############################################################################
 def _profile_database(schema: ApplicationSchema) -> Database:
@@ -25,6 +27,7 @@ def _profile_database(schema: ApplicationSchema) -> Database:
             f"set XREPORT_APP={schema.profile} or pass sqlalchemy.url explicitly."
         )
     return Database(get_database_settings())
+
 
 ###############################################################################
 def _database_engine(schema: ApplicationSchema) -> Engine:
@@ -38,6 +41,7 @@ def _database_engine(schema: ApplicationSchema) -> Engine:
         )
     return _profile_database(schema).engine
 
+
 ###############################################################################
 def _configure(connection: Connection, schema: ApplicationSchema) -> None:
     context.configure(
@@ -48,6 +52,7 @@ def _configure(connection: Connection, schema: ApplicationSchema) -> None:
         render_as_batch=connection.dialect.name == "sqlite",
         include_schemas=False,
     )
+
 
 ###############################################################################
 def _run_offline(schema: ApplicationSchema) -> None:
@@ -71,6 +76,7 @@ def _run_offline(schema: ApplicationSchema) -> None:
     with context.begin_transaction():
         context.run_migrations()
 
+
 ###############################################################################
 def _run_online(schema: ApplicationSchema) -> None:
     supplied_connection: Connection | None = context.config.attributes.get("connection")
@@ -88,6 +94,7 @@ def _run_online(schema: ApplicationSchema) -> None:
                 context.run_migrations()
     finally:
         engine.dispose()
+
 
 ###############################################################################
 def run(schema: ApplicationSchema) -> None:

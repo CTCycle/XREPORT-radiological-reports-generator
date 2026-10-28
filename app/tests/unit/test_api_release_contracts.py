@@ -15,23 +15,6 @@ CREATE_APP = {"xreport": create_inference_app, "studio": create_studio_app}
 from xreport_shared.common.constants import FASTAPI_VERSION
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 ###############################################################################
 @pytest.mark.parametrize(
     ("error_type", "expected_status"),
@@ -64,6 +47,7 @@ def test_service_error_handler_preserves_http_contract(
 
 SHARED_DIR = Path(__file__).resolve().parents[3] / "app" / "shared"
 
+
 ###############################################################################
 @pytest.mark.parametrize("profile", ["xreport", "studio"])
 def test_shared_openapi_schema_matches_runtime(profile: str) -> None:
@@ -71,6 +55,7 @@ def test_shared_openapi_schema_matches_runtime(profile: str) -> None:
     shared_schema = json.loads(schema_path.read_text(encoding="utf-8"))
 
     assert shared_schema == CREATE_APP[profile]().openapi()
+
 
 ###############################################################################
 def test_schemas_defined_by_both_applications_are_identical() -> None:
@@ -84,6 +69,7 @@ def test_schemas_defined_by_both_applications_are_identical() -> None:
 
     assert common
     assert [name for name in sorted(common) if schemas["xreport"][name] != schemas["studio"][name]] == []
+
 
 ###############################################################################
 def test_inference_generate_contract_has_only_current_request_fields() -> None:
@@ -101,6 +87,7 @@ def test_inference_generate_contract_has_only_current_request_fields() -> None:
         "batch_mode",
         "images",
     }
+
 
 ###############################################################################
 def test_workflow_contracts_require_client_selected_parameters() -> None:
@@ -159,10 +146,12 @@ def test_workflow_contracts_require_client_selected_parameters() -> None:
 
 ROOT_DIR = Path(__file__).resolve().parents[3]
 
+
 ###############################################################################
 def _json_version(path: Path) -> str:
     payload = json.loads(path.read_text(encoding="utf-8"))
     return str(payload["version"])
+
 
 ###############################################################################
 def test_release_version_has_one_canonical_source() -> None:

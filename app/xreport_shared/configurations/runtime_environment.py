@@ -8,6 +8,7 @@ from typing import Literal, cast
 InferenceDevice = Literal["auto", "cpu", "cuda"]
 
 
+###############################################################################
 @dataclass(frozen=True)
 class CorsSettings:
     allowed_origins: tuple[str, ...]
@@ -16,6 +17,7 @@ class CorsSettings:
     allow_headers: tuple[str, ...]
 
 
+###############################################################################
 @dataclass(frozen=True)
 class RuntimeEnvironmentSettings:
     inference_hf_local_only: bool
@@ -24,6 +26,7 @@ class RuntimeEnvironmentSettings:
     dataset_upload_max_bytes: int
 
 
+###############################################################################
 def _environment_positive_int(name: str, default: int) -> int:
     value = os.getenv(name)
     if value is None or not value.strip():
@@ -37,6 +40,7 @@ def _environment_positive_int(name: str, default: int) -> int:
     return parsed
 
 
+###############################################################################
 def _environment_bool(name: str, default: bool) -> bool:
     value = os.getenv(name)
     if value is None or not value.strip():
@@ -49,11 +53,13 @@ def _environment_bool(name: str, default: bool) -> bool:
     raise ValueError(f"{name} must be set to true or false")
 
 
+###############################################################################
 def _environment_list(name: str, default: str = "") -> tuple[str, ...]:
     value = os.getenv(name, default)
     return tuple(item.strip() for item in value.split(",") if item.strip())
 
 
+###############################################################################
 def get_runtime_environment_settings() -> RuntimeEnvironmentSettings:
     raw_device = os.getenv("INFERENCE_DEVICE", "auto").strip().lower() or "auto"
     if raw_device not in {"auto", "cpu", "cuda"}:

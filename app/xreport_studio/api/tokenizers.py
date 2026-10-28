@@ -9,6 +9,7 @@ from xreport_studio.domain.tokenizers import (
 )
 from xreport_studio.services.tokenizers import TokenizerService
 
+
 ###############################################################################
 class TokenizerEndpoint:
 
@@ -45,6 +46,7 @@ class TokenizerEndpoint:
             response_model=TokenizerCheckResponse,
             status_code=status.HTTP_200_OK,
         )
+
 
 ###############################################################################
 def get_router() -> APIRouter:

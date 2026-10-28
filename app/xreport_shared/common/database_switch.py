@@ -7,6 +7,7 @@ from typing import TypeVar
 
 T = TypeVar("T")
 
+
 ###############################################################################
 class DatabaseRequestGate:
     """Drains API requests before a connection facade is changed."""

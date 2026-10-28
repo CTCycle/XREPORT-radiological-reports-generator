@@ -29,10 +29,12 @@ from xreport_shared.models.training.processing import (  # noqa: E402
 from xreport_studio.repositories.serialization.dataset import DatasetRepository  # noqa: E402
 from xreport_studio.services import tokenizers as tokenizer_service  # noqa: E402
 
+
 ###############################################################################
 class FakeTokenizer:
     """Minimal stand-in exposing the attributes the decoder integration reads."""
 
+    # -------------------------------------------------------------------------
     def __init__(self, ids: dict[str, int | None], vocabulary: dict[str, int]) -> None:
         self.vocabulary = vocabulary
         self._special = ids
@@ -44,20 +46,24 @@ class FakeTokenizer:
         self.pad_token_id = ids.get("pad")
         self.decoded: list[list[int]] = []
 
+    # -------------------------------------------------------------------------
     def convert_tokens_to_ids(self, token: str) -> int:
         return {"[CLS]": self._special.get("cls"), "[SEP]": self._special.get("sep"),
                 "<s>": self._special.get("bos"), "</s>": self._special.get("eos")}[token]
 
+    # -------------------------------------------------------------------------
     def decode(self, ids: list[int], **_kwargs) -> str:
         self.decoded.append(list(ids))
         lookup = {value: key for key, value in self.vocabulary.items()}
         return " ".join(lookup[item] for item in ids)
 
+    # -------------------------------------------------------------------------
     def __len__(self) -> int:
         return len(self.vocabulary)
 
 BERT = {"cls": 101, "sep": 102, "pad": 0}
 ROBERTA = {"bos": 0, "eos": 2, "pad": 1}
+
 
 ###############################################################################
 def test_special_tokens_follow_cls_sep_or_bos_eos_and_require_all_three() -> None:
@@ -69,6 +75,7 @@ def test_special_tokens_follow_cls_sep_or_bos_eos_and_require_all_three() -> Non
         resolve_special_tokens(FakeTokenizer({"eos": 1, "pad": 0}, {"a": 5}))
     with pytest.raises(TokenizerCompatibilityError, match="padding"):
         resolve_special_tokens(FakeTokenizer({"bos": 0, "eos": 2}, {"a": 5}))
+
 
 ###############################################################################
 def test_generator_pads_and_decodes_with_the_tokenizer_ids() -> None:
@@ -83,6 +90,7 @@ def test_generator_pads_and_decodes_with_the_tokenizer_ids() -> None:
     # Start id 0 and pad id 1 are dropped even though 0 is a real token for RoBERTa.
     assert tokenizer.decoded == [[10, 11]]
     assert text == "no effusion"
+
 
 ###############################################################################
 def test_loss_and_accuracy_ignore_the_configured_pad_id() -> None:
@@ -100,6 +108,7 @@ def test_loss_and_accuracy_ignore_the_configured_pad_id() -> None:
     default_metric.update_state(y_true, probabilities)
     assert float(ops.convert_to_numpy(default_metric.result())) < 0.5
 
+
 ###############################################################################
 def test_positional_embedding_masks_the_pad_id_and_defaults_to_zero_for_old_configs() -> None:
     layer = PositionalEmbedding(10, 4, 5, pad_token_id=1)
@@ -109,6 +118,7 @@ def test_positional_embedding_masks_the_pad_id_and_defaults_to_zero_for_old_conf
     assert config["pad_token_id"] == 1
     del config["pad_token_id"]
     assert PositionalEmbedding.from_config(config).pad_token_id == 0
+
 
 ###############################################################################
 def test_processing_hash_changes_with_tokenizer_revision_and_special_ids() -> None:
@@ -127,6 +137,7 @@ def test_processing_hash_changes_with_tokenizer_revision_and_special_ids() -> No
         ("split_seed", 7),
     ):
         assert DatasetRepository.generate_hashcode({**base, key: value}) != reference
+
 
 ###############################################################################
 def test_check_reports_unavailable_and_incompatible_tokenizers(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -155,6 +166,7 @@ def test_check_reports_unavailable_and_incompatible_tokenizers(monkeypatch: pyte
     ok = tokenizer_service.check_tokenizer("roberta-base")
     assert ok.compatible and (ok.start_token_id, ok.end_token_id, ok.pad_token_id) == (0, 2, 1)
 
+
 ###############################################################################
 def test_tokenizer_api_lists_groups_and_rejects_path_like_ids() -> None:
     application = FastAPI()
@@ -168,6 +180,7 @@ def test_tokenizer_api_lists_groups_and_rejects_path_like_ids() -> None:
     assert not next(item for item in listed if item["tokenizer_id"] == "t5-small")["supports_training"]
     for bad in ("../outside", "a/b/c", "C:\\temp", ""):
         assert client.post("/api/tokenizers/check", json={"tokenizer": bad}).status_code == 422
+
 
 ###############################################################################
 @pytest.mark.skipif(

@@ -26,6 +26,7 @@ _GENERATION_FIELDS = (
     "detailed_num_beams",
 )
 
+
 ###############################################################################
 class SettingsService:
     """Public projection and persistence boundary for application settings."""
@@ -137,6 +138,7 @@ class SettingsService:
                 "theme_preference": values.theme_preference,
             }
         )
+
 
 ###############################################################################
 @lru_cache(maxsize=1)

@@ -12,6 +12,7 @@ from xreport_shared.common.constants import FASTAPI_TITLE
 
 PROFILE = "xreport"
 
+
 ###############################################################################
 def create_app() -> FastAPI:
     from xreport_inference.api.huggingface_access import router as huggingface_access_router

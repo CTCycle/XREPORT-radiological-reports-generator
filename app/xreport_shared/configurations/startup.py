@@ -11,6 +11,7 @@ from .settings import (
     application_settings_to_server_settings,
 )
 
+
 ###############################################################################
 @lru_cache(maxsize=1)
 def get_database_settings() -> DatabaseSettings:
@@ -18,6 +19,7 @@ def get_database_settings() -> DatabaseSettings:
 
     load_environment()
     return load_database_settings()
+
 
 ###############################################################################
 def get_server_settings() -> ServerSettings:
@@ -28,6 +30,7 @@ def get_server_settings() -> ServerSettings:
     values = ApplicationSettingsRepository().get_settings()
     return application_settings_to_server_settings(values, get_database_settings())
 
+
 ###############################################################################
 def get_inference_settings() -> InferenceSettings:
     """Return the persisted inference controls of the XREPORT Inference database."""
@@ -36,6 +39,7 @@ def get_inference_settings() -> InferenceSettings:
     if inference is None:
         raise RuntimeError("Inference settings exist only in the XREPORT Inference database")
     return inference
+
 
 ###############################################################################
 def reload_settings_for_tests() -> ServerSettings:

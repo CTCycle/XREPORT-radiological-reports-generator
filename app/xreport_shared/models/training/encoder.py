@@ -14,6 +14,7 @@ from xreport_shared.domain.checkpoint_exchange import ENCODER_REVISION as BEIT_R
 
 # [PRETRAINED IMAGE ENCODER]
 
+
 ###############################################################################
 @register_keras_serializable(package="Encoders", name="BeitXRayImageEncoder")
 class BeitXRayImageEncoder(layers.Layer):

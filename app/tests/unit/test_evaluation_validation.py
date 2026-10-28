@@ -29,11 +29,9 @@ from tests.conftest import run_async_in_thread
 os.environ["KERAS_BACKEND"] = "torch"
 
 
-
-
-
 ###############################################################################
 def test_preflight_rejects_checkpoint_sequence_length_mismatch() -> None:
+
 
     ###############################################################################
     class ModelStub:
@@ -55,10 +53,12 @@ def test_preflight_rejects_checkpoint_sequence_length_mismatch() -> None:
     ):
         evaluator.preflight_validation_dataset([batch])
 
+
 ###############################################################################
 def test_checkpoint_validation_uses_its_associated_dataset(monkeypatch) -> None:
     requested_names: list[str | None] = []
     validation_data = pd.DataFrame({"path": ["image.png"], "tokens": [[1, 2]]})
+
 
     ###############################################################################
     class RepositoryStub:
@@ -81,6 +81,7 @@ def test_checkpoint_validation_uses_its_associated_dataset(monkeypatch) -> None:
 
     assert result is validation_data
     assert requested_names == ["qa_pre_release_small"]
+
 
 ###############################################################################
 def test_checkpoint_validation_fails_without_associated_dataset() -> None:
@@ -105,6 +106,7 @@ def test_checkpoint_validation_fails_without_associated_dataset() -> None:
 
 validation = importlib.import_module("scripts.validate_inference_model")
 
+
 ###############################################################################
 def _write_case_manifest(tmp_path: Path) -> tuple[Path, Path]:
     image_path = tmp_path / "case.png"
@@ -128,6 +130,7 @@ def _write_case_manifest(tmp_path: Path) -> tuple[Path, Path]:
     )
     return manifest_path, image_path
 
+
 ###############################################################################
 def test_load_case_manifest_resolves_relative_images_and_profiles(
     tmp_path: Path,
@@ -142,6 +145,7 @@ def test_load_case_manifest_resolves_relative_images_and_profiles(
     assert cases[0].profile == "detailed"
     assert cases[0].clinical_context == "cough"
 
+
 ###############################################################################
 def test_load_case_manifest_rejects_duplicate_case_ids(tmp_path: Path) -> None:
     manifest_path, image_path = _write_case_manifest(tmp_path)
@@ -151,6 +155,7 @@ def test_load_case_manifest_rejects_duplicate_case_ids(tmp_path: Path) -> None:
 
     with pytest.raises(ValueError, match="Duplicate case id"):
         validation.load_case_manifest(manifest_path)
+
 
 ###############################################################################
 def test_fixture_metadata_rejects_changed_bytes(tmp_path: Path) -> None:
@@ -165,6 +170,7 @@ def test_fixture_metadata_rejects_changed_bytes(tmp_path: Path) -> None:
             deidentification="no identifiers",
             expected_sha256=hashlib.sha256(b"expected").hexdigest(),
         )
+
 
 ###############################################################################
 def test_validation_cache_override_isolated_from_canonical_modules(
@@ -191,6 +197,7 @@ def test_validation_cache_override_isolated_from_canonical_modules(
 
     assert configured == modules_cache / "huggingface" / "modules"
     assert Path(validation.os.environ["HF_MODULES_CACHE"]) == configured
+
 
 ###############################################################################
 def test_validate_cached_cases_runs_each_case_independently(
@@ -232,6 +239,7 @@ def test_validate_cached_cases_runs_each_case_independently(
         repository_id="test/model",
     )
     requests: list[str] = []
+
 
     ###############################################################################
     class FakeProvider:
@@ -330,6 +338,7 @@ def test_validate_cached_cases_runs_each_case_independently(
     assert receipt["case_count"] == 2
     assert receipt["checks"]["technical_passed"] is True
 
+
 ###############################################################################
 def test_case_manifest_cli_dispatches_to_independent_case_runner(
     monkeypatch: pytest.MonkeyPatch,
@@ -368,10 +377,6 @@ def test_case_manifest_cli_dispatches_to_independent_case_runner(
     assert captured["repeat_case_id"] == "case-1"
 
 
-
-
-
-
 ###############################################################################
 def test_dataset_validation_rejects_unknown_metric() -> None:
     with pytest.raises(ValidationError, match="Unsupported validation metrics"):
@@ -380,6 +385,7 @@ def test_dataset_validation_rejects_unknown_metric() -> None:
             metrics=["unknown_metric"],
             sample_size=1.0,
         )
+
 
 ###############################################################################
 def test_checkpoint_evaluation_rejects_unknown_metric() -> None:
@@ -392,20 +398,6 @@ def test_checkpoint_evaluation_rejects_unknown_metric() -> None:
             metrics=["unknown_metric"],
             num_samples=10,
         )
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 ###############################################################################
@@ -428,6 +420,7 @@ class FakeValidationDatasetRepository:
     def validate_img_paths(self, _dataset: pd.DataFrame) -> pd.DataFrame:
         return self.validated
 
+
 ###############################################################################
 def _job_manager(job_type: str) -> Any:
     manager = MagicMock(spec=JobManager)
@@ -443,6 +436,7 @@ def _job_manager(job_type: str) -> Any:
     }
     return manager
 
+
 ###############################################################################
 def _settings(seed: int = 123) -> ServerSettings:
     return cast(
@@ -452,6 +446,7 @@ def _settings(seed: int = 123) -> ServerSettings:
             jobs=SimpleNamespace(polling_interval=2.0),
         ),
     )
+
 
 ###############################################################################
 def test_validation_job_fails_when_dataset_is_unavailable(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -474,6 +469,7 @@ def test_validation_job_fails_when_dataset_is_unavailable(monkeypatch: pytest.Mo
 
     assert raised.value.code == "dataset_unavailable"
     assert raised.value.phase == "input_validation"
+
 
 ###############################################################################
 def test_validation_job_fails_when_no_image_paths_remain(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -500,6 +496,7 @@ def test_validation_job_fails_when_no_image_paths_remain(monkeypatch: pytest.Mon
     assert raised.value.code == "dataset_integrity_failed"
     assert raised.value.phase == "input_validation"
 
+
 ###############################################################################
 def test_checkpoint_evaluation_persistence_failure_is_terminal(
     monkeypatch: pytest.MonkeyPatch,
@@ -521,6 +518,7 @@ def test_checkpoint_evaluation_persistence_failure_is_terminal(
     assert raised.value.code == "persistence_failed"
     assert raised.value.phase == "persistence"
 
+
 ###############################################################################
 def test_validation_service_preserves_explicit_zero_seed() -> None:
     manager = _job_manager("validation")
@@ -540,6 +538,7 @@ def test_validation_service_preserves_explicit_zero_seed() -> None:
     request_data = manager.start_job.call_args.kwargs["kwargs"]["request_data"]
     assert request_data["seed"] == 0
 
+
 ###############################################################################
 def test_validation_service_uses_global_seed_when_omitted() -> None:
     manager = _job_manager("validation")
@@ -557,6 +556,7 @@ def test_validation_service_uses_global_seed_when_omitted() -> None:
 
     request_data = manager.start_job.call_args.kwargs["kwargs"]["request_data"]
     assert request_data["seed"] == 321
+
 
 ###############################################################################
 def test_checkpoint_evaluation_uses_global_seed_when_omitted() -> None:
@@ -583,6 +583,7 @@ def test_checkpoint_evaluation_uses_global_seed_when_omitted() -> None:
 
     request_data = manager.start_job.call_args.kwargs["kwargs"]["request_data"]
     assert request_data["seed"] == 654
+
 
 ###############################################################################
 def test_validation_service_reads_seed_and_poll_interval_for_each_new_run() -> None:
@@ -620,6 +621,7 @@ def test_validation_service_reads_seed_and_poll_interval_for_each_new_run() -> N
     assert first_response.poll_interval == 2.0
     assert second_response.poll_interval == 4.5
 
+
 ###############################################################################
 def test_token_statistics_require_text_metric_and_count_tokens(
     monkeypatch: pytest.MonkeyPatch,
@@ -632,7 +634,11 @@ def test_token_statistics_require_text_metric_and_count_tokens(
             tokenizer="distilbert-base-uncased",
         )
 
+
+    ###############################################################################
     class FakeTokenizer:
+
+        # -------------------------------------------------------------------------
         def __call__(self, texts: list[str], add_special_tokens: bool) -> dict:
             return {"input_ids": [[0] * (len(text.split()) + 2) for text in texts]}
 

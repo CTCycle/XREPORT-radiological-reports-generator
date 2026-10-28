@@ -13,6 +13,7 @@ from xreport_shared.services.jobs import JobExecutionError, JobManager
 if TYPE_CHECKING:
     import pandas as pd
 
+
 ###############################################################################
 def resolve_processed_dataset_name(
     source_dataset_name: str,
@@ -23,6 +24,7 @@ def resolve_processed_dataset_name(
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     return f"{source_dataset_name}_{timestamp}"
 
+
 ###############################################################################
 def _load_processing_components() -> tuple[Any, Any, Any]:
     from xreport_shared.models.training.processing import (
@@ -32,6 +34,7 @@ def _load_processing_components() -> tuple[Any, Any, Any]:
     )
 
     return TextSanitizer, TokenizerHandler, TrainValidationSplit
+
 
 ###############################################################################
 class DatasetProcessingService:

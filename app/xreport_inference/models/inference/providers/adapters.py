@@ -20,12 +20,14 @@ from transformers import (
 
 from xreport_inference.domain.inference import GenerationProfile, InferenceImage
 
+
 ###############################################################################
 @dataclass(frozen=True)
 class StudyImage:
     stored: InferenceImage
     image: Image.Image
     original_dimensions: tuple[int, int]
+
 
 ###############################################################################
 @dataclass(frozen=True)
@@ -37,6 +39,7 @@ class StudyGeneration:
 
 MoveInputs = Callable[[Any, Any], Any]
 StoppingCriteriaValue = Any
+
 
 ###############################################################################
 class _LegacyDecoderPrepareInputs:
@@ -69,6 +72,7 @@ class _LegacyDecoderPrepareInputs:
             input_ids, *args, past_key_values=past_key_values, **kwargs
         )
 
+
 ###############################################################################
 class _CXRMate2PrepareInputs:
     """Cast generated CXRMate-2 auxiliary tensors to the resident model dtype."""
@@ -83,6 +87,7 @@ class _CXRMate2PrepareInputs:
     # -------------------------------------------------------------------------
     def __call__(self, *args: Any, **kwargs: Any) -> Any:
         return self.move_inputs(self.original(*args, **kwargs), self.model)
+
 
 ###############################################################################
 def _ensure_legacy_decoder_cache_compatibility(model: Any) -> None:
@@ -106,6 +111,7 @@ def _ensure_legacy_decoder_cache_compatibility(model: Any) -> None:
     decoder.prepare_inputs_for_generation = _LegacyDecoderPrepareInputs(original)
     decoder._xreport_cache_compat = True
 
+
 ###############################################################################
 def _ensure_cxrmate2_generation_dtype(model: Any, move_inputs: MoveInputs) -> None:
     """Keep remote CXRMate-2 generation-time float tensors aligned with the model."""
@@ -119,6 +125,7 @@ def _ensure_cxrmate2_generation_dtype(model: Any, move_inputs: MoveInputs) -> No
     )
     model._xreport_cxrmate2_dtype_compat = True
 
+
 ###############################################################################
 @dataclass(frozen=True)
 class GenerationLimits:
@@ -128,6 +135,7 @@ class GenerationLimits:
     max_new_tokens_concise: int = 0
     max_new_tokens_detailed: int = 0
     detailed_num_beams: int = 0
+
 
 ###############################################################################
 class StandardImageTextAdapter:
@@ -306,6 +314,7 @@ class StandardImageTextAdapter:
             return None
         return [int(dimension) for dimension in shape]
 
+
 ###############################################################################
 class ChatVisionStudyAdapter(StandardImageTextAdapter):
     """Study adapter for image-text-to-text models using chat templates."""
@@ -376,6 +385,7 @@ class ChatVisionStudyAdapter(StandardImageTextAdapter):
             "processor_loader": "auto",
             "input_scope": "study",
         }
+
 
 ###############################################################################
 class CheXOneAdapter(ChatVisionStudyAdapter):
@@ -461,6 +471,7 @@ class CheXOneAdapter(ChatVisionStudyAdapter):
             display_sections=self.display_sections(report, output_sections),
             metadata=[self._metadata(item, processor, inputs) for item in images],
         )
+
 
 ###############################################################################
 class CXRMateMultiAdapter(StandardImageTextAdapter):
@@ -586,6 +597,7 @@ class CXRMateMultiAdapter(StandardImageTextAdapter):
             "input_scope": "study",
         }
 
+
 ###############################################################################
 class CXRMate2Adapter(StandardImageTextAdapter):
     """Published CXRMate-2 processor and findings/impression decoder."""
@@ -664,6 +676,7 @@ class CXRMate2Adapter(StandardImageTextAdapter):
             "processor_loader": "auto",
             "input_scope": "study",
         }
+
 
 ###############################################################################
 class MedGemmaAdapter(ChatVisionStudyAdapter):

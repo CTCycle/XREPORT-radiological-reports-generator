@@ -27,6 +27,7 @@ from xreport_studio.services.model_architecture import ModelArchitectureService
 WIDTH = 64
 TOKENS = 5
 
+
 ###############################################################################
 def _memory_database() -> Database:
     database = Database.__new__(Database)
@@ -38,12 +39,14 @@ def _memory_database() -> Database:
     StudioBase.metadata.create_all(database.engine)
     return database
 
+
 ###############################################################################
 def _service() -> ModelArchitectureService:
     return ModelArchitectureService(
         repository=ModelArchitectureRepository(database=_memory_database()),
         checkpoint_repository=None,  # type: ignore[arg-type]
     )
+
 
 ###############################################################################
 def test_stack_heads_validate_independently_of_each_other() -> None:
@@ -59,6 +62,7 @@ def test_stack_heads_validate_independently_of_each_other() -> None:
     assert ModelArchitecture(decoder_head_dim_mode="custom", decoder_head_dim=32).key_dim("decoder") == 32
     with pytest.raises(ValidationError):
         ModelArchitecture.model_validate({"image_encoder": "resnet50"})
+
 
 ###############################################################################
 def test_shared_keys_of_saved_architectures_apply_to_both_stacks() -> None:
@@ -83,6 +87,7 @@ CONFIGURATIONS = [
 ]
 
 
+###############################################################################
 @pytest.mark.parametrize("settings", CONFIGURATIONS)
 def test_analytic_counts_and_shapes_match_built_keras_layers(settings: dict) -> None:
     architecture = ModelArchitecture(num_encoders=1, num_decoders=1, **settings)
@@ -115,6 +120,7 @@ def test_analytic_counts_and_shapes_match_built_keras_layers(settings: dict) -> 
         + embedding.count_params() + classifier.count_params()
     )
 
+
 ###############################################################################
 def test_layer_options_change_the_computation() -> None:
     from keras import ops
@@ -131,6 +137,7 @@ def test_layer_options_change_the_computation() -> None:
     assert TransformerEncoder(embedding_dims=WIDTH, num_heads=2, seed=1,
                               norm_epsilon=1e-2).addnorm1.epsilon == 1e-2
 
+
 ###############################################################################
 def test_legacy_layer_config_rebuilds_original_layers() -> None:
     legacy = {"name": "encoder", "embedding_dims": WIDTH, "num_heads": 4, "seed": 1}
@@ -141,6 +148,7 @@ def test_legacy_layer_config_rebuilds_original_layers() -> None:
     assert (layer.key_dim, layer.ffn_units, layer.dropout, layer.activation) == (
         WIDTH, WIDTH, 0.2, "relu")
     assert layer.count_params() == arch.encoder_block_parameters(original)
+
 
 ###############################################################################
 def test_default_preset_matches_original_studio_architecture() -> None:
@@ -160,6 +168,7 @@ def test_default_preset_matches_original_studio_architecture() -> None:
     assert arch.architecture_from_configuration(
         {"architecture": default.model_dump()}
     ) == (default, False)
+
 
 ###############################################################################
 def test_comparison_separates_structure_from_configurable_settings() -> None:
@@ -185,6 +194,7 @@ def test_comparison_separates_structure_from_configurable_settings() -> None:
         "decoder_dropout": "behaviour",
     }
 
+
 ###############################################################################
 def test_checkpoint_weights_report_the_tensors_that_cannot_load() -> None:
     base = ModelArchitecture()
@@ -205,7 +215,7 @@ def test_checkpoint_weights_report_the_tensors_that_cannot_load() -> None:
     assert (missing.expected, missing.found) == ([], [768, 768])
     assert ("encoder 1-6", "attention/query/kernel") in layers
 
-###############################################################################
+
 ###############################################################################
 def test_frozen_encoder_is_excluded_from_trainable_parameters() -> None:
     frozen = ModelArchitecture(freeze_image_encoder=True)
@@ -216,6 +226,7 @@ def test_frozen_encoder_is_excluded_from_trainable_parameters() -> None:
     assert stats.total_parameters == unfrozen.total_parameters
     assert stats.trainable_parameters == unfrozen.trainable_parameters - beit
     assert stats.frozen_parameters == beit
+
 
 ###############################################################################
 def test_beit_parameter_constant_matches_installed_encoder() -> None:
@@ -236,6 +247,7 @@ def test_beit_parameter_constant_matches_installed_encoder() -> None:
 
     assert sum(parameter.numel() for parameter in model.parameters()) == spec.parameters
     assert model.config.hidden_size == spec.feature_dims
+
 
 ###############################################################################
 def test_custom_presets_persist_and_protect_names() -> None:
@@ -272,6 +284,7 @@ def test_custom_presets_persist_and_protect_names() -> None:
     with pytest.raises(NotFoundError):
         service.resolve_preset(created.key)
 
+
 ###############################################################################
 def test_builtin_presets_can_be_hidden_and_restored_except_the_default() -> None:
     service = _service()
@@ -290,6 +303,7 @@ def test_builtin_presets_can_be_hidden_and_restored_except_the_default() -> None
     restored = service.restore_builtin_presets()
     assert [preset.key for preset in restored.presets] == list(arch.BUILTIN_PRESETS)
     assert restored.hidden_builtins == 0
+
 
 ###############################################################################
 def test_preview_reports_field_issues_instead_of_failing() -> None:

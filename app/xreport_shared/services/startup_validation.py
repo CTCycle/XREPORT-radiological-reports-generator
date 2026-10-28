@@ -43,9 +43,11 @@ from xreport_shared.configurations import (
 )
 from xreport_shared.repositories.database.initializer import prepare_database_for_startup
 
+
 ###############################################################################
 def _ensure_directory(path: Path) -> None:
     path.mkdir(parents=True, exist_ok=True)
+
 
 ###############################################################################
 def run_startup_validations(

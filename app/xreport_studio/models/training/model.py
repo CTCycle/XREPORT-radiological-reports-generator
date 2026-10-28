@@ -21,6 +21,7 @@ from xreport_shared.models.training.metrics import (
 )
 from xreport_shared.models.training.scheduler import WarmUpLRScheduler
 
+
 ###############################################################################
 class XREPORTModel:
 
@@ -123,6 +124,7 @@ class XREPORTModel:
 
         return model
 
+
 ###############################################################################
 def build_xreport_model(
     metadata: dict[str, Any], configuration: dict[str, Any]
@@ -141,7 +143,8 @@ def build_xreport_model(
     )
     return model
 
-# -----------------------------------------------------------------------------
+
+###############################################################################
 def count_model_parameters(model: Model) -> dict[str, int]:
     """Parameter counts of a built model, as stored with its checkpoint."""
     trainable = sum(int(math.prod(weight.shape)) for weight in model.trainable_weights)

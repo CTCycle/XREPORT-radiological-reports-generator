@@ -12,6 +12,7 @@ from xreport_inference.repositories.schemas.inference import InferenceReport, In
 from xreport_shared.repositories.schemas.normalization import normalize_key
 from xreport_shared.repositories.serialization.support import RepositorySupport
 
+
 ###############################################################################
 class InferenceRepository(RepositorySupport):
     """Persistence boundary for inference and checkpoint history."""

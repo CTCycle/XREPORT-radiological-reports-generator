@@ -12,6 +12,7 @@ from collections.abc import Callable
 
 from xreport_shared.common.utils.logger import logger
 
+
 ###############################################################################
 @dataclass
 class JobState:
@@ -51,6 +52,7 @@ class JobState:
                 "completed_at": self.completed_at,
             }
 
+
 ###############################################################################
 class JobExecutionError(RuntimeError):
     """Typed failure payload supplied by a feature-specific job runner."""
@@ -69,6 +71,7 @@ class JobExecutionError(RuntimeError):
         self.phase = phase
         self.recoverable = recoverable
 
+
 ###############################################################################
 class JobAlreadyRunningError(RuntimeError):
     """Raised when an exclusive job type already has an active job."""
@@ -76,6 +79,7 @@ class JobAlreadyRunningError(RuntimeError):
 
 ###############################################################################
 FailureMapper = Callable[[Exception], JobExecutionError]
+
 
 ###############################################################################
 class JobManager:
@@ -306,6 +310,7 @@ class JobManager:
             if param.kind == param.VAR_KEYWORD:
                 return True
         return "job_id" in signature.parameters
+
 
 ###############################################################################
 @lru_cache(maxsize=1)

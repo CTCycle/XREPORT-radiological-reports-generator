@@ -14,6 +14,7 @@ from xreport_shared.common.utils.logger import logger
 from xreport_shared.models.training.dataloader import XRAYDataLoader
 from xreport_shared.models.training.processing import TokenizerHandler
 
+
 ###############################################################################
 def normalize_beam_score(
     candidate: tuple[list[int], float],
@@ -21,6 +22,7 @@ def normalize_beam_score(
 ) -> float:
     sequence, cumulative_score = candidate
     return cumulative_score / (len(sequence) ** length_penalty)
+
 
 ###############################################################################
 def emit_image_stream_token(
@@ -32,6 +34,7 @@ def emit_image_stream_token(
 ) -> None:
     if stream_callback is not None:
         stream_callback(image_index, token, step, total)
+
 
 ###############################################################################
 class TextGenerator:

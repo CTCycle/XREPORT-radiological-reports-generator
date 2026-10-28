@@ -69,6 +69,7 @@ EXCHANGE_RECORD = "exchange.json"
 ENCODER_CACHE_DIRNAME = "models--microsoft--beit-base-patch16-224"
 _TOKENIZER_NAME = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]*(/[A-Za-z0-9][A-Za-z0-9._-]*)?$")
 
+
 ###############################################################################
 def tokenizer_exchange_dir(name: str) -> Path:
     """Directory holding a tokenizer installed from an exchange archive."""
@@ -76,11 +77,13 @@ def tokenizer_exchange_dir(name: str) -> Path:
         raise ValueError(f"Unsupported tokenizer name: {name!r}")
     return TOKENIZERS_DIR / "_exchange" / name.replace("/", "--")
 
+
 ###############################################################################
 def encoder_snapshot_dir(revision: str) -> Path:
     if not re.fullmatch(r"[0-9a-f]{40}", revision):
         raise ValueError("Encoder revision must be a 40-character commit hash")
     return ENCODERS_DIR / ENCODER_CACHE_DIRNAME / "snapshots" / revision
+
 
 ###############################################################################
 def encoder_installed(revision: str) -> bool:
@@ -90,11 +93,13 @@ def encoder_installed(revision: str) -> bool:
         for weights in ("model.safetensors", "pytorch_model.bin")
     )
 
+
 ###############################################################################
 def pinned_encoder_revision() -> str:
     from xreport_shared.models.training.encoder import BeitXRayImageEncoder
 
     return BeitXRayImageEncoder.ENCODER_REVISION
+
 
 ###############################################################################
 def sweep_stale_staging() -> int:
@@ -112,12 +117,14 @@ def sweep_stale_staging() -> int:
         removed += 1
     return removed
 
+
 ###############################################################################
 @dataclass(frozen=True)
 class ImportPlan:
     manifest: ExchangeManifest
     name: str
     renamed_from: str | None
+
 
 ###############################################################################
 class CheckpointExchangeService:
@@ -147,7 +154,8 @@ class CheckpointExchangeService:
 
     ###########################################################################
     # Export
-    ###########################################################################
+
+    # -------------------------------------------------------------------------
     def start_export(self, checkpoint: str, include_encoder: bool) -> JobStartResponse:
         try:
             name = validate_checkpoint_name(checkpoint)
@@ -374,7 +382,8 @@ class CheckpointExchangeService:
 
     ###########################################################################
     # Import
-    ###########################################################################
+
+    # -------------------------------------------------------------------------
     def assess_archive(
         self, archive_path: Path, rename_to: str | None = None
     ) -> ImportPlan:
@@ -835,6 +844,7 @@ class CheckpointExchangeService:
         if job_id is not None:
             self.jobs.update_progress(job_id, value)
 
+
 ###############################################################################
 def _tree_digest(directory: Path) -> str:
     files = [
@@ -847,6 +857,7 @@ def _tree_digest(directory: Path) -> str:
         if path.is_file()
     ]
     return content_digest(files)
+
 
 ###############################################################################
 @lru_cache(maxsize=1)

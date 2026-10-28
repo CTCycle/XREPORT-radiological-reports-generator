@@ -32,6 +32,7 @@ LEGACY_COLUMNS = (
     ("pixel_counts_json", sa.JSON()),
 )
 
+
 ###############################################################################
 def _run_fk(name: str) -> sa.ForeignKeyConstraint:
     return sa.ForeignKeyConstraint(
@@ -40,6 +41,7 @@ def _run_fk(name: str) -> sa.ForeignKeyConstraint:
         name=name,
         ondelete="CASCADE",
     )
+
 
 ###############################################################################
 def _record_fk(name: str) -> sa.ForeignKeyConstraint:
@@ -50,6 +52,7 @@ def _record_fk(name: str) -> sa.ForeignKeyConstraint:
         ondelete="CASCADE",
     )
 
+
 ###############################################################################
 def _legacy_table() -> sa.Table:
     return sa.table(
@@ -58,9 +61,11 @@ def _legacy_table() -> sa.Table:
         *[sa.column(name, kind) for name, kind in LEGACY_COLUMNS],
     )
 
+
 ###############################################################################
 def _as_list(value: Any) -> list[Any]:
     return value if isinstance(value, list) else []
+
 
 ###############################################################################
 def _scalar_measure(
@@ -82,6 +87,7 @@ def _scalar_measure(
         "p75": None,
         "p95": None,
     }
+
 
 ###############################################################################
 def _backfill(bind: sa.engine.Connection) -> None:
@@ -232,6 +238,7 @@ def _backfill(bind: sa.engine.Connection) -> None:
         if rows:
             bind.execute(sa.insert(table), rows)
 
+
 ###############################################################################
 def upgrade() -> None:
     with op.batch_alter_table("validation_runs", schema=None) as batch_op:
@@ -344,6 +351,7 @@ def upgrade() -> None:
     with op.batch_alter_table("validation_runs", schema=None) as batch_op:
         for name, _kind in LEGACY_COLUMNS:
             batch_op.drop_column(name)
+
 
 ###############################################################################
 def downgrade() -> None:

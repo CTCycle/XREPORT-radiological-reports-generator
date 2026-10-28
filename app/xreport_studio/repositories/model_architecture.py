@@ -14,6 +14,7 @@ from xreport_studio.repositories.schemas.studio import (
     ModelArchitecturePreset,
 )
 
+
 ###############################################################################
 @dataclass(frozen=True)
 class PresetRecord:
@@ -24,9 +25,11 @@ class PresetRecord:
     created_at: datetime
     updated_at: datetime
 
+
 ###############################################################################
 class PresetNameConflictError(ValueError):
     """Raised when a preset name is already used (case-insensitive)."""
+
 
 ###############################################################################
 class ModelArchitectureRepository:

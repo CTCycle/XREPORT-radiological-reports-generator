@@ -23,20 +23,6 @@ from xreport_studio.models.callbacks import TrainingProgressCallback
 from xreport_studio.services.training_worker import ProcessWorker, QueueProgressReporter, WorkerChannels, keep_saved_epoch, process_target
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 ###############################################################################
 def test_cpu_choice_keeps_weights_on_cpu_when_cuda_is_available() -> None:
     # Keras' torch backend defaults to CUDA, so the CPU choice only holds
@@ -48,6 +34,7 @@ def test_cpu_choice_keeps_weights_on_cpu_when_cuda_is_available() -> None:
 
     assert device == "cpu"
     assert layer.kernel.value.device.type == "cpu"
+
 
 ###############################################################################
 def test_cancelled_run_keeps_saved_epoch_and_drops_empty_folder(
@@ -75,6 +62,7 @@ def test_cancelled_run_keeps_saved_epoch_and_drops_empty_folder(
     assert saved.is_dir()
     assert not empty.exists()
 
+
 ###############################################################################
 def test_xray_dataloader_construction_does_not_load_tokenizer() -> None:
     for _ in range(20):
@@ -85,12 +73,6 @@ def test_xray_dataloader_construction_does_not_load_tokenizer() -> None:
                 "dataloader_workers": 0,
             }
         )
-
-
-
-
-
-
 
 
 ###############################################################################
@@ -105,6 +87,7 @@ class _Clock:
         current = self.value
         self.value += 1.0
         return current
+
 
 ###############################################################################
 class _StalledWorker:
@@ -157,6 +140,7 @@ class _StalledWorker:
         del timeout
         return None
 
+
 ###############################################################################
 def test_slow_first_batch_is_not_a_stall_before_its_deadline() -> None:
     watchdog = training_module._TrainingWatchdogState(started_at=0.0)
@@ -179,6 +163,7 @@ def test_slow_first_batch_is_not_a_stall_before_its_deadline() -> None:
         is None
     )
 
+
 ###############################################################################
 def test_repeated_heartbeat_without_phase_or_batch_progress_stalls() -> None:
     watchdog = training_module._TrainingWatchdogState(started_at=0.0)
@@ -200,6 +185,7 @@ def test_repeated_heartbeat_without_phase_or_batch_progress_stalls() -> None:
         )
         == "worker_phase_timeout"
     )
+
 
 ###############################################################################
 def test_monitor_terminates_stalled_worker_with_typed_failure(
@@ -238,14 +224,6 @@ def test_monitor_terminates_stalled_worker_with_typed_failure(
         }})
         for call in manager.update_result.call_args_list
     )
-
-
-
-
-
-
-
-
 
 
 ###############################################################################
@@ -298,6 +276,7 @@ class FakeProcessWorker:
         del timeout
         return None
 
+
 ###############################################################################
 def test_training_cancel_requests_graceful_stop_before_forced_termination(
     monkeypatch: pytest.MonkeyPatch,
@@ -316,6 +295,7 @@ def test_training_cancel_requests_graceful_stop_before_forced_termination(
     assert worker.stop_called is True
     assert worker.terminate_called is False
     assert result == {}
+
 
 ###############################################################################
 def test_training_cancel_forces_termination_after_timeout(
@@ -337,37 +317,22 @@ def test_training_cancel_forces_termination_after_timeout(
     assert result == {}
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 ###############################################################################
 def _child_reports_success(*, worker: WorkerChannels) -> None:
     worker.report_lifecycle("test_phase")
     worker.report_result({"result": {"completed": True}})
+
 
 ###############################################################################
 def _raise_from_child(*, worker: WorkerChannels) -> None:
     del worker
     raise ValueError("child exploded")
 
+
 ###############################################################################
 def _set_stop_event(*, worker: WorkerChannels) -> None:
     worker.stop_event.set()
+
 
 ###############################################################################
 def test_child_failure_reports_lifecycle_and_traceback() -> None:
@@ -402,6 +367,7 @@ def test_child_failure_reports_lifecycle_and_traceback() -> None:
     assert diagnostic["message"] == "child exploded"  # type: ignore[index]
     assert "ValueError: child exploded" in diagnostic["traceback"]  # type: ignore[index]
 
+
 ###############################################################################
 def test_child_cancellation_reports_cancelled_lifecycle() -> None:
     progress_queue: queue.Queue[dict[str, object]] = queue.Queue()
@@ -427,6 +393,7 @@ def test_child_cancellation_reports_cancelled_lifecycle() -> None:
     ]
     assert result_queue.empty()
 
+
 ###############################################################################
 def test_plot_pressure_does_not_discard_critical_progress() -> None:
     progress_queue: queue.Queue[dict[str, object]] = queue.Queue(maxsize=2)
@@ -441,6 +408,7 @@ def test_plot_pressure_does_not_discard_critical_progress() -> None:
         "training_plot",
         "training_update",
     }
+
 
 ###############################################################################
 def test_lifecycle_message_includes_worker_correlation_and_timing() -> None:
@@ -461,6 +429,7 @@ def test_lifecycle_message_includes_worker_correlation_and_timing() -> None:
     assert message["phase"] == "model_loading_started"
     assert message["elapsed_seconds"] >= 0
     assert message["phase_elapsed_seconds"] == 0.0
+
 
 ###############################################################################
 def test_training_callback_reports_fit_and_first_batch_boundaries() -> None:
@@ -489,6 +458,7 @@ def test_training_callback_reports_fit_and_first_batch_boundaries() -> None:
         "epoch_completed",
     ]
     assert any(message.get("type") == "training_update" for message in messages)
+
 
 ###############################################################################
 def test_spawned_worker_delivers_lifecycle_and_result_without_queue_join() -> None:
@@ -527,6 +497,7 @@ def test_spawned_worker_delivers_lifecycle_and_result_without_queue_join() -> No
             worker.join(timeout=2.0)
         worker.cleanup()
 
+
 ###############################################################################
 class ExitedWorker:
     exitcode = 7
@@ -536,6 +507,7 @@ class ExitedWorker:
     def read_result(self, timeout: float = 0.5) -> None:
         del timeout
         return None
+
 
 ###############################################################################
 def test_non_zero_worker_exit_is_typed_and_recorded(
@@ -569,6 +541,7 @@ def test_non_zero_worker_exit_is_typed_and_recorded(
         },
     )
 
+
 ###############################################################################
 def test_reported_child_failure_keeps_diagnostics(
     monkeypatch: pytest.MonkeyPatch,
@@ -580,6 +553,7 @@ def test_reported_child_failure_keeps_diagnostics(
         "get_job_manager",
         Mock(return_value=manager),
     )
+
 
     ###############################################################################
     class FailedWorker:
@@ -619,6 +593,7 @@ def test_reported_child_failure_keeps_diagnostics(
         },
     )
 
+
 ###############################################################################
 def test_normal_worker_result_is_returned_unchanged(
     monkeypatch: pytest.MonkeyPatch,
@@ -630,6 +605,7 @@ def test_normal_worker_result_is_returned_unchanged(
         "get_job_manager",
         Mock(return_value=manager),
     )
+
 
     ###############################################################################
     class CompletedWorker:
@@ -646,6 +622,7 @@ def test_normal_worker_result_is_returned_unchanged(
     assert result == {"checkpoint_path": "checkpoint-a"}
     manager.update_result.assert_not_called()
 
+
 ###############################################################################
 def test_missing_result_payload_is_a_typed_failure(
     monkeypatch: pytest.MonkeyPatch,
@@ -657,6 +634,7 @@ def test_missing_result_payload_is_a_typed_failure(
         "get_job_manager",
         Mock(return_value=manager),
     )
+
 
     ###############################################################################
     class MissingResultWorker:
@@ -673,6 +651,7 @@ def test_missing_result_payload_is_a_typed_failure(
 
     assert raised.value.code == "training_worker_missing_result"
 
+
 ###############################################################################
 def test_zero_exit_empty_result_is_not_success(
     monkeypatch: pytest.MonkeyPatch,
@@ -684,6 +663,7 @@ def test_zero_exit_empty_result_is_not_success(
         "get_job_manager",
         Mock(return_value=manager),
     )
+
 
     ###############################################################################
     class EmptyResultWorker:
@@ -711,6 +691,7 @@ def test_zero_exit_empty_result_is_not_success(
             }
         },
     )
+
 
 ###############################################################################
 def test_xray_dataloaders_return_expected_tensor_contract(
@@ -743,6 +724,7 @@ def test_xray_dataloaders_return_expected_tensor_contract(
     inference_images = next(iter(loader.build_inference_dataloader(data)))
     assert inference_images.shape == (2, 224, 224, 3)
     assert inference_images.dtype == torch.float32
+
 
 ###############################################################################
 def test_xray_training_loader_runs_with_spawned_workers(tmp_path: Path) -> None:

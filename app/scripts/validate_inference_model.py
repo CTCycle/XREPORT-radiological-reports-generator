@@ -50,6 +50,7 @@ from xreport_inference.repositories.serialization.inference import (  # noqa: E4
 RUN_LOG_DIR = ROOT_DIR / "assets" / "QA" / "inference_validation_runs"
 RECEIPT_DIR = ROOT_DIR / "assets" / "QA" / "inference_validation"
 
+
 ###############################################################################
 @dataclass(frozen=True)
 class ValidationCase:
@@ -60,6 +61,7 @@ class ValidationCase:
     profile: GenerationProfile
     clinical_context: str
     expected_sha256: str
+
 
 ###############################################################################
 def _arguments() -> argparse.Namespace:
@@ -95,9 +97,11 @@ def _arguments() -> argparse.Namespace:
     )
     return parser.parse_args()
 
+
 ###############################################################################
 def _slug(model_ref: str) -> str:
     return model_ref.removeprefix("huggingface:").replace("/", "__")
+
 
 ###############################################################################
 def _write_run_log(model_ref: str, payload: dict[str, object]) -> Path:
@@ -105,6 +109,7 @@ def _write_run_log(model_ref: str, payload: dict[str, object]) -> Path:
     path = RUN_LOG_DIR / f"{_slug(model_ref)}.json"
     path.write_text(json.dumps(payload, indent=2, sort_keys=True), encoding="utf-8")
     return path
+
 
 ###############################################################################
 def _fixture_metadata(
@@ -138,6 +143,7 @@ def _fixture_metadata(
         "sha256": actual_sha256,
     }
 
+
 ###############################################################################
 def _deferred_payload(
     *,
@@ -155,12 +161,14 @@ def _deferred_payload(
         "weights_downloaded": False,
     }
 
+
 ###############################################################################
 def _expected_hashes(value: str | list[str], image_count: int) -> list[str]:
     hashes = [value] if isinstance(value, str) else list(value)
     if len(hashes) != image_count:
         raise ValueError("Provide exactly one --fixture-sha256 value per --image")
     return hashes
+
 
 ###############################################################################
 def _configure_validation_cache() -> Path | None:
@@ -180,6 +188,7 @@ def _configure_validation_cache() -> Path | None:
 
     huggingface_module.HF_MODULES_CACHE = str(modules_cache)
     return modules_cache
+
 
 ###############################################################################
 def load_case_manifest(path: Path) -> list[ValidationCase]:
@@ -240,6 +249,7 @@ def load_case_manifest(path: Path) -> list[ValidationCase]:
             )
         )
     return cases
+
 
 ###############################################################################
 def validate_cached_model(
@@ -332,6 +342,7 @@ def validate_cached_model(
 
     manifest = selected.model_dump(mode="json")
     manifest["revision"] = selected.model_revision
+
 
     ###############################################################################
     class RecordingRepository:
@@ -529,6 +540,7 @@ def validate_cached_model(
     receipt.write_text(json.dumps(payload, indent=2, sort_keys=True), encoding="utf-8")
     return {**payload, "receipt": str(receipt.relative_to(ROOT_DIR))}
 
+
 ###############################################################################
 def validate_cached_cases(
     *,
@@ -614,6 +626,7 @@ def validate_cached_cases(
 
     manifest = selected.model_dump(mode="json")
     manifest["revision"] = selected.model_revision
+
 
     ###############################################################################
     class RecordingRepository:
@@ -1071,6 +1084,7 @@ def validate_cached_cases(
         except ValueError:
             payload["receipt"] = str(receipt)
     return payload
+
 
 ###############################################################################
 def main() -> int:

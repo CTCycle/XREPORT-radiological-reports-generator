@@ -17,12 +17,14 @@ ALLOWED = {
 }
 
 
+###############################################################################
 def _python_files(package: str) -> list[Path]:
     return sorted(
         path for path in (APP_ROOT / package).rglob("*.py") if "__pycache__" not in path.parts
     )
 
 
+###############################################################################
 def _application_references(path: Path) -> set[str]:
     """Top-level application packages named by imports or module-name strings."""
     found: set[str] = set()
