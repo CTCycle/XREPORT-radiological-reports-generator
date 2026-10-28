@@ -1,0 +1,187 @@
+.vstats {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+    color: var(--text-primary);
+    font-size: 0.875rem;
+}
+
+.vstats-section {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    padding-top: 1rem;
+    border-top: 1px solid var(--border-color);
+}
+
+.vstats-section:first-child {
+    padding-top: 0;
+    border-top: 0;
+}
+
+.vstats h3 {
+    margin: 0;
+    font-size: 1rem;
+    font-weight: 600;
+}
+
+.vstats-scope {
+    margin-left: 0.5rem;
+    font-size: 0.75rem;
+    font-weight: 400;
+    color: var(--text-secondary);
+}
+
+.vstats-note,
+.vstats-footnote {
+    margin: 0;
+    color: var(--text-secondary);
+}
+
+.vstats-footnote {
+    font-size: 0.8rem;
+}
+
+.vstats-error {
+    color: var(--error-color);
+}
+
+.vstats-kv {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 0.75rem 1.5rem;
+    margin: 0;
+}
+
+.vstats-kv dt {
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+}
+
+.vstats-kv dd {
+    margin: 0.125rem 0 0;
+    font-variant-numeric: tabular-nums;
+    overflow-wrap: anywhere;
+}
+
+.vstats-scroll {
+    overflow-x: auto;
+}
+
+.vstats-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-variant-numeric: tabular-nums;
+}
+
+.vstats-table th,
+.vstats-table td {
+    padding: 0.4rem 0.6rem;
+    border-bottom: 1px solid var(--border-color);
+    text-align: left;
+    white-space: nowrap;
+    font-weight: 400;
+}
+
+.vstats-table thead th {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--text-secondary);
+}
+
+.vstats-table tbody th {
+    font-weight: 500;
+}
+
+.vstats-table .num {
+    text-align: right;
+}
+
+.vstats-history tr.selected {
+    background: var(--accent-soft);
+}
+
+.vstats-sort {
+    padding: 0;
+    border: 0;
+    background: none;
+    color: inherit;
+    font: inherit;
+    cursor: pointer;
+}
+
+.vstats-sort:hover,
+.vstats-sort:focus-visible {
+    color: var(--accent-color);
+}
+
+.vstats-toolbar,
+.vstats-pager {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.vstats-pager {
+    justify-content: flex-end;
+    color: var(--text-secondary);
+}
+
+.vstats-search {
+    max-width: 18rem;
+}
+
+.vstats-segments {
+    display: inline-flex;
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    overflow: hidden;
+}
+
+.vstats-segments button {
+    padding: 0.35rem 0.9rem;
+    border: 0;
+    background: var(--input-bg);
+    color: var(--text-secondary);
+    font: inherit;
+    cursor: pointer;
+}
+
+.vstats-segments button.active {
+    background: var(--accent-color);
+    color: var(--text-on-accent, #fff);
+}
+
+.vstats-histogram {
+    margin: 0;
+}
+
+.vstats-histogram figcaption {
+    margin-bottom: 0.5rem;
+    font-weight: 500;
+}
+
+.vstats-bars {
+    display: flex;
+    align-items: flex-end;
+    gap: 1px;
+    height: 120px;
+    padding: 0.25rem;
+    border-bottom: 1px solid var(--border-color);
+    background: var(--input-bg);
+}
+
+.vstats-bar {
+    flex: 1 1 0;
+    min-width: 1px;
+    background: var(--accent-color);
+}
+
+.vstats-axis {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 0.25rem;
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+}

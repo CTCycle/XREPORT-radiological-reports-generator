@@ -1,13 +1,12 @@
 import { Injectable, inject } from '@angular/core';
-import { asRecord, readBoolean, readNumber, readNumberArray, readString } from '../common/parsers';
-import { CheckpointEvaluationReport, CheckpointEvaluationRequest } from '../types/validationApi';
-import {
-  ImageStatistics,
-  PixelDistribution,
-  TextStatistics,
+import type {
+  CheckpointEvaluationReport,
+  CheckpointEvaluationRequest,
+  RecordStatisticsPage,
+  RecordStatisticsQuery,
   ValidationReport,
   ValidationRequest,
-  ValidationResponse,
+  ValidationRunList,
 } from '../types/validationApi';
 import { JobStartResponse } from '../types/jobs';
 import { ApiRequestService } from './api-request.service';
@@ -22,27 +21,12 @@ export class ValidationApiService {
   }
   getCheckpointEvaluationReport(checkpoint: string) { return this.request.request<CheckpointEvaluationReport>('GET', `/api/validation/checkpoint/reports/${encodeURIComponent(checkpoint)}`); }
   run(request: ValidationRequest) { return this.request.request<JobStartResponse>('POST', '/api/validation/run', request); }
-  getReport(datasetName: string) { return this.request.request<ValidationReport>('GET', `/api/validation/reports/${encodeURIComponent(datasetName)}`); }
-
-  parseResponse(result: Record<string, unknown>): ValidationResponse {
-    const pixel = asRecord(result['pixel_distribution']);
-    const image = asRecord(result['image_statistics']);
-    const text = asRecord(result['text_statistics']);
-    const bins = pixel ? readNumberArray(pixel['bins']) : undefined;
-    const counts = pixel ? readNumberArray(pixel['counts']) : undefined;
-    const pixelDistribution: PixelDistribution | undefined = bins && counts ? { bins, counts } : undefined;
-    const imageStatistics: ImageStatistics | undefined = image ? this.parseImageStatistics(image) : undefined;
-    const textStatistics: TextStatistics | undefined = text ? this.parseTextStatistics(text) : undefined;
-    return { success: readBoolean(result['success']) ?? true, message: readString(result['message']) ?? 'Validation completed', pixel_distribution: pixelDistribution, image_statistics: imageStatistics, text_statistics: textStatistics };
-  }
-
-  private parseImageStatistics(payload: Record<string, unknown>): ImageStatistics | undefined {
-    const values = ['count', 'mean_height', 'mean_width', 'mean_pixel_value', 'std_pixel_value', 'mean_noise_std', 'mean_noise_ratio'].map((key) => readNumber(payload[key]));
-    return values.every((value): value is number => value !== undefined) ? { count: values[0], mean_height: values[1], mean_width: values[2], mean_pixel_value: values[3], std_pixel_value: values[4], mean_noise_std: values[5], mean_noise_ratio: values[6] } : undefined;
-  }
-
-  private parseTextStatistics(payload: Record<string, unknown>): TextStatistics | undefined {
-    const values = ['count', 'total_words', 'unique_words', 'avg_words_per_report', 'min_words_per_report', 'max_words_per_report'].map((key) => readNumber(payload[key]));
-    return values.every((value): value is number => value !== undefined) ? { count: values[0], total_words: values[1], unique_words: values[2], avg_words_per_report: values[3], min_words_per_report: values[4], max_words_per_report: values[5] } : undefined;
+  listRuns(datasetName: string) { return this.request.request<ValidationRunList>('GET', `/api/validation/runs/${encodeURIComponent(datasetName)}`); }
+  getRun(datasetName: string, runId: number) { return this.request.request<ValidationReport>('GET', `/api/validation/runs/${encodeURIComponent(datasetName)}/${runId}`); }
+  getRecords(datasetName: string, runId: number, query: RecordStatisticsQuery) {
+    const params = new URLSearchParams({ kind: query.kind, limit: String(query.limit ?? 50), offset: String(query.offset ?? 0), descending: String(query.descending ?? false) });
+    if (query.sort) params.set('sort', query.sort);
+    if (query.search) params.set('search', query.search);
+    return this.request.request<RecordStatisticsPage>('GET', `/api/validation/runs/${encodeURIComponent(datasetName)}/${runId}/records?${params.toString()}`);
   }
 }

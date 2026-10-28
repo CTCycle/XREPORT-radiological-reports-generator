@@ -61,41 +61,6 @@
     color: var(--text-primary);
 }
 
-.report-meta {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.75rem;
-    padding: 0.75rem 1.5rem 0;
-}
-
-.report-chip {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.4rem;
-    padding: 0.35rem 0.6rem;
-    background: var(--input-bg);
-    border: 1px solid var(--border-color);
-    border-radius: 999px;
-    font-size: 0.75rem;
-    color: var(--text-secondary);
-}
-
-.report-metrics {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.5rem;
-    padding: 0.75rem 1.5rem 0.5rem;
-}
-
-.report-metric-pill {
-    padding: 0.35rem 0.65rem;
-    background: var(--accent-soft);
-    border: 1px solid var(--accent-color);
-    border-radius: 999px;
-    font-size: 0.7rem;
-    color: var(--text-primary);
-}
-
 .report-body {
     padding: 0.75rem 1.5rem 1.5rem;
     overflow-y: auto;

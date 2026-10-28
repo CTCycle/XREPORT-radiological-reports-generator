@@ -101,31 +101,12 @@ describe('DatasetPage filesystem access', () => {
     fixture.destroy();
   });
 
-  it('loads the saved report timestamp when a validation job completes', async () => {
-    const validationReport = {
-      dataset_name: 'fixture',
-      date: '2026-09-23 21:25:05',
-      sample_size: 1,
-      metrics: ['text_statistics'],
-      text_statistics: {
-        count: 1,
-        total_words: 3,
-        unique_words: 3,
-        avg_words_per_report: 3,
-        min_words_per_report: 3,
-        max_words_per_report: 3,
-      },
-      image_statistics: null,
-      pixel_distribution: null,
-      artifacts: null,
-    };
+  it('reloads the saved statistics when a validation job completes', async () => {
     const validationApi = {
       run: vi.fn().mockResolvedValue({
         result: { job_id: 'validation-1', poll_interval: 1 },
         error: null,
       }),
-      getReport: vi.fn().mockResolvedValue({ result: validationReport, error: null }),
-      parseResponse: vi.fn().mockReturnValue({ success: true, message: 'completed' }),
     };
     const completedJob = {
       status: 'completed',
@@ -179,13 +160,8 @@ describe('DatasetPage filesystem access', () => {
     expect(fixture.componentInstance.reportDataset()?.name).toBe('fixture');
     expect(validationApi.run).toHaveBeenCalledOnce();
     expect(polling.poll).toHaveBeenCalledOnce();
-    expect(validationApi.parseResponse).toHaveBeenCalledOnce();
-    expect(validationApi.getReport).toHaveBeenCalledWith('fixture');
-    expect(fixture.componentInstance.reportMetadata()).toEqual({
-      date: validationReport.date,
-      sampleSize: 1,
-      metrics: ['text_statistics'],
-    });
+    expect(fixture.componentInstance.reportLoading()).toBe(false);
+    expect(fixture.componentInstance.reportRefresh()).toBe(1);
     fixture.destroy();
   });
 });

@@ -7,7 +7,6 @@ import {
     LoadDatasetResponse,
     ProcessDatasetResponse,
 } from './types/trainingApi';
-import { ValidationResponse } from './types/validationApi';
 import type { DraftSections } from './common/report-sections';
 import type { GenerationProfile, InferenceHistoryDetail, ModelAvailability } from './types/inferenceApi';
 
@@ -44,7 +43,6 @@ export interface DatasetPageState {
     selectedDatasets: string[];
     // Validation state
     isValidating: boolean;
-    validationResult: ValidationResponse | null;
     validationError: string | null;
 }
 
