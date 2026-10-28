@@ -16,7 +16,7 @@ import type {
   ProcessDatasetRequest as ApiProcessDatasetRequest,
   ProcessingMetadataResponse as ApiProcessingMetadataResponse,
   StartTrainingRequest as ApiStartTrainingRequest,
-} from './generated/studio/types.gen';
+} from '@xreport/shared/app/types/generated/studio/types.gen';
 
 export type ImagePathResponse = ApiImagePathResponse;
 export type DatasetUploadResponse = ApiDatasetUploadResponse;

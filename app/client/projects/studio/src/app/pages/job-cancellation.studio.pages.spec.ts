@@ -1,13 +1,13 @@
 import { TestBed } from '@angular/core/testing';
 import { of } from 'rxjs';
 import { vi } from 'vitest';
-import { AppStateService } from '@xreport/shared/app/services/app-state.service';
+import { StudioStateService } from '../services/studio-state.service';
 import { DatasetApiService } from '../services/dataset-api.service';
 import { JobPollingService } from '@xreport/shared/app/services/job-polling.service';
 import { JobsApiService } from '@xreport/shared/app/services/jobs-api.service';
 import { TrainingApiService } from '../services/training-api.service';
 import { ValidationApiService } from '../services/validation-api.service';
-import type { CheckpointInfo } from '@xreport/shared/app/types/trainingApi';
+import type { CheckpointInfo } from '../types/trainingApi';
 import { TrainingPage } from './training.page';
 
 interface ActiveJobPage { activeJobId: string | null }
@@ -36,7 +36,7 @@ describe('cooperative page cancellation', () => {
     const fixture = TestBed.createComponent(TrainingPage);
     await fixture.whenStable();
     const page = fixture.componentInstance;
-    const appState = TestBed.inject(AppStateService);
+    const appState = TestBed.inject(StudioStateService);
     appState.updateDashboard({ isTraining: true });
     activeJob(page).activeJobId = 'training-1';
 
@@ -68,7 +68,7 @@ describe('cooperative page cancellation', () => {
     const fixture = TestBed.createComponent(TrainingPage);
     await fixture.whenStable();
     const page = fixture.componentInstance;
-    const appState = TestBed.inject(AppStateService);
+    const appState = TestBed.inject(StudioStateService);
     (page as unknown as { pollTraining(jobId: string, pollInterval: number): void }).pollTraining('training-cancelled', 0.25);
 
     expect(appState.training().dashboardState.isTraining).toBe(false);
@@ -92,7 +92,7 @@ describe('cooperative page cancellation', () => {
     const fixture = TestBed.createComponent(TrainingPage);
     await fixture.whenStable();
     const page = fixture.componentInstance;
-    const appState = TestBed.inject(AppStateService);
+    const appState = TestBed.inject(StudioStateService);
     appState.updateDashboard({ isTraining: true });
     activeJob(page).activeJobId = 'training-2';
 

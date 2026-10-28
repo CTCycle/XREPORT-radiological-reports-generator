@@ -379,7 +379,7 @@ def test_settings_api_allowlist_patch_and_reset(api_context: APIRequestContext) 
     assert initial_response.ok
     initial = initial_response.json()
     values = initial["values"]
-    assert set(values) == {"global", "features", "jobs", "inference", "theme_preference"}
+    assert set(values) == {"global", "jobs", "inference", "theme_preference"}
     assert set(values["inference"]) == {
         "model_timeout",
         "model_idle_timeout",

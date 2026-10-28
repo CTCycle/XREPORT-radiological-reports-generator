@@ -3,7 +3,7 @@ import { TestBed } from '@angular/core/testing';
 import { DatasetApiService } from '../services/dataset-api.service';
 import { JobsApiService } from '@xreport/shared/app/services/jobs-api.service';
 import { TrainingApiService } from '../services/training-api.service';
-import type { TrainingDashboardState } from '@xreport/shared/app/types';
+import type { TrainingDashboardState } from '../types/studioState';
 import { DatasetTrainingJourneyComponent } from './dataset-training-journey.component';
 import { TrainingDashboardComponent } from './training-dashboard.component';
 

@@ -1072,7 +1072,7 @@ def _assert_s52_semantic_route_metadata(page: Page, route_name: str) -> None:
         expect(page.get_by_role("combobox", name="Sort")).to_be_visible()
     elif route_name == "settings":
         tabs = page.get_by_role("tab")
-        expect(tabs).to_have_count(4)
+        expect(tabs).to_have_count(5)
         tab_metadata = page.evaluate(
             """
             () => [...document.querySelectorAll('[role="tab"]')].map((tab) => ({

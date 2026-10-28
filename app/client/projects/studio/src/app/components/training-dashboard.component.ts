@@ -2,7 +2,7 @@ import { CommonModule } from '@angular/common';
 import { AfterViewChecked, AfterViewInit, Component, DestroyRef, ElementRef, EventEmitter, inject, Input, Output, signal, ViewChild } from '@angular/core';
 import { NgIcon, provideIcons } from '@ng-icons/core';
 import { lucideActivity, lucideChevronDown, lucideChevronRight, lucideClock, lucideSquare, lucideTarget, lucideTrendingDown } from '@ng-icons/lucide';
-import type { TrainingDashboardState } from '@xreport/shared/app/types';
+import type { TrainingDashboardState } from '../types/studioState';
 
 export type TrainingSessionState = 'idle' | 'initializing' | 'running' | 'completed' | 'failed' | 'interrupted';
 type LogLevel = 'info' | 'warning' | 'error';

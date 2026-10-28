@@ -3,7 +3,7 @@ import { Component, EventEmitter, Input, OnChanges, Output, SimpleChanges, compu
 import { NonNullableFormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { NgIcon, provideIcons } from '@ng-icons/core';
 import { lucideX } from '@ng-icons/lucide';
-import type { DatasetInfo } from '@xreport/shared/app/types/trainingApi';
+import type { DatasetInfo } from '../types/trainingApi';
 import type { ValidationMetric, ValidationWizardConfirmPayload } from '../types/validationWizard';
 import { TokenizerSelectorComponent } from './tokenizer-selector.component';
 import { ModalFocusDirective } from '@xreport/shared/app/components/modal-focus.directive';

@@ -1,4 +1,4 @@
-import { DatasetInfo } from '@xreport/shared/app/types/trainingApi';
+import { DatasetInfo } from '../types/trainingApi';
 
 export type ValidationMetric = 'pixels_distribution' | 'text_statistics' | 'image_statistics';
 

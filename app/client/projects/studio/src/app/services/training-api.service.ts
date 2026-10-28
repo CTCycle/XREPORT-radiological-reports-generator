@@ -4,7 +4,7 @@ import {
   CheckpointsResponse,
   DeleteResponse,
   StartTrainingConfig,
-} from '@xreport/shared/app/types/trainingApi';
+} from '../types/trainingApi';
 import { JobStartResponse } from '@xreport/shared/app/types/jobs';
 import { ApiRequestService } from '@xreport/shared/app/services/api-request.service';
 

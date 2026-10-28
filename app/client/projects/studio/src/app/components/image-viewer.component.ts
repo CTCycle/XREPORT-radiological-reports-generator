@@ -3,7 +3,7 @@ import { Component, EventEmitter, HostListener, Input, OnChanges, Output, Simple
 import { NgIcon, provideIcons } from '@ng-icons/core';
 import { lucideAlertCircle, lucideChevronLeft, lucideChevronRight, lucideLoaderCircle, lucideX } from '@ng-icons/lucide';
 import { DatasetApiService } from '../services/dataset-api.service';
-import type { ImageMetadataResponse } from '@xreport/shared/app/types/trainingApi';
+import type { ImageMetadataResponse } from '../types/trainingApi';
 import { ModalFocusDirective } from '@xreport/shared/app/components/modal-focus.directive';
 
 @Component({

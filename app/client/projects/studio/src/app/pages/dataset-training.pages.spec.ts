@@ -5,14 +5,14 @@ import { TestBed } from '@angular/core/testing';
 import { Router } from '@angular/router';
 import { of } from 'rxjs';
 import { vi } from 'vitest';
-import { AppStateService } from '@xreport/shared/app/services/app-state.service';
+import { StudioStateService } from '../services/studio-state.service';
 import { DatasetApiService } from '../services/dataset-api.service';
 import { DesktopDialogService } from '../services/desktop-dialog.service';
 import { JobPollingService } from '@xreport/shared/app/services/job-polling.service';
 import { JobsApiService } from '@xreport/shared/app/services/jobs-api.service';
 import { TrainingApiService } from '../services/training-api.service';
 import { ValidationApiService } from '../services/validation-api.service';
-import type { DatasetInfo } from '@xreport/shared/app/types/trainingApi';
+import type { DatasetInfo } from '../types/trainingApi';
 import { DatasetPage } from './dataset.page';
 import { TrainingPage } from './training.page';
 
@@ -23,7 +23,7 @@ describe('DatasetPage filesystem access', () => {
     selectImageFolder: vi.fn(),
     validateImagePath: vi.fn(),
   };
-  let appState: AppStateService;
+  let appState: StudioStateService;
 
   async function renderPage() {
     api.getStatus.mockResolvedValue({
@@ -33,7 +33,7 @@ describe('DatasetPage filesystem access', () => {
     api.getNames.mockResolvedValue({ result: { datasets: [], count: 0 }, error: null });
     api.selectImageFolder.mockReset();
     api.validateImagePath.mockReset();
-    appState = new AppStateService();
+    appState = new StudioStateService();
     appState.updateDataset((state) => ({
       ...state,
       dbStatus: {
@@ -48,7 +48,7 @@ describe('DatasetPage filesystem access', () => {
       providers: [
         { provide: DatasetApiService, useValue: api },
         { provide: ValidationApiService, useValue: {} },
-        { provide: AppStateService, useValue: appState },
+        { provide: StudioStateService, useValue: appState },
         { provide: JobPollingService, useValue: {} },
         { provide: JobsApiService, useValue: {} },
         { provide: Router, useValue: {} },
@@ -120,7 +120,7 @@ describe('DatasetPage filesystem access', () => {
       row_count: 1,
       has_validation_report: false,
     } as DatasetInfo;
-    appState = new AppStateService();
+    appState = new StudioStateService();
     api.getStatus.mockResolvedValue({
       result: { has_data: false, row_count: 0 },
       error: null,
@@ -132,7 +132,7 @@ describe('DatasetPage filesystem access', () => {
       providers: [
         { provide: DatasetApiService, useValue: api },
         { provide: ValidationApiService, useValue: validationApi },
-        { provide: AppStateService, useValue: appState },
+        { provide: StudioStateService, useValue: appState },
         { provide: JobPollingService, useValue: polling },
         { provide: JobsApiService, useValue: { get: vi.fn() } },
         { provide: Router, useValue: {} },
