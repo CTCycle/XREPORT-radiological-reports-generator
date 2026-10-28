@@ -1,6 +1,6 @@
-import { HttpClient, HttpErrorResponse } from '@angular/common/http';
+import { HttpClient, HttpErrorResponse, HttpEventType } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
-import { firstValueFrom } from 'rxjs';
+import { firstValueFrom, lastValueFrom, tap } from 'rxjs';
 
 export interface ApiResult<T> {
   result: T | null;
@@ -15,6 +15,17 @@ export class ApiRequestService {
     try {
       const result = await firstValueFrom(this.http.request<T>(method, url, { body, ...options }));
       return { result, error: null };
+    } catch (error) {
+      return { result: null, error: this.formatError(error) };
+    }
+  }
+
+  async uploadWithProgress<T>(url: string, body: FormData, onProgress: (percent: number) => void): Promise<ApiResult<T>> {
+    try {
+      const response = await lastValueFrom(this.http.post<T>(url, body, { reportProgress: true, observe: 'events' }).pipe(
+        tap((event) => { if (event.type === HttpEventType.UploadProgress && event.total) onProgress(Math.round((event.loaded / event.total) * 100)); }),
+      ));
+      return { result: (response as { body?: T | null }).body ?? null, error: null };
     } catch (error) {
       return { result: null, error: this.formatError(error) };
     }

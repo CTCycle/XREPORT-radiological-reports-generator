@@ -120,11 +120,11 @@ def test_studio_checkpoint_runs_in_the_independent_inference_application(
 
     with (FIXTURES / "reports" / "xreport_reports_6.csv").open("rb") as report_file:
         upload = studio.post("/api/upload/dataset", files={"file": report_file}).json()
-    loaded = studio.post(
+    started = studio.post(
         "/api/preparation/dataset/load",
         json={"upload_id": upload["upload_id"], "image_folder_path": str(FIXTURES / "images"), "sample_size": 1.0, "confirm_unmatched": False},
     ).json()
-    assert loaded["matched_records"] == 6
+    assert _finish(studio, started["job_id"])["result"]["matched_records"] == 6
 
     validation = studio.post(
         "/api/validation/run",

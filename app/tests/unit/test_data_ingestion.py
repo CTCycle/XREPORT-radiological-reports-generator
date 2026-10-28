@@ -144,6 +144,37 @@ def test_load_dataset_confirmation_persists_explicit_partial_import(
     assert upload_state.contains(upload_id) is False
 
 ###############################################################################
+def test_load_dataset_reports_increasing_progress_phases(tmp_path: Path) -> None:
+    (tmp_path / "present.jpg").write_bytes(b"image")
+    upload_state = UploadState()
+    upload_state.store(
+        "upload-demo",
+        {
+            "dataset_name": "demo",
+            "dataframe": pd.DataFrame({"image": ["present.jpg"], "text": ["report"]}),
+        },
+    )
+    service = _preparation_service(
+        upload_state, SimpleNamespace(upsert_source_dataset=lambda frame: None)
+    )
+    reports: list[tuple[float, str]] = []
+
+    service.load_dataset(
+        LoadDatasetRequest(
+            upload_id="upload-demo",
+            image_folder_path=str(tmp_path),
+            sample_size=1.0,
+            confirm_unmatched=False,
+        ),
+        lambda value, phase: reports.append((value, phase)),
+    )
+
+    values = [value for value, _ in reports]
+    assert values == sorted(values)
+    assert values[0] < 25 and values[-1] >= 75
+    assert reports[-1][1] == "Saving records to database"
+
+###############################################################################
 def test_load_dataset_matches_image_stems_case_insensitively(tmp_path: Path) -> None:
     image_path = tmp_path / "Present.PNG"
     image_path.write_bytes(b"image")

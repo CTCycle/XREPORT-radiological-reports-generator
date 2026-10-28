@@ -30,6 +30,23 @@ _API_ONE_PIXEL_PNG = (
 )
 
 ###############################################################################
+def _load_dataset(api_context: APIRequestContext, request: dict[str, object]) -> dict[str, object]:
+    """Start a dataset load job and wait for its terminal status."""
+    started = api_context.post("/api/preparation/dataset/load", data=request)
+    assert started.status == 202, started.text()
+    job_id = started.json()["job_id"]
+    deadline = time.monotonic() + 60
+    while time.monotonic() < deadline:
+        polled = api_context.get(f"/api/jobs/{job_id}")
+        assert polled.ok, polled.text()
+        status = polled.json()
+        if status["status"] in {"completed", "failed", "cancelled"}:
+            return status
+        time.sleep(0.5)
+    raise AssertionError(f"dataset load job {job_id} did not finish")
+
+
+###############################################################################
 def _dataset_names(api_context: APIRequestContext) -> list[dict[str, object]]:
     response = api_context.get("/api/preparation/dataset/names")
     assert response.ok, response.text()
@@ -73,12 +90,9 @@ def test_s21_partial_import_requires_confirmation_and_persists_matched_row(
             "sample_size": 1.0,
             "confirm_unmatched": False,
         }
-        preview = api_context.post(
-            "/api/preparation/dataset/load",
-            data=request,
-        )
-        assert preview.ok, preview.text()
-        preview_payload = preview.json()
+        preview = _load_dataset(api_context, request)
+        assert preview["status"] == "completed", preview
+        preview_payload = preview["result"]
         assert preview_payload["success"] is False
         assert preview_payload["requires_confirmation"] is True
         assert preview_payload["matched_records"] == 1
@@ -86,12 +100,9 @@ def test_s21_partial_import_requires_confirmation_and_persists_matched_row(
         assert not any(row["name"] == dataset_name for row in _dataset_names(api_context))
 
         request["confirm_unmatched"] = True
-        confirmed = api_context.post(
-            "/api/preparation/dataset/load",
-            data=request,
-        )
-        assert confirmed.ok, confirmed.text()
-        confirmed_payload = confirmed.json()
+        confirmed = _load_dataset(api_context, request)
+        assert confirmed["status"] == "completed", confirmed
+        confirmed_payload = confirmed["result"]
         assert confirmed_payload["success"] is True
         assert confirmed_payload["partial_import"] is True
         assert confirmed_payload["matched_records"] == 1
@@ -137,17 +148,17 @@ def test_s21_no_matching_rows_fail_without_persisting_source(
     )
     assert uploaded.ok, uploaded.text()
 
-    response = api_context.post(
-        "/api/preparation/dataset/load",
-        data={
+    response = _load_dataset(
+        api_context,
+        {
             "upload_id": uploaded.json()["upload_id"],
             "image_folder_path": str(image_folder),
             "sample_size": 1.0,
             "confirm_unmatched": True,
         },
     )
-    assert response.status == 400, response.text()
-    assert "No dataset rows matched" in response.json()["detail"]
+    assert response["status"] == "failed", response
+    assert "No dataset rows matched" in response["error"]
     assert not any(row["name"] == dataset_name for row in _dataset_names(api_context))
 
 
@@ -283,18 +294,18 @@ def test_s23_viewer_navigation_and_long_source_path_row_containment(
             )
         assert uploaded.ok, uploaded.text()
         upload_id = uploaded.json()["upload_id"]
-        loaded = api_context.post(
-            "/api/preparation/dataset/load",
-            data={
+        loaded = _load_dataset(
+            api_context,
+            {
                 "upload_id": upload_id,
                 "image_folder_path": str(image_folder),
                 "sample_size": 1.0,
                 "confirm_unmatched": False,
             },
         )
-        assert loaded.ok, loaded.text()
-        imported = loaded.json()["success"]
-        assert loaded.json()["matched_records"] == 8
+        assert loaded["status"] == "completed", loaded
+        imported = loaded["result"]["success"]
+        assert loaded["result"]["matched_records"] == 8
 
         page.set_viewport_size({"width": 1920, "height": 1080})
         page.goto(f"{base_url.rstrip('/')}/dataset")
@@ -396,18 +407,18 @@ def test_s23_source_delete_requires_processed_dataset_cleanup(
                 },
             )
         assert uploaded.ok, uploaded.text()
-        loaded = api_context.post(
-            "/api/preparation/dataset/load",
-            data={
+        loaded = _load_dataset(
+            api_context,
+            {
                 "upload_id": uploaded.json()["upload_id"],
                 "image_folder_path": str(image_folder),
                 "sample_size": 1.0,
                 "confirm_unmatched": False,
             },
         )
-        assert loaded.ok, loaded.text()
-        assert loaded.json()["success"]
-        assert loaded.json()["matched_records"] == 8
+        assert loaded["status"] == "completed", loaded
+        assert loaded["result"]["success"]
+        assert loaded["result"]["matched_records"] == 8
         imported = True
 
         started = api_context.post(

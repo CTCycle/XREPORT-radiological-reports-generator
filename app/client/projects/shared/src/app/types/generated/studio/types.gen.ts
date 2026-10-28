@@ -1244,40 +1244,6 @@ export type LoadDatasetRequest = {
 };
 
 /**
- * LoadDatasetResponse
- */
-export type LoadDatasetResponse = {
-    /**
-     * Success
-     */
-    success: boolean;
-    /**
-     * Total Images
-     */
-    total_images: number;
-    /**
-     * Matched Records
-     */
-    matched_records: number;
-    /**
-     * Unmatched Records
-     */
-    unmatched_records: number;
-    /**
-     * Requires Confirmation
-     */
-    requires_confirmation?: boolean;
-    /**
-     * Partial Import
-     */
-    partial_import?: boolean;
-    /**
-     * Message
-     */
-    message: string;
-};
-
-/**
  * MemoryUsage
  */
 export type MemoryUsage = {
@@ -2254,7 +2220,7 @@ export type LoadDatasetApiPreparationDatasetLoadPostResponses = {
     /**
      * Successful Response
      */
-    200: LoadDatasetResponse;
+    202: JobStartResponse;
 };
 
 export type LoadDatasetApiPreparationDatasetLoadPostResponse = LoadDatasetApiPreparationDatasetLoadPostResponses[keyof LoadDatasetApiPreparationDatasetLoadPostResponses];

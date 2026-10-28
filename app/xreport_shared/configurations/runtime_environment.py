@@ -85,7 +85,7 @@ def get_runtime_environment_settings() -> RuntimeEnvironmentSettings:
             ),
         ),
         dataset_upload_max_bytes=_environment_positive_int(
-            "DATASET_UPLOAD_MAX_MB", 512
+            "DATASET_UPLOAD_MAX_MB", 2048
         )
         * 1024
         * 1024,

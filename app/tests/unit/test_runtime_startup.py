@@ -394,7 +394,7 @@ def test_runtime_environment_defaults(monkeypatch: pytest.MonkeyPatch) -> None:
                 "X-XREPORT-Desktop-Token",
             ),
         ),
-        dataset_upload_max_bytes=512 * 1024 * 1024,
+        dataset_upload_max_bytes=2048 * 1024 * 1024,
     )
 
 

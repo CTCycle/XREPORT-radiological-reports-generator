@@ -12,7 +12,6 @@ from xreport_studio.domain.training import (
     ImagePathRequest,
     ImagePathResponse,
     LoadDatasetRequest,
-    LoadDatasetResponse,
     ProcessingMetadataResponse,
     DeleteResponse,
     ProcessDatasetRequest,
@@ -72,8 +71,8 @@ class PreparationEndpoint:
         return self.service.validate_image_path(request)
 
     # -------------------------------------------------------------------------
-    def load_dataset(self, request: LoadDatasetRequest) -> LoadDatasetResponse:
-        return self.service.load_dataset(request)
+    def load_dataset(self, request: LoadDatasetRequest) -> JobStartResponse:
+        return self.service.start_load_dataset(request)
 
     # -------------------------------------------------------------------------
     def process_dataset(self, request: ProcessDatasetRequest) -> JobStartResponse:
@@ -146,8 +145,8 @@ class PreparationEndpoint:
             "/dataset/load",
             self.load_dataset,
             methods=["POST"],
-            response_model=LoadDatasetResponse,
-            status_code=status.HTTP_200_OK,
+            response_model=JobStartResponse,
+            status_code=status.HTTP_202_ACCEPTED,
         )
         self.router.add_api_route(
             "/dataset/process",

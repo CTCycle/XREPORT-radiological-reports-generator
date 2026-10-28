@@ -28,17 +28,29 @@ export class DatasetApiService {
   getProcessingMetadata(datasetName: string) { return this.request.request<ProcessingMetadataResponse>('GET', `/api/preparation/dataset/metadata/${encodeURIComponent(datasetName)}`); }
   deleteDataset(datasetName: string) { return this.request.request<DeleteResponse>('DELETE', `/api/preparation/dataset/${encodeURIComponent(datasetName)}`); }
   validateImagePath(folderPath: string) { return this.request.request<ImagePathResponse>('POST', '/api/preparation/images/validate', { folder_path: folderPath }); }
-  uploadDataset(file: File) {
+  uploadDataset(file: File, onProgress: (percent: number) => void) {
     const form = new FormData();
     form.append('file', file);
-    return this.request.request<DatasetUploadResponse>('POST', '/api/upload/dataset', form);
+    return this.request.uploadWithProgress<DatasetUploadResponse>('/api/upload/dataset', form, onProgress);
   }
-  loadDataset(request: LoadDatasetRequest) { return this.request.request<LoadDatasetResponse>('POST', '/api/preparation/dataset/load', request); }
+  loadDataset(request: LoadDatasetRequest) { return this.request.request<JobStartResponse>('POST', '/api/preparation/dataset/load', request); }
   selectImageFolder() { return this.request.request<FolderSelectionResponse>('POST', '/api/preparation/folder/select'); }
   processDataset(config: ProcessDatasetRequest) { return this.request.request<JobStartResponse>('POST', '/api/preparation/dataset/process', config); }
   getImageCount(datasetName: string) { return this.request.request<ImageCountResponse>('GET', `/api/preparation/dataset/${encodeURIComponent(datasetName)}/images/count`); }
   getImageMetadata(datasetName: string, index: number) { return this.request.request<ImageMetadataResponse>('GET', `/api/preparation/dataset/${encodeURIComponent(datasetName)}/images/${index}`); }
   getImageContentUrl(datasetName: string, index: number) { return `/api/preparation/dataset/${encodeURIComponent(datasetName)}/images/${index}/content`; }
+
+  parseLoadDatasetResponse(result: Record<string, unknown>): LoadDatasetResponse {
+    return {
+      success: readBoolean(result['success']) ?? false,
+      total_images: readNumber(result['total_images']) ?? 0,
+      matched_records: readNumber(result['matched_records']) ?? 0,
+      unmatched_records: readNumber(result['unmatched_records']) ?? 0,
+      requires_confirmation: readBoolean(result['requires_confirmation']) ?? false,
+      partial_import: readBoolean(result['partial_import']) ?? false,
+      message: readString(result['message']) ?? '',
+    };
+  }
 
   parseProcessDatasetResponse(result: Record<string, unknown>): ProcessDatasetResponse {
     return {

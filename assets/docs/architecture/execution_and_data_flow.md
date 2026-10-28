@@ -183,7 +183,8 @@ sequenceDiagram
     UI->>API: POST /api/upload/dataset
     API-->>UI: upload_id
     UI->>API: POST /api/preparation/dataset/load (upload_id)
-    API->>Prep: consume the explicit upload
+    API->>Prep: start dataset_loading job, consume the explicit upload
+    UI->>API: poll /api/jobs/{job_id} for progress
     UI->>API: POST /api/preparation/dataset/process
     API->>Prep: validate source dataset and configuration
     Prep->>Process: run processing job

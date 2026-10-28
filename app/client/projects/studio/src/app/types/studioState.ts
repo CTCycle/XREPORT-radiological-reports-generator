@@ -31,8 +31,10 @@ export interface DatasetPageState {
     imageValidation: ImagePathResponse | null;
     datasetFile: File | null;
     datasetUpload: DatasetUploadResponse | null;
+    uploadProgress: number | null;
     loadResult: LoadDatasetResponse | null;
     isLoading: boolean;
+    loadProgress: { percent: number; phase: string } | null;
     uploadError: string | null;
     isProcessing: boolean;
     processingResult: ProcessDatasetResponse | null;

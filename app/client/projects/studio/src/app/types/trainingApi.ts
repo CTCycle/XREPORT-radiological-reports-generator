@@ -12,7 +12,6 @@ import type {
   ImageMetadataResponse as ApiImageMetadataResponse,
   ImagePathResponse as ApiImagePathResponse,
   LoadDatasetRequest as ApiLoadDatasetRequest,
-  LoadDatasetResponse as ApiLoadDatasetResponse,
   ProcessDatasetRequest as ApiProcessDatasetRequest,
   ProcessingMetadataResponse as ApiProcessingMetadataResponse,
   StartTrainingRequest as ApiStartTrainingRequest,
@@ -21,7 +20,15 @@ import type {
 export type ImagePathResponse = ApiImagePathResponse;
 export type DatasetUploadResponse = ApiDatasetUploadResponse;
 export type LoadDatasetRequest = ApiLoadDatasetRequest;
-export type LoadDatasetResponse = ApiLoadDatasetResponse;
+export interface LoadDatasetResponse {
+  success: boolean;
+  total_images: number;
+  matched_records: number;
+  unmatched_records: number;
+  requires_confirmation: boolean;
+  partial_import: boolean;
+  message: string;
+}
 export type FolderSelectionResponse = ApiFolderSelectionResponse;
 export type DatasetStatusResponse = ApiDatasetStatusResponse;
 export type DatasetInfo = ApiDatasetInfo;

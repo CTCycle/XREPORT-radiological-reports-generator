@@ -56,14 +56,16 @@ endpoint.
 - `GET /api/preparation/dataset/{dataset_name}/images/{index}/content`
 - `POST /api/preparation/folder/select`
 
-`POST /api/preparation/dataset/load` requires the uploaded table to contain
-`text` and a recognized image column (`image`, `filename`, `file`, `img`, or
-`image_name`). Missing columns return a structured 400 response and the
-uploaded table remains available for correction. When some rows do not match
-images, the first request returns `requires_confirmation=true` with matched
-and unmatched counts without writing records. A repeat request with
+`POST /api/preparation/dataset/load` validates the image folder and upload id,
+then returns `202` with a `dataset_loading` job. The job reports `progress` and a
+`result.phase` label while it runs and carries the load response as its result.
+The uploaded table must contain `text` and a recognized image column (`image`,
+`filename`, `file`, `img`, or `image_name`); otherwise the job fails with the
+reason and the uploaded table remains available for correction. When some rows
+do not match images, the job completes with `requires_confirmation=true` and
+matched and unmatched counts without writing records. A repeat request with
 `confirm_unmatched=true` imports only the matched rows and returns
-`partial_import=true`; an empty match is rejected.
+`partial_import=true`; an empty match fails the job.
 
 ## Model architecture (Studio)
 

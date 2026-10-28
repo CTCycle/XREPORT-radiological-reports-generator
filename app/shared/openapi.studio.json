@@ -334,12 +334,12 @@
           "required": true
         },
         "responses": {
-          "200": {
+          "202": {
             "description": "Successful Response",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/LoadDatasetResponse"
+                  "$ref": "#/components/schemas/JobStartResponse"
                 }
               }
             }
@@ -3999,49 +3999,6 @@
           "confirm_unmatched"
         ],
         "title": "LoadDatasetRequest"
-      },
-      "LoadDatasetResponse": {
-        "properties": {
-          "success": {
-            "type": "boolean",
-            "title": "Success"
-          },
-          "total_images": {
-            "type": "integer",
-            "title": "Total Images"
-          },
-          "matched_records": {
-            "type": "integer",
-            "title": "Matched Records"
-          },
-          "unmatched_records": {
-            "type": "integer",
-            "title": "Unmatched Records"
-          },
-          "requires_confirmation": {
-            "type": "boolean",
-            "title": "Requires Confirmation",
-            "default": false
-          },
-          "partial_import": {
-            "type": "boolean",
-            "title": "Partial Import",
-            "default": false
-          },
-          "message": {
-            "type": "string",
-            "title": "Message"
-          }
-        },
-        "type": "object",
-        "required": [
-          "success",
-          "total_images",
-          "matched_records",
-          "unmatched_records",
-          "message"
-        ],
-        "title": "LoadDatasetResponse"
       },
       "MemoryUsage": {
         "properties": {

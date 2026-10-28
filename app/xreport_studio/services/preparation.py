@@ -5,6 +5,7 @@ import subprocess
 from collections.abc import Callable, Iterator
 from functools import lru_cache
 from pathlib import Path
+from typing import Any
 import pandas as pd
 from xreport_shared.services.errors import (
     BadRequestError,
@@ -81,6 +82,7 @@ class PreparationService:
     """Endpoint for dataset preparation and browsing operations."""
 
     JOB_TYPE = "dataset_processing"
+    LOAD_JOB_TYPE = "dataset_loading"
 
     # -------------------------------------------------------------------------
     def __init__(
@@ -311,7 +313,64 @@ class PreparationService:
         )
 
     # -------------------------------------------------------------------------
-    def load_dataset(self, request: LoadDatasetRequest) -> LoadDatasetResponse:  # noqa: C901
+    def start_load_dataset(self, request: LoadDatasetRequest) -> JobStartResponse:
+        """Validate the request, then import the dataset in a background job."""
+        if not Path(request.image_folder_path.strip()).is_dir():
+            raise BadRequestError(
+                detail=f"Invalid image folder path: {request.image_folder_path.strip()}",
+            )
+        if self.upload_state.get(request.upload_id) is None:
+            raise BadRequestError(
+                detail=(
+                    "The upload_id is unknown or expired. "
+                    "Please upload a CSV/XLSX file again."
+                ),
+            )
+
+        def run(job_id: str) -> dict[str, Any]:
+            def report(progress: float, phase: str) -> None:
+                self.job_manager.update_progress(job_id, progress)
+                self.job_manager.update_result(job_id, {"phase": phase})
+
+            return self.load_dataset(request, report).model_dump()
+
+        try:
+            job_id = self.job_manager.start_job(
+                job_type=self.LOAD_JOB_TYPE,
+                runner=run,
+                poll_interval=self._current_settings().jobs.polling_interval,
+                require_idle=True,
+            )
+        except JobAlreadyRunningError as exc:
+            raise ConflictError(
+                detail="Dataset loading is already in progress"
+            ) from exc
+
+        job_status = self.job_manager.get_job_status(job_id)
+        if job_status is None:
+            raise InternalServiceError(
+                detail="Failed to initialize dataset loading job",
+            )
+
+        return JobStartResponse(
+            job_id=job_id,
+            job_type=job_status["job_type"],
+            status=job_status["status"],
+            message="Dataset loading job started",
+            poll_interval=self._current_settings().jobs.polling_interval,
+        )
+
+    # -------------------------------------------------------------------------
+    def load_dataset(  # noqa: C901
+        self,
+        request: LoadDatasetRequest,
+        report: Callable[[float, str], None] | None = None,
+    ) -> LoadDatasetResponse:
+        def progress(value: float, phase: str) -> None:
+            if report is not None:
+                report(value, phase)
+
+        progress(5, "Reading uploaded file")
         folder_path = request.image_folder_path.strip()
         sample_size = request.sample_size
         seed = self._current_settings().global_settings.seed
@@ -345,6 +404,7 @@ class PreparationService:
             )
 
         image_column = self.get_image_column_name(list(df.columns))
+        progress(10, "Counting images")
         total_images = count_image_files(folder_path)
         if total_images == 0:
             raise BadRequestError(
@@ -360,9 +420,11 @@ class PreparationService:
             )
 
         required_stems = {Path(str(value)).stem for value in df[image_column].tolist()}
+        progress(30, "Scanning image folder")
         image_paths = scan_image_folder(folder_path, required_stems=required_stems)
         images_mapping = self.build_images_mapping(image_paths)
 
+        progress(60, "Matching records to images")
         # Match records to image paths
         df["_path"] = df[image_column].map(
             lambda value: images_mapping.get(Path(str(value)).stem.casefold())
@@ -398,6 +460,7 @@ class PreparationService:
 
         # Persist matched data to database with name and path.
         if not matched.empty:
+            progress(75, "Saving records to database")
             try:
                 db_df = self.prepare_dataset_records_dataframe(
                     matched=matched,
