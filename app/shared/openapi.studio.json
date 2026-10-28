@@ -1410,6 +1410,68 @@
         }
       }
     },
+    "/api/tokenizers": {
+      "get": {
+        "tags": [
+          "tokenizers"
+        ],
+        "summary": "List Tokenizers",
+        "operationId": "list_tokenizers_api_tokenizers_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TokenizerCatalogueResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/tokenizers/check": {
+      "post": {
+        "tags": [
+          "tokenizers"
+        ],
+        "summary": "Check Tokenizer",
+        "operationId": "check_tokenizer_api_tokenizers_check_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TokenizerCheckRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TokenizerCheckResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/jobs": {
       "get": {
         "tags": [
@@ -4228,6 +4290,7 @@
             "type": "string",
             "maxLength": 128,
             "minLength": 1,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]*(/[A-Za-z0-9][A-Za-z0-9._-]*)?$",
             "title": "Tokenizer",
             "description": "Hugging Face tokenizer ID"
           },
@@ -4627,6 +4690,222 @@
           "cuda"
         ],
         "title": "SystemStatusResponse"
+      },
+      "TokenizerCatalogueResponse": {
+        "properties": {
+          "tokenizers": {
+            "items": {
+              "$ref": "#/components/schemas/TokenizerOption"
+            },
+            "type": "array",
+            "title": "Tokenizers"
+          }
+        },
+        "type": "object",
+        "required": [
+          "tokenizers"
+        ],
+        "title": "TokenizerCatalogueResponse"
+      },
+      "TokenizerCheckRequest": {
+        "properties": {
+          "tokenizer": {
+            "type": "string",
+            "maxLength": 128,
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]*(/[A-Za-z0-9][A-Za-z0-9._-]*)?$",
+            "title": "Tokenizer"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "tokenizer"
+        ],
+        "title": "TokenizerCheckRequest"
+      },
+      "TokenizerCheckResponse": {
+        "properties": {
+          "tokenizer": {
+            "type": "string",
+            "title": "Tokenizer"
+          },
+          "available": {
+            "type": "boolean",
+            "title": "Available"
+          },
+          "compatible": {
+            "type": "boolean",
+            "title": "Compatible"
+          },
+          "cached": {
+            "type": "boolean",
+            "title": "Cached"
+          },
+          "message": {
+            "type": "string",
+            "title": "Message"
+          },
+          "kind": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Kind"
+          },
+          "vocabulary_size": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Vocabulary Size"
+          },
+          "revision": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Revision"
+          },
+          "start_token": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Start Token"
+          },
+          "end_token": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "End Token"
+          },
+          "pad_token": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pad Token"
+          },
+          "start_token_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Start Token Id"
+          },
+          "end_token_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "End Token Id"
+          },
+          "pad_token_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pad Token Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "tokenizer",
+          "available",
+          "compatible",
+          "cached",
+          "message"
+        ],
+        "title": "TokenizerCheckResponse",
+        "description": "Result of loading a tokenizer and inspecting its special tokens."
+      },
+      "TokenizerOption": {
+        "properties": {
+          "tokenizer_id": {
+            "type": "string",
+            "title": "Tokenizer Id"
+          },
+          "label": {
+            "type": "string",
+            "title": "Label"
+          },
+          "group": {
+            "type": "string",
+            "title": "Group"
+          },
+          "kind": {
+            "type": "string",
+            "title": "Kind"
+          },
+          "supports_training": {
+            "type": "boolean",
+            "title": "Supports Training"
+          },
+          "cached": {
+            "type": "boolean",
+            "title": "Cached"
+          },
+          "note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note"
+          }
+        },
+        "type": "object",
+        "required": [
+          "tokenizer_id",
+          "label",
+          "group",
+          "kind",
+          "supports_training",
+          "cached"
+        ],
+        "title": "TokenizerOption",
+        "description": "One tokenizer offered by the catalogue."
       },
       "ValidationError": {
         "properties": {

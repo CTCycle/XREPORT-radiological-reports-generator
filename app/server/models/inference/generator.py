@@ -68,56 +68,53 @@ class TextGenerator:
             return None
 
         tokenizer = tokenization.tokenizer
+        special = tokenization.special_tokens()
+        # Ids recorded when the dataset was processed win over the tokenizer's
+        # current values; checkpoints without them were trained on BERT-style ids.
         tokenizer_parameters = {
             "vocabulary_size": tokenization.vocabulary_size,
-            "start_token": tokenizer.cls_token,
-            "end_token": tokenizer.sep_token,
-            "pad_token": tokenizer.pad_token_id,
-            "start_token_idx": tokenizer.convert_tokens_to_ids(tokenizer.cls_token),
-            "end_token_idx": tokenizer.convert_tokens_to_ids(tokenizer.sep_token),
+            "start_token_idx": self._recorded_id("start_token_id", special.start_token_id),
+            "end_token_idx": self._recorded_id("end_token_id", special.end_token_id),
+            "pad_token_idx": self._recorded_id("pad_token_id", special.pad_token_id),
+            "tokenizer": tokenizer,
         }
 
         return tokenizer, tokenizer_parameters
 
     # -------------------------------------------------------------------------
-    def merge_tokens(self, tokens: list[str]) -> str:
-        processed_tokens = []
-        for token in tokens:
-            if token.startswith("##"):
-                if processed_tokens:
-                    processed_tokens[-1] += token[2:]
-            else:
-                processed_tokens.append(token)
-
-        return " ".join(processed_tokens)
+    def _recorded_id(self, key: str, fallback: int) -> int:
+        value = self.configuration.get(key)
+        return int(value) if value is not None else int(fallback)
 
     # -------------------------------------------------------------------------
     def translate_tokens_to_text(
         self,
-        index_lookup: dict[int, str],
         sequence: Any | np.ndarray,
         tokenizer_config: dict[str, Any],
     ) -> str:
-        token_sequence = [
-            index_lookup[int(idx)]
-            for idx in sequence[0, :]
-            if int(idx) in index_lookup and idx != 0
-        ]
+        """Decode generated ids with the tokenizer, dropping start/end/pad ids."""
+        special_ids = {
+            tokenizer_config["start_token_idx"],
+            tokenizer_config["end_token_idx"],
+            tokenizer_config["pad_token_idx"],
+        }
+        token_ids = [int(idx) for idx in sequence[0, :] if int(idx) not in special_ids]
+        text = tokenizer_config["tokenizer"].decode(
+            token_ids, skip_special_tokens=True, clean_up_tokenization_spaces=True
+        )
 
-        special_tokens = [
-            tokenizer_config["start_token"],
-            tokenizer_config["end_token"],
-            tokenizer_config["pad_token"],
-        ]
-
-        text_tokens = [token for token in token_sequence if token not in special_tokens]
-        processed_text = self.merge_tokens(text_tokens)
-
-        return processed_text
+        return str(text).strip()
 
     # -------------------------------------------------------------------------
-    def _build_sequence_input(self, sequence: list[int]) -> np.ndarray:
-        seq_input = np.zeros((1, self.max_report_size), dtype=np.int32)
+    @staticmethod
+    def _token_text(tokenizer_config: dict[str, Any], token_id: int) -> str:
+        return str(tokenizer_config["tokenizer"].decode([token_id]))
+
+    # -------------------------------------------------------------------------
+    def _build_sequence_input(
+        self, sequence: list[int], pad_token_idx: int = 0
+    ) -> np.ndarray:
+        seq_input = np.full((1, self.max_report_size), pad_token_idx, dtype=np.int32)
         for index, token in enumerate(sequence):
             seq_input[0, index] = token
 
@@ -142,11 +139,12 @@ class TextGenerator:
         score: float,
         beam_width: int,
         end_token_idx: int,
+        pad_token_idx: int,
     ) -> list[tuple[list[int], float]]:
         if sequence[-1] == end_token_idx:
             return [(sequence, score)]
 
-        seq_input = self._build_sequence_input(sequence)
+        seq_input = self._build_sequence_input(sequence, pad_token_idx)
         next_token_logits = self._predict_token_logits(
             image,
             seq_input,
@@ -178,8 +176,7 @@ class TextGenerator:
     def _stream_best_beam_token(
         self,
         beams: list[tuple[list[int], float]],
-        index_lookup: dict[int, str],
-        end_token: str,
+        tokenizer_config: dict[str, Any],
         step: int,
         stream_callback: Callable[[str, int, int], None] | None,
     ) -> None:
@@ -190,11 +187,12 @@ class TextGenerator:
         if len(best_seq) <= 1:
             return
 
-        latest_token = index_lookup.get(best_seq[-1], "")
-        if latest_token == end_token:
+        if best_seq[-1] == tokenizer_config["end_token_idx"]:
             return
 
-        stream_callback(latest_token, step, self.max_report_size)
+        stream_callback(
+            self._token_text(tokenizer_config, best_seq[-1]), step, self.max_report_size
+        )
 
     # -------------------------------------------------------------------------
     def _all_beams_ended(
@@ -213,14 +211,15 @@ class TextGenerator:
         stream_callback: Callable[[str, int, int], None] | None = None,
     ) -> str:
         start_token_idx = tokenizer_config["start_token_idx"]
-        end_token = tokenizer_config["end_token"]
-        index_lookup = {v: k for k, v in vocabulary.items()}
+        end_token_idx = tokenizer_config["end_token_idx"]
 
         # Use numpy for expand_dims to keep data on CPU
         image = np.expand_dims(image, axis=0)
 
         # Create sequence input as numpy array (stays on CPU)
-        seq_input = np.zeros((1, self.max_report_size), dtype=np.int32)
+        seq_input = np.full(
+            (1, self.max_report_size), tokenizer_config["pad_token_idx"], dtype=np.int32
+        )
         seq_input[0, 0] = start_token_idx
 
         for i in range(1, self.max_report_size):
@@ -228,19 +227,20 @@ class TextGenerator:
             # Convert predictions to numpy to handle CUDA tensors
             pred_numpy = ops.convert_to_numpy(predictions[0, i - 1, :])
             next_token_idx = int(np.argmax(pred_numpy))
-            next_token = index_lookup.get(next_token_idx, "")
 
-            if next_token == end_token:
+            if next_token_idx == end_token_idx:
                 break
 
             seq_input[0, i] = next_token_idx
 
             if stream_callback is not None:
-                stream_callback(next_token, i, self.max_report_size)
+                stream_callback(
+                    self._token_text(tokenizer_config, next_token_idx),
+                    i,
+                    self.max_report_size,
+                )
 
-        report = self.translate_tokens_to_text(
-            index_lookup, seq_input, tokenizer_config
-        )
+        report = self.translate_tokens_to_text(seq_input, tokenizer_config)
         logger.info(f"Generated report: {report[:100]}...")
 
         return report
@@ -276,8 +276,7 @@ class TextGenerator:
     ) -> str:
         start_token_idx = tokenizer_config["start_token_idx"]
         end_token_idx = tokenizer_config["end_token_idx"]
-        end_token = tokenizer_config["end_token"]
-        index_lookup = {v: k for k, v in vocabulary.items()}
+        pad_token_idx = tokenizer_config["pad_token_idx"]
 
         # Use numpy for expand_dims to keep data on CPU
         image = np.expand_dims(image, axis=0)
@@ -296,14 +295,14 @@ class TextGenerator:
                         score=score,
                         beam_width=beam_width,
                         end_token_idx=end_token_idx,
+                        pad_token_idx=pad_token_idx,
                     )
                 )
 
             beams = self._select_top_beams(all_candidates, beam_width, length_penalty)
             self._stream_best_beam_token(
                 beams=beams,
-                index_lookup=index_lookup,
-                end_token=end_token,
+                tokenizer_config=tokenizer_config,
                 step=step,
                 stream_callback=stream_callback,
             )
@@ -312,11 +311,9 @@ class TextGenerator:
                 break
 
         best_seq, _ = beams[0]
-        seq_output = self._build_sequence_input(best_seq)
+        seq_output = self._build_sequence_input(best_seq, pad_token_idx)
 
-        report = self.translate_tokens_to_text(
-            index_lookup, seq_output, tokenizer_config
-        )
+        report = self.translate_tokens_to_text(seq_output, tokenizer_config)
         logger.info(f"Generated report: {report[:100]}...")
 
         return report

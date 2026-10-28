@@ -12,6 +12,7 @@ from sqlalchemy.orm import Session, aliased
 
 from server.common.constants import (
     DATASET_RECORDS_TABLE,
+    TEXT_SANITIZER_VERSION,
     TRAINING_SAMPLES_TABLE,
     VALID_IMAGE_EXTENSIONS,
 )
@@ -72,6 +73,12 @@ class DatasetRepository(RepositorySupport):
             "vocabulary_size": metadata.get("vocabulary_size"),
             "max_report_size": metadata.get("max_report_size"),
             "tokenizer": metadata.get("tokenizer"),
+            "tokenizer_revision": metadata.get("tokenizer_revision"),
+            "pad_token_id": metadata.get("pad_token_id"),
+            "start_token_id": metadata.get("start_token_id"),
+            "end_token_id": metadata.get("end_token_id"),
+            "split_seed": metadata.get("split_seed"),
+            "text_sanitizer": TEXT_SANITIZER_VERSION,
         }
         serialized = str(sorted(payload.items()))
         return hashlib.sha256(serialized.encode("utf-8")).hexdigest()
@@ -230,6 +237,10 @@ class DatasetRepository(RepositorySupport):
                 ProcessingRun.vocabulary_size,
                 ProcessingRun.max_report_size,
                 ProcessingRun.tokenizer,
+                ProcessingRun.tokenizer_revision,
+                ProcessingRun.pad_token_id,
+                ProcessingRun.start_token_id,
+                ProcessingRun.end_token_id,
                 Dataset.name.label("dataset_name"),
                 source_dataset.name.label("source_dataset"),
             )
@@ -294,6 +305,10 @@ class DatasetRepository(RepositorySupport):
             "vocabulary_size": latest_run.get("vocabulary_size"),
             "max_report_size": latest_run.get("max_report_size"),
             "tokenizer": latest_run.get("tokenizer"),
+            "tokenizer_revision": latest_run.get("tokenizer_revision"),
+            "pad_token_id": latest_run.get("pad_token_id"),
+            "start_token_id": latest_run.get("start_token_id"),
+            "end_token_id": latest_run.get("end_token_id"),
             "processing_run_id": latest_run.get("processing_run_id"),
             "dataset_id": latest_run.get("dataset_id"),
             "source_dataset_id": latest_run.get("source_dataset_id"),
@@ -463,6 +478,10 @@ class DatasetRepository(RepositorySupport):
             vocabulary_size=vocabulary_size,
             max_report_size=int(configuration.get("max_report_size", 200)),
             tokenizer=str(configuration.get("tokenizer") or ""),
+            tokenizer_revision=configuration.get("tokenizer_revision"),
+            pad_token_id=configuration.get("pad_token_id"),
+            start_token_id=configuration.get("start_token_id"),
+            end_token_id=configuration.get("end_token_id"),
         )
         session.add(run)
         session.flush()

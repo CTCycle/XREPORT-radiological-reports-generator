@@ -215,6 +215,10 @@ class ProcessingRun(StudioBase):
     vocabulary_size: Mapped[int | None] = mapped_column(Integer)
     max_report_size: Mapped[int] = mapped_column(Integer, nullable=False)
     tokenizer: Mapped[str] = mapped_column(String, nullable=False)
+    tokenizer_revision: Mapped[str | None] = mapped_column(String(64))
+    pad_token_id: Mapped[int | None] = mapped_column(Integer)
+    start_token_id: Mapped[int | None] = mapped_column(Integer)
+    end_token_id: Mapped[int | None] = mapped_column(Integer)
     __table_args__ = (
         Index("ix_processing_runs_config_hash", "config_hash"),
         Index("ix_processing_runs_dataset_id", "dataset_id"),

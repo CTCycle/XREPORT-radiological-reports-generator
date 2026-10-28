@@ -39,6 +39,11 @@ class ManifestTokenizer(BaseModel):
 
     name: str
     bundled: bool
+    revision: str | None = None
+    vocabulary_size: int | None = None
+    pad_token_id: int | None = None
+    start_token_id: int | None = None
+    end_token_id: int | None = None
 
 ###############################################################################
 class ManifestEncoder(BaseModel):

@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from dataclasses import dataclass
+from pathlib import Path
 from typing import Any
 
 import pandas as pd
@@ -58,45 +60,134 @@ class TextSanitizer:
         return dataset
 
 ###############################################################################
+class TokenizerError(RuntimeError):
+    """Base error for tokenizer resolution failures that users can act on."""
+
+###############################################################################
+class TokenizerUnavailableError(TokenizerError):
+    """The tokenizer files cannot be loaded (unknown id, offline, missing library)."""
+
+###############################################################################
+class TokenizerCompatibilityError(TokenizerError):
+    """The tokenizer cannot drive the report decoder (missing special tokens)."""
+
+###############################################################################
+@dataclass(frozen=True)
+class SpecialTokens:
+    """Ids the decoder needs: sequence start, sequence end and padding."""
+
+    start_token: str
+    end_token: str
+    pad_token: str
+    start_token_id: int
+    end_token_id: int
+    pad_token_id: int
+
+###############################################################################
+def resolve_special_tokens(tokenizer: Any) -> SpecialTokens:
+    """Map a tokenizer to decoder special tokens (CLS/SEP or BOS/EOS, plus PAD)."""
+    start = tokenizer.cls_token if tokenizer.cls_token is not None else tokenizer.bos_token
+    end = tokenizer.sep_token if tokenizer.sep_token is not None else tokenizer.eos_token
+    missing = [
+        label
+        for label, value in (
+            ("start (CLS/BOS)", start),
+            ("end (SEP/EOS)", end),
+            ("padding", tokenizer.pad_token),
+        )
+        if value is None
+    ]
+    if missing:
+        raise TokenizerCompatibilityError(
+            "Tokenizer defines no " + ", ".join(missing) + " token, which report "
+            "generation requires"
+        )
+    return SpecialTokens(
+        start_token=str(start),
+        end_token=str(end),
+        pad_token=str(tokenizer.pad_token),
+        start_token_id=int(tokenizer.convert_tokens_to_ids(start)),
+        end_token_id=int(tokenizer.convert_tokens_to_ids(end)),
+        pad_token_id=int(tokenizer.pad_token_id),
+    )
+
+###############################################################################
+def exchange_tokenizer_path(tokenizer_name: str) -> Path:
+    return TOKENIZERS_DIR / "_exchange" / tokenizer_name.replace("/", "--")
+
+###############################################################################
+def cached_tokenizer_revision(tokenizer_name: str) -> str | None:
+    """Commit hash of the cached Hugging Face snapshot for this tokenizer, if any."""
+    ref = (
+        TOKENIZERS_DIR
+        / tokenizer_name
+        / f"models--{tokenizer_name.replace('/', '--')}"
+        / "refs"
+        / "main"
+    )
+    try:
+        return ref.read_text(encoding="utf-8").strip() or None
+    except OSError:
+        return None
+
+###############################################################################
+def is_cached_tokenizer(tokenizer_name: str) -> bool:
+    exchange = exchange_tokenizer_path(tokenizer_name)
+    return (exchange.is_dir() and any(exchange.iterdir())) or (
+        cached_tokenizer_revision(tokenizer_name) is not None
+    )
+
+###############################################################################
+def load_tokenizer(tokenizer_name: str) -> Any:
+    """Load tokenizer assets only (never model weights), preferring local files."""
+    from transformers import AutoTokenizer
+
+    # Tokenizers installed from a checkpoint exchange archive load offline.
+    exchange_path = exchange_tokenizer_path(tokenizer_name)
+    if exchange_path.is_dir() and any(exchange_path.iterdir()):
+        return AutoTokenizer.from_pretrained(str(exchange_path), local_files_only=True)
+
+    cache_dir = TOKENIZERS_DIR / tokenizer_name
+    cache_dir.mkdir(parents=True, exist_ok=True)
+    try:
+        return AutoTokenizer.from_pretrained(
+            tokenizer_name, cache_dir=str(cache_dir), local_files_only=True
+        )
+    except OSError:
+        pass
+    try:
+        return AutoTokenizer.from_pretrained(tokenizer_name, cache_dir=str(cache_dir))
+    except Exception as exc:  # noqa: BLE001
+        raise TokenizerUnavailableError(
+            f"Tokenizer '{tokenizer_name}' could not be loaded: {exc}"
+        ) from exc
+
+###############################################################################
 class TokenizerHandler:
 
     # -------------------------------------------------------------------------
     def __init__(self, configuration: dict[str, Any]) -> None:
         self.tokenizer_id = configuration.get("tokenizer", None)
         self.max_report_size = configuration.get("max_report_size", 200)
-        result = self.get_tokenizer(self.tokenizer_id)
-        self.tokenizer, self.vocabulary_size = (
-            result if result is not None else (None, 0)
+        self.tokenizer = (
+            load_tokenizer(self.tokenizer_id) if self.tokenizer_id is not None else None
         )
+        # `len(tokenizer)` includes added tokens, which `vocab` omits.
+        self.vocabulary_size = len(self.tokenizer) if self.tokenizer is not None else 0
         self.pad_token = (
             self.tokenizer.pad_token_id if self.tokenizer is not None else None
         )
+        self.revision = (
+            cached_tokenizer_revision(self.tokenizer_id)
+            if self.tokenizer_id is not None
+            else None
+        )
 
     # -------------------------------------------------------------------------
-    def get_tokenizer(
-        self, tokenizer_name: str | None = None
-    ) -> None | tuple[Any, int]:
-        if tokenizer_name is None:
-            return None
-
-        from transformers import AutoTokenizer
-
-        # Tokenizers installed from a checkpoint exchange archive load offline.
-        exchange_path = TOKENIZERS_DIR / "_exchange" / tokenizer_name.replace("/", "--")
-        if exchange_path.is_dir() and any(exchange_path.iterdir()):
-            tokenizer = AutoTokenizer.from_pretrained(
-                str(exchange_path), local_files_only=True
-            )
-            return tokenizer, len(tokenizer.vocab)
-
-        tokenizer_path = TOKENIZERS_DIR / tokenizer_name
-        tokenizer_path.mkdir(parents=True, exist_ok=True)
-        tokenizer = AutoTokenizer.from_pretrained(
-            tokenizer_name, cache_dir=str(tokenizer_path)
-        )
-        vocabulary_size = len(tokenizer.vocab)
-
-        return tokenizer, vocabulary_size
+    def special_tokens(self) -> SpecialTokens:
+        if self.tokenizer is None:
+            raise TokenizerUnavailableError("No tokenizer is configured")
+        return resolve_special_tokens(self.tokenizer)
 
     # -------------------------------------------------------------------------
     def tokenize_text_corpus(self, data: pd.DataFrame) -> pd.DataFrame:

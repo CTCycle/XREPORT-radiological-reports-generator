@@ -75,6 +75,8 @@ DATASETS_TABLE = "datasets"
 DATASET_RECORDS_TABLE = "dataset_records"
 DATASET_VERSIONS_TABLE = "dataset_versions"
 PROCESSING_RUNS_TABLE = "processing_runs"
+# Bump when `TextSanitizer` changes so cached token sequences are not reused.
+TEXT_SANITIZER_VERSION = 1
 TRAINING_SAMPLES_TABLE = "training_samples"
 VALIDATION_RUNS_TABLE = "validation_runs"
 CHECKPOINTS_TABLE = "checkpoints"

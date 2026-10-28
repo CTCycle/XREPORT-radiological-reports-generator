@@ -63,6 +63,11 @@ class DatasetProcessingService:
             "vocabulary_size": vocabulary_size,
             "max_report_size": configuration.get("max_report_size", 200),
             "tokenizer": configuration.get("tokenizer", None),
+            "tokenizer_revision": configuration.get("tokenizer_revision"),
+            "pad_token_id": configuration.get("pad_token_id"),
+            "start_token_id": configuration.get("start_token_id"),
+            "end_token_id": configuration.get("end_token_id"),
+            "split_seed": configuration.get("split_seed", 42),
             "source_dataset": source_dataset_name,
         }
         hashcode = self.repository.generate_hashcode(metadata_for_hash)
@@ -130,6 +135,13 @@ class DatasetProcessingService:
         try:
             tokenization = TokenizerHandler(configuration)
             logger.info("Tokenizing text using %s tokenizer", tokenization.tokenizer_id)
+            special_tokens = tokenization.special_tokens()
+            configuration.update(
+                tokenizer_revision=tokenization.revision,
+                pad_token_id=special_tokens.pad_token_id,
+                start_token_id=special_tokens.start_token_id,
+                end_token_id=special_tokens.end_token_id,
+            )
             processed_data = tokenization.tokenize_text_corpus(processed_data)
             vocabulary_size = tokenization.vocabulary_size
             logger.info("Vocabulary size: %s tokens", vocabulary_size)

@@ -29,6 +29,8 @@ class XREPORTModel:
         self.seed = configuration.get("training_seed", 42)
         self.sequence_length = metadata.get("max_report_size", 200)
         self.vocabulary_size = metadata.get("vocabulary_size", 200)
+        # Checkpoints and datasets created before the pad id was recorded used 0.
+        self.pad_token_id = int(metadata.get("pad_token_id") or 0)
         self.img_shape = IMAGE_SHAPE
 
         self.architecture = ModelArchitecture.model_validate(
@@ -55,7 +57,10 @@ class XREPORTModel:
             for _ in range(architecture.num_decoders)
         ]
         self.embeddings = PositionalEmbedding(
-            self.vocabulary_size, architecture.embedding_dims, self.sequence_length
+            self.vocabulary_size,
+            architecture.embedding_dims,
+            self.sequence_length,
+            pad_token_id=self.pad_token_id,
         )
         self.classifier = SoftMaxClassifier(
             architecture.classifier_units,
@@ -76,8 +81,8 @@ class XREPORTModel:
             lr_schedule = WarmUpLRScheduler(target_lr, warmup_steps)
 
         accumulation_steps = int(self.configuration.get("gradient_accumulation_steps", 1))
-        loss = MaskedSparseCategoricalCrossentropy()
-        metric = [MaskedAccuracy()]
+        loss = MaskedSparseCategoricalCrossentropy(pad_token_id=self.pad_token_id)
+        metric = [MaskedAccuracy(pad_token_id=self.pad_token_id)]
         opt = optimizers.AdamW(
             learning_rate=lr_schedule,  # type: ignore[arg-type]
             gradient_accumulation_steps=accumulation_steps if accumulation_steps > 1 else None,

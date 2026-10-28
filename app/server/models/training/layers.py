@@ -17,9 +17,11 @@ class PositionalEmbedding(layers.Layer):
         embedding_dims: int,
         sequence_length: int,
         mask_zero: bool = True,
+        pad_token_id: int = 0,
         **kwargs,
     ) -> None:
         super(PositionalEmbedding, self).__init__(**kwargs)
+        self.pad_token_id = pad_token_id
         self.embedding_dims = embedding_dims
         self.sequence_length = sequence_length
         self.vocabulary_size = vocabulary_size
@@ -51,7 +53,7 @@ class PositionalEmbedding(layers.Layer):
         full_embedding = embedded_tokens + embedded_positions
 
         if self.mask_zero:
-            mask = ops.not_equal(inputs, 0)
+            mask = ops.not_equal(inputs, self.pad_token_id)
             mask = ops.expand_dims(ops.cast(mask, floatx()), axis=-1)
             full_embedding *= mask
 
@@ -59,7 +61,7 @@ class PositionalEmbedding(layers.Layer):
 
     # -------------------------------------------------------------------------
     def compute_mask(self, inputs: Any, previous_mask=None) -> Any:
-        mask = ops.not_equal(inputs, 0)
+        mask = ops.not_equal(inputs, self.pad_token_id)
 
         return mask
 
@@ -72,6 +74,7 @@ class PositionalEmbedding(layers.Layer):
                 "sequence_length": self.sequence_length,
                 "embedding_dims": self.embedding_dims,
                 "mask_zero": self.mask_zero,
+                "pad_token_id": self.pad_token_id,
             }
         )
         return config

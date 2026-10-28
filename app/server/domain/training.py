@@ -4,6 +4,8 @@ from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from server.configurations.tokenizers import TOKENIZER_ID_PATTERN
+
 ###############################################################################
 class ImagePathRequest(BaseModel):
     folder_path: str = Field(
@@ -172,6 +174,7 @@ class ProcessDatasetRequest(BaseModel):
         ...,
         min_length=1,
         max_length=128,
+        pattern=TOKENIZER_ID_PATTERN,
         description="Hugging Face tokenizer ID",
     )
     max_report_size: int = Field(

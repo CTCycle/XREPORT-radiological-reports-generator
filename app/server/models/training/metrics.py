@@ -12,15 +12,19 @@ class MaskedSparseCategoricalCrossentropy(Loss):
 
     # -------------------------------------------------------------------------
     def __init__(
-        self, name: str = "MaskedSparseCategoricalCrossentropy", **kwargs
+        self,
+        name: str = "MaskedSparseCategoricalCrossentropy",
+        pad_token_id: int = 0,
+        **kwargs,
     ) -> None:
         super(MaskedSparseCategoricalCrossentropy, self).__init__(name=name, **kwargs)
+        self.pad_token_id = pad_token_id
         self.loss = SparseCategoricalCrossentropy(from_logits=False, reduction=None)  # type: ignore
 
     # -------------------------------------------------------------------------
     def call(self, y_true: Any, y_pred: Any) -> Any:
         loss = self.loss(y_true, y_pred)
-        mask = ops.not_equal(y_true, 0)
+        mask = ops.not_equal(y_true, self.pad_token_id)
         mask = ops.cast(mask, dtype=loss.dtype)
         loss *= mask
         loss = ops.sum(loss) / (ops.sum(mask) + backend.epsilon())
@@ -30,7 +34,7 @@ class MaskedSparseCategoricalCrossentropy(Loss):
     # -------------------------------------------------------------------------
     def get_config(self) -> dict[str, Any]:
         base_config = super(MaskedSparseCategoricalCrossentropy, self).get_config()
-        return {**base_config, "name": self.name}
+        return {**base_config, "name": self.name, "pad_token_id": self.pad_token_id}
 
     # -------------------------------------------------------------------------
     @classmethod
@@ -43,8 +47,11 @@ class MaskedSparseCategoricalCrossentropy(Loss):
 class MaskedAccuracy(Metric):
 
     # -------------------------------------------------------------------------
-    def __init__(self, name: str = "MaskedAccuracy", **kwargs) -> None:
+    def __init__(
+        self, name: str = "MaskedAccuracy", pad_token_id: int = 0, **kwargs
+    ) -> None:
         super(MaskedAccuracy, self).__init__(name=name, **kwargs)
+        self.pad_token_id = pad_token_id
         self.total = self.add_weight(name="total", initializer="zeros")
         self.count = self.add_weight(name="count", initializer="zeros")
 
@@ -55,7 +62,7 @@ class MaskedAccuracy(Metric):
         y_true = ops.cast(y_true, dtype=floatx())
         y_pred_argmax = ops.cast(ops.argmax(y_pred, axis=2), dtype=floatx())
         accuracy = ops.equal(y_true, y_pred_argmax)
-        mask = ops.not_equal(y_true, 0)
+        mask = ops.not_equal(y_true, self.pad_token_id)
         accuracy = ops.logical_and(mask, accuracy)
         accuracy = ops.cast(accuracy, dtype=floatx())
         mask = ops.cast(mask, dtype=floatx())
@@ -80,7 +87,7 @@ class MaskedAccuracy(Metric):
     # -------------------------------------------------------------------------
     def get_config(self) -> dict[str, Any]:
         base_config = super(MaskedAccuracy, self).get_config()
-        return {**base_config, "name": self.name}
+        return {**base_config, "name": self.name, "pad_token_id": self.pad_token_id}
 
     # -------------------------------------------------------------------------
     @classmethod

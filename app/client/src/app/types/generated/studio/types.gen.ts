@@ -1717,6 +1717,126 @@ export type SystemStatusResponse = {
 };
 
 /**
+ * TokenizerCatalogueResponse
+ */
+export type TokenizerCatalogueResponse = {
+    /**
+     * Tokenizers
+     */
+    tokenizers: Array<TokenizerOption>;
+};
+
+/**
+ * TokenizerCheckRequest
+ */
+export type TokenizerCheckRequest = {
+    /**
+     * Tokenizer
+     */
+    tokenizer: string;
+};
+
+/**
+ * TokenizerCheckResponse
+ *
+ * Result of loading a tokenizer and inspecting its special tokens.
+ */
+export type TokenizerCheckResponse = {
+    /**
+     * Tokenizer
+     */
+    tokenizer: string;
+    /**
+     * Available
+     */
+    available: boolean;
+    /**
+     * Compatible
+     */
+    compatible: boolean;
+    /**
+     * Cached
+     */
+    cached: boolean;
+    /**
+     * Message
+     */
+    message: string;
+    /**
+     * Kind
+     */
+    kind?: string | null;
+    /**
+     * Vocabulary Size
+     */
+    vocabulary_size?: number | null;
+    /**
+     * Revision
+     */
+    revision?: string | null;
+    /**
+     * Start Token
+     */
+    start_token?: string | null;
+    /**
+     * End Token
+     */
+    end_token?: string | null;
+    /**
+     * Pad Token
+     */
+    pad_token?: string | null;
+    /**
+     * Start Token Id
+     */
+    start_token_id?: number | null;
+    /**
+     * End Token Id
+     */
+    end_token_id?: number | null;
+    /**
+     * Pad Token Id
+     */
+    pad_token_id?: number | null;
+};
+
+/**
+ * TokenizerOption
+ *
+ * One tokenizer offered by the catalogue.
+ */
+export type TokenizerOption = {
+    /**
+     * Tokenizer Id
+     */
+    tokenizer_id: string;
+    /**
+     * Label
+     */
+    label: string;
+    /**
+     * Group
+     */
+    group: string;
+    /**
+     * Kind
+     */
+    kind: string;
+    /**
+     * Supports Training
+     */
+    supports_training: boolean;
+    /**
+     * Cached
+     */
+    cached: boolean;
+    /**
+     * Note
+     */
+    note?: string | null;
+};
+
+/**
  * ValidationError
  */
 export type ValidationError = {
@@ -2820,6 +2940,47 @@ export type GetValidationReportApiValidationReportsDatasetNameGetResponses = {
 };
 
 export type GetValidationReportApiValidationReportsDatasetNameGetResponse = GetValidationReportApiValidationReportsDatasetNameGetResponses[keyof GetValidationReportApiValidationReportsDatasetNameGetResponses];
+
+export type ListTokenizersApiTokenizersGetData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/api/tokenizers';
+};
+
+export type ListTokenizersApiTokenizersGetResponses = {
+    /**
+     * Successful Response
+     */
+    200: TokenizerCatalogueResponse;
+};
+
+export type ListTokenizersApiTokenizersGetResponse = ListTokenizersApiTokenizersGetResponses[keyof ListTokenizersApiTokenizersGetResponses];
+
+export type CheckTokenizerApiTokenizersCheckPostData = {
+    body: TokenizerCheckRequest;
+    path?: never;
+    query?: never;
+    url: '/api/tokenizers/check';
+};
+
+export type CheckTokenizerApiTokenizersCheckPostErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type CheckTokenizerApiTokenizersCheckPostError = CheckTokenizerApiTokenizersCheckPostErrors[keyof CheckTokenizerApiTokenizersCheckPostErrors];
+
+export type CheckTokenizerApiTokenizersCheckPostResponses = {
+    /**
+     * Successful Response
+     */
+    200: TokenizerCheckResponse;
+};
+
+export type CheckTokenizerApiTokenizersCheckPostResponse = CheckTokenizerApiTokenizersCheckPostResponses[keyof CheckTokenizerApiTokenizersCheckPostResponses];
 
 export type ListJobsApiJobsGetData = {
     body?: never;

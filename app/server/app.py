@@ -70,6 +70,7 @@ def profile_routers(profile: str) -> list[APIRouter]:
             "server.api.training",
             "server.api.model_architecture",
             "server.api.validation",
+            "server.api.tokenizers",
         )
         from server.api.checkpoint_exchange import get_export_router
 
