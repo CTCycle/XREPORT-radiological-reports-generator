@@ -1,7 +1,7 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
   "productName": "XREPORT Inference CUDA",
-  "version": "3.3.1",
+  "version": "4.0.0",
   "identifier": "io.github.ctcycle.xreport.cuda",
   "build": {
     "frontendDist": "ui",

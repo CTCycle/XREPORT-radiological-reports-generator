@@ -10,7 +10,7 @@ Last updated: 2026-10-28
 .\start_on_windows.ps1 -Action Launch
 .\start_on_windows.ps1 -Action LaunchDesktopDev
 .\start_on_windows.ps1 -Action KillProcesses
-.\start_on_windows.ps1 -Action BuildDesktopRelease -DesktopRuntime All -DesktopTarget All -Version 3.3.1
+.\start_on_windows.ps1 -Action BuildDesktopRelease -DesktopRuntime All -DesktopTarget All -Version 4.0.0
 .\start_on_windows.ps1 -Action RemoveDesktopRelease
 .\start_on_windows.ps1 -Action RemoveCheckpoints
 .\start_on_windows.ps1 -Action RemoveAllData
