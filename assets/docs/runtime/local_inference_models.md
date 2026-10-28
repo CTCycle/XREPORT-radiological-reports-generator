@@ -1,6 +1,6 @@
 # Local Inference Models
 
-Last updated: 2026-10-26
+Last updated: 2026-10-28
 
 ## Safety scope
 
@@ -11,7 +11,7 @@ clinically approved and require qualified review and independent verification.
 
 `GET /api/inference/models` exposes the public entries declared in the typed
 definitions at
-`app/server/configurations/inference_models.py`; the catalogue is not changed
+`app/xreport_inference/configurations/inference_models.py`; the catalogue is not changed
 when local files are removed. The definitions are reviewed application policy,
 not user settings and not a runtime JSON file. Catalogue cardinality is not a
 product invariant: a public entry with `validation_status=degraded` is never

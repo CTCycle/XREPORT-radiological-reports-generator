@@ -1,6 +1,6 @@
 # Runtime Startup
 
-Last updated: 2026-10-27
+Last updated: 2026-10-28
 
 ## Windows Local Launcher
 
@@ -258,7 +258,7 @@ Windows launcher exports the same locations automatically.
 PowerShell:
 
 ```powershell
-uv run --project app/server --extra cuda python -m uvicorn server.app:app --app-dir app --host 127.0.0.1 --port 5003
+uv run --project app/server --extra cuda python -m uvicorn xreport_inference.app:app --app-dir app --host 127.0.0.1 --port 5003
 Set-Location app/client
 npm run dev -- --host 127.0.0.1 --port 8003
 ```
@@ -329,8 +329,8 @@ tokenizers, and logs while preserving application files, templates, and
 XREPORT Studio on `STUDIO_FASTAPI_PORT` (default 5013) with its own Python
 environment, launch token, data folder (`<resources>/studio`), and Angular
 project (`studio-angular`). The launcher exports `XREPORT_APP` before starting
-`server.source_entry` because data roots are chosen when the server package is
-imported. Both applications can run at the same time; each Launch checks only
+`xreport_studio.entry` (Inference: `xreport_inference.entry`); each application package also
+selects its own layout before the shared package resolves data roots. Both applications can run at the same time; each Launch checks only
 its own port and keeps the fail-closed handling of unknown listeners.
 
 - Frontend freshness is tracked per project: `dist/<project>/.xreport-build-state.json`, with the
@@ -338,7 +338,7 @@ its own port and keeps the fail-closed handling of unknown listeners.
   `-Action RebuildFrontend` builds both unless `-App` is given.
 - `-Action KillProcesses` stops every identified XREPORT, Studio, and desktop process; with
   `-App Xreport|Studio` it stops only that application. Studio backends are recognised by
-  `server.source_entry --app studio`. Unknown listeners are never stopped.
+  `xreport_studio.entry`/`xreport_studio.app`. Unknown listeners are never stopped.
 - `RemoveLogs`, `RemoveCheckpoints`, and `RemoveAllData` act on one application (`-App`, or a prompt in
   the menu). Studio targets live under `<resources>/studio` and never include `models`.
 - Tauri builds (`BuildDesktopRelease`, `LaunchDesktopDev`) remain XREPORT Inference-only.

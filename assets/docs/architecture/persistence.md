@@ -1,6 +1,6 @@
 # XREPORT Persistence
 
-Last updated: 2026-10-27
+Last updated: 2026-10-28
 
 XREPORT Inference and XREPORT Studio each own a separate database with its own
 schema, migration stream, and settings row. Neither application opens, migrates,
@@ -21,7 +21,7 @@ The sources of truth are deliberately separated:
   job polling interval, and theme preference; only XREPORT Inference stores the
   inference timeout, idle timeout, and generation limits. Studio's Settings API
   returns `inference: null` and rejects inference patches.
-- `app/server/configurations/inference_models.py` owns the immutable, reviewed
+- `app/xreport_inference/configurations/inference_models.py` owns the immutable, reviewed
   inference catalogue and its safety/runtime contract.
 
 From `settings/.env`:
@@ -64,12 +64,12 @@ application:
 
 | Application | ORM base | Migration stream | Version table | Head |
 |---|---|---|---|---|
-| XREPORT Inference | `repositories/schemas/inference.py` (`InferenceBase`) | `server/migrations/inference` | `xreport_inference_version` | `36d142391099` |
-| XREPORT Studio | `repositories/schemas/studio.py` (`StudioBase`) | `server/migrations/studio` | `xreport_studio_version` | `8071b092e5f8` |
+| XREPORT Inference | `xreport_inference/repositories/schemas/inference.py` (`InferenceBase`) | `xreport_inference/migrations/inference` | `xreport_inference_version` | `36d142391099` |
+| XREPORT Studio | `xreport_studio/repositories/schemas/studio.py` (`StudioBase`) | `xreport_studio/migrations/studio` | `xreport_studio_version` | `d1f4b7c20a53` |
 
-`repositories/database/schema.py` binds the running profile (`XREPORT_APP`) to
-its schema; Studio's schema module is resolved by name, so the XREPORT Inference
-build never imports it. Each baseline creates its schema and seeds its
+`xreport_shared/repositories/database/schema.py` binds the running profile (`XREPORT_APP`) to
+the schema its application package registered when it was imported
+(`register_application_schema`); the shared package never imports an application. Each baseline creates its schema and seeds its
 `application_settings` singleton. `app/server/alembic.ini` has `[inference]`
 and `[studio]` sections (`alembic -n studio ...`); the CLI only targets the
 database of the matching `XREPORT_APP` profile unless `sqlalchemy.url` is set.
@@ -159,7 +159,41 @@ erDiagram
     VALIDATION_RUNS {
         int validation_run_id PK
         int dataset_id FK
+        int dataset_version_id FK
         datetime executed_at
+        float sample_size
+        int records_evaluated
+        string tokenizer
+    }
+    VALIDATION_RUN_METRICS {
+        int validation_run_id PK
+        string metric PK
+        int records_computed
+    }
+    RECORD_TEXT_STATS {
+        int validation_run_id PK
+        int record_id PK
+        int word_count
+        int token_count
+    }
+    RECORD_IMAGE_STATS {
+        int validation_run_id PK
+        int record_id PK
+        float mean_value
+        float noise_ratio
+    }
+    VALIDATION_AGGREGATES {
+        int validation_run_id PK
+        string domain PK
+        string measure PK
+        float median
+        float p95
+    }
+    VALIDATION_HISTOGRAM_BINS {
+        int validation_run_id PK
+        string histogram PK
+        int bin_index PK
+        int count
     }
     CHECKPOINTS {
         int checkpoint_id PK
@@ -188,6 +222,13 @@ erDiagram
     PROCESSING_RUNS ||--o{ TRAINING_SAMPLES : produces
     DATASET_RECORDS ||--o{ TRAINING_SAMPLES : references
     DATASETS ||--o{ VALIDATION_RUNS : validates
+    VALIDATION_RUNS ||--o{ VALIDATION_RUN_METRICS : computes
+    VALIDATION_RUNS ||--o{ RECORD_TEXT_STATS : measures
+    VALIDATION_RUNS ||--o{ RECORD_IMAGE_STATS : measures
+    VALIDATION_RUNS ||--o{ VALIDATION_AGGREGATES : summarizes
+    VALIDATION_RUNS ||--o{ VALIDATION_HISTOGRAM_BINS : bins
+    DATASET_RECORDS ||--o{ RECORD_TEXT_STATS : describes
+    DATASET_RECORDS ||--o{ RECORD_IMAGE_STATS : describes
     CHECKPOINTS ||--o{ CHECKPOINT_EVALUATIONS : evaluates
     MODEL_ARCHITECTURE_PRESETS {
         int preset_id PK
@@ -203,6 +244,31 @@ resolved architecture into its checkpoint configuration, so deleting or
 editing a preset never affects existing checkpoints.
 `hidden_architecture_presets` (revision `b3c1d5a7e9f2`) lists built-in preset
 keys the user removed from the preset list.
+
+### Validation statistics (revision `c7e2a94f1b08`)
+
+A validation run is immutable: repeated runs are kept as history and nothing is
+overwritten. `validation_runs` stores the configuration (sample fraction, seed,
+sampled and evaluated record counts, vocabulary size, optional tokenizer and
+`config_json` for auxiliary options); the computed values are relational:
+
+- `validation_run_metrics`: which metrics ran and on how many records.
+- `record_text_stats` / `record_image_stats`: one row per record and run
+  (`(validation_run_id, record_id)` primary key, indexed by `record_id`) for
+  SQL comparisons across datasets and records. Unreadable images and missing
+  values produce no row or a NULL, never a zero.
+- `validation_aggregates`: count, total, min, max, mean, median, std, P5, P25,
+  P75, P95 per `(run, domain, measure)`; domains `text`, `image`, `token`.
+- `validation_histogram_bins`: pixel-intensity and report-length bins.
+
+The migration backfills runs written before it (aggregate means, min/max and
+the pixel histogram; distribution values that were never stored stay NULL) and
+drops the former JSON and flat aggregate columns; `downgrade` restores them.
+Revision `d1f4b7c20a53` adds the tokenizer revision and the pad/start/end token
+ids to `processing_runs`; they are part of the processing hash, so changing the
+tokenizer, its revision or the split seed never reuses cached token sequences.
+Reports are served by `GET /api/validation/runs/{dataset}`, `.../{run_id}` and
+`.../{run_id}/records` (sortable, filterable, paged).
 
 ### XREPORT Inference
 

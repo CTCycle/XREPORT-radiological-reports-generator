@@ -1,6 +1,6 @@
 # Runtime Configuration
 
-Last updated: 2026-10-27
+Last updated: 2026-10-28
 
 ## Shared Configuration Sources
 
@@ -9,7 +9,7 @@ Last updated: 2026-10-27
 - Runtime application settings: the singleton `application_settings` database
   row, managed through the Settings API
 - Static inference catalogue: typed definitions in
-  `app/server/configurations/inference_models.py`
+  `app/xreport_inference/configurations/inference_models.py`
 - Tracked first-run environment template: `settings/.env.example`
 
 The environment file contains process-level deployment and runtime policy, but
@@ -182,7 +182,8 @@ it; re-enter it after moving the data directory to another account or machine.
 
 ## Application profile variables
 
-- `XREPORT_APP`: `xreport` (default) or `studio`. Set by the launcher; selects routers, the data
+- `XREPORT_APP`: `xreport` (default) or `studio`. Set by the launcher and by each application
+  package when imported; selects the data
   root (`<XREPORT_RESOURCES_DIR>/studio` for Studio), and the Angular output used for source hosting.
   Packaged builds reject anything but `xreport`.
 - `STUDIO_FASTAPI_PORT`: source-mode Studio backend port (default 5013, `settings/.env`).

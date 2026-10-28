@@ -1,6 +1,6 @@
 # Commands And Locations
 
-Last updated: 2026-10-26
+Last updated: 2026-10-28
 
 ## Primary Commands
 
@@ -49,7 +49,7 @@ timestamped backend logs beside it. Readiness/session files in
 
 ### Manual Backend And Frontend
 
-- `uv run --project app/server --extra cuda python -m uvicorn server.app:app --app-dir app --host <host> --port <port>`
+- `uv run --project app/server --extra cuda python -m uvicorn xreport_inference.app:app --app-dir app --host <host> --port <port>`
 - `cd app/client && npm start -- --host <host> --port <port>` (Angular development server; `/api` is proxied to FastAPI)
 - `cd app/client && npm run build && npm run preview -- --host <host> --port <port>` (local bundle validation or Tauri development only; not production hosting)
 

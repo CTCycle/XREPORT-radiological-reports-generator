@@ -1,6 +1,6 @@
 # Troubleshooting And Initialization
 
-Last updated: 2026-10-27
+Last updated: 2026-10-28
 
 ## Troubleshooting Quick Guide
 
@@ -42,7 +42,7 @@ variant-specific immutable runtime archives.
   - expected when dependencies and runtimes are being initialized
 - model unavailable:
   - inspect `GET /api/inference/models` for provider and model status
-  - Hugging Face model snapshots must already be cached at the exact revision declared in the typed catalogue at `app/server/configurations/inference_models.py`
+  - Hugging Face model snapshots must already be cached at the exact revision declared in the typed catalogue at `app/xreport_inference/configurations/inference_models.py`
   - Hugging Face requires a cached snapshot and an exact configured commit
 - first Generate action is slow or reports an access error:
   - allow time for the selected public model to download, verify, and load

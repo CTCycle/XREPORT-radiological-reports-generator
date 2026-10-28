@@ -348,7 +348,7 @@ def test_development_shell_does_not_require_release_runtime_archive() -> None:
 ###############################################################################
 def test_packaged_client_keeps_the_startup_shell_assets() -> None:
     client_root = Path(__file__).parents[2] / "client"
-    index = (client_root / "src" / "index.html").read_text(encoding="utf-8")
+    index = (client_root / "projects" / "inference" / "src" / "index.html").read_text(encoding="utf-8")
     shell = (client_root / "public" / "desktop-shell.js").read_text(encoding="utf-8")
     startup_css = client_root / "public" / "startup.css"
 

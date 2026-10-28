@@ -1,12 +1,12 @@
 # XREPORT Execution And Data Flow
 
-Last updated: 2026-10-26
+Last updated: 2026-10-28
 
 ## Layer Responsibilities
 
 ### Endpoint Layer
 
-Location: `app/server/api`
+Location: `app/xreport_*/api`
 
 - Parses multipart files plus path, query, and body parameters.
 - Converts HTTP interactions into service calls.
@@ -15,7 +15,7 @@ Location: `app/server/api`
 
 ### Domain Layer
 
-Location: `app/server/domain`
+Location: `app/xreport_*/domain`
 
 - Defines transport-neutral request and response contracts for inference, jobs, training, and validation.
 - Keeps endpoint contracts separate from service orchestration and provider implementations.
@@ -23,7 +23,7 @@ Location: `app/server/domain`
 
 ### Service Layer
 
-Location: `app/server/services`
+Location: `app/xreport_*/services`
 
 - Contains orchestration and business rules.
 - Starts and monitors long-running jobs.
@@ -36,7 +36,7 @@ Location: `app/server/services`
 
 ### Repository Layer
 
-Location: `app/server/repositories`
+Location: `app/xreport_*/repositories`
 
 - `database/*`: backend engine creation and initialization.
 - `schemas/*`: SQLAlchemy table definitions, constraints, indexes, and schema compatibility metadata.
@@ -47,7 +47,7 @@ Location: `app/server/repositories`
 
 ### Learning Layer
 
-Location: `app/server/models`
+Location: `app/xreport_*/models`
 
 - Holds preprocessing/tokenization, trainer, scheduler, dataloader, callback, and generator logic.
 - Inference providers sit behind the catalog-selected `model_ref`. External models use the manifest-driven embedded Hugging Face Transformers runtime; custom XREPORT checkpoints retain their dedicated path.
@@ -55,7 +55,7 @@ Location: `app/server/models`
 
 ### Frontend Layer
 
-Location: `app/client/src`
+Location: `app/client/projects` (shared, studio, inference)
 
 - `pages/*`: route-level workflows.
 - `components/*`: reusable UI building blocks.
@@ -82,7 +82,7 @@ Framework-dependent modules are imported only inside the execution paths that ne
 
 ## Generic Job Runtime
 
-`app/server/services/jobs.py` owns mutable `JobState` and lifecycle transitions. The domain package exposes only the serializable job response contract. A job failure can carry a message, code, phase, and recoverability flag through `JobExecutionError`; the generic manager never interprets inference-specific exception classes. Feature services can provide a failure mapper, and unmapped failures use the generic `job_failed` / `execution` fallback. `GET /api/jobs` is the only job read surface, and `DELETE /api/jobs/{job_id}` is the only cancellation surface.
+`app/xreport_shared/services/jobs.py` owns mutable `JobState` and lifecycle transitions. The domain package exposes only the serializable job response contract. A job failure can carry a message, code, phase, and recoverability flag through `JobExecutionError`; the generic manager never interprets inference-specific exception classes. Feature services can provide a failure mapper, and unmapped failures use the generic `job_failed` / `execution` fallback. `GET /api/jobs` is the only job read surface, and `DELETE /api/jobs/{job_id}` is the only cancellation surface.
 
 ## Training Worker Lifecycle And Containment
 

@@ -1,6 +1,6 @@
 # TypeScript And Frontend Rules
 
-Last updated: 2026-08-30
+Last updated: 2026-10-28
 
 Apply these rules to Angular, TypeScript, and frontend integration work.
 
@@ -27,7 +27,7 @@ Apply these rules to Angular, TypeScript, and frontend integration work.
 - Route API calls through typed `src/app/services/*` modules.
 - Keep `/api` contract alignment with backend endpoints and response models.
 - Generate raw request/response types from the checked-in OpenAPI snapshot with
-  `npm run generate:api`; do not hand-edit `src/app/types/generated/types.gen.ts`.
+  `npm run generate:api`; do not hand-edit `projects/shared/src/app/types/generated/*/types.gen.ts`.
 - Use feature clients for feature endpoints and `JobsApiService` for the
   generic `/api/jobs` status and cancellation resource.
 - Preserve the established start, poll, and cancel pattern for long-running UX.

@@ -9,39 +9,73 @@ contract that connects them.
 | | XREPORT Inference | XREPORT Studio |
 |---|---|---|
 | Purpose | Inference, report history and review, importing models | Dataset import and preparation, validation, training, evaluation, exporting checkpoints |
-| Backend profile | `XREPORT_APP=xreport` (default) | `XREPORT_APP=studio` |
+| Backend package | `app/xreport_inference` | `app/xreport_studio` |
+| Backend entry | `python -m xreport_inference.entry`, ASGI `xreport_inference.app:app` | `python -m xreport_studio.entry`, ASGI `xreport_studio.app:app` |
 | Source port | `FASTAPI_PORT` (5003) | `STUDIO_FASTAPI_PORT` (5013) |
-| Angular project / output | `client-angular` -> `dist/client-angular/browser` | `studio-angular` -> `dist/studio-angular/browser` |
+| Angular project / output | `client-angular` (`app/client/projects/inference`) -> `dist/client-angular/browser` | `studio-angular` (`app/client/projects/studio`) -> `dist/studio-angular/browser` |
 | Data root | `XREPORT_RESOURCES_DIR` (default `data/`) | `<resources>/studio/` |
 | Packaged (Tauri MSI/portable, CPU/CUDA) | Yes | No, source mode and local web only |
 
+## Package boundaries
+
+Backend (`app/`):
+
+- `xreport_shared`: infrastructure both applications need: job manager, settings,
+  database engine/initializer/migration runner, checkpoint exchange core
+  (manifest, archive limits, service), the application factory
+  (`app_factory.create_application`), source runner, and the model code a
+  checkpoint needs at load time (`models/training/{layers,metrics,scheduler,encoder,processing,dataloader}`,
+  `models/inference/generator`). Keras serialises the registered layer names, so
+  these classes stay shared.
+- `xreport_studio`: upload, preparation, dataset processing, tokenizer catalogue,
+  validation statistics, training, evaluation, architecture presets, the Studio
+  ORM schema and Alembic stream (`migrations/studio`).
+- `xreport_inference`: inference runtime and catalogue, Hugging Face access,
+  model installation/storage, report history, the Inference ORM schema and
+  Alembic stream (`migrations/inference`) and `desktop_entry`.
+- `xreport_studio` and `xreport_inference` never import each other and
+  `xreport_shared` imports neither (`tests/unit/test_packaging_boundary.py` checks
+  imports and module-name strings in every file). Applications announce their
+  database schema to the shared package when imported
+  (`register_application_schema`); the shared package never loads an
+  application by name.
+- Each application's `__init__` selects its data layout (`XREPORT_APP`, an
+  explicit launcher value wins) before the shared package resolves runtime paths.
+  One process hosts one application.
+- Python dependencies are still one environment definition (`app/server/pyproject.toml`
+  and `uv.lock`, extras `standard`/`cuda`/`studio`) with two virtual
+  environments (`.venv`, `.venv-studio`). The Inference build never imports Studio
+  code; per-application lock files are not implemented.
+
+Frontend (`app/client`, one npm workspace, three Angular source projects):
+
+- `projects/shared` (`@xreport/shared/*` alias): layout, settings page, theming,
+  jobs/polling/status services, API request infrastructure, generated API types.
+- `projects/studio`, `projects/inference`: entry point, routes, pages,
+  components, services and proxy configuration of one application each. Angular
+  `no-restricted-imports` rules and `tests/unit/test_frontend_boundary.py` fail
+  on cross-application imports. Shared component styles are referenced by
+  relative path because `styleUrl` cannot use the alias.
+- `npm test` runs the `shared-ui`, `client-angular` and `studio-angular` unit
+  test targets; one `package.json` still serves all three projects.
+
 ## Backend composition
 
-`server.app.create_app(profile)` assembles only the routers of its profile
-(`profile_routers`). Studio routers are resolved by name, so the XREPORT Inference build
-never imports them. The profile must be known when the `server` package is
-imported (data roots are resolved at import time), so the launcher exports
-`XREPORT_APP` before starting `server.source_entry --app <profile>`; the entry
-point fails if the two disagree. `desktop_entry` supports only `xreport`.
+Each application assembles only its own routers
+(`xreport_*/app.py` → `xreport_shared.app_factory.create_application`).
 
 - XREPORT Inference mounts inference, jobs, settings, database settings, and
   `POST /api/exchange/import`.
-- Studio mounts upload, preparation, training, validation, jobs, settings,
-  database settings, `POST /api/exchange/export`, and
-  `GET /api/exchange/exports/{filename}`.
-- Each profile has its own OpenAPI snapshot
-  (`app/shared/openapi.xreport.json`, `openapi.studio.json`) and generated
-  client types (`types/generated/{xreport,studio}`).
-- `server/common/profile_modules.py` lists the Studio-only modules. A unit test
-  walks the static import closure of `server.app` and fails if XREPORT Inference can
-  reach any of them; the PyInstaller spec excludes the same list.
-- Modules under `server/models/training/` that checkpoints need at load time
-  (`layers`, `metrics`, `scheduler`, `encoder`, `processing`, `dataloader`)
-  stay shared and in place, because Keras serialises their registered names.
-  `TransformerEncoder`/`TransformerDecoder` serialise `ffn_units`, `dropout`
-  and `key_dim`; configurations saved before these keys existed fall back to
-  the original values (model width, 0.2, model width), so older checkpoints
-  load unchanged and new ones load in XREPORT Inference without code changes.
+- Studio mounts upload, preparation, training, validation, tokenizers, model
+  architecture presets, jobs, settings, database settings,
+  `POST /api/exchange/export`, and `GET /api/exchange/exports/{filename}`.
+- Each application has its own OpenAPI snapshot
+  (`app/shared/openapi.xreport.json`, `openapi.studio.json`, regenerated with
+  `app/scripts/export_openapi.py`) and generated client types.
+- `TransformerEncoder`/`TransformerDecoder` serialise `ffn_units`, `dropout`
+  and `key_dim`; `PositionalEmbedding`, the masked loss and the masked accuracy
+  serialise `pad_token_id`. Configurations saved before these keys existed fall
+  back to the original values, so older checkpoints load unchanged.
 - Studio checkpoints store the resolved architecture in
   `configuration/configuration.json` (`architecture`, `architecture_preset`,
   and the measured `architecture_summary`). The manifest architecture id is
@@ -58,8 +92,6 @@ point fails if the two disagree. `desktop_entry` supports only `xreport`.
   so the XREPORT Inference environment does not install them. `huggingface-hub`
   and the other inference packages remain in the base set because Studio
   validation runs models.
-- `test_packaging_boundary.py` checks both directions: XREPORT Inference cannot
-  reach Studio modules and Studio routers cannot reach inference workflow modules.
 
 ## Data ownership
 
@@ -95,7 +127,7 @@ encoder/<files>            optional; only when exported with the encoder
 The manifest (`server/domain/checkpoint_exchange.py`) records the format and
 version, architecture id `xreport-beit-transformer`, `custom_objects_api`,
 checkpoint name, `content_sha256` (the checkpoint identity), per-file size and
-SHA-256, producer versions (application, Keras, Torch), tokenizer name, encoder
+SHA-256, producer versions (application, Keras, Torch), tokenizer name (plus revision, vocabulary size and the pad/start/end token ids), encoder
 repository and pinned revision, and minimal provenance (creation time, epochs,
 last losses). It contains no dataset records, paths, or credentials.
 

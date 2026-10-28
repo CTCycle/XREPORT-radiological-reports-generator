@@ -1010,13 +1010,12 @@ function Get-FrontendProductionInputRelativePaths {
         'angular.json',
         'package.json',
         'package-lock.json',
-        'tsconfig.json',
-        'tsconfig.app.json'
+        'tsconfig.json'
     )
     $clientRoot = [IO.Path]::GetFullPath($ClientDir)
     $separators = [char[]]@([IO.Path]::DirectorySeparatorChar, [IO.Path]::AltDirectorySeparatorChar)
     $clientRootPrefix = $clientRoot.TrimEnd($separators) + [IO.Path]::DirectorySeparatorChar
-    foreach ($root in @('public', 'src')) {
+    foreach ($root in @('public', 'projects')) {
         $rootPath = Join-Path $ClientDir $root
         if (-not (Test-Path -LiteralPath $rootPath -PathType Container)) { continue }
         foreach ($file in @(Get-ChildItem -LiteralPath $rootPath -Recurse -File)) {
@@ -1025,7 +1024,7 @@ function Get-FrontendProductionInputRelativePaths {
                 throw "Frontend production input escaped the client directory: $($file.FullName)"
             }
             $relative = $fullPath.Substring($clientRootPrefix.Length).Replace('\', '/')
-            if ($relative -match '(?i)^src/.+\.spec\.ts$' -or $relative -ieq 'src/proxy.conf.cjs' -or $relative -ieq 'src/proxy.studio.conf.cjs') { continue }
+            if ($relative -match '(?i)^projects/.+\.spec\.ts$' -or $relative -match '(?i)^projects/[^/]+/src/proxy(?:\.studio)?\.conf\.cjs$' -or $relative -match '(?i)^projects/[^/]+/tsconfig\.spec\.json$') { continue }
             $relativePaths += $relative
         }
     }

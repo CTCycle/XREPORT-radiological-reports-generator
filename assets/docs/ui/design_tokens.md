@@ -1,8 +1,8 @@
 # UI Design Tokens
 
-Last updated: 2026-09-25
+Last updated: 2026-10-28
 
-Use `app/client/src/styles.css` as the source of truth for UI tokens.
+Use `app/client/projects/shared/src/styles.css` as the source of truth for UI tokens.
 
 ## Typography
 

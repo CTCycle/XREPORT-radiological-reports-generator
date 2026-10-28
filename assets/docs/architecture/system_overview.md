@@ -1,6 +1,6 @@
 # XREPORT System Overview
 
-Last updated: 2026-10-27
+Last updated: 2026-10-28
 
 XREPORT is a local-first client/server system for radiological report generation, dataset preparation, training, validation, and model lifecycle workflows.
 
@@ -8,16 +8,16 @@ XREPORT is a local-first client/server system for radiological report generation
 
 - Frontend: standalone Angular 22 + TypeScript in `app/client`.
 - Backend: FastAPI in `app/server`.
-- API contracts: transport-neutral Pydantic models in `app/server/domain`,
+- API contracts: transport-neutral Pydantic models in `app/xreport_*/domain`,
   mirrored in the checked-in per-application snapshots
   `app/shared/openapi.xreport.json` and `openapi.studio.json` and generated
   Angular types. See [applications and checkpoint exchange](applications_and_checkpoint_exchange.md)
   for the XREPORT Inference / XREPORT Studio split.
-- Backend orchestration: services in `app/server/services`.
-- Persistence: SQLAlchemy repositories and schemas in `app/server/repositories`, with SQLite by default and PostgreSQL optional.
-- Learning runtime: model, provider, and inference implementation details in `app/server/models`.
+- Backend orchestration: services in `app/xreport_*/services`.
+- Persistence: SQLAlchemy repositories and schemas in `app/xreport_*/repositories`, with SQLite by default and PostgreSQL optional.
+- Learning runtime: model, provider, and inference implementation details in `app/xreport_*/models`.
 - Long-running execution: start, poll, and cancel jobs through the generic
-  `app/server/services/jobs.py` lifecycle and `/api/jobs` resource.
+  `app/xreport_shared/services/jobs.py` lifecycle and `/api/jobs` resource.
 - Startup validation: Alembic database creation/upgrade and required resource-directory checks before the API serves requests.
 
 The Angular application is a static SPA and uses relative `/api` requests. In
@@ -102,18 +102,18 @@ The intended dependency rule is inward and explicit: transport adapts requests t
 
 ### API and domain
 
-`app/server/api` owns HTTP parsing, router registration, response models, and service-error-to-HTTP translation. `app/server/domain` contains stable request and response contracts only. `JobState` and `JobExecutionError` are service-runtime concerns, not domain contracts.
+`app/xreport_*/api` owns HTTP parsing, router registration, response models, and service-error-to-HTTP translation. `app/xreport_*/domain` contains stable request and response contracts only. `JobState` and `JobExecutionError` are service-runtime concerns, not domain contracts.
 
 ### Services
 
-`app/server/services` contains use-case orchestration and explicit dependency composition. `DatasetProcessingService` owns tokenization, split calculation, processed-row persistence, and processing metadata. `PreparationService` owns preparation workflow state and delegates processing. `InferenceService` receives its runtime, installation, repository, and job dependencies through its factory.
+`app/xreport_*/services` contains use-case orchestration and explicit dependency composition. `DatasetProcessingService` owns tokenization, split calculation, processed-row persistence, and processing metadata. `PreparationService` owns preparation workflow state and delegates processing. `InferenceService` receives its runtime, installation, repository, and job dependencies through its factory.
 
 ### Repositories and learning runtime
 
-`app/server/repositories` contains SQLAlchemy schemas plus focused dataset,
+`app/xreport_*/repositories` contains SQLAlchemy schemas plus focused dataset,
 checkpoint, validation, and inference persistence boundaries. Checkpoint
 identity is database-owned; the filesystem stores only the registered model
-artifacts. `app/server/models` contains model-training and inference
+artifacts. `app/xreport_*/models` contains model-training and inference
 implementation details; it is not the ORM model layer. Each application has its
 own ORM schema in `repositories/schemas/{inference,studio}.py` and its own
 Alembic stream in `server/migrations/{inference,studio}`; see
@@ -136,8 +136,8 @@ This keeps page dependencies aligned with the feature they operate on and avoids
 ## Entry Points
 
 - Backend API entrypoint: `app/server/app.py`.
-- Frontend web entrypoints: `app/client/src/main.ts` (XREPORT Inference) and `app/client/src/studio/main.ts` (Studio).
-- Frontend route composition: `app/client/src/app/app.routes.ts` (XREPORT Inference) and `app/client/src/studio/studio.routes.ts` (Studio).
+- Frontend web entrypoints: `app/client/projects/inference/src/main.ts` (XREPORT Inference) and `app/client/projects/studio/src/main.ts` (Studio).
+- Frontend route composition: `app/client/projects/inference/src/app/app.routes.ts` (XREPORT Inference) and `app/client/projects/studio/src/studio.routes.ts` (Studio).
 - OpenAPI source snapshot and generated client types: `app/shared/openapi.{xreport,studio}.json` and `app/client/src/app/types/generated/{xreport,studio}/types.gen.ts`.
 - Release version authority: `app/server/pyproject.toml`; client, desktop,
   Tauri, backend metadata, and OpenAPI copies are validated against it.

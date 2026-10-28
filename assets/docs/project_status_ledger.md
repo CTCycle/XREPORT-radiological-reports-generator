@@ -1,6 +1,20 @@
 # XREPORT Project Status Ledger
 
-Last updated: 2026-10-27
+Last updated: 2026-10-28
+
+Source change 2026-10-28 (not a release gate): relational validation statistics, tokenizer catalogue, statistics UI and package split (commits `f881b6ac` .. `72f9dde8` and the documentation commit after them).
+
+Implemented and exercised:
+- Validation statistics live in relational tables (see [persistence](architecture/persistence.md)); the migration backfills older runs and was tested up and down on a database seeded at the previous head. A real validation of the six-record synthetic fixture dataset (full and 50% sample) produced per-record rows, aggregates and histograms that were read back over the API and shown in the browser.
+- Tokenizer catalogue: `POST /api/tokenizers/check` loaded every one of the 18 catalogue entries (BERT, DistilBERT, RoBERTa, BioBERT, Bio_ClinicalBERT, BiomedBERT, SciBERT, DeBERTa, ALBERT, XLM-R, T5): 16 are compatible, and the two T5 entries are reported incompatible (no start token) and refused at dataset processing (a T5 processing job failed with that message). DeBERTa v3 was removed from the catalogue because it needs the `protobuf` package, which the environment does not have; DeBERTa large was checked in its place. Dataset processing, training (compact preset, 1 epoch), export, import into a separate Inference process and generation were run for distilbert (pad id 0) and roberta-base (pad id 1, start id 0).
+- Backend split into `xreport_shared`, `xreport_studio`, `xreport_inference` and Angular split into `projects/{shared,studio,inference}`; each application was started on its own through its own entry point and serves only its own routes. `tests/e2e/test_studio_inference_exchange.py` starts both as separate processes and passed (about 2 minutes).
+- Automated: 350 backend unit/integration tests (6 PostgreSQL tests skipped), 120 Angular unit tests in three projects, lint, and builds of both Angular applications.
+
+Not verified or known limits:
+- The `xreport-default` preset (six layers, 768 wide) failed while saving its first `.keras` checkpoint in this environment with an h5py `SystemError` from an in-memory file; the compact preset saved, exported and imported. The cause was not investigated and it was not compared with the previous commit.
+- The launcher, `run_tests.bat`, the PyInstaller spec and the Tauri build were updated for the new entry points but only the unit assertions over them ran; no launcher menu action, desktop package or CUDA run was executed. PostgreSQL migrations, the Playwright UI end-to-end suite and the full `run_tests.bat` were not run.
+- Dependency manifests are not split: one `pyproject.toml`/`uv.lock` and one `package.json` still serve both applications. Some Studio-oriented state types and API services (`types.ts`, `app-state.service`, training/inference API types) remain in the shared Angular project because the shared layout reaches them.
+- Token counts per record exist in the schema but the validation wizard does not request a tokenizer yet, so token statistics are not produced.
 
 Source change 2026-10-27 (not a release gate): Studio training pipeline audit (Keras 3.13.1 on torch 2.10 cu130), commits `af724c86`, `255610e7`, `680e80a4`.
 

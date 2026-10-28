@@ -1,6 +1,6 @@
 # Getting Started
 
-Last updated: 2026-10-23
+Last updated: 2026-10-28
 
 This guidance is for radiology and ML users running local report-generation workflows, plus technical operators validating datasets, training runs, and model outputs.
 
@@ -68,7 +68,7 @@ Start these two development processes in separate terminals.
 Terminal 1, from the repository root:
 
 ```bash
-uv run --project app/server --extra cuda python -m uvicorn server.app:app --app-dir app --host 127.0.0.1 --port 5003
+uv run --project app/server --extra cuda python -m uvicorn xreport_inference.app:app --app-dir app --host 127.0.0.1 --port 5003
 ```
 
 Terminal 2, from the repository root:
