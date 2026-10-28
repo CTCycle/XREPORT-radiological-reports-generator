@@ -1,6 +1,6 @@
 # XREPORT Backend API
 
-Last updated: 2026-10-27
+Last updated: 2026-10-28
 
 Each application has a checked-in OpenAPI snapshot, `app/shared/openapi.xreport.json` and
 `app/shared/openapi.studio.json`, generated from `create_app(profile).openapi()`. Regenerate both
@@ -92,7 +92,7 @@ and unmatched counts without writing records. A repeat request with
   flat keys are flagged with `legacy: true`), with its vocabulary size and
   report length.
 
-The graph and parameter counts come from `server/models/training/architecture.py`,
+The graph and parameter counts come from `xreport_studio/models/training/architecture.py`,
 the same module the training builder uses; unit tests compare the analytic
 counts with built Keras layers.
 

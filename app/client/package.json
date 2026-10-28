@@ -4,9 +4,9 @@
   "scripts": {
     "generate:api": "openapi-ts",
     "ng": "ng",
-    "start": "ng serve client-angular --proxy-config src/proxy.conf.cjs",
-    "dev": "ng serve client-angular --proxy-config src/proxy.conf.cjs",
-    "start:studio": "ng serve studio-angular --proxy-config src/proxy.studio.conf.cjs",
+    "start": "ng serve client-angular",
+    "dev": "ng serve client-angular",
+    "start:studio": "ng serve studio-angular",
     "build": "ng build client-angular",
     "build:studio": "ng build studio-angular",
     "watch": "ng build client-angular --watch --configuration development",

@@ -1,6 +1,6 @@
 # Applications and Checkpoint Exchange
 
-Last updated: 2026-10-27
+Last updated: 2026-10-28
 
 XREPORT is two independently launchable local applications in one repository: XREPORT Inference and XREPORT Studio.
 This file owns their boundary, data ownership, and the portable checkpoint
@@ -104,6 +104,9 @@ Each application assembles only its own routers
 - The pinned BEiT encoder and tokenizers (`<resources>/models`) are shared,
   immutable resources installed atomically. Studio resolves `MODELS_DIR` to the
   base folder; it never writes elsewhere in XREPORT Inference's tree.
+  Nothing serialises concurrent writers to the shared `models` folder, so two
+  applications installing the same encoder or tokenizer at once is an accepted
+  risk.
 - A process lock (`.xreport.lock` in each data folder) makes a second process on
   the same folder fail at startup instead of mutating the same SQLite file.
   The OS releases it when the owner exits or crashes.
@@ -124,12 +127,17 @@ tokenizer/<files>          bundled tokenizer (saved with save_pretrained)
 encoder/<files>            optional; only when exported with the encoder
 ```
 
-The manifest (`server/domain/checkpoint_exchange.py`) records the format and
+The manifest (`xreport_shared/domain/checkpoint_exchange.py`) records the format and
 version, architecture id `xreport-beit-transformer`, `custom_objects_api`,
 checkpoint name, `content_sha256` (the checkpoint identity), per-file size and
-SHA-256, producer versions (application, Keras, Torch), tokenizer name (plus revision, vocabulary size and the pad/start/end token ids), encoder
+SHA-256, producer versions (application, Keras, Torch), tokenizer name (plus revision, vocabulary size and the pad/start/end token ids, all mandatory), encoder
 repository and pinned revision, and minimal provenance (creation time, epochs,
 last losses). It contains no dataset records, paths, or credentials.
+
+The tokenizer vocabulary size and pad/start/end ids are mandatory: export refuses
+a checkpoint whose metadata does not record them, import rejects a manifest that
+omits them or disagrees with `metadata.json`, and the runtime never substitutes
+the tokenizer's current ids. Checkpoints trained without them must be retrained.
 
 Encoder policy: the BEiT encoder (`microsoft/beit-base-patch16-224`, pinned
 revision) is loaded offline from `<resources>/models/XRAYEncoder`. The manifest

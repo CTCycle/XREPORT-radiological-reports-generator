@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import re
 from pathlib import Path
 
@@ -62,3 +63,55 @@ def test_each_application_has_its_own_entry_point_routes_and_proxy() -> None:
     assert (studio / "studio.routes.ts").is_file()
     assert (inference / "proxy.conf.cjs").is_file()
     assert (studio / "proxy.studio.conf.cjs").is_file()
+
+
+###############################################################################
+def test_angular_workspace_and_scripts_only_reference_existing_files_of_their_own_application() -> None:
+    workspace = json.loads((CLIENT_ROOT / "angular.json").read_text(encoding="utf-8"))["projects"]
+    other = {"client-angular": "studio", "studio-angular": "inference"}
+    for name, forbidden in other.items():
+        text = json.dumps(workspace[name])
+        assert f"projects/{forbidden}/" not in text, f"{name} references the {forbidden} project"
+        assert f"{forbidden}-angular" not in text, f"{name} builds through the {forbidden} application"
+
+    scripts = json.loads((CLIENT_ROOT / "package.json").read_text(encoding="utf-8"))["scripts"]
+    for command in scripts.values():
+        for relative in re.findall(r"--proxy-config\s+(\S+)", command):
+            assert (CLIENT_ROOT / relative).is_file(), f"script references a missing file: {relative}"
+
+
+###############################################################################
+def test_client_sources_have_no_circular_imports() -> None:
+    graph: dict[Path, set[Path]] = {}
+    for project in PROJECTS:
+        for path in _sources(project):
+            edges: set[Path] = set()
+            for reference in _references(path):
+                if reference.startswith("@xreport/shared/"):
+                    base = CLIENT_ROOT / "projects" / "shared" / "src" / reference.removeprefix("@xreport/shared/")
+                elif reference.startswith("."):
+                    base = (path.parent / reference).resolve()
+                else:
+                    continue
+                for candidate in (base.with_suffix(".ts"), base / "index.ts"):
+                    if candidate.is_file():
+                        edges.add(candidate.resolve())
+            graph[path.resolve()] = edges
+
+    state: dict[Path, int] = {}
+    cycles: list[str] = []
+
+    def visit(node: Path, trail: list[Path]) -> None:
+        state[node] = 1
+        for target in graph.get(node, ()):
+            if state.get(target) == 1:
+                cycles.append(" -> ".join(item.name for item in [*trail, node, target]))
+            elif target not in state:
+                visit(target, [*trail, node])
+        state[node] = 2
+
+    for node in graph:
+        if node not in state:
+            visit(node, [])
+
+    assert not cycles

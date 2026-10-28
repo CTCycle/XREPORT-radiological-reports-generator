@@ -44,7 +44,7 @@ Last updated: 2026-10-28
 - Production upgrades use the shared connection/transaction path, SQLite
   exclusive locking, and PostgreSQL advisory locking. Back up persistent data
   before deploying a release containing a schema migration.
-- The frozen backend packages `server/migrations` as immutable runtime data;
+- The frozen backend packages `xreport_inference/migrations` as immutable runtime data;
   the database remains in the user data root.
 
 ## Desktop release layout

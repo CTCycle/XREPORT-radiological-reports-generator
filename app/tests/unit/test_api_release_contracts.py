@@ -73,6 +73,19 @@ def test_shared_openapi_schema_matches_runtime(profile: str) -> None:
     assert shared_schema == CREATE_APP[profile]().openapi()
 
 ###############################################################################
+def test_schemas_defined_by_both_applications_are_identical() -> None:
+    # The shared Angular code types jobs, settings and system status against one application's
+    # generated schema, so the other application must expose exactly the same shapes.
+    schemas = {
+        profile: json.loads((SHARED_DIR / f"openapi.{profile}.json").read_text(encoding="utf-8"))["components"]["schemas"]
+        for profile in CREATE_APP
+    }
+    common = set(schemas["xreport"]) & set(schemas["studio"])
+
+    assert common
+    assert [name for name in sorted(common) if schemas["xreport"][name] != schemas["studio"][name]] == []
+
+###############################################################################
 def test_inference_generate_contract_has_only_current_request_fields() -> None:
     schema = app.openapi()
     request_schema = schema["paths"]["/api/inference/generate"]["post"]["requestBody"][

@@ -12,19 +12,19 @@ module.exports = defineConfig([
     // Applications may only share code through projects/shared (@xreport/shared).
     files: ['projects/studio/**/*.ts'],
     rules: {
-      'no-restricted-imports': ['error', { patterns: [{ group: ['**/inference/src/**', '../inference/**', '../../inference/**'], message: 'Studio must not import XREPORT Inference code; move shared code to projects/shared.' }] }],
+      'no-restricted-imports': ['error', { patterns: [{ group: ['**/inference/**', '**/generated/xreport/**'], message: 'Studio must not import XREPORT Inference code or its generated API types; move shared code to projects/shared.' }] }],
     },
   },
   {
     files: ['projects/inference/**/*.ts'],
     rules: {
-      'no-restricted-imports': ['error', { patterns: [{ group: ['**/studio/src/**', '../studio/**', '../../studio/**'], message: 'XREPORT Inference must not import Studio code; move shared code to projects/shared.' }] }],
+      'no-restricted-imports': ['error', { patterns: [{ group: ['**/studio/**', '**/generated/studio/**'], message: 'XREPORT Inference must not import Studio code or its generated API types; move shared code to projects/shared.' }] }],
     },
   },
   {
     files: ['projects/shared/**/*.ts'],
     rules: {
-      'no-restricted-imports': ['error', { patterns: [{ group: ['**/studio/src/**', '**/inference/src/**'], message: 'Shared code must not depend on an application.' }] }],
+      'no-restricted-imports': ['error', { patterns: [{ group: ['**/studio/**', '**/inference/**'], message: 'Shared code must not depend on an application.' }] }],
     },
   },
   {

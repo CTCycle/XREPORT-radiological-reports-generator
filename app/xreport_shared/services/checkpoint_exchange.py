@@ -206,6 +206,17 @@ class CheckpointExchangeService:
                 raise JobExecutionError(
                     "Checkpoint metadata has no tokenizer", code="tokenizer_missing"
                 )
+            missing = [
+                key
+                for key in ("pad_token_id", "start_token_id", "end_token_id", "vocabulary_size")
+                if metadata.get(key) is None
+            ]
+            if missing:
+                raise JobExecutionError(
+                    f"Checkpoint metadata does not record {', '.join(missing)}; "
+                    "retrain the model to export it.",
+                    code="metadata_invalid",
+                )
             members += self._stage_tokenizer(metadata, workdir / "tokenizer")
             revision = pinned_encoder_revision()
             if include_encoder:
@@ -748,7 +759,7 @@ class CheckpointExchangeService:
                 phase="verify",
             )
         for key in ("pad_token_id", "start_token_id", "end_token_id", "vocabulary_size"):
-            if getattr(manifest.tokenizer, key) != metadata.get(key):
+            if getattr(manifest.tokenizer, key) is None or getattr(manifest.tokenizer, key) != metadata.get(key):
                 raise JobExecutionError(
                     f"The checkpoint metadata and the manifest disagree on '{key}'.",
                     code="metadata_invalid",
@@ -789,17 +800,10 @@ class CheckpointExchangeService:
         try:
             model, _, metadata, _, _ = ModelSerializer().load_checkpoint(checkpoint_dir)
             max_report_size = int(metadata.get("max_report_size", 200))
-            special = handler.special_tokens()
-            pad_token_id = metadata.get("pad_token_id")
-            start_token_id = metadata.get("start_token_id")
             sequence = np.full(
-                (1, max_report_size),
-                special.pad_token_id if pad_token_id is None else pad_token_id,
-                dtype=np.int32,
+                (1, max_report_size), metadata["pad_token_id"], dtype=np.int32
             )
-            sequence[0, 0] = (
-                special.start_token_id if start_token_id is None else start_token_id
-            )
+            sequence[0, 0] = metadata["start_token_id"]
             image = np.zeros((1, 224, 224, 3), dtype=np.float32)
             # Keras conversion handles CUDA tensors, unlike np.asarray.
             output = np.asarray(

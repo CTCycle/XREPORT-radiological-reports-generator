@@ -6,7 +6,7 @@ Last updated: 2026-10-28
 
 ### Local Web Mode
 
-- Backend: FastAPI in `app/server/app.py`.
+- Backend: FastAPI in `app/xreport_inference/app.py` and `app/xreport_studio/app.py`.
 - Normal Windows Launch: FastAPI serves the built Angular SPA and `/api` from
   one origin; the launcher owns backend readiness and shutdown.
 - Development: Angular CLI `start`/`dev` proxies `/api` to FastAPI. The

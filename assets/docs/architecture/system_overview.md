@@ -7,7 +7,7 @@ XREPORT is a local-first client/server system for radiological report generation
 ## Runtime Topology
 
 - Frontend: standalone Angular 22 + TypeScript in `app/client`.
-- Backend: FastAPI in `app/server`.
+- Backend: FastAPI in `app/xreport_inference` (XREPORT Inference) and `app/xreport_studio` (Studio) on `app/xreport_shared`; `app/server` holds only the Python project definition, lock file and Alembic configuration.
 - API contracts: transport-neutral Pydantic models in `app/xreport_*/domain`,
   mirrored in the checked-in per-application snapshots
   `app/shared/openapi.xreport.json` and `openapi.studio.json` and generated
@@ -80,20 +80,14 @@ The intended dependency rule is inward and explicit: transport adapts requests t
 └─ app/
    ├─ scripts/
    │  └─ initialize_database.py
-   ├─ server/
-   │  ├─ pyproject.toml
-   │  ├─ api/
-   │  ├─ common/
-   │  ├─ domain/
-   │  ├─ configurations/
-   │  │  └─ inference_models.py
-   │  ├─ models/
-   │  ├─ services/
-   │  └─ repositories/
+   ├─ server/                 # pyproject.toml, uv.lock, alembic.ini only
+   ├─ xreport_shared/
+   ├─ xreport_inference/      # api, domain, services, repositories, models, migrations
+   ├─ xreport_studio/         # api, domain, services, repositories, models, migrations
    ├─ client/
    │  ├─ package.json
    │  ├─ angular.json
-   │  └─ src/
+   │  └─ projects/{shared,inference,studio}/
    └─ tests/
       └─ run_tests.bat
 ```
@@ -116,7 +110,7 @@ identity is database-owned; the filesystem stores only the registered model
 artifacts. `app/xreport_*/models` contains model-training and inference
 implementation details; it is not the ORM model layer. Each application has its
 own ORM schema in `repositories/schemas/{inference,studio}.py` and its own
-Alembic stream in `server/migrations/{inference,studio}`; see
+Alembic stream in `xreport_*/migrations/{inference,studio}`; see
 [persistence](persistence.md).
 
 ## Frontend Boundaries
@@ -135,10 +129,10 @@ This keeps page dependencies aligned with the feature they operate on and avoids
 
 ## Entry Points
 
-- Backend API entrypoint: `app/server/app.py`.
+- Backend API entrypoints: `app/xreport_inference/app.py` and `app/xreport_studio/app.py`.
 - Frontend web entrypoints: `app/client/projects/inference/src/main.ts` (XREPORT Inference) and `app/client/projects/studio/src/main.ts` (Studio).
 - Frontend route composition: `app/client/projects/inference/src/app/app.routes.ts` (XREPORT Inference) and `app/client/projects/studio/src/studio.routes.ts` (Studio).
-- OpenAPI source snapshot and generated client types: `app/shared/openapi.{xreport,studio}.json` and `app/client/src/app/types/generated/{xreport,studio}/types.gen.ts`.
+- OpenAPI source snapshot and generated client types: `app/shared/openapi.{xreport,studio}.json` and `app/client/projects/shared/src/app/types/generated/{xreport,studio}/types.gen.ts`.
 - Release version authority: `app/server/pyproject.toml`; client, desktop,
   Tauri, backend metadata, and OpenAPI copies are validated against it.
 - Local launcher and maintenance menu on Windows: `start_on_windows.ps1`.

@@ -116,9 +116,9 @@ jobs:
 
       - name: Run retained API E2E tests
         run: |
-          PYTHONPATH=app app/server/.venv/bin/python -m uvicorn server.app:app --host 127.0.0.1 --port 5003 --log-level warning > runtimes/cache/ci-xreport-api.log 2>&1 &
+          PYTHONPATH=app app/server/.venv/bin/python -m uvicorn xreport_inference.app:app --host 127.0.0.1 --port 5003 --log-level warning > runtimes/cache/ci-xreport-api.log 2>&1 &
           server_pid=$!
-          XREPORT_APP=studio PYTHONPATH=app app/server/.venv/bin/python -m uvicorn server.app:app --host 127.0.0.1 --port 5013 --log-level warning > runtimes/cache/ci-studio-api.log 2>&1 &
+          PYTHONPATH=app app/server/.venv/bin/python -m uvicorn xreport_studio.app:app --host 127.0.0.1 --port 5013 --log-level warning > runtimes/cache/ci-studio-api.log 2>&1 &
           studio_pid=$!
           trap 'kill "$server_pid" "$studio_pid" 2>/dev/null || true' EXIT
           for port in 5003 5013; do

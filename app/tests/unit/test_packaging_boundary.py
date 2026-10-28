@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import ast
+import re
 from pathlib import Path
 
 import pytest
@@ -88,3 +89,34 @@ def test_desktop_build_packages_only_the_inference_application() -> None:
     assert "xreport_inference" in spec and "xreport_shared" in spec
     assert 'collect_submodules("xreport_studio")' not in spec
     assert "studio-angular" in bundle
+
+
+###############################################################################
+def test_launch_commands_target_existing_application_modules() -> None:
+    repo = APP_ROOT.parent
+    sources = [
+        repo / ".github" / "workflows" / "ci.yml",
+        repo / "start_on_windows.ps1",
+        APP_ROOT / "tests" / "run_tests.bat",
+    ]
+    targets = {
+        match
+        for source in sources
+        for match in re.findall(r"uvicorn\s+([\w.]+):app", source.read_text(encoding="utf-8"))
+    }
+
+    assert {"xreport_inference.app", "xreport_studio.app"} <= targets
+    for target in targets:
+        assert (APP_ROOT / Path(*target.split("."))).with_suffix(".py").is_file(), target
+
+
+###############################################################################
+def test_only_sanctioned_scripts_reference_both_applications() -> None:
+    # Scripts may drive both applications, but only the sanctioned tools do.
+    both = {
+        path.name
+        for path in (APP_ROOT / "scripts").glob("*.py")
+        if {"xreport_studio", "xreport_inference"} <= _application_references(path)
+    }
+
+    assert both <= {"export_openapi.py", "initialize_database.py", "validate_resilience_baseline.py"}

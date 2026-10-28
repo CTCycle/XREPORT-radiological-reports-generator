@@ -110,7 +110,16 @@ class Node:
         (path / "saved_model.keras").write_bytes(payload)
         (path / "configuration" / "configuration.json").write_text("{}")
         (path / "configuration" / "metadata.json").write_text(
-            json.dumps({"tokenizer": "org/tok", "max_report_size": 8})
+            json.dumps(
+                {
+                    "tokenizer": "org/tok",
+                    "max_report_size": 8,
+                    "pad_token_id": 0,
+                    "start_token_id": 1,
+                    "end_token_id": 2,
+                    "vocabulary_size": 10,
+                }
+            )
         )
         (path / "configuration" / "session_history.json").write_text(
             json.dumps({"epochs": 3, "history": {"loss": [2.0, 1.0], "val_loss": [2.5, 1.5]}})
@@ -347,7 +356,11 @@ def test_import_rejects_metadata_without_max_report_size(
     producer = Node(tmp_path / "studio", monkeypatch)
     producer.install_encoder()
     path = producer.create_checkpoint("run1")
-    (path / "configuration" / "metadata.json").write_text(json.dumps({"tokenizer": "org/tok"}))
+    (path / "configuration" / "metadata.json").write_text(
+        json.dumps(
+            {"tokenizer": "org/tok", "pad_token_id": 0, "start_token_id": 1, "end_token_id": 2, "vocabulary_size": 10}
+        )
+    )
     archive = _export(producer, "run1")
     consumer = Node(tmp_path / "xreport", monkeypatch)
     consumer.install_encoder()
@@ -355,6 +368,37 @@ def test_import_rejects_metadata_without_max_report_size(
         _import(consumer, archive)
     assert consumer.repository.records == {}
     assert not (consumer.checkpoints_dir / "run1").exists()
+
+
+###############################################################################
+def test_special_token_ids_are_mandatory_and_must_agree_between_manifest_and_metadata(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, stub_ml
+) -> None:
+    producer = Node(tmp_path / "studio", monkeypatch)
+    producer.install_encoder()
+    producer.create_checkpoint("run1")
+    archive = _export(producer, "run1")
+    tampered = tmp_path / "tampered.xreportckpt"
+    with zipfile.ZipFile(archive) as source, zipfile.ZipFile(tampered, "w") as target:
+        for info in source.infolist():
+            data = source.read(info.filename)
+            if info.filename == "manifest.json":
+                manifest = json.loads(data)
+                manifest["tokenizer"]["pad_token_id"] = 5
+                data = json.dumps(manifest).encode()
+            target.writestr(info.filename, data)
+    unrecorded = producer.create_checkpoint("run2")
+    (unrecorded / "configuration" / "metadata.json").write_text(
+        json.dumps({"tokenizer": "org/tok", "max_report_size": 8})
+    )
+    with pytest.raises(JobExecutionError, match="does not record"):
+        producer.service.run_export("run2", False)
+
+    consumer = Node(tmp_path / "xreport", monkeypatch)
+    consumer.install_encoder()
+    with pytest.raises(JobExecutionError, match="disagree on 'pad_token_id'"):
+        _import(consumer, tampered)
+    assert consumer.repository.records == {}
 
 
 ###############################################################################

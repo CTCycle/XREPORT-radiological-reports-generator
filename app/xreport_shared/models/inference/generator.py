@@ -68,23 +68,23 @@ class TextGenerator:
             return None
 
         tokenizer = tokenization.tokenizer
-        special = tokenization.special_tokens()
-        # Ids recorded when the dataset was processed win over the tokenizer's
-        # current values; checkpoints without them were trained on BERT-style ids.
+        # The special-token ids recorded when the dataset was processed are mandatory.
         tokenizer_parameters = {
             "vocabulary_size": tokenization.vocabulary_size,
-            "start_token_idx": self._recorded_id("start_token_id", special.start_token_id),
-            "end_token_idx": self._recorded_id("end_token_id", special.end_token_id),
-            "pad_token_idx": self._recorded_id("pad_token_id", special.pad_token_id),
+            "start_token_idx": self._recorded_id("start_token_id"),
+            "end_token_idx": self._recorded_id("end_token_id"),
+            "pad_token_idx": self._recorded_id("pad_token_id"),
             "tokenizer": tokenizer,
         }
 
         return tokenizer, tokenizer_parameters
 
     # -------------------------------------------------------------------------
-    def _recorded_id(self, key: str, fallback: int) -> int:
+    def _recorded_id(self, key: str) -> int:
         value = self.configuration.get(key)
-        return int(value) if value is not None else int(fallback)
+        if value is None:
+            raise ValueError(f"The checkpoint metadata does not record '{key}'.")
+        return int(value)
 
     # -------------------------------------------------------------------------
     def translate_tokens_to_text(
