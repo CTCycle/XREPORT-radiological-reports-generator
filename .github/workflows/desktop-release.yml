@@ -212,7 +212,7 @@ jobs:
         shell: bash
         run: |
           python app/desktop/build/verify_release_validation_manifest.py \
-            --manifest assets/QA/validation_campaign/release-validation/approved-release-manifest.json \
+            --manifest assets/docs/validation/approved-release-manifest.json \
             --release-root release-assets \
             --repository-root "$GITHUB_WORKSPACE" \
             --source-commit "$SOURCE_COMMIT" \
