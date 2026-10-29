@@ -291,37 +291,73 @@ tokenizers, checkpoints, and templates. A database re-creation starts with an
 empty checkpoint registry; folders already on disk stay unregistered until new
 training runs register them again.
 
-## Development Cache Locations
+## Cache cleanup, data removal, and uninstall
 
-All disposable application, ML, frontend, runtime, and test caches are kept
-under the single canonical `runtimes/cache` root. Its subdirectories include
-`pytest`, `pytest-tmp`, `ruff`, `python`, `coverage`, `angular`, `uv`, `pip`,
-`npm`, `playwright-browsers`, `huggingface`, `torch`, `keras`, and
-`matplotlib`. Packaged launches use the same hierarchy below the writable
-`<data-root>/runtimes/cache` path; persistent models and application data stay
-outside it.
+The launcher resolves paths relative to `start_on_windows.ps1`, regardless of
+the shell's current directory. **Clear cache** previews and removes disposable
+application-owned caches and regenerable output in repository, frontend,
+backend, desktop-build, and packaged-user locations. Coverage includes the
+canonical and legacy runtime cache roots; nested Python bytecode, pytest, Ruff,
+Mypy, and coverage files; Angular and dependency caches; TypeScript test output;
+frontend build/coverage output; Cargo/PyInstaller/Tauri intermediates; NLTK
+data; incomplete packaged runtime extraction; and narrowly named abandoned
+checkpoint or model-metadata staging files. Logs, databases, saved
+checkpoints, installed models, templates, uploaded files, and storage settings
+are not part of cache cleanup. It leaves `.gitkeep` sentinels in place.
 
-The **Clear cache** action cleans only the canonical `runtimes/cache` directory
-(or `<data-root>/runtimes/cache` for packaged launches). It does not search or
-remove historical cache locations.
+Preview the exact planned paths before cleanup:
 
-Select **Clear cache** in the maintenance menu, or run:
+```powershell
+powershell -ExecutionPolicy Bypass -File .\start_on_windows.ps1 -Action ClearCache -DryRun
+```
+
+Remove the planned caches after reviewing the preview:
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\start_on_windows.ps1 -Action ClearCache
 ```
 
-Cache cleanup is best-effort and reproducible: each target is enumerated and
-its items are removed individually in deterministic deepest-first order. Locked
-or administrator-protected files are reported and skipped; other cached
-artifacts continue to be removed. `.gitkeep` sentinels remain preserved.
+The launcher prints the resolved plan, asks for confirmation, and reports
+cleaned, skipped, preserved, or failed paths. It refuses to mutate files while
+identified XREPORT processes are running. Locked or inaccessible entries are
+reported while independent targets continue; an incomplete cleanup returns a
+failure so it can be retried. Reparse points are left untouched.
 
-The maintenance menu and direct actions also expose `RemoveCheckpoints` and
-`RemoveAllData`. They use the same interactive `[y/N]` confirmation as log,
-cache, uninstall, and desktop-release removal actions. `RemoveAllData` clears
-the configured resource root's database sidecars, checkpoints, models,
-tokenizers, and logs while preserving application files, templates, and
-`.gitkeep` sentinels; external databases are not modified.
+**Remove logs** is separate from cache cleanup. It removes recognized
+application `.log` and rotated `.log.N` files for the selected app. Standard
+**Uninstall** removes repository-managed runtimes and environments, frontend
+and desktop dependencies/build output, recognized release artifacts,
+packaged-user extracted runtime/cache/NLTK/log/state files, and only registered
+XREPORT Inference CPU/CUDA MSI products. A portable executable is considered
+only when its exact path is supplied with `-PortableInstallPath`; the launcher
+does not search the user's disk. Standard uninstall preserves databases,
+checkpoints, installed models, uploaded data, shared `.env` files, and
+storage-location pointers.
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\start_on_windows.ps1 -Action Uninstall -DryRun
+powershell -ExecutionPolicy Bypass -File .\start_on_windows.ps1 -Action Uninstall `
+  -PortableInstallPath 'D:\Apps\XREPORT-v4.0.0-windows-x64-cpu-portable.exe'
+```
+
+**Remove all data** is the separate, per-app operation for persistent user
+data. It previews exact resource paths and requires confirmation before
+deleting that app's database and sidecars, checkpoints, exports, logs, and
+app-owned data folders. It resolves `XREPORT_RESOURCES_DIR` from the process
+environment or `settings/.env`, then the repository storage pointer and the
+packaged `%LOCALAPPDATA%\XREPORT\data\storage-location.json` pointer where
+applicable. It preserves the `.env` and pointer files themselves and does not
+modify an external database server. Removing Inference data also removes the
+shared models folder used by Studio, which is called out in the preview and
+confirmation.
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\start_on_windows.ps1 `
+  -Action RemoveAllData -App Xreport -DryRun
+```
+
+Both data removal and uninstall can also be previewed with `-DryRun`; the
+preview performs no deletion or MSI action.
 
 ## XREPORT Studio launch and application scope
 

@@ -2,6 +2,13 @@
 
 Last updated: 2026-10-29
 
+## Launcher cleanup and uninstall hardening (2026-10-29, working tree)
+
+- Scope: central safe cleanup planning in `app/scripts/launcher_cleanup.psm1`; `ClearCache`, `RemoveAllData`, `RemoveLogs`, desktop artifact removal, and standard `Uninstall` keep their existing launcher actions. Dry-run previews the resolved targets; normal cleanup requires confirmation, blocks while identified XREPORT processes run, reports path-level outcomes, and continues after independent failures.
+- PASSED (Windows): PowerShell AST parsing for the launcher, module, and harness; the isolated PowerShell filesystem harness (nested/hidden caches, Angular/Vite and TypeScript output, AppData caches, stale staging, missing/repeated targets, dry-run immutability, locked and ACL-denied files, junction containment, per-app data removal/preservation, external storage pointers, release/portable targets, and mocked allowlisted MSI discovery/uninstall); focused `test_launcher_studio.py` (16/16); and actual `ClearCache`, `RemoveAllData`, and `Uninstall` dry runs from `%TEMP%` to confirm launcher-relative resolution. Data/uninstall probes used disposable resource and profile roots; no paths were mutated. `git diff --check` passed.
+- The regular cache cleanup leaves logs, databases, checkpoints, installed models, templates and uploaded data intact. The separate all-data path is tested only against disposable fixtures and preserves `.env` and storage-pointer files. Standard uninstall is likewise fixture-tested; it preserves persistent database/checkpoint/model files and the repository's `runtimes/.gitkeep` while removing recognized managed output.
+- NOT RUN: real cleanup against the developer's caches, full `run_tests.bat` (the Studio venv is absent), elevation-requiring MSI uninstall, and MSI install/upgrade. MSI execution was mocked and no registered installation was changed.
+
 ## Release 4.0.0 (2026-10-28, `develop` at `aaba4725` plus documentation commits)
 
 - Scope: major release marking the Inference/Studio split. Only XREPORT Inference is packaged; Studio stays repository-run. No new features beyond `develop`; the changelog is [CHANGELOG.md](../../CHANGELOG.md).

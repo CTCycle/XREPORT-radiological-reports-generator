@@ -14,6 +14,8 @@ param(
     [switch]$OfflineWebView2,
     [string]$Version,
     [switch]$AllDesktopReleases,
+    [switch]$DryRun,
+    [string[]]$PortableInstallPath = @(),
     [switch]$Force,
     [switch]$AllowDirtyTree
 )
@@ -22,6 +24,8 @@ $ErrorActionPreference = 'Stop'
 $AppExplicit = $PSBoundParameters.ContainsKey('App')
 $StudioProfileExplicit = $PSBoundParameters.ContainsKey('StudioProfile')
 $RepoRoot = Split-Path -Parent $MyInvocation.MyCommand.Path
+$CleanupModulePath = Join-Path $RepoRoot 'app\scripts\launcher_cleanup.psm1'
+Import-Module -Name $CleanupModulePath -Force -ErrorAction Stop
 $RuntimesDir = Join-Path $RepoRoot 'runtimes'
 $PythonDir = Join-Path $RuntimesDir 'python'
 $PythonExe = Join-Path $PythonDir 'python.exe'
@@ -1568,7 +1572,7 @@ function Get-XReportApplicationProcessIds {
         $isFrontend = $repoScoped -and ($commandLine -match '(?i)(?:\bnpm\b|\bnode(?:\.exe)?\b|\bvite\b).*(?:\bpreview\b|serve-built\.cjs)')
         $isDesktopDevelopment = $repoScoped -and ($commandLine -match '(?i)\b(?:tauri|cargo)\b')
         $isPortableRelease = $processName -match '(?i)^xreport-v\d+\.\d+\.\d+-windows-x64-(?:cpu|cuda)-portable$'
-        $isPackagedApplication = $processName -in @('xreport-backend', 'xreport-desktop') -or $isPortableRelease
+        $isPackagedApplication = $processName -in @('xreport-backend', 'xreport-desktop', 'xreport inference cpu', 'xreport inference cuda') -or $isPortableRelease
 
         $inScope = switch ($Scope) {
             'Studio' { $isStudioBackend }
@@ -2487,18 +2491,18 @@ function Invoke-RemoveDesktopArtifacts {
         [Parameter(Mandatory = $true)][object[]]$Selections,
         [Parameter(Mandatory = $true)][string]$ReleaseVersion
     )
-    if (-not (Confirm-DestructiveAction 'remove the selected desktop release artifacts')) { return }
-    $removed = 0
-    foreach ($selection in @($Selections)) {
-        if (Test-Path -LiteralPath $selection.Path) {
-            $result = Remove-LauncherPath -Path $selection.Path -PreserveNames @() -Activity "XREPORT: remove release file $([IO.Path]::GetFileName($selection.Path))" -Strict
-            $removed += $result.RemovedCount
-            Write-Info "Removed $([IO.Path]::GetFileName($selection.Path))"
-        }
-        else {
-            Write-Warn "Artifact not found: $($selection.Path)"
-        }
+    $targets = @($Selections | ForEach-Object { [pscustomobject]@{ Path = $_.Path; Label = 'Selected desktop release artifact'; KeepRoot = $false; PreserveNames = @() } })
+    $plan = New-XReportCleanupPlan -Targets $targets -AllowedRoots @(Get-CleanupAllowedRoots)
+    Write-CleanupPlan -Plan $plan
+    if ($DryRun) {
+        Write-CleanupResult -Result (Invoke-XReportCleanupPlan -Plan $plan -DryRun)
+        return
     }
+    Assert-XReportStoppedForCleanup
+    if (-not (Confirm-DestructiveAction 'remove the selected desktop release artifacts')) { return }
+    $result = Invoke-XReportCleanupPlan -Plan $plan
+    Write-CleanupResult -Result $result
+    if ($result.Failed.Count -gt 0) { throw "Desktop release removal failed for $($result.Failed.Count) target(s)." }
 
     foreach ($variant in @($Selections | Select-Object -ExpandProperty Variant -Unique)) {
         Update-DesktopVariantReleaseMetadata -Variant $variant -ReleaseVersion $ReleaseVersion
@@ -2506,7 +2510,7 @@ function Invoke-RemoveDesktopArtifacts {
     if ((Test-Path -LiteralPath $DesktopReleaseDir -PathType Container) -and -not (Get-ChildItem -LiteralPath $DesktopReleaseDir -Force)) {
         [void](Remove-LauncherPath -Path $DesktopReleaseDir -PreserveNames @() -Activity 'XREPORT: remove empty release directory' -Strict)
     }
-    Write-Ok "Removed $removed selected release payload(s); remaining manifests were synchronized."
+    Write-Ok "Removed $($result.Cleaned.Count) selected release path(s); remaining manifests were synchronized."
 }
 
 function Invoke-RemoveDesktopArtifactsMenu {
@@ -2619,7 +2623,7 @@ function Invoke-LaunchDesktopDev {
     }
 }
 
-function Remove-DesktopGeneratedState {
+function Get-DesktopGeneratedStateTargets {
     $generatedConfigs = @(Get-ChildItem -LiteralPath $DesktopBuildDir -File -Filter 'tauri-*.json' -ErrorAction SilentlyContinue | ForEach-Object { $_.FullName })
     $targets = @(
         (Join-Path $DesktopDir 'node_modules'),
@@ -2635,27 +2639,24 @@ function Remove-DesktopGeneratedState {
         (Join-Path $DesktopTauriDir 'ui')
     ) + $generatedConfigs
     foreach ($target in $targets) {
-        if (Test-Path -LiteralPath $target) {
-            [void](Remove-LauncherPath -Path $target -Activity "XREPORT: remove desktop state $([IO.Path]::GetFileName($target))" -Strict)
-        }
+        [pscustomobject]@{ Path = $target; Label = 'Generated desktop build state'; KeepRoot = $false; PreserveNames = @() }
     }
     $generatedDir = Join-Path $DesktopTauriDir 'generated'
-    if (Test-Path -LiteralPath $generatedDir) {
-        [void](Remove-LauncherPath -Path $generatedDir -KeepRoot -Activity 'XREPORT: remove generated Tauri runtime state' -Strict)
-    }
+    [pscustomobject]@{ Path = $generatedDir; Label = 'Generated Tauri runtime state'; KeepRoot = $false; PreserveNames = @() }
 }
 
 function Invoke-RemoveAllDesktopReleaseArtifacts {
-    if (-not (Confirm-DestructiveAction 'remove all desktop release artifacts and generated build state')) { return }
     $artifactPattern = '^XREPORT-v\d+\.\d+\.\d+-windows-x64-(?:cpu|cuda)(?:-portable\.exe|\.msi|\.sha256|-build\.json)$'
+    $targets = [Collections.Generic.List[object]]::new()
     if (Test-Path -LiteralPath $DesktopReleaseDir) {
         $artifacts = @(Get-ChildItem -LiteralPath $DesktopReleaseDir -File | Where-Object { $_.Name -match $artifactPattern })
         foreach ($artifact in $artifacts) {
-            [void](Remove-LauncherPath -Path $artifact.FullName -PreserveNames @() -Activity "XREPORT: remove release artifact $($artifact.Name)" -Strict)
+            [void]$targets.Add([pscustomobject]@{ Path = $artifact.FullName; Label = 'Generated desktop release artifact'; KeepRoot = $false; PreserveNames = @() })
         }
     }
-    Remove-DesktopGeneratedState
-    Write-Ok 'All desktop release artifacts and generated build state removed; repository source, release approval records, test fixtures, installed applications, and user data were preserved.'
+    foreach ($target in @(Get-DesktopGeneratedStateTargets)) { [void]$targets.Add($target) }
+    Invoke-MaintenanceCleanup -Targets @($targets) -Description 'remove all desktop release artifacts and generated build state' | Out-Null
+    if (-not $DryRun) { Write-Ok 'Desktop release artifacts and generated build state were removed; installed applications and user data were preserved.' }
 }
 
 function Invoke-RemoveDesktopRelease {
@@ -2724,6 +2725,21 @@ function Invoke-TestSuite {
     Write-Ok 'Test suite completed successfully'
 }
 
+function Assert-ConfiguredResourceRoot {
+    param([Parameter(Mandatory = $true)][string]$Path)
+    $fullPath = [IO.Path]::GetFullPath($Path)
+    $filesystemRoot = [IO.Path]::GetPathRoot($fullPath)
+    $repositoryRoot = [IO.Path]::GetFullPath($RepoRoot).TrimEnd('\', '/')
+    $normalized = $fullPath.TrimEnd('\', '/')
+    if ([string]::IsNullOrWhiteSpace($filesystemRoot) -or $normalized.Equals($filesystemRoot.TrimEnd('\', '/'), [StringComparison]::OrdinalIgnoreCase) -or
+        $normalized.Equals($repositoryRoot, [StringComparison]::OrdinalIgnoreCase) -or
+        $repositoryRoot.StartsWith($normalized + [IO.Path]::DirectorySeparatorChar, [StringComparison]::OrdinalIgnoreCase) -or
+        $repositoryRoot.StartsWith($normalized + [IO.Path]::AltDirectorySeparatorChar, [StringComparison]::OrdinalIgnoreCase)) {
+        throw "Refusing to use unsafe configured resource root '$fullPath'."
+    }
+    return $normalized
+}
+
 function Get-ConfiguredResourceRoot {
     $processResourceOverride = [string]$env:XREPORT_RESOURCES_DIR
     $settings = Import-XReportEnvironment
@@ -2732,7 +2748,18 @@ function Get-ConfiguredResourceRoot {
     } elseif ($settings.ContainsKey('XREPORT_RESOURCES_DIR')) {
         [string]$settings['XREPORT_RESOURCES_DIR']
     } else {
-        'data'
+        $null
+    }
+    if ([string]::IsNullOrWhiteSpace($configuredRoot)) {
+        $pointerPath = Join-Path $RepoRoot 'settings\storage-location.json'
+        if (Test-Path -LiteralPath $pointerPath -PathType Leaf) {
+            try {
+                $pointer = Get-Content -LiteralPath $pointerPath -Raw -ErrorAction Stop | ConvertFrom-Json -ErrorAction Stop
+                if ($pointer -and $pointer.storage_root -is [string] -and -not [string]::IsNullOrWhiteSpace($pointer.storage_root)) {
+                    $configuredRoot = [string]$pointer.storage_root
+                }
+            } catch { Write-Warn "Could not read storage-location pointer '$pointerPath': $($_.Exception.Message)" }
+        }
     }
     if ([string]::IsNullOrWhiteSpace($configuredRoot)) {
         $configuredRoot = 'data'
@@ -2741,63 +2768,52 @@ function Get-ConfiguredResourceRoot {
     if (-not [IO.Path]::IsPathRooted($expandedRoot)) {
         $expandedRoot = Join-Path $RepoRoot $expandedRoot
     }
-    $resourceRoot = [IO.Path]::GetFullPath($expandedRoot).TrimEnd('\')
-    $filesystemRoot = ([IO.Path]::GetPathRoot($resourceRoot)).TrimEnd('\')
-    $repositoryRoot = [IO.Path]::GetFullPath($RepoRoot).TrimEnd('\')
-    if ([string]::IsNullOrWhiteSpace($resourceRoot) -or $resourceRoot -eq $filesystemRoot -or $resourceRoot -eq $repositoryRoot -or $repositoryRoot.StartsWith("$resourceRoot\", [StringComparison]::OrdinalIgnoreCase)) {
-        throw "Refusing to remove data from the configured resource root '$resourceRoot'."
+    return Assert-ConfiguredResourceRoot -Path $expandedRoot
+}
+
+function Get-LocalAppDataRoot {
+    if ([string]::IsNullOrWhiteSpace([string]$env:LOCALAPPDATA)) { return $null }
+    return [IO.Path]::GetFullPath((Join-Path $env:LOCALAPPDATA 'XREPORT\data'))
+}
+
+function Resolve-StoragePointerRoot {
+    param([Parameter(Mandatory = $true)][string]$BootstrapRoot)
+    $pointerPath = Join-Path $BootstrapRoot 'storage-location.json'
+    if (-not (Test-Path -LiteralPath $pointerPath -PathType Leaf)) { return $null }
+    try {
+        $value = Resolve-XReportStoragePointer -BootstrapRoot $BootstrapRoot
+        if (-not $value) { return $null }
+        return Assert-ConfiguredResourceRoot -Path $value
+    } catch {
+        Write-Warn "Could not read storage-location pointer '$pointerPath': $($_.Exception.Message)"
+        return $null
     }
-    return $resourceRoot
+}
+
+function Get-ConfiguredResourceRoots {
+    $roots = [Collections.Generic.List[string]]::new()
+    [void]$roots.Add((Get-ConfiguredResourceRoot))
+    $localDataRoot = Get-LocalAppDataRoot
+    if ($localDataRoot) {
+        $packagedRoot = Resolve-StoragePointerRoot -BootstrapRoot $localDataRoot
+        if (-not $packagedRoot) { $packagedRoot = $localDataRoot }
+        [void]$roots.Add($packagedRoot)
+    }
+    return @($roots | Select-Object -Unique)
+}
+
+function Get-CleanupAllowedRoots {
+    $roots = [Collections.Generic.List[string]]::new()
+    [void]$roots.Add($RepoRoot)
+    $localDataRoot = Get-LocalAppDataRoot
+    if ($localDataRoot) { [void]$roots.Add($localDataRoot) }
+    foreach ($resourceRoot in @(Get-ConfiguredResourceRoots)) { [void]$roots.Add($resourceRoot) }
+    return @($roots | Select-Object -Unique)
 }
 
 function Get-XReportUserDataTargets {
     param([switch]$CheckpointsOnly)
-
-    $resourceRoot = Get-ConfiguredResourceRoot
-    if ($App -eq 'Studio') {
-        # Studio data lives in its own folder; the shared models directory is never a Studio target.
-        $studioRoot = Join-Path $resourceRoot 'studio'
-        if ($CheckpointsOnly) { return @((Join-Path $studioRoot 'checkpoints')) }
-        $studioDatabase = Join-Path $studioRoot 'database.db'
-        return @(
-            $studioDatabase,
-            "$studioDatabase-wal",
-            "$studioDatabase-shm",
-            "$studioDatabase-journal",
-            (Join-Path $studioRoot 'checkpoints'),
-            (Join-Path $studioRoot 'exports'),
-            (Join-Path $studioRoot 'logs')
-        ) | ForEach-Object { [IO.Path]::GetFullPath($_) } | Select-Object -Unique
-    }
-    if ($CheckpointsOnly) {
-        return @((Join-Path $resourceRoot 'checkpoints'))
-    }
-
-    $databasePath = Join-Path $resourceRoot 'database.db'
-    return @(
-        $databasePath,
-        "$databasePath-wal",
-        "$databasePath-shm",
-        "$databasePath-journal",
-        (Join-Path $resourceRoot 'checkpoints'),
-        (Join-Path $resourceRoot 'models'),
-        (Join-Path $resourceRoot 'models\tokenizers'),
-        (Join-Path $resourceRoot 'logs')
-    ) | ForEach-Object { [IO.Path]::GetFullPath($_) } | Select-Object -Unique
-}
-
-function Remove-XReportUserDataTargets {
-    param([Parameter(Mandatory = $true)][string[]]$Targets)
-
-    $removed = 0
-    $skipped = 0
-    foreach ($target in @($Targets | Select-Object -Unique)) {
-        $isContainer = Test-Path -LiteralPath $target -PathType Container
-        $result = Remove-LauncherPath -Path $target -KeepRoot:$isContainer -Activity "XREPORT: remove user data $target"
-        $removed += $result.Removed
-        $skipped += $result.Skipped
-    }
-    return [pscustomobject]@{ Removed = $removed; Skipped = $skipped }
+    return @(Get-XReportApplicationDataTargets -ResourceRoots @(Get-ConfiguredResourceRoots) -App $App -CheckpointsOnly:$CheckpointsOnly)
 }
 
 function Get-AppLabel {
@@ -2811,57 +2827,104 @@ function Select-LauncherApplication {
     $script:App = if ($answer -eq '2') { 'Studio' } else { 'Xreport' }
 }
 
-function Remove-Checkpoints {
-    if (-not (Confirm-DestructiveAction "remove all saved checkpoints of $(Get-AppLabel)")) { return }
-    $result = Remove-XReportUserDataTargets -Targets @(Get-XReportUserDataTargets -CheckpointsOnly)
-    if ($result.Skipped -gt 0) {
-        Write-Warn "Removed $($result.Removed) checkpoint item(s); skipped $($result.Skipped) locked or protected item(s)."
-    } else {
-        Write-Ok "Removed $($result.Removed) checkpoint item(s)."
+function Write-CleanupPlan {
+    param([Parameter(Mandatory = $true)][pscustomobject]$Plan)
+    Write-Host '[PLAN] Resolved cleanup targets:' -ForegroundColor Cyan
+    foreach ($item in $Plan.Items) { Write-Host "  [$($item.Label)] $($item.Path)" -ForegroundColor Gray }
+    foreach ($item in $Plan.InitialResults) {
+        $color = if ($item.Status -eq 'Failed') { [ConsoleColor]::Red } else { [ConsoleColor]::Yellow }
+        Write-Host "  [$($item.Status)] $($item.Path): $($item.Message)" -ForegroundColor $color
     }
+    if ($Plan.Items.Count -eq 0 -and $Plan.InitialResults.Count -eq 0) { Write-Info 'No matching cleanup targets were found.' }
+}
+
+function Write-CleanupResult {
+    param([Parameter(Mandatory = $true)][pscustomobject]$Result)
+    if ($Result.DryRun) {
+        Write-Ok "Dry run: $($Result.Planned.Count) item(s) would be removed; no files were changed."
+    } else {
+        Write-Info "Cleanup result: $($Result.Cleaned.Count) cleaned, $($Result.Skipped.Count) skipped, $($Result.Failed.Count) failed, $($Result.Preserved.Count) preserved."
+        foreach ($item in $Result.Results | Where-Object Status -eq 'Cleaned') {
+            Write-Host "  [Cleaned] $($item.Path)" -ForegroundColor Green
+        }
+    }
+    foreach ($item in $Result.Results | Where-Object { $_.Status -in @('Skipped', 'Failed') }) {
+        $color = if ($item.Status -eq 'Failed') { [ConsoleColor]::Red } else { [ConsoleColor]::Yellow }
+        Write-Host "  [$($item.Status)] $($item.Path): $($item.Message)" -ForegroundColor $color
+    }
+}
+
+function Assert-XReportStoppedForCleanup {
+    $processTable = Get-XReportProcessTable
+    $processIds = @(Get-XReportApplicationProcessIds -ProcessTable $processTable -Scope All)
+    if ($processIds.Count -gt 0) {
+        throw "XREPORT process(es) are still running (PID $($processIds -join ', ')). Stop them with -Action KillProcesses, then retry cleanup. No cleanup was started."
+    }
+}
+
+function Invoke-MaintenanceCleanup {
+    param(
+        [Parameter(Mandatory = $true)][object[]]$Targets,
+        [Parameter(Mandatory = $true)][string]$Description,
+        [string[]]$ExtraAllowedRoots = @()
+    )
+    $allowedRoots = @(Get-CleanupAllowedRoots) + @($ExtraAllowedRoots)
+    $plan = New-XReportCleanupPlan -Targets $Targets -AllowedRoots $allowedRoots
+    Write-CleanupPlan -Plan $plan
+    if ($DryRun) {
+        $dryRunResult = Invoke-XReportCleanupPlan -Plan $plan -DryRun
+        Write-CleanupResult -Result $dryRunResult
+        return $dryRunResult
+    }
+    Assert-XReportStoppedForCleanup
+    if (-not (Confirm-DestructiveAction $Description)) { return $null }
+    $result = Invoke-XReportCleanupPlan -Plan $plan
+    Write-CleanupResult -Result $result
+    if ($result.Failed.Count -gt 0) { throw "Cleanup was incomplete: $($result.Failed.Count) target(s) failed. Review the reported paths and retry." }
+    return $result
+}
+
+function Remove-Checkpoints {
+    Invoke-MaintenanceCleanup -Targets @(Get-XReportUserDataTargets -CheckpointsOnly) -Description "remove all saved checkpoints of $(Get-AppLabel)" | Out-Null
 }
 
 function Remove-AllData {
     $sharedNote = if ($App -eq 'Studio') { '' } else { ' (including the shared models folder that XREPORT Studio also uses)' }
-    if (-not (Confirm-DestructiveAction "remove all local user-generated data of $(Get-AppLabel)$sharedNote")) { return }
-    $result = Remove-XReportUserDataTargets -Targets @(Get-XReportUserDataTargets)
-    if ($result.Skipped -gt 0) {
-        Write-Warn "Removed $($result.Removed) local data item(s); skipped $($result.Skipped) locked or protected item(s). External databases were not modified."
-    } else {
-        Write-Ok "Removed $($result.Removed) local data item(s); external databases were not modified. Application files and settings were preserved."
+    Invoke-MaintenanceCleanup -Targets @(Get-XReportUserDataTargets) -Description "remove all local user-generated data of $(Get-AppLabel)$sharedNote" | Out-Null
+}
+
+function Get-XReportLogTargets {
+    param([switch]$AllApplications)
+    $directories = [Collections.Generic.List[string]]::new()
+    foreach ($resourceRoot in @(Get-ConfiguredResourceRoots)) {
+        if ($AllApplications) {
+            [void]$directories.Add((Join-Path $resourceRoot 'logs'))
+            [void]$directories.Add((Join-Path $resourceRoot 'studio\logs'))
+        } elseif ($App -eq 'Studio') {
+            [void]$directories.Add((Join-Path $resourceRoot 'studio\logs'))
+        } else {
+            [void]$directories.Add((Join-Path $resourceRoot 'logs'))
+        }
     }
+    if (($AllApplications -or $App -ne 'Studio') -and (Get-LocalAppDataRoot)) {
+        [void]$directories.Add((Join-Path (Get-LocalAppDataRoot) 'logs'))
+    }
+    $targets = [Collections.Generic.List[object]]::new()
+    foreach ($directory in @($directories | Select-Object -Unique)) {
+        if (-not (Test-Path -LiteralPath $directory -PathType Container)) { continue }
+        try {
+            foreach ($entry in Get-ChildItem -LiteralPath $directory -File -Force -ErrorAction Stop | Where-Object { $_.Name -match '(?i)\.log(?:\.\d+)?$' }) {
+                [void]$targets.Add([pscustomobject]@{ Path = $entry.FullName; Label = 'Application log'; KeepRoot = $false; PreserveNames = @() })
+            }
+        } catch { [void]$targets.Add([pscustomobject]@{ Path = $directory; Label = 'Inaccessible application log directory'; KeepRoot = $true; PreserveNames = @(); PlanError = $_.Exception.Message }) }
+    }
+    return @($targets | Sort-Object Path -Unique)
 }
 
 function Remove-Logs {
-    if (-not (Confirm-DestructiveAction "remove application log files of $(Get-AppLabel)")) { return }
-    $logRoot = if ($App -eq 'Studio') { Join-Path (Get-ConfiguredResourceRoot) 'studio' } else { Get-ConfiguredResourceRoot }
-    $logDir = Join-Path $logRoot 'logs'
-    $logs = @(Get-ChildItem -LiteralPath $logDir -File -Filter '*.log' -ErrorAction SilentlyContinue |
-        Sort-Object @{ Expression = { $_.FullName.ToUpperInvariant() }; Descending = $false })
-    if ($logs.Count -gt 0) {
-        $removed = 0
-        $skipped = 0
-        $progressId = Start-LauncherProgress -Activity 'XREPORT: remove application logs' -Status "0 of $($logs.Count) files"
-        try {
-            for ($index = 0; $index -lt $logs.Count; $index++) {
-                $log = $logs[$index]
-                Update-LauncherProgress -Id $progressId -Activity 'XREPORT: remove application logs' -Status "$($index + 1) of $($logs.Count): $($log.Name)" -PercentComplete ([int](($index + 1) * 100 / $logs.Count))
-                $result = Remove-LauncherPath -Path $log.FullName -Activity "XREPORT: remove $($log.FullName)"
-                $removed += $result.Removed
-                $skipped += $result.Skipped
-            }
-        }
-        finally {
-            Complete-LauncherProgress -Id $progressId
-        }
-        if ($skipped -gt 0) {
-            Write-Warn "Removed $removed log file(s); skipped $skipped locked or protected file(s)."
-        } else {
-            Write-Ok "Removed $removed log file(s)"
-        }
-    } else {
-        Write-Info 'No log files found'
-    }
+    $targets = @(Get-XReportLogTargets)
+    if ($targets.Count -eq 0) { Write-Info 'No application log files were found.'; return }
+    Invoke-MaintenanceCleanup -Targets $targets -Description "remove application log files of $(Get-AppLabel)" | Out-Null
 }
 
 function Remove-LauncherPath {
@@ -2875,205 +2938,111 @@ function Remove-LauncherPath {
         [string]$Activity = 'XREPORT: remove files'
     )
 
-    $fullPath = [IO.Path]::GetFullPath($Path)
-    $trimmedPath = $fullPath.TrimEnd('\')
-    $pathRoot = ([IO.Path]::GetPathRoot($fullPath)).TrimEnd('\')
-    if ([string]::IsNullOrWhiteSpace($pathRoot) -or $trimmedPath.Equals($pathRoot, [StringComparison]::OrdinalIgnoreCase)) {
-        throw "Refusing to remove filesystem root: $fullPath"
+    $spec = [pscustomobject]@{ Path = $Path; Label = $Activity; KeepRoot = [bool]$KeepRoot; PreserveNames = @($PreserveNames) }
+    $plan = New-XReportCleanupPlan -Targets @($spec) -AllowedRoots @(Get-CleanupAllowedRoots)
+    $result = Invoke-XReportCleanupPlan -Plan $plan -DryRun:$WhatIf
+    $enumerationErrors = @($result.Failed | Where-Object { $_.Message -like 'Cannot enumerate directory:*' })
+    $strictIssues = @($result.Failed) + @($result.Skipped | Where-Object { $_.Message -ne 'Target does not exist.' })
+    if ($Strict -and $strictIssues.Count -gt 0) {
+        throw "Removal of '$Path' was incomplete: $($strictIssues.Count) path(s) failed or were protected."
     }
-    if ($RepoRoot) {
-        $repoRootPath = ([IO.Path]::GetFullPath($RepoRoot)).TrimEnd('\')
-        if ($trimmedPath.Equals($repoRootPath, [StringComparison]::OrdinalIgnoreCase)) {
-            throw "Refusing to remove the repository root: $fullPath"
-        }
-    }
-
-    $plannedPaths = [Collections.Generic.List[string]]::new()
-    $removedPaths = [Collections.Generic.List[string]]::new()
-    $preservedPathList = [Collections.Generic.List[string]]::new()
-    $skippedPaths = [Collections.Generic.List[string]]::new()
-    $enumerationMessages = [Collections.Generic.List[string]]::new()
-    $result = [ordered]@{
-        Target = $fullPath
-        Path = $fullPath
-        Planned = 0
-        PlannedCount = 0
-        PlannedPaths = @()
-        Removed = 0
-        RemovedCount = 0
-        RemovedPaths = @()
-        Preserved = 0
-        PreservedCount = 0
-        PreservedEntries = @()
-        PreservedPaths = @()
-        Skipped = 0
-        SkippedCount = 0
-        SkippedPaths = @()
-        EnumerationErrors = @()
-        EnumerationErrorCount = 0
+    return [pscustomobject]@{
+        Target = [IO.Path]::GetFullPath($Path)
+        Path = [IO.Path]::GetFullPath($Path)
+        Planned = $result.Planned.Count
+        PlannedCount = $result.Planned.Count
+        PlannedPaths = @($result.Planned | Select-Object -ExpandProperty Path)
+        Removed = $result.Cleaned.Count
+        RemovedCount = $result.Cleaned.Count
+        RemovedPaths = @($result.Cleaned | Select-Object -ExpandProperty Path)
+        Preserved = $result.Preserved.Count
+        PreservedCount = $result.Preserved.Count
+        PreservedEntries = @($result.Preserved | Select-Object -ExpandProperty Path)
+        PreservedPaths = @($result.Preserved | Select-Object -ExpandProperty Path)
+        Skipped = $result.Skipped.Count
+        SkippedCount = $result.Skipped.Count
+        SkippedPaths = @($result.Skipped | ForEach-Object { "$($_.Path) ($($_.Message))" })
+        EnumerationErrors = @($enumerationErrors | ForEach-Object { "$($_.Path) ($($_.Message))" })
+        EnumerationErrorCount = $enumerationErrors.Count
         WhatIf = [bool]$WhatIf
     }
-    try {
-        $root = Get-Item -LiteralPath $fullPath -Force -ErrorAction Stop
-    }
-    catch {
-        if ($_.CategoryInfo.Category -eq [System.Management.Automation.ErrorCategory]::ObjectNotFound) { return [pscustomobject]$result }
-        $message = "$fullPath ($($_.Exception.Message))"
-        [void]$skippedPaths.Add($message)
-        [void]$enumerationMessages.Add($message)
-        $result.Skipped = 1
-        $result.SkippedCount = 1
-        $result.SkippedPaths = @($skippedPaths)
-        $result.EnumerationErrors = @($enumerationMessages)
-        $result.EnumerationErrorCount = 1
-        Write-Warn "Skipped inaccessible path: $fullPath ($($_.Exception.Message))"
-        if ($Strict) { throw "Removal of '$fullPath' failed: $($_.Exception.Message)" }
-        return [pscustomobject]$result
-    }
-    $enumerationErrors = @()
-    $entries = if ($root.PSIsContainer) {
-        @(Get-ChildItem -LiteralPath $root.FullName -Force -Recurse -ErrorAction SilentlyContinue -ErrorVariable enumerationErrors)
-    } else { @($root) }
-    foreach ($enumerationError in @($enumerationErrors)) {
-        if ($null -eq $enumerationError) { continue }
-        $message = "$fullPath ($($enumerationError.Exception.Message))"
-        [void]$enumerationMessages.Add($message)
-        [void]$skippedPaths.Add($message)
-        Write-Warn "Skipped inaccessible path below ${fullPath}: $($enumerationError.Exception.Message)"
-    }
-    $preservedPathSet = [Collections.Generic.HashSet[string]]::new([StringComparer]::OrdinalIgnoreCase)
-    $protectedDirectories = [Collections.Generic.HashSet[string]]::new([StringComparer]::OrdinalIgnoreCase)
-    $protectedSubtreePrefixes = [Collections.Generic.List[string]]::new()
-    $preserveNameSet = [Collections.Generic.HashSet[string]]::new([StringComparer]::OrdinalIgnoreCase)
-    foreach ($preserveName in @($PreserveNames)) {
-        if (-not [string]::IsNullOrWhiteSpace([string]$preserveName)) {
-            [void]$preserveNameSet.Add([string]$preserveName)
+}
+function Clear-ApplicationCache {
+    $resourceRoots = @(Get-ConfiguredResourceRoots)
+    $targets = @(Get-XReportCacheTargets -RepoRoot $RepoRoot -LocalAppData $env:LOCALAPPDATA -ResourceRoots $resourceRoots)
+    $appDataRoot = Get-LocalAppDataRoot
+    if ($appDataRoot) {
+        foreach ($stateName in @('desktop-ready.json', 'desktop-session.json')) {
+            $targets += [pscustomobject]@{ Path = (Join-Path $appDataRoot "state\$stateName"); Label = 'Packaged transient desktop state'; KeepRoot = $false; PreserveNames = @() }
         }
     }
-    foreach ($entry in @($entries)) {
-        if ($preserveNameSet.Contains([string]$entry.Name)) {
-            [void]$preservedPathSet.Add($entry.FullName)
-            [void]$preservedPathList.Add($entry.FullName)
-            if ($entry.PSIsContainer) {
-                [void]$protectedSubtreePrefixes.Add($entry.FullName.TrimEnd('\') + '\')
-                [void]$protectedDirectories.Add($entry.FullName)
-            }
-            [void]$protectedDirectories.Add($root.FullName)
-            $ancestor = [IO.Path]::GetDirectoryName($entry.FullName)
-            while ($ancestor -and $ancestor.StartsWith($root.FullName.TrimEnd('\') + '\', [StringComparison]::OrdinalIgnoreCase)) {
-                [void]$protectedDirectories.Add($ancestor)
-                $ancestor = [IO.Path]::GetDirectoryName($ancestor)
-            }
-        }
-    }
-    $candidates = @($entries |
-        Where-Object {
-            if ($preservedPathSet.Contains($_.FullName) -or $protectedDirectories.Contains($_.FullName)) {
-                $false
-            } else {
-                $insideProtectedSubtree = $false
-                foreach ($prefix in $protectedSubtreePrefixes) {
-                    if ($_.FullName.StartsWith($prefix, [StringComparison]::OrdinalIgnoreCase)) {
-                        $insideProtectedSubtree = $true
-                        break
-                    }
-                }
-                -not $insideProtectedSubtree
-            }
-        } |
-        Sort-Object @{ Expression = { $_.FullName.Length }; Descending = $true }, @{ Expression = { $_.FullName.ToUpperInvariant() }; Descending = $false })
-    if ($root.PSIsContainer -and -not $KeepRoot -and $preservedPathList.Count -eq 0) { $candidates += $root }
-    foreach ($candidate in @($candidates)) { [void]$plannedPaths.Add($candidate.FullName) }
-    $result.Planned = [int]$plannedPaths.Count
-    $result.PlannedCount = [int]$plannedPaths.Count
-    $result.PlannedPaths = @($plannedPaths)
-    $result.Preserved = [int]$preservedPathList.Count
-    $result.PreservedCount = [int]$preservedPathList.Count
-    $result.PreservedEntries = @($preservedPathList)
-    $result.PreservedPaths = @($preservedPathList)
-    $result.EnumerationErrors = @($enumerationMessages)
-    $result.EnumerationErrorCount = [int]$enumerationMessages.Count
-    $progressId = $null
-    try {
-        if ($plannedPaths.Count -gt 0) { $progressId = Start-LauncherProgress -Activity $Activity -Status "0 of $($plannedPaths.Count) items" }
-        for ($index = 0; $index -lt $plannedPaths.Count; $index++) {
-            $entry = $candidates[$index]
-            if ($null -ne $progressId) {
-                Update-LauncherProgress -Id $progressId -Activity $Activity -Status "$($index + 1) of $($plannedPaths.Count): $($entry.Name)" -PercentComplete ([int](($index + 1) * 100 / [Math]::Max(1, $plannedPaths.Count)))
-            }
-            if ($WhatIf) { continue }
-            try {
-                Remove-Item -LiteralPath $entry.FullName -Force -Recurse -Confirm:$false -ErrorAction Stop
-                [void]$removedPaths.Add($entry.FullName)
-            }
-            catch {
-                [void]$skippedPaths.Add("$($entry.FullName) ($($_.Exception.Message))")
-                Write-Warn "Skipped locked or protected path: $($entry.FullName) ($($_.Exception.Message))"
-            }
-        }
-    }
-    finally {
-        if ($null -ne $progressId) { Complete-LauncherProgress -Id $progressId }
-    }
-    $result.Removed = [int]$removedPaths.Count
-    $result.RemovedCount = [int]$removedPaths.Count
-    $result.RemovedPaths = @($removedPaths)
-    $result.Skipped = [int]$skippedPaths.Count
-    $result.SkippedCount = [int]$skippedPaths.Count
-    $result.SkippedPaths = @($skippedPaths)
-    if ($Strict -and ($result.SkippedCount -gt 0 -or $result.EnumerationErrorCount -gt 0)) {
-        throw "Removal of '$fullPath' was incomplete. Skipped $($result.SkippedCount) item(s) and encountered $($result.EnumerationErrorCount) enumeration error(s)."
-    }
-    return [pscustomobject]$result
+    Invoke-MaintenanceCleanup -Targets $targets -Description 'clear application caches and regenerable build output' | Out-Null
 }
 
-function Clear-ApplicationCache {
-    if (-not (Confirm-DestructiveAction 'clear application caches')) { return }
-    $cacheRoot = [IO.Path]::GetFullPath($RuntimeCacheDir)
-    $results = [Collections.Generic.List[object]]::new()
-    $progressId = Start-LauncherProgress -Activity 'XREPORT: clear application cache' -Status "Clearing $cacheRoot"
-    try {
-        Update-LauncherProgress -Id $progressId -Activity 'XREPORT: clear application cache' -Status "Clearing $cacheRoot" -PercentComplete 0
-        [void]$results.Add((Remove-LauncherPath -Path $cacheRoot -PreserveNames @('.gitkeep') -Activity "XREPORT: remove $cacheRoot"))
+function Get-XReportMsiProducts {
+    $uninstallRoots = @(
+        'HKLM:\Software\Microsoft\Windows\CurrentVersion\Uninstall',
+        'HKLM:\Software\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall',
+        'HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall',
+        'HKCU:\Software\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall'
+    )
+    $entries = [Collections.Generic.List[object]]::new()
+    foreach ($uninstallRoot in $uninstallRoots) {
+        if (-not (Test-Path -LiteralPath $uninstallRoot)) { continue }
+        try { $registryKeys = @(Get-ChildItem -LiteralPath $uninstallRoot -ErrorAction Stop) } catch { Write-Warn "Could not inspect MSI uninstall registrations at '$uninstallRoot': $($_.Exception.Message)"; continue }
+        foreach ($registryKey in $registryKeys) {
+            try { $entry = Get-ItemProperty -LiteralPath $registryKey.PSPath -ErrorAction Stop } catch { Write-Warn "Could not inspect MSI registration '$($registryKey.PSChildName)': $($_.Exception.Message)"; continue }
+            [void]$entries.Add($entry)
+        }
     }
-    finally {
-        Complete-LauncherProgress -Id $progressId
-    }
+    return @(Select-XReportMsiProducts -RegistryEntries $entries.ToArray())
+}
 
-    $removed = [int](($results | Measure-Object -Property Removed -Sum).Sum)
-    $skipped = [int](($results | Measure-Object -Property Skipped -Sum).Sum)
-    if ($skipped -gt 0) {
-        Write-Warn "Application cache cleanup completed: removed $removed item(s); skipped $skipped protected item(s)."
-    } else {
-        Write-Ok "Application caches cleared: removed $removed item(s)."
-    }
-    Initialize-Environment
+function Get-UninstallTargets {
+    return @(Get-XReportUninstallTargets `
+        -RepoRoot $RepoRoot `
+        -LocalAppData $env:LOCALAPPDATA `
+        -ResourceRoots @(Get-ConfiguredResourceRoots) `
+        -AdditionalTargets @(Get-XReportLogTargets -AllApplications) `
+        -PortableInstallPaths $PortableInstallPath)
 }
 
 function Uninstall-Application {
-    if (-not (Confirm-DestructiveAction 'remove application runtimes, dependencies, and build outputs')) { return }
-    $targets = @(
-        $RuntimesDir,
-        $VenvDir,
-        $StudioVenvDir,
-        (Join-Path $RepoRoot '.venv'),
-        (Join-Path $ClientDir 'node_modules'),
-        (Join-Path $ClientDir 'dist')
-    )
-    $progressId = Start-LauncherProgress -Activity 'XREPORT: uninstall application' -Status "0 of $($targets.Count) paths"
-    try {
-        for ($index = 0; $index -lt $targets.Count; $index++) {
-            $target = $targets[$index]
-            Update-LauncherProgress -Id $progressId -Activity 'XREPORT: uninstall application' -Status "$($index + 1) of $($targets.Count): $target" -PercentComplete ([int](($index + 1) * 100 / [Math]::Max(1, $targets.Count)))
-            Remove-LauncherPath -Path $target -Activity "XREPORT: remove $target" | Out-Null
-        }
+    $products = @(Get-XReportMsiProducts)
+    $targets = @(Get-UninstallTargets)
+    $extraAllowedRoots = @($PortableInstallPath | Where-Object { -not [string]::IsNullOrWhiteSpace($_) } | ForEach-Object { [IO.Path]::GetDirectoryName([IO.Path]::GetFullPath($_)) } | Select-Object -Unique)
+    $plan = New-XReportCleanupPlan -Targets $targets -AllowedRoots (@(Get-CleanupAllowedRoots) + $extraAllowedRoots)
+    Write-CleanupPlan -Plan $plan
+    Write-Host '[PLAN] Registered XREPORT MSI products:' -ForegroundColor Cyan
+    if ($products.Count -eq 0) { Write-Info 'No matching XREPORT CPU/CUDA MSI registrations were found.' }
+    foreach ($product in $products) {
+        $location = if ($product.InstallLocation) { "; install location: $($product.InstallLocation)" } else { '' }
+        Write-Host "  [$($product.DisplayName)] $($product.ProductCode)$location" -ForegroundColor Gray
     }
-    finally {
-        Complete-LauncherProgress -Id $progressId
+    if ($DryRun) {
+        $result = Invoke-XReportCleanupPlan -Plan $plan -DryRun
+        Write-CleanupResult -Result $result
+        Write-Ok 'Dry run: MSI products and listed files were left unchanged.'
+        return
     }
-    Write-Ok 'Application runtimes, dependencies, and build outputs removed. Dependency lockfiles and user data were preserved.'
-}
+    Assert-XReportStoppedForCleanup
+    if (-not (Confirm-DestructiveAction 'uninstall registered XREPORT MSI products and remove launcher-managed runtimes, caches, logs, and build outputs')) { return }
 
+    $msiFailures = [Collections.Generic.List[string]]::new()
+    foreach ($product in $products) {
+        $outcome = Invoke-XReportMsiUninstall -Product $product
+        if (-not $outcome.Success) { [void]$msiFailures.Add("$($product.DisplayName) $($product.ProductCode) ($($outcome.Message))") }
+        elseif ($outcome.RestartRequired) { Write-Warn "Uninstalled $($product.DisplayName); Windows reports that a restart is required." }
+        else { Write-Ok "Uninstalled $($product.DisplayName)." }
+    }
+    $result = Invoke-XReportCleanupPlan -Plan $plan
+    Write-CleanupResult -Result $result
+    foreach ($failure in $msiFailures) { Write-Fatal "MSI uninstall failed: $failure" }
+    if ($result.Failed.Count -gt 0 -or $msiFailures.Count -gt 0) {
+        throw "Uninstall was incomplete: $($result.Failed.Count) filesystem target(s) and $($msiFailures.Count) MSI product(s) failed. Persistent user data and shared settings were preserved."
+    }
+    Write-Ok 'XREPORT MSI registrations, launcher runtimes, generated build outputs, packaged caches, and application logs were removed. Persistent user data and shared settings were preserved.'
+}
 function Write-MenuRule {
     param([ConsoleColor]$Color = [ConsoleColor]::DarkCyan)
     Write-Host ('  ' + ('-' * 68)) -ForegroundColor $Color

@@ -8,6 +8,9 @@ ROOT = Path(__file__).parents[3]
 LAUNCHER = (ROOT / "start_on_windows.ps1").read_text(
     encoding="utf-8"
 )
+LAUNCHER_CLEANUP = (ROOT / "app/scripts/launcher_cleanup.psm1").read_text(
+    encoding="utf-8"
+)
 TEST_RUNNER = (ROOT / "app/tests/run_tests.bat").read_text(encoding="utf-8")
 PYPROJECT = tomllib.loads((ROOT / "app/server/pyproject.toml").read_text(encoding="utf-8"))
 LOCK = tomllib.loads((ROOT / "app/server/uv.lock").read_text(encoding="utf-8"))
@@ -20,6 +23,14 @@ def _function_body(name: str) -> str:
     following = re.search(r"^function ", LAUNCHER[match.end():], re.MULTILINE)
     end = match.end() + following.start() if following else len(LAUNCHER)
     return LAUNCHER[match.start():end]
+
+
+def _cleanup_function_body(name: str) -> str:
+    match = re.search(rf"^function {re.escape(name)} \{{", LAUNCHER_CLEANUP, re.MULTILINE)
+    assert match, f"{name} not found in cleanup module"
+    following = re.search(r"^function ", LAUNCHER_CLEANUP[match.end():], re.MULTILINE)
+    end = match.end() + following.start() if following else len(LAUNCHER_CLEANUP)
+    return LAUNCHER_CLEANUP[match.start():end]
 
 
 ###############################################################################
@@ -119,13 +130,46 @@ def test_process_ownership_is_scoped_per_application() -> None:
 
 ###############################################################################
 def test_cleanup_targets_never_cross_application_boundaries() -> None:
-    targets = _function_body("Get-XReportUserDataTargets")
-    studio_branch, xreport_branch = targets.split("if ($CheckpointsOnly) {\n        return @((Join-Path $resourceRoot", 1)
+    targets = _cleanup_function_body("Get-XReportApplicationDataTargets")
+    assert "$appRoot = if ($App -eq 'Studio') { Join-Path $resourceRoot 'studio' } else { $resourceRoot }" in targets
+    assert "if ($App -ne 'Studio')" in targets
+    assert "Join-Path $resourceRoot $name" in targets
+    assert "'models', 'templates', 'validation_receipts'" in targets
+    assert "Shared XREPORT Inference and Studio models" in targets
+    assert "Get-XReportApplicationDataTargets" in _function_body("Get-XReportUserDataTargets")
 
-    assert "'studio'" in studio_branch
-    assert "'models'" not in studio_branch
-    assert "'studio'" not in xreport_branch
-    assert "Join-Path $resourceRoot 'models'" in xreport_branch
+
+###############################################################################
+def test_launcher_cleanup_is_allowlisted_dry_run_capable_and_appdata_aware() -> None:
+    assert "[switch]$DryRun" in LAUNCHER
+    assert "[string[]]$PortableInstallPath" in LAUNCHER
+    assert "Import-Module -Name $CleanupModulePath" in LAUNCHER
+    assert "Test-CleanupReparseChain" in LAUNCHER_CLEANUP
+    assert "Remove-Item -LiteralPath $item.Path -Force -ErrorAction Stop" in LAUNCHER_CLEANUP
+    assert "runtimes\\cache" in LAUNCHER_CLEANUP
+    assert "nltk" in LAUNCHER_CLEANUP
+    assert "storage-location.json" in _function_body("Get-ConfiguredResourceRoot")
+    assert "XREPORT Inference CPU" in LAUNCHER_CLEANUP
+    assert "XREPORT Inference CUDA" in LAUNCHER_CLEANUP
+    assert "Get-XReportUninstallTargets" in _function_body("Get-UninstallTargets")
+    assert "app\\server\\.venv-studio" in LAUNCHER_CLEANUP
+    assert "Invoke-XReportMsiUninstall" in LAUNCHER_CLEANUP
+    assert "RegistryEntries $entries.ToArray()" in _function_body("Get-XReportMsiProducts")
+    assert "test_launcher_cleanup.ps1" in TEST_RUNNER
+    assert "Persistent user data and shared settings were preserved" in _function_body("Uninstall-Application")
+
+
+###############################################################################
+def test_complete_data_targets_preserve_shared_settings_and_report_shared_models() -> None:
+    targets = _cleanup_function_body("Get-XReportApplicationDataTargets")
+    remove_all = _function_body("Remove-AllData")
+    assert "Get-ConfiguredResourceRoots" in _function_body("Get-XReportUserDataTargets")
+    assert "database.db" in targets
+    assert "validation_receipts" in targets
+    assert "if ($App -ne 'Studio')" in targets
+    assert "shared models folder that XREPORT Studio also uses" in remove_all
+    assert "settings\\.env" not in remove_all
+    assert "storage-location.json" not in remove_all
 
 
 ###############################################################################
@@ -184,7 +228,7 @@ def test_studio_profile_defaults_and_failure_retry_are_explicit() -> None:
     assert "catch {" in install and "Remove-Item -LiteralPath $StudioInstallStatePath" in install
     assert "Test-StudioPythonEnvironment -Profile $Profile" in _function_body("Test-StudioBackendDependenciesReady")
     assert "Test-Path -LiteralPath $PythonExe" in _function_body("Test-StudioBackendDependenciesReady")
-    assert "$StudioVenvDir" in _function_body("Uninstall-Application")
+    assert "app\\server\\.venv-studio" in LAUNCHER_CLEANUP
 
 
 ###############################################################################
