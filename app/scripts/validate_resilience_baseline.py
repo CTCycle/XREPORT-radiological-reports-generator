@@ -37,11 +37,10 @@ from typing import Any, Iterable
 ROOT_DIR = Path(__file__).resolve().parents[2]
 DEFAULT_FIXTURE_ROOT = (
     ROOT_DIR
-    / "assets"
-    / "QA"
-    / "validation_campaign"
-    / "s27"
+    / "app"
+    / "tests"
     / "fixtures"
+    / "s27"
 )
 
 SCHEMA_VERSION = "s51-s53-resilience-baseline-v2"
@@ -141,7 +140,7 @@ class FixtureDefinition:
     scale: int = 1
     source_rows: int = 8
     image_dimensions: tuple[int, int] = (64, 64)
-    provenance: str = "assets/QA/validation_campaign/s27/fixtures"
+    provenance: str = "app/tests/fixtures/s27"
     de_identification: str = "non-clinical generated synthetic fixture"
 
     # -------------------------------------------------------------------------

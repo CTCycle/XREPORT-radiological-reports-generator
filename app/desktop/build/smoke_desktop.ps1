@@ -118,7 +118,7 @@ try {
             throw "Native WebView validation script is missing: $nativeScript"
         }
         if ([string]::IsNullOrWhiteSpace($NativeOutput)) {
-            $NativeOutput = Join-Path $repoRoot "assets\QA\desktop\native-$Variant-$Version.json"
+            $NativeOutput = Join-Path $repoRoot "runtimes\cache\desktop-validation\native-$Variant-$Version.json"
         } else {
             $NativeOutput = [IO.Path]::GetFullPath($NativeOutput)
         }
@@ -162,7 +162,7 @@ finally {
         $result.listener_removed = -not (Get-NetTCPConnection -LocalPort ([int]$port) -State Listen -ErrorAction SilentlyContinue)
     }
     $result.contracts_removed = -not (Test-Path -LiteralPath $sessionFile) -and -not (Test-Path -LiteralPath $readyFile)
-    $logReportPath = Join-Path $repoRoot "assets\QA\desktop\smoke-$Variant-$Version-shell.log"
+    $logReportPath = Join-Path $repoRoot "runtimes\cache\desktop-validation\smoke-$Variant-$Version-shell.log"
     if (Test-Path -LiteralPath $shellLog) {
         New-Item -ItemType Directory -Path (Split-Path -Parent $logReportPath) -Force | Out-Null
         Copy-Item -LiteralPath $shellLog -Destination $logReportPath -Force
@@ -175,7 +175,7 @@ finally {
         Write-Host "Preserved smoke data root: $qaRoot"
     }
     if ($null -eq $previousLocalAppData) { Remove-Item Env:LOCALAPPDATA -ErrorAction SilentlyContinue } else { $env:LOCALAPPDATA = $previousLocalAppData }
-    $reportPath = Join-Path $repoRoot "assets\QA\desktop\smoke-$Variant-$Version.json"
+    $reportPath = Join-Path $repoRoot "runtimes\cache\desktop-validation\smoke-$Variant-$Version.json"
     New-Item -ItemType Directory -Path (Split-Path -Parent $reportPath) -Force | Out-Null
     $result | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath $reportPath -Encoding utf8
 }

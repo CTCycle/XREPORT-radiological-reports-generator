@@ -28,7 +28,7 @@ from xreport_shared.repositories.checkpoints import CheckpointRepository
 VALIDATION_RECEIPTS_DIR = (
     DATA_ROOT / "validation_receipts"
     if PACKAGED_MODE
-    else ROOT_DIR / "assets" / "QA" / "inference_validation"
+    else ROOT_DIR / "runtimes" / "cache" / "qa" / "inference_validation"
 )
 
 

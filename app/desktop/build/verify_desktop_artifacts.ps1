@@ -22,7 +22,7 @@ $portable = Join-Path $ReleaseRoot "$prefix-portable.exe"
 $msi = Join-Path $ReleaseRoot "$prefix.msi"
 $checksum = Join-Path $ReleaseRoot "$prefix.sha256"
 $metadataPath = Join-Path $ReleaseRoot "$prefix-build.json"
-$runtimeAudit = Join-Path $repoRoot "assets\QA\desktop\runtime-$Variant-$Version.json"
+$runtimeAudit = Join-Path $repoRoot "runtimes\cache\desktop-validation\runtime-$Variant-$Version.json"
 function Assert-File([string]$Path) {
     if (-not (Test-Path -LiteralPath $Path -PathType Leaf)) { throw "Expected desktop artifact is missing: $Path" }
 }
@@ -136,7 +136,7 @@ function Invoke-ArtifactVerification {
             throw "MSI does not contain the generated runtime.zip resource."
         }
 
-        $reportPath = Join-Path $repoRoot "assets\QA\desktop\verification-$Variant-$Version.json"
+        $reportPath = Join-Path $repoRoot "runtimes\cache\desktop-validation\verification-$Variant-$Version.json"
         New-Item -ItemType Directory -Path (Split-Path -Parent $reportPath) -Force | Out-Null
         [pscustomobject]@{
             format = 1

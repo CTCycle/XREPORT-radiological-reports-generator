@@ -1,5 +1,0 @@
-startup phase=runtime_ready cache_hit=false phase_elapsed_ms=26506 total_elapsed_ms=26506
-startup phase=backend_launching variant=cuda version=4.0.0 total_elapsed_ms=26508
-startup phase=backend_spawned pid=28632 total_elapsed_ms=26690
-startup phase=backend_ready port=49477 total_elapsed_ms=28962
-backend stopped elapsed_ms=605

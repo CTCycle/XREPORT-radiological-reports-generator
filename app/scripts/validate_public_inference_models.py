@@ -26,7 +26,7 @@ from xreport_inference.services.inference_catalog import InferenceModelCatalog  
 from scripts.validate_inference_model import validate_cached_model  # noqa: E402
 
 
-SUMMARY_DIR = ROOT_DIR / "assets" / "QA" / "inference_validation_runs"
+SUMMARY_DIR = ROOT_DIR / "runtimes" / "cache" / "qa" / "inference_validation_runs"
 
 
 ###############################################################################

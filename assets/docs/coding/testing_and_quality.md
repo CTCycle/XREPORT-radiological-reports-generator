@@ -1,6 +1,6 @@
 # Testing And Quality Rules
 
-Last updated: 2026-10-24
+Last updated: 2026-10-29
 
 ## Tooling And Quality Gates
 
@@ -64,11 +64,12 @@ When validation changes a status or establishes an important limit, update the
 existing [campaign ledger](../validation_campaign_ledger.md) or
 [status ledger](../project_status_ledger.md) with the source revision, scope,
 result, and remaining boundary. Link the relevant test, CI run, or required
-release manifest; do not create a standalone summary for every slice. Keep
-screenshots, logs, and working receipts under `assets/QA/`. Track only files
-required by project tooling; the approved release manifest is required by the
-release verifier. A passing unit or build gate does not promote a feature
-workflow to end-to-end `VALIDATED`; observe it at the appropriate boundary.
+release manifest; do not create a standalone summary for every slice. Put
+temporary screenshots, logs, and receipts under ignored `runtimes/cache/` and
+remove them after the run. Keep source fixtures in `app/tests/fixtures/` and
+the approved release manifest in `assets/docs/validation/`. A passing unit or
+build gate does not promote a feature workflow to end-to-end `VALIDATED`; observe
+it at the appropriate boundary.
 
 Use repository-local disposable state for the campaign:
 

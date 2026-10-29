@@ -1,6 +1,6 @@
 # Commands And Locations
 
-Last updated: 2026-10-28
+Last updated: 2026-10-29
 
 ## Primary Commands
 
@@ -112,7 +112,7 @@ Set-Location ../..
 $env:APP_TEST_FRONTEND_URL = "http://127.0.0.1:8003"
 $env:APP_TEST_BACKEND_URL = "http://127.0.0.1:5003"
 $repoRoot = (Resolve-Path .).Path
-$env:XREPORT_E2E_SCREENSHOT_DIR = Join-Path $repoRoot 'assets/QA/validation_campaign/tier-0/s02'
+$env:XREPORT_E2E_SCREENSHOT_DIR = Join-Path $repoRoot 'runtimes/cache/qa/tier-0/s02'
 $cacheRoot = (Resolve-Path .\runtimes\cache).Path
 $pytestCache = Join-Path $cacheRoot 'pytest'
 $pytestTemp = Join-Path $cacheRoot 'pytest-tmp\tier0-s02'
@@ -123,7 +123,8 @@ $pytestTemp = Join-Path $cacheRoot 'pytest-tmp\tier0-s02'
   -q --basetemp $pytestTemp -o "cache_dir=$pytestCache"
 ```
 
-Store QA screenshots, logs, and working reports under `assets/QA/`. Record the
+Write temporary screenshots, logs, and reports under ignored `runtimes/cache/`,
+then remove them after validation. Record the
 result, source revision, scope, and remaining limit in the existing status or
 campaign ledger instead of adding a separate summary for each slice. Track an
 artifact only when project tooling requires it; the approved release manifest

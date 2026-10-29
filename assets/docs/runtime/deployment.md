@@ -1,6 +1,6 @@
 # Runtime Deployment
 
-Last updated: 2026-10-28
+Last updated: 2026-10-29
 
 ## Deployment Scope
 
@@ -79,7 +79,7 @@ executables through the packaged startup smoke test:
 ```
 
 The smoke command uses a short temporary profile by default and writes its
-working reports under `assets/QA/desktop/`. Record the scoped result and any
+temporary reports under `runtimes/cache/desktop-validation/`. Record the scoped result and any
 remaining limit in the campaign ledger; do not retain duplicate receipt files
 in the tracked tree. If `-DataRoot` is supplied for preserved runtime evidence,
 use a short path: a deeply nested repository path can exceed the Windows DLL

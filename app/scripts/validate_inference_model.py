@@ -47,8 +47,8 @@ from xreport_inference.repositories.serialization.inference import (  # noqa: E4
 )
 
 
-RUN_LOG_DIR = ROOT_DIR / "assets" / "QA" / "inference_validation_runs"
-RECEIPT_DIR = ROOT_DIR / "assets" / "QA" / "inference_validation"
+RUN_LOG_DIR = ROOT_DIR / "runtimes" / "cache" / "qa" / "inference_validation_runs"
+RECEIPT_DIR = ROOT_DIR / "runtimes" / "cache" / "qa" / "inference_validation"
 
 
 ###############################################################################

@@ -1,6 +1,6 @@
 # Operations Workflows
 
-Last updated: 2026-10-28
+Last updated: 2026-10-29
 
 ## Prepare A Dataset
 
@@ -116,7 +116,7 @@ Expected result:
 Use the real Generate flow with an authorized, de-identified image. The first
 run installs the exact pinned revision into `<resource root>/models/huggingface`
 and produces a report. When capturing validation evidence, save the scoped
-metadata and provenance under `assets/QA/`; record the outcome and limitations
+metadata and provenance under `runtimes/cache/`; record the outcome and limitations
 in the existing campaign or status ledger instead of creating a separate
 per-slice report. A subsequent run should reuse the active snapshot without
 another download. This technical check does not establish model quality.

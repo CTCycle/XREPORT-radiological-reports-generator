@@ -2122,7 +2122,7 @@ function Invoke-DesktopVariantBuild {
     )
     $stagingRoot = Invoke-DesktopBackendFreeze -Variant $Variant -SourceCommit $SourceCommit -FrontendDist $FrontendDist
         $archivePath = Join-Path $DesktopTauriDir 'generated\runtime.zip'
-        $auditPath = Join-Path $RepoRoot "assets\QA\desktop\runtime-$Variant-$ReleaseVersion.json"
+        $auditPath = Join-Path $RepoRoot "runtimes\cache\desktop-validation\runtime-$Variant-$ReleaseVersion.json"
         $artifactPrefix = Join-Path $DesktopReleaseDir "XREPORT-v$ReleaseVersion-windows-x64-$Variant"
         foreach ($staleArtifact in @(
             "${artifactPrefix}-portable.exe",
@@ -2655,7 +2655,7 @@ function Invoke-RemoveAllDesktopReleaseArtifacts {
         }
     }
     Remove-DesktopGeneratedState
-    Write-Ok 'All desktop release artifacts and generated build state removed; repository source, QA evidence, installed applications, and user data were preserved.'
+    Write-Ok 'All desktop release artifacts and generated build state removed; repository source, release approval records, test fixtures, installed applications, and user data were preserved.'
 }
 
 function Invoke-RemoveDesktopRelease {

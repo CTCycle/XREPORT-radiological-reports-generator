@@ -25,8 +25,7 @@ app/client/.angular/cache/
 **/.mypy_cache/
 **/.ruff_cache/
 
-# Server validation scratch outputs; durable QA belongs in the repository root
-# assets/QA/ tree and follows the allowlist below.
+# Server-side validation scratch outputs remain disposable.
 app/server/assets/QA/.scratch-*/
 app/server/assets/QA/pytest-cache-*/
 
@@ -43,21 +42,6 @@ app/server/assets/QA/pytest-cache-*/
 /dataset/XREP_train.csv
 /dataset/XREP_test.csv
 /XREPORT/data/XREP_dataset.csv
-# Keep large/transient QA captures local by default. Tracked evidence is limited
-# to compact durable records: per-campaign summary reports and the approved
-# release manifest. Bulky captures stay local (Git history preserves prior commits).
-assets/QA/**
-!assets/QA/validation_campaign/
-!assets/QA/validation_campaign/*/
-!assets/QA/validation_campaign/*/summary-*.md
-!assets/QA/validation_campaign/release-validation/
-!assets/QA/validation_campaign/release-validation/approved-release-manifest.json
-# Desktop release-gate evidence (recovered runtime audits, verification and
-# smoke reports) is retained for approval-phase verification of retained packages.
-!assets/QA/desktop/
-!assets/QA/desktop/runtime-*.json
-!assets/QA/desktop/verification-*.json
-!assets/QA/desktop/smoke-*.json
 
 # Python
 *.egg-info/
@@ -124,9 +108,6 @@ app/desktop/src-tauri/generated/
 app/desktop/src-tauri/gen/
 app/desktop/src-tauri/ui/
 release/
-
-# Retained desktop smoke shell logs (must override the global *.log rule above).
-!assets/QA/desktop/smoke-*-shell.log
 
 # User-selected storage root pointer
 settings/storage-location.json

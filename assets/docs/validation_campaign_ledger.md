@@ -1,6 +1,6 @@
 # XREPORT Validation Campaign Ledger
 
-Last updated: 2026-10-28
+Last updated: 2026-10-29
 
 ## Release 4.0.0 (2026-10-28, `develop` at `aaba4725` plus documentation commits)
 
@@ -8,9 +8,10 @@ Last updated: 2026-10-28
 - PASSED (Windows, source mode): full backend unit and integration collection 383 passed, 6 PostgreSQL skipped, 2 failed (below); 121 Angular unit tests in three projects; both Angular builds, both lint targets and the built-server test; Ruff; Studio live e2e 27/27 and Inference live e2e 26/26 on a clean resource directory (CXRMate custom-checkpoint debris in the shared `data` folder made one responsive-layout case fail on the first run: it expected a model notice on the first selected model). Hosted CI on `develop` passed for each of the last five commits.
 - Findings: (1) `run_tests.bat` reported the 13 Studio browser cases failing with connection refused on port 8013 although its live-server phase passed; the same cases passed 27/27 with the Studio servers started by hand, so this is a runner race and not a product defect, left unfixed. (2) `test_app_lifespan_uses_returned_settings_for_state_and_health` fails while a live backend owns `data/` and passed alone (50 passed with the packaging-boundary suite). (3) Local Pyright with the Studio environment reports 14 errors in Studio modules and two Inference lines that hosted CI does not; CI remains the reference and the local drift (library stubs) was not resolved. (4) The local `data/` copy of the CXRMate Multi TF snapshot had `modelling_multi.py` modified (18480 bytes against the recorded 17211) before this session's runs; the installer's integrity check rejected it with `integrity_failed` and the catalogue showed the model as runtime unavailable. The check worked as designed; the snapshot needs a repair (re-download), which was not performed. (5) Unknown `/api/*` paths in the packaged build return the Angular index with HTTP 200 rather than 404 (observed for Studio endpoints, which are absent); not changed in this release.
 - Packages: CPU and CUDA portable and MSI built locally from a clean tree at `e0a9be80`/`00696363` with `BuildDesktopRelease -Version 4.0.0` (CPU 350 MB portable, 348 MB MSI; CUDA 2.03 GB portable, 2.03 GB MSI). `verify_desktop_artifacts.ps1` and `smoke_desktop.ps1` passed for both variants. Independent checks: the PyInstaller module tables (`PYZ`/`PKG`) of both builds contain no `xreport_studio` entry (it appears only in the spec's exclude list); the extracted CPU runtime has no Studio-named file; the running CPU portable reported `version 4.0.0`, served the Inference catalogue (4 models) and returned only the Angular index for `/api/training`, `/api/preparation`, `/api/upload` and `/api/validation`.
-- Screenshots: README figures were recaptured from running applications (Playwright against the real servers, 1440 px, dark theme, 1.5x). Inference used CheXOne generating on a CC0 chest radiograph; Studio used a 12-record synthetic fixture (the CC0 radiograph with brightness/rotation variants and synthetic report text), processed with the DistilBERT tokenizer and trained for two epochs with the compact preset. Capture inputs and raw PNGs are under the ignored `assets/QA/release-4.0.0/`.
+- Screenshots: README figures were recaptured from running applications (Playwright against the real servers, 1440 px, dark theme, 1.5x). Inference used CheXOne generating on a CC0 chest radiograph; Studio used a 12-record synthetic fixture (the CC0 radiograph with brightness/rotation variants and synthetic report text), processed with the DistilBERT tokenizer and trained for two epochs with the compact preset. The capture stimuli and workflow are recorded here; temporary PNGs were removed after the README update.
 - Not run: MSI install, upgrade and uninstall (needs elevation), packaged inference with a model, packaged checkpoint import, GPU-less CUDA fallback, PostgreSQL, MedGemma (gated), a fresh batch-report walkthrough in the browser (covered only by the Angular and Playwright suites above), and the Studio Standard (CPU) profile.
 - Release artifacts: tag `v4.0.0` at `a01e7949` built both variants in workflow run 40742944678 (in-workflow audits and portable smoke passed). The artifacts were downloaded and re-checked locally: the embedded runtime audit of each portable matches its build metadata, and the packaged portable startup smoke passed for CPU and CUDA. The maintainer approved them in chat on 2026-10-28 and the approval manifest binds the eight SHA-256 hashes. Published 2026-10-28 by the approval phase (run 40766474090) as [v4.0.0](https://github.com/CTCycle/XREPORT-radiological-reports-generator/releases/tag/v4.0.0): eight assets whose GitHub digests equal the manifest hashes. The tag resolves to `a01e7949`; `main` and `develop` both contain the approval and runtime-audit commits (an earlier approval-phase run failed because the runtime audits committed from the local builds did not match the CI artifacts; they were replaced with the audits recovered from the CI portables). Installation from the published assets was not repeated beyond the packaged portable smoke on the identical CI artifacts.
+- Local packaged smoke timings: CPU reached the backend-ready contract at 21.669 s and closed at 22.489 s; CUDA reached it at 38.394 s and closed at 39.126 s. Health and the frontend index passed for both. Backend process, listener, session, and readiness files were removed; no data root was retained and native WebView acceptance was not part of these receipts.
 
 ## Database separation (2026-10-27, `develop`)
 
@@ -33,12 +34,12 @@ Last updated: 2026-10-28
 - V00–V03 passed on Windows against source `04820a7fdda5d9a36072fc0f54163037d366f894` and isolated SQLite roots. Hosted CI run [40114328827](https://github.com/CTCycle/XREPORT-radiological-reports-generator/actions/runs/40114328827) passed; local XREPORT and Studio builds/lints and all 79 Angular tests passed. The XREPORT live Chromium UI suite passed 17/17. The Studio runner preview could not bind its test URL (`8013`), so the same 7 Studio UI cases were run directly against the official Studio launcher and passed 7/7.
 - V01 verified simultaneous XREPORT/Studio launch, isolated profile routes and databases, independent theme preferences, and fail-closed duplicate-resource-root locks. V02 verified Studio seed persistence across reload, XREPORT database-candidate apply/revert, and restored the original SQLite path across an official launcher restart.
 - V03 used synthetic files only. The clean CSV loaded 8/8 rows; malformed and missing-text CSVs were rejected; partial matching required explicit confirmation and imported 7/8 rows. The viewer navigated records and retained the full long source path in its title while truncating the displayed cell. The S23 browser cleanup case now creates its own deterministic PNG/CSV fixture under `tmp_path` instead of depending on an ignored `s27` directory; focused Studio Chromium run passed 1/1.
-- V04 processed the clean synthetic 8-row source to 7 train/1 validation rows, generated pixel/text/image statistics, and reopened the saved report after a page reload. A missing synthetic image was rejected before job creation. The UI accepts validation splits through `1.0`, while the backend schema caps them at `0.5`; a split of `1.2` produced the backend's typed 422. This is an open UI finding, recorded as `ISSUE-003`; no production code was changed. Evidence is in `assets/QA/validation_campaign/xr-20261024-01/v04-processing.log` and the run's screenshots.
+- V04 processed the clean synthetic 8-row source to 7 train/1 validation rows, generated pixel/text/image statistics, and reopened the saved report after a page reload. A missing synthetic image was rejected before job creation. The UI accepts validation splits through `1.0`, while the backend schema caps them at `0.5`; a split of `1.2` produced the backend's typed 422. This is an open UI finding, recorded as `ISSUE-003`; no production code was changed. The scoped result and finding are recorded here.
 - V05 is `BLOCKED`: the Standard CPU profile and local tokenizer are usable, but the pinned BEiT encoder is absent at `data/models/XRAYEncoder`. No weights were fetched. V06 and V07 are `BLOCKED` on the UI-trained V05 checkpoint.
 - V08 is `PARTIAL` on XREPORT source `9b298c54`: the UI rejected a lone `.keras` file and a four-core manifestless ZIP with typed HTTP 400 responses before job admission, and the catalogue remained at zero custom checkpoints. The import dialog copy now matches the exchange contract; checksum/version/conflict paths, positive import, cancellation and restart recovery require a V05 checkpoint.
 - V09 is `PARTIAL` on app source `9b298c54`: validation and dataset-processing jobs completed, the UI recovered after one interrupted validation poll, and both apps remained healthy when the other app alone was stopped and restarted. The short validation finished before the DELETE arrived, so live cancellation and duplicate-start refusal remain unverified.
-- V10 is `PARTIAL` on app source `9b298c54`. The in-app Chromium review covered all seven primary routes across both profiles at 1440×900, 1024×720, 390×844, and 320×640; the document root stayed within the viewport. At 320px, Studio's dataset table clips the `Rows` column (`x=302–336` in a 320px viewport), recorded as `ISSUE-005`. Viewer, validation, and five-step training dialogs were reachable; XREPORT's report history was empty and model generation/import remained gated. Keyboard focus return, disabled controls, and theme switching were reviewed. The Browser tool could not emulate `prefers-reduced-motion`; screen-reader speech and model-dependent positive paths remain unverified. Timings and captures are in the run QA log and `screenshots/v10/`.
-- V11 passed on exact code/test SHA `e8ad7bedd776800ee3099239d6b257ee4d5cd0c6` (`develop`): hosted CI [40122131254](https://github.com/CTCycle/XREPORT-radiological-reports-generator/actions/runs/40122131254) passed; live Chromium suites passed XREPORT 18/18 and Studio 14/14; 54 affected checkpoint/job unit tests, 79 Angular tests, and 9 built-server tests passed. Both Angular builds and both app lint targets passed. Pytest collected 331 Python cases; the full Python collection was not executed locally. Exact-SHA receipts are in the `v11-*.log` files under the run QA root. V05–V07 remain blocked by the absent pinned encoder and dependent UI-trained checkpoint.
+- V10 is `PARTIAL` on app source `9b298c54`. The in-app Chromium review covered all seven primary routes across both profiles at 1440×900, 1024×720, 390×844, and 320×640; the document root stayed within the viewport. At 320px, Studio's dataset table clips the `Rows` column (`x=302–336` in a 320px viewport), recorded as `ISSUE-005`. Viewer, validation, and five-step training dialogs were reachable; XREPORT's report history was empty and model generation/import remained gated. Keyboard focus return, disabled controls, and theme switching were reviewed. The Browser tool could not emulate `prefers-reduced-motion`; screen-reader speech and model-dependent positive paths remain unverified.
+- V11 passed on exact code/test SHA `e8ad7bedd776800ee3099239d6b257ee4d5cd0c6` (`develop`): hosted CI [40122131254](https://github.com/CTCycle/XREPORT-radiological-reports-generator/actions/runs/40122131254) passed; live Chromium suites passed XREPORT 18/18 and Studio 14/14; 54 affected checkpoint/job unit tests, 79 Angular tests, and 9 built-server tests passed. Both Angular builds and both app lint targets passed. Pytest collected 331 Python cases; the full Python collection was not executed locally. V05–V07 remain blocked by the absent pinned encoder and dependent UI-trained checkpoint.
 - Gate map for this campaign (the exact runtime SHA is shown; `PARTIAL` retains any recorded finding or limit):
 
   | Gate | Status | SHA / branch | Evidence and limit |
@@ -55,7 +56,7 @@ Last updated: 2026-10-28
   | V09 | `PARTIAL` | `9b298c54` / `develop` | Job completion, transient-poll recovery, and app-scoped stop/restart verified. Cancellation arrived after completion; duplicate-start refusal is unverified. |
   | V10 | `PARTIAL` | `9b298c54` / `develop` | Seven routes × four viewports across both apps; no document-level horizontal overflow. Studio `Rows` values clip at 320px (`ISSUE-005`). Reachable modal, keyboard, disabled-state and theme checks passed; reduced-motion emulation and screen-reader output were unavailable. Positive checkpoint/report paths remain blocked by V05. |
   | V11 | `PASS` | `e8ad7bed` / `develop` | Exact-SHA CI 40122131254; live Chromium 18/18 XREPORT and 14/14 Studio; 54 affected contract/job units; Angular 79/79 and Node 9/9; both builds and both lints. 331 Python cases were collected, not all run locally. V05–V07 remain independently blocked. |
-- Detailed logs and screenshots remain under ignored `assets/QA/validation_campaign/xr-20261024-01/`. V00–V10 changed no production code; V11 adds a live UI regression for manifestless checkpoint import. The campaign ledgers now reflect current `develop` evidence separately from release/package evidence.
+- Per-run logs and screenshots were temporary; the outcomes and limits are recorded in this ledger. V00–V10 changed no production code; V11 adds a live UI regression for manifestless checkpoint import. The campaign ledgers now reflect current `develop` evidence separately from release/package evidence.
 
 This ledger summarizes current validation gates, release evidence, and known
 scope limits. The [project status ledger](project_status_ledger.md) owns
@@ -117,9 +118,9 @@ navigation and seed persistence across a launcher restart passed with isolated
 resources, with backend version 3.2.1. Official packages remain unverified.
 Live authenticated PostgreSQL switching remains unverified.
 Removed the ignored `.scratch-db-config-tests`, `.scratch-db-switch`, and
-`.scratch-openapi` QA directories after consolidating their durable outcomes in
-the existing ledgers. Referenced validation captures and the logs supporting
-unresolved checks were retained.
+`.scratch-openapi` directories after consolidating their durable outcomes in
+the existing ledgers. Unresolved scopes and their reasons remain recorded
+there without retaining a separate capture archive.
 
 ## Application split (2026-10-23, branch `feature/split-studio`)
 
@@ -138,7 +139,7 @@ unresolved checks were retained.
 - Full standard runner on 3.3.0 (2026-10-22): 278 passed, 3 skipped, 2 failed in the Python phase; 65 client unit tests and 18 Angular browser E2E passed. Failure 1 (`S23`, missing `s27` fixtures) is `BLOCKED` by environment. Failure 2 (request-drain gate test) was a test defect: an earlier Playwright test left a running loop, so `asyncio.run` raised; the test now runs on a clean thread and passes in isolation, and the full runner rerun afterward (2026-10-22) passed it: 279 passed, 3 skipped, 1 failed (`S23`, same missing-fixture `FileNotFoundError`, `BLOCKED`); 65 client unit tests and 18 Angular browser E2E passed (`PASSED`).
 - Real `Launch` (isolated resources): health 3.3.0 and all routes returned 200; `/training` rendered in the in-app browser with no console errors. `KillProcesses` reported a failure stopping PID 21860 but ports 5003/8003 were clear afterward Root cause reproduced: `Stop-XReportProcesses` checked for survivors immediately after `taskkill`, before the process finished exiting. Fixed in `start_on_windows.ps1` with a bounded wait (up to 5 s). Retest: `Launch` then `KillProcesses` exited 0, a second call reported nothing to stop, and ports 5003/8003 had no listeners (`PASSED`). Rendered `/dataset` and `/inference` loaded in the in-app browser after the startup splash with no console errors.
 - Superseded shim-removal suite logs (full suite PASS) were consolidated here and deleted.
-- Live E2E on `develop` at `a442133` plus the working-tree fixes (2026-10-22, isolated resources, source `Launch`, 3.3.0): restoring the git-history `s27` fixture pack (ignored path, untracked) cleared the S23 block, and the S21/S23 dataset UI/API and S15 filesystem E2E (6 tests) passed against the live app (`PASSED`). A scripted API journey then ran upload, load (8/8 matched), processing, a real 2-epoch training job (checkpoint `ready`, val_loss 3.95), dataset validation (image/text statistics), checkpoint evaluation (accuracy 0.71, BLEU 0.158), and custom-checkpoint inference on `cuda:0` with a saved history entry (all `PASSED`; synthetic 64x64 data, not quality evidence). The in-app browser rendered `/reports` and `/training` with the new session, checkpoint, and datasets and no console errors. `KillProcesses` then relaunch on the same resources kept the checkpoint, history, and processed datasets, with ports clear after each stop (`PASSED`).
+- Live E2E on `develop` at `a442133` plus the working-tree fixes (2026-10-22, isolated resources, source `Launch`, 3.3.0): restoring the git-history `s27` fixture pack (now maintained in `app/tests/fixtures/s27`) cleared the S23 block, and the S21/S23 dataset UI/API and S15 filesystem E2E (6 tests) passed against the live app (`PASSED`). A scripted API journey then ran upload, load (8/8 matched), processing, a real 2-epoch training job (checkpoint `ready`, val_loss 3.95), dataset validation (image/text statistics), checkpoint evaluation (accuracy 0.71, BLEU 0.158), and custom-checkpoint inference on `cuda:0` with a saved history entry (all `PASSED`; synthetic 64x64 data, not quality evidence). The in-app browser rendered `/reports` and `/training` with the new session, checkpoint, and datasets and no console errors. `KillProcesses` then relaunch on the same resources kept the checkpoint, history, and processed datasets, with ports clear after each stop (`PASSED`).
 - Environment finding: training loads the pinned BEiT encoder (`microsoft/beit-base-patch16-224`, `f02e8f77`) with `local_files_only`; on a machine without `models/XRAYEncoder` the job fails with a generic "couldn't connect to huggingface.co" message. This was an environment prerequisite, not a code defect; the encoder was downloaded with user approval for this run and removed afterward. Not changed in code; a clearer offline-encoder message is a possible improvement.
 - Not re-run: live PostgreSQL switching, packaged-artifact smoke before publication, GPU-less CUDA fallback, MedGemma (`BLOCKED`, gated access). Existing limits in the gate map still apply.
 
@@ -148,13 +149,26 @@ unresolved checks were retained.
 - Packages: tag `v3.3.1` at `7402615` built CPU and CUDA MSI and portable artifacts in workflow run 39810518968 (in-workflow runtime/MSI audit and packaged portable smoke passed). The artifacts were downloaded and re-verified locally with `verify_desktop_artifacts.ps1` and the packaged portable startup smoke for both variants (backend ready, frontend index served, clean process/listener shutdown; `PASSED`). Runtime audits were recovered from the portable payload manifests.
 - Not run: MSI install, upgrade from 3.3.0, and uninstall (needs an elevated per-machine install; manual check required), packaged CPU/CUDA inference, GPU-less CUDA fallback, live PostgreSQL switching (`NOT RUN`). README screenshots were audited and left unchanged.
 
+## Desktop runtime audit receipts
+
+The recovered Windows x64 runtime audits use format 2. Payload hashes below identify the embedded runtime payload, not the full portable/MSI release artifact. The 4.0.0 approval manifest contains the published artifact hashes.
+
+| Version | Variant | Audited UTC | Source commit | Files | Payload bytes | Payload SHA-256 |
+| --- | --- | --- | --- | ---: | ---: | --- |
+| 3.3.0 | CPU | 2026-10-22 09:14:38Z | `70957f61e853de1143f9d936e1ac7614c91d0f16` | 6,761 | 1,144,491,705 | `2eca5521d9d8125f8776a56deacf9458b9142f69ed29fcdefb9770bbc2212915` |
+| 3.3.0 | CUDA | 2026-10-22 09:16:19Z | `70957f61e853de1143f9d936e1ac7614c91d0f16` | 6,786 | 3,218,311,201 | `f037a1cb19cb2f578ee8b000f69eb0027fd6573346a04d930d83975e7e5731c4` |
+| 3.3.1 | CPU | 2026-10-22 16:09:36Z | `740261541374cec45e91e6170b9cb283331f8a8a` | 6,761 | 1,144,491,705 | `48f4ee6a956ad24605f883b1a9a7ba5960f08b6f08a055db7b00578b977d98f9` |
+| 3.3.1 | CUDA | 2026-10-22 16:09:17Z | `740261541374cec45e91e6170b9cb283331f8a8a` | 6,786 | 3,218,311,201 | `3cf34bf81f6e4174cffa561e6abf5f2492e987d452aafb7a232d69340a944b3f` |
+| 4.0.0 | CPU | 2026-10-28 18:18:53Z | `a01e7949962c4fc214b40d5178cee72470ed7673` | 5,698 | 933,729,093 | `22c551e1090ea0c377ec000defbdbfa79850402eb9912e25c2ac4100b9902bdc` |
+| 4.0.0 | CUDA | 2026-10-28 18:19:40Z | `a01e7949962c4fc214b40d5178cee72470ed7673` | 5,723 | 3,007,548,589 | `67f5a3dfc29a34628c72f601baaabc945512519d9f006d2b84e66293fe43de03` |
+
 ## Gate map
 
 | Tier | Scope | Current result | Boundary |
 | ---: | --- | --- | --- |
 | 0 | CI baseline, source readiness, deterministic quality gates, rendered [startup](runtime/startup.md) | `PARTIAL` (`S00` candidate CI passed; current-source navigation and restart persistence passed; focused local migration/version/OpenAPI/client/lint checks passed; official packages remain open; rendered `S02` checks pass) | Candidate commit `1a15d24` passed hosted run 39667709442, including backend unit tests, Ruff, Pyright, PostgreSQL persistence, retained API E2E, client build/server/lint/unit tests. The official launcher used isolated resources on ports 5003/8003; Inference, Reports, Dataset, Training, and Settings loaded; seed `317` survived navigation and restart; backend version was 3.2.1, SQLite integrity passed, and Alembic reached `42c8e1f7b0d3`. CPU/CUDA packages and package smoke are still open. SonarCloud is excluded because the available plan does not support this repository's over-50k LOC analysis. |
 | 1 | UI state, settings, jobs, [persistence](architecture/persistence.md), filesystem controls | `PARTIAL` (`S10`–`S15`; database runtime switch partial) | The v3.2.1 candidate restores the browser theme preference to database settings when the released database has no saved value; client unit tests cover import and stale-copy removal. SQLite migration tests cover both revisions from published v3.2.0 and preserve settings/data. Successful authenticated PostgreSQL connection and UI activation remain unverified; live PostgreSQL testing was deferred on 2026-10-21. Broader Tier 1 workflows retain their existing limits. |
-| 2 | [Dataset, training, and evaluation workflows](operations/workflows.md) | `PARTIAL` (`S20`–`S28`) | S23 passes when the untracked `assets/QA/validation_campaign/s27/fixtures` pack is present (restorable from git history before `05b179f`); without it S23 is `BLOCKED`. Other workflows use synthetic or small datasets; this is not representative-data or clinical-quality evidence. |
+| 2 | [Dataset, training, and evaluation workflows](operations/workflows.md) | `PARTIAL` (`S20`–`S28`) | S23 passed with the non-clinical synthetic fixture now kept at [`app/tests/fixtures/s27`](../../app/tests/fixtures/s27). Other workflows use synthetic or small datasets; this is not representative-data or clinical-quality evidence. |
 | 3 | Catalogue, installation, browser inference, custom and public [models](runtime/local_inference_models.md) | Complete (`S30`–`S37`; `S35` retired) | `CXRMate-ED` was retired after collapsing distinct fixtures; MedGemma's gated behavior passed, but model access remains blocked. Model quality remains unvalidated. |
 | 4 | Heavy providers and Windows desktop [deployment](runtime/deployment.md) | `PARTIAL` (`S40`–`S43`) | `S43` remains partial for broader packaged/live-service ownership; GPU-less CUDA fallback and cross-variant performance remain untested. The v3.2.0 release package scope is recorded below. |
 | 5 | Recovery, concurrency, [accessibility](ui/experience.md), performance | `PARTIAL` (`S50`–`S53`) | The S51 deterministic job-admission and harness-contract unit checks passed on the current source; live heavy-worker/GPU contention and hardware metrics remain untested. Browser accessibility checks passed; spoken Narrator/Speech Recap output and packaged performance were not observed. |
@@ -194,8 +208,8 @@ see [testing and quality rules](coding/testing_and_quality.md).
   passed 205 cases with 3 skipped, the Angular production build, lint, and all
   64 client unit tests passed, the browser/UI E2E runner passed 18 cases
   against a rebuilt bundle, and the Python browser/API E2E suite passed 43
-  cases; its single remaining failure is `S23`, blocked by the still-absent
-  `assets/QA/validation_campaign/s27/fixtures` pack. Successful launcher
+  cases; its single remaining failure was `S23`, blocked at the time because
+  the fixture inputs were absent. Successful launcher
   current-source launcher startup on standard ports and rendered inference UI
   now pass. Current-source restart reuse and a fresh hosted CI run for the
   modified working tree remain open.
@@ -213,8 +227,7 @@ see [testing and quality rules](coding/testing_and_quality.md).
   `cuda:0`/CUDA used and the UI showed Findings and Impression for a public
   [CC0 radiograph from Wikimedia Commons](https://commons.wikimedia.org/wiki/File:Normal_posteroanterior_(PA)_chest_radiograph_(X-ray).jpg). Catalogue
   status became `ready`, but `validation_status` is still `pending` and the
-  receipt is missing, so this is technical execution evidence only. Screenshot:
-  [live inference](../QA/codex-live-inference-20261021.png).
+  receipt is missing, so this is technical execution evidence only.
 - The latest [GitHub Actions run for HEAD
   `ef1ae34`](https://github.com/CTCycle/XREPORT-radiological-reports-generator/actions/runs/39643961325)
   reported two PostgreSQL 16 persistence-contract failures caused by redundant
@@ -249,8 +262,8 @@ see [testing and quality rules](coding/testing_and_quality.md).
 - `S02` rendered startup and recovery checks passed in Chromium. Both browser
   tests passed: feature requests stayed gated through failed health probes,
   the shell showed progress and unavailable/retry states, retry recovered to
-  the workspace, and a later catalogue error remained in-app. Captures are
-  stored under ignored `assets/QA/validation_campaign/tier-0/`.
+  the workspace, and a later catalogue error remained in-app. Temporary
+  screenshots were removed after recording those states here.
 - Settings follow-up validated on `ef1ae34ad8e9dc073415e5ec1a0eaec588f81999`:
   the rendered General, Data access, Advanced, and Database tabs were exercised
   in the in-app browser on isolated SQLite resources. Autosaved values survived
@@ -286,15 +299,16 @@ see [testing and quality rules](coding/testing_and_quality.md).
   cleanup recalculated remaining checksums and release metadata; per-version
   cleanup removed only that version's payloads and stale sidecars; all-version
   cleanup removed matching release artifacts and generated desktop state while
-  preserving unrelated files, source, QA, and user data. A throwing
+  preserving unrelated files, source fixtures, and user data. A throwing
   `Write-Progress` fallback completed cleanup. Valid, stale-source,
   stale-dependency, missing, invalid, and missing-output frontend manifests
   produced the expected states. The occupied-port non-interactive path failed
   closed; the interactive decline path was exercised with a disposable
   listener and simulated prompt input and preserved that listener.
 - `git check-ignore` confirmed the launcher and test-runner cache paths are
-  ignored, including `app/client/.angular/cache/`, while allowlisted source,
-  QA evidence, and `runtimes/cache/.gitkeep` remain trackable. The configured
+  ignored, including `app/client/.angular/cache/`, while allowlisted source
+  and `runtimes/cache/.gitkeep` remain trackable. Temporary validation outputs
+  now use the ignored runtime cache. The configured
   Windows test runner uses `runtimes/cache` and a per-run pytest base-temp.
   Direct pytest instructions now resolve the absolute cache root; using a
   relative `cache_dir` had placed pytest state under `app/server/runtimes/cache`
@@ -321,7 +335,7 @@ see [testing and quality rules](coding/testing_and_quality.md).
   supplied the accepted CPU and CUDA artifacts;
   [release workflow run 39103683278](https://github.com/CTCycle/XREPORT-radiological-reports-generator/actions/runs/39103683278)
   published them. The tag resolves to the source commit, all
-  eight published SHA-256 digests match the [approved release manifest](../QA/validation_campaign/release-validation/approved-release-manifest.json),
+  eight published SHA-256 digests match the [approved release manifest](validation/approved-release-manifest.json),
   and release verification plus portable smoke passed for both variants.
 - CPU and CUDA portable and MSI packages were exercised on an RTX 3060 Windows
   host. Native routes, Training submit/cancel, active-work close/reopen,
@@ -344,7 +358,10 @@ see [testing and quality rules](coding/testing_and_quality.md).
   inference require authorized provider access; see `ISSUE-002` in the
   [status ledger](project_status_ledger.md).
 - `S50` recovery, `S52` responsive/accessibility checks, and `S53` source
-  performance baselines passed for their stated technical scopes. Packaged
+  performance baselines passed for their stated technical scopes. S52 covered
+  Dataset, Inference, Reports, Settings, and Training at 1440×900, 1024×720,
+  640×800, 390×844, and 320×640; narrow Inference and Settings were also
+  checked in dark and light themes. Packaged
   timing, genuine no-GPU fallback, broader representative-data behavior, and
   spoken accessibility remain outside those results.
 - `S51` bounded concurrency recheck passed 15 tests across
@@ -354,10 +371,11 @@ see [testing and quality rules](coding/testing_and_quality.md).
   on source candidate `b98a9b60492b63fb41a904e3cff4815325b8d075`. These checks
   cover atomic duplicate-start rejection, overlap and cleanup for distinct job
   types, and the resilience harness's scenario and worker-observation
-  contracts with stubbed workers. The live S51 workload matrix was not run because its default
-  `assets/QA/validation_campaign/s27/fixtures` directory is absent. Although
-  this host exposes an RTX 3060 Laptop GPU, no real heavy worker was started;
-  GPU contention, high-water resource samples, and real-worker cleanup remain
+  contracts with stubbed workers. The live S51 workload matrix remains unrun.
+  Its non-clinical source fixture is maintained at
+  [`app/tests/fixtures/s27`](../../app/tests/fixtures/s27). No real heavy worker
+  was started despite this host exposing an RTX 3060 Laptop GPU; GPU contention,
+  high-water resource samples and real-worker cleanup remain
   unvalidated, so S51 stays `PARTIAL`.
 - Public-model technical checks and output review do not show diagnostic
   accuracy. Keep model readiness and `validation_status` separate from any
@@ -369,9 +387,11 @@ see [testing and quality rules](coding/testing_and_quality.md).
   ledger or the component entry in the status ledger. Link existing tests,
   CI runs, architecture/workflow docs, or the release manifest where they
   support the claim; do not create a parallel report for each slice.
-- Store screenshots, logs, and working QA reports under `assets/QA/`. Keep
+- Put temporary screenshots, logs, and receipts under ignored `runtimes/cache/`
+  and remove them after the run. Keep
   only artifacts required by project tooling in the tracked tree. The approved
-  release manifest remains tracked because the release verifier consumes it
+  release manifest is indexed under `validation/` because the release verifier
+  consumes it
   and it binds one source commit to the published artifact hashes.
 - Keep `PASS`, `PARTIAL`, `BLOCKED`, `FAIL`, and `UNTESTED` scoped to what was
   actually exercised. A unit test does not prove a browser workflow; a

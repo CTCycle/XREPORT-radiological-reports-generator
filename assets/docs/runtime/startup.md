@@ -1,6 +1,6 @@
 # Runtime Startup
 
-Last updated: 2026-10-28
+Last updated: 2026-10-29
 
 ## Windows Local Launcher
 
@@ -86,7 +86,7 @@ Startup validation is the Tier 0 foundation of the campaign in
   startup gate for an ordinary API error.
 
 The acceptance boundary is rendered behavior plus backend evidence, not merely
-an HTTP 200 from a server process. Save captures under `assets/QA/`, then
+an HTTP 200 from a server process. Save temporary captures under `runtimes/cache/`, then
 record the result, source revision, scope, and remaining limits in the existing
 campaign or status ledger. Do not add a separate summary file for each slice.
 
@@ -222,7 +222,7 @@ remaining variant checksum and build metadata sidecars synchronized. **All
 versions and artifacts** removes every desktop release plus generated desktop
 build state, including Cargo targets, PyInstaller/runtime staging, desktop
 dependencies, and generated Tauri files. It preserves tracked source and build
-scripts, `assets/QA/` evidence, installed applications, and user data. The
+scripts, installed applications, and user data. The
 `app/desktop` directory remains because it contains tracked application source.
 
 Direct removal accepts either a version and optional runtime/target selection,

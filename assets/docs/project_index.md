@@ -1,6 +1,6 @@
 # XREPORT Project Overview
 
-Last updated: 2026-10-18
+Last updated: 2026-10-29
 
 This file is the root index for `assets/docs`. Read it first to find the narrowest topic file for the active question.
 
@@ -30,6 +30,8 @@ This file is the root index for `assets/docs`. Read it first to find the narrowe
   - Canonical current operational status, active issues, and known validation limits.
 - `validation_campaign_ledger.md`
   - Compact validation gate map, current release evidence, and campaign-wide limits.
+- `validation/approved-release-manifest.json`
+  - Machine-readable approval record consumed by the desktop release verifier.
 
 ### Architecture
 
@@ -103,7 +105,7 @@ This file is the root index for `assets/docs`. Read it first to find the narrowe
 - Keep `project_status_ledger.md` synchronized after implementation, regression discovery, meaningful validation, blocker changes, or issue resolution and revalidation.
 - Update `validation_campaign_ledger.md` when a gate outcome or scope limit changes. Keep implementation, automated coverage, exercised behavior, and observed outcome distinct without appending a per-run history.
 - Treat `project_status_ledger.md` as the canonical current-state summary and architecture/topic documents as the authority for structure and contracts. The validation ledger records current gate outcomes and important limits; it is not a second run history.
-- Store QA captures and working reports under `assets/QA/`. Keep useful outcomes in the existing ledgers and topic documents instead of adding per-slice summary files. Track a QA artifact only when a project tool requires it; the approved release manifest is one such input.
+- Record durable validation outcomes in the existing ledgers and topic documents. Put temporary screenshots, logs, and receipts under ignored `runtimes/cache/` and remove them after the run. Keep source fixtures under `app/tests/fixtures/`; the required release approval manifest lives at `validation/approved-release-manifest.json`.
 - Always include a `Last updated: YYYY-MM-DD` line when modifying a document.
 - Pre-select relevant docs from folder structure and user intent before opening more files.
 

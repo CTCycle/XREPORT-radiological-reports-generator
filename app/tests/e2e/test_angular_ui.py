@@ -346,8 +346,6 @@ def test_desktop_catalogue_matches_details_height_and_keeps_internal_scroll(
     assert metrics["selectionContainsCatalog"]
     assert abs(metrics["catalogHeight"] - metrics["detailsHeight"]) <= 1
     assert metrics["overflowY"] in {"auto", "scroll"}
-    page.screenshot(path="G:/Projects/Repositories/Active projects/XREPORT Radiological Reports/assets/QA/catalogue-rows-desktop.png")  # TEMP
-
     page.get_by_placeholder("Filter by model, anatomy, or origin").fill("CheXOne")
     filtered_metrics = page.evaluate(
         """
@@ -1165,7 +1163,7 @@ def _capture_s10_browser_errors(page: Page) -> dict[str, list[str]]:
 ###############################################################################
 def _e2e_screenshot_dir(default_relative: str) -> Path:
     configured = os.environ.get("XREPORT_E2E_SCREENSHOT_DIR", "").strip()
-    qa_dir = Path(configured) if configured else Path(__file__).parents[3] / "assets" / "QA" / default_relative
+    qa_dir = Path(configured) if configured else Path(__file__).parents[3] / "runtimes" / "cache" / "qa" / default_relative
     qa_dir.mkdir(parents=True, exist_ok=True)
     return qa_dir
 
