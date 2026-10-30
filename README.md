@@ -5,6 +5,23 @@
 <p align="center">A local research suite for generating, reviewing, and training radiological report models.</p>
 
 <p align="center">
+  <a href="https://github.com/CTCycle/XREPORT-radiological-reports-generator/stargazers"><img alt="GitHub stars" src="https://img.shields.io/github/stars/CTCycle/XREPORT-radiological-reports-generator?style=flat-square"></a>
+  <a href="https://github.com/CTCycle/XREPORT-radiological-reports-generator/commits"><img alt="Last commit" src="https://img.shields.io/github/last-commit/CTCycle/XREPORT-radiological-reports-generator?style=flat-square"></a>
+</p>
+
+<p align="center">
+  <a href="https://github.com/CTCycle/XREPORT-radiological-reports-generator/releases"><img alt="Release" src="https://img.shields.io/github/v/release/CTCycle/XREPORT-radiological-reports-generator?display_name=tag&style=flat-square"></a>
+  <a href="https://github.com/CTCycle/XREPORT-radiological-reports-generator/actions/workflows/ci.yml?query=branch%3Adevelop"><img alt="CI" src="https://img.shields.io/github/actions/workflow/status/CTCycle/XREPORT-radiological-reports-generator/ci.yml?branch=develop&label=CI&style=flat-square"></a>
+  <a href="LICENSE"><img alt="License" src="https://img.shields.io/github/license/CTCycle/XREPORT-radiological-reports-generator?style=flat-square"></a>
+</p>
+
+<p align="center">
+  <a href="https://www.python.org/"><img alt="Python 3.14+" src="https://img.shields.io/badge/Python-3.14%2B-3776AB?logo=python&logoColor=white&style=flat-square"></a>
+  <a href="https://angular.dev/"><img alt="Angular 22" src="https://img.shields.io/badge/Angular-22-DD0031?logo=angular&logoColor=white&style=flat-square"></a>
+  <a href="https://www.microsoft.com/windows"><img alt="Platform: Windows" src="https://img.shields.io/badge/Platform-Windows-0078D4?logo=windows&logoColor=white&style=flat-square"></a>
+</p>
+
+<p align="center">
   <a href="#xreport-inference">Inference</a> ·
   <a href="#xreport-studio">Studio</a> ·
   <a href="#configuration">Configuration</a> ·
