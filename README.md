@@ -7,9 +7,6 @@
 <p align="center">
   <a href="https://github.com/CTCycle/XREPORT-radiological-reports-generator/stargazers"><img alt="GitHub stars" src="https://img.shields.io/github/stars/CTCycle/XREPORT-radiological-reports-generator?style=flat-square"></a>
   <a href="https://github.com/CTCycle/XREPORT-radiological-reports-generator/commits"><img alt="Last commit" src="https://img.shields.io/github/last-commit/CTCycle/XREPORT-radiological-reports-generator?style=flat-square"></a>
-</p>
-
-<p align="center">
   <a href="https://github.com/CTCycle/XREPORT-radiological-reports-generator/releases"><img alt="Release" src="https://img.shields.io/github/v/release/CTCycle/XREPORT-radiological-reports-generator?display_name=tag&style=flat-square"></a>
   <a href="https://github.com/CTCycle/XREPORT-radiological-reports-generator/actions/workflows/ci.yml?query=branch%3Adevelop"><img alt="CI" src="https://img.shields.io/github/actions/workflow/status/CTCycle/XREPORT-radiological-reports-generator/ci.yml?branch=develop&label=CI&style=flat-square"></a>
   <a href="LICENSE"><img alt="License" src="https://img.shields.io/github/license/CTCycle/XREPORT-radiological-reports-generator?style=flat-square"></a>
