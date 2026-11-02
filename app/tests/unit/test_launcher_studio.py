@@ -25,6 +25,7 @@ def _function_body(name: str) -> str:
     return LAUNCHER[match.start():end]
 
 
+###############################################################################
 def _cleanup_function_body(name: str) -> str:
     match = re.search(rf"^function {re.escape(name)} \{{", LAUNCHER_CLEANUP, re.MULTILINE)
     assert match, f"{name} not found in cleanup module"
