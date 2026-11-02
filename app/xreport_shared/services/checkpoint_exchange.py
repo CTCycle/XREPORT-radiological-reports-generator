@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from collections.abc import Callable
+from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from functools import lru_cache
@@ -26,6 +26,7 @@ from xreport_shared.common.utils.security import validate_checkpoint_name
 from xreport_shared.domain.checkpoint_exchange import (
     CUSTOM_OBJECTS_API,
     ENCODER_REPOSITORY,
+    ENCODER_REVISION,
     EXCHANGE_ARCHITECTURE,
     EXCHANGE_FILE_EXTENSION,
     EXCHANGE_FORMAT_VERSION,
@@ -59,12 +60,19 @@ from xreport_shared.repositories.checkpoints import (
     CheckpointRegistryError,
     CheckpointRepository,
 )
-from xreport_shared.services.errors import BadRequestError, ConflictError, NotFoundError
+from xreport_shared.services.errors import (
+    BadRequestError,
+    ConflictError,
+    NotFoundError,
+    PayloadTooLargeError,
+)
 from xreport_shared.services.jobs import JobAlreadyRunningError, JobExecutionError, JobManager, get_job_manager
 
 EXPORT_JOB_TYPE = "checkpoint_export"
 IMPORT_JOB_TYPE = "checkpoint_import"
 STAGING_PREFIX = ".import-"
+STAGING_UPLOAD_PREFIX = ".import-upload-"
+UPLOAD_CHUNK_BYTES = 1024 * 1024
 EXCHANGE_RECORD = "exchange.json"
 ENCODER_CACHE_DIRNAME = "models--microsoft--beit-base-patch16-224"
 _TOKENIZER_NAME = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]*(/[A-Za-z0-9][A-Za-z0-9._-]*)?$")
@@ -95,13 +103,6 @@ def encoder_installed(revision: str) -> bool:
 
 
 ###############################################################################
-def pinned_encoder_revision() -> str:
-    from xreport_shared.models.training.encoder import BeitXRayImageEncoder
-
-    return BeitXRayImageEncoder.ENCODER_REVISION
-
-
-###############################################################################
 def sweep_stale_staging() -> int:
     """Remove interrupted import staging left by a crash; known-good folders stay."""
     removed = 0
@@ -124,6 +125,22 @@ class ImportPlan:
     manifest: ExchangeManifest
     name: str
     renamed_from: str | None
+
+
+###############################################################################
+class ExtractionProgress:
+    """Maps extracted byte counts onto the 5-75% span of an import job."""
+
+    # -------------------------------------------------------------------------
+    def __init__(self, report: Callable[[float], None], total: int) -> None:
+        self.report = report
+        self.total = total
+        self.done = 0
+
+    # -------------------------------------------------------------------------
+    def __call__(self, count: int) -> None:
+        self.done += count
+        self.report(5 + 70 * self.done / self.total)
 
 
 ###############################################################################
@@ -166,7 +183,7 @@ class CheckpointExchangeService:
             raise NotFoundError(f"Checkpoint is not registered: {name}")
         if not record.artifact_complete:
             raise BadRequestError(f"Checkpoint artifact is incomplete: {name}")
-        if include_encoder and not encoder_installed(pinned_encoder_revision()):
+        if include_encoder and not encoder_installed(ENCODER_REVISION):
             raise BadRequestError(
                 "The pinned BEiT encoder is not installed locally, so it cannot be bundled"
             )
@@ -226,7 +243,7 @@ class CheckpointExchangeService:
                     code="metadata_invalid",
                 )
             members += self._stage_tokenizer(metadata, workdir / "tokenizer")
-            revision = pinned_encoder_revision()
+            revision = ENCODER_REVISION
             if include_encoder:
                 snapshot = encoder_snapshot_dir(revision)
                 for source in sorted(p for p in snapshot.rglob("*") if p.is_file()):
@@ -364,20 +381,22 @@ class CheckpointExchangeService:
 
     # -------------------------------------------------------------------------
     @staticmethod
-    def _provenance(history: dict[str, Any]) -> ManifestProvenance:
-        def last(values: Any) -> float | None:
-            if isinstance(values, list) and values and isinstance(values[-1], int | float):
-                return float(values[-1])
-            return None
+    def _last_value(values: Any) -> float | None:
+        if isinstance(values, list) and values and isinstance(values[-1], int | float):
+            return float(values[-1])
+        return None
 
+    # -------------------------------------------------------------------------
+    @staticmethod
+    def _provenance(history: dict[str, Any]) -> ManifestProvenance:
         series = history.get("history")
         series = series if isinstance(series, dict) else {}
         epochs = history.get("epochs")
         return ManifestProvenance(
             created_utc=datetime.now(timezone.utc).isoformat(),
             epochs=epochs if isinstance(epochs, int) else None,
-            final_loss=last(series.get("loss")),
-            final_val_loss=last(series.get("val_loss")),
+            final_loss=CheckpointExchangeService._last_value(series.get("loss")),
+            final_val_loss=CheckpointExchangeService._last_value(series.get("val_loss")),
         )
 
     ###########################################################################
@@ -429,12 +448,12 @@ class CheckpointExchangeService:
             )
         if (
             manifest.encoder.repository != ENCODER_REPOSITORY
-            or manifest.encoder.revision != pinned_encoder_revision()
+            or manifest.encoder.revision != ENCODER_REVISION
         ):
             raise BadRequestError(
                 "Checkpoint was built with a different image encoder "
                 f"({manifest.encoder.repository}@{manifest.encoder.revision[:8]}); this "
-                f"XREPORT requires {ENCODER_REPOSITORY}@{pinned_encoder_revision()[:8]}."
+                f"XREPORT requires {ENCODER_REPOSITORY}@{ENCODER_REVISION[:8]}."
             )
         try:
             validate_checkpoint_name(manifest.checkpoint_name)
@@ -534,6 +553,28 @@ class CheckpointExchangeService:
             return digest if isinstance(digest, str) else None
         except (OSError, ValueError, AttributeError):
             return None
+
+    # -------------------------------------------------------------------------
+    @staticmethod
+    async def stage_upload(read_chunk: Callable[[int], Awaitable[bytes]]) -> Path:
+        """Stream an uploaded archive to a staging file, enforcing the size limit."""
+        CHECKPOINTS_DIR.mkdir(parents=True, exist_ok=True)
+        staged = (
+            CHECKPOINTS_DIR
+            / f"{STAGING_UPLOAD_PREFIX}{uuid.uuid4().hex}{EXCHANGE_FILE_EXTENSION}"
+        )
+        written = 0
+        try:
+            with staged.open("xb") as target:
+                while chunk := await read_chunk(UPLOAD_CHUNK_BYTES):
+                    written += len(chunk)
+                    if written > MAX_TOTAL_BYTES:
+                        raise PayloadTooLargeError("Checkpoint archive is too large")
+                    target.write(chunk)
+        except BaseException:
+            staged.unlink(missing_ok=True)
+            raise
+        return staged
 
     # -------------------------------------------------------------------------
     def start_import(
@@ -662,12 +703,9 @@ class CheckpointExchangeService:
                 entries = inspect_archive(archive)
                 payload = [name for name in entries if name != MANIFEST_NAME]
                 total = sum(entries[name].size for name in payload) or 1
-                done = 0
-
-                def advance(count: int) -> None:
-                    nonlocal done
-                    done += count
-                    self._progress(job_id, 5 + 70 * done / total)
+                advance = ExtractionProgress(
+                    lambda value: self._progress(job_id, value), total
+                )
 
                 declared = {item.path: item.size for item in plan.manifest.files}
                 hashes: dict[str, str] = {}
@@ -788,6 +826,7 @@ class CheckpointExchangeService:
         import numpy as np
         from keras import ops
 
+        # Deferred: keeps the model-serialization module out of application startup.
         from xreport_shared.models.training.processing import TokenizerHandler
         from xreport_shared.repositories.serialization.model import ModelSerializer
 

@@ -3,7 +3,7 @@ from __future__ import annotations
 import os
 import subprocess
 from collections.abc import Callable, Iterator
-from functools import lru_cache
+from functools import lru_cache, partial
 from pathlib import Path
 from typing import Any
 import pandas as pd
@@ -38,7 +38,7 @@ from xreport_shared.services.jobs import (
     JobManager,
     get_job_manager,
 )
-from xreport_shared.configurations.startup import get_server_settings
+from xreport_shared.services.settings import get_server_settings
 from xreport_studio.services.upload import UploadState, get_upload_state
 from xreport_studio.services.dataset_processing import DatasetProcessingService
 from xreport_studio.repositories.preparation import PreparationRepository
@@ -331,17 +331,10 @@ class PreparationService:
                 ),
             )
 
-        def run(job_id: str) -> dict[str, Any]:
-            def report(progress: float, phase: str) -> None:
-                self.job_manager.update_progress(job_id, progress)
-                self.job_manager.update_result(job_id, {"phase": phase})
-
-            return self.load_dataset(request, report).model_dump()
-
         try:
             job_id = self.job_manager.start_job(
                 job_type=self.LOAD_JOB_TYPE,
-                runner=run,
+                runner=partial(self._run_load_job, request),
                 poll_interval=self._current_settings().jobs.polling_interval,
                 require_idle=True,
             )
@@ -365,15 +358,31 @@ class PreparationService:
         )
 
     # -------------------------------------------------------------------------
+    def _run_load_job(self, request: LoadDatasetRequest, job_id: str) -> dict[str, Any]:
+        return self.load_dataset(
+            request, partial(self._report_load_progress, job_id)
+        ).model_dump()
+
+    # -------------------------------------------------------------------------
+    def _report_load_progress(self, job_id: str, progress: float, phase: str) -> None:
+        self.job_manager.update_progress(job_id, progress)
+        self.job_manager.update_result(job_id, {"phase": phase})
+
+    # -------------------------------------------------------------------------
+    @staticmethod
+    def _emit_progress(
+        report: Callable[[float, str], None] | None, value: float, phase: str
+    ) -> None:
+        if report is not None:
+            report(value, phase)
+
+    # -------------------------------------------------------------------------
     def load_dataset(  # noqa: C901
         self,
         request: LoadDatasetRequest,
         report: Callable[[float, str], None] | None = None,
     ) -> LoadDatasetResponse:
-        def progress(value: float, phase: str) -> None:
-            if report is not None:
-                report(value, phase)
-
+        progress = partial(self._emit_progress, report)
         progress(5, "Reading uploaded file")
         folder_path = request.image_folder_path.strip()
         sample_size = request.sample_size

@@ -642,10 +642,7 @@ def test_token_statistics_require_text_metric_and_count_tokens(
         def __call__(self, texts: list[str], add_special_tokens: bool) -> dict:
             return {"input_ids": [[0] * (len(text.split()) + 2) for text in texts]}
 
-    monkeypatch.setattr(
-        "xreport_shared.models.training.processing.load_tokenizer",
-        lambda _name: FakeTokenizer(),
-    )
+    monkeypatch.setattr(validation_runs, "load_tokenizer", lambda _name: FakeTokenizer())
     dataset = pd.DataFrame({"record_id": [1, 2], "text": ["a b c", "d e"]})
     outcome = validation_runs.MetricOutcome()
     validator = validation_runs.DatasetValidator(dataset, dataset_name="d")

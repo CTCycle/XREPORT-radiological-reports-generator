@@ -5,10 +5,6 @@ from functools import lru_cache
 import re
 from typing import Any
 
-from sqlalchemy import column as sqlalchemy_column
-from sqlalchemy import inspect, select
-from sqlalchemy import table as sqlalchemy_table
-
 from xreport_shared.common.path import DATABASE_FILE_PATH
 from xreport_shared.configurations.database_config import (
     DatabaseConfiguration,
@@ -34,10 +30,14 @@ from xreport_shared.repositories.database.backend import (
 from xreport_shared.repositories.database.engine import Database
 from xreport_shared.repositories.database.initializer import (
     database_ownership_error,
+    inspect_schema,
+    prepare_database_for_startup,
     schema_head,
 )
 from xreport_shared.repositories.database.schema import application_schema
+from xreport_shared.configurations.startup import get_database_settings
 from xreport_shared.services.jobs import get_job_manager
+from xreport_shared.services.startup_validation import run_startup_validations
 from xreport_shared.services.settings import SettingsService
 
 
@@ -142,18 +142,12 @@ class DatabaseSettingsService:
         candidate_database: Database | None = None
         activation = None
         try:
-            from xreport_shared.repositories.database.initializer import (
-                prepare_database_for_startup,
-            )
-
             prepare_database_for_startup(target_settings)
             candidate_database = Database(target_settings)
             values = ApplicationSettingsRepository(candidate_database).get_settings()
             server_settings = application_settings_to_server_settings(
                 values, target_settings
             )
-            from xreport_shared.services.startup_validation import run_startup_validations
-
             server_settings = run_startup_validations(server_settings)
             probe = self._probe(resolved)
             if not probe.connected or not probe.schema_ready:
@@ -168,8 +162,6 @@ class DatabaseSettingsService:
             )
             activation = activate_database(candidate_database)
             save_database_configuration(resolved)
-            from xreport_shared.configurations.startup import get_database_settings
-
             get_database_settings.cache_clear()
             finalize_database_activation(activation)
             return DatabaseSwitchResult(
@@ -212,48 +204,40 @@ class DatabaseSettingsService:
         database: Database | None = None
         try:
             database = Database(configuration.to_database_settings())
-            with database.engine.connect() as connection:
-                table_names = set(inspect(connection).get_table_names())
-                ownership_error = database_ownership_error(table_names, schema)
-                if ownership_error:
-                    return DatabaseProbe(True, False, False, None, ownership_error)
-                if schema.version_table not in table_names:
-                    if table_names:
-                        return DatabaseProbe(
-                            True,
-                            False,
-                            False,
-                            None,
-                            f"The database contains tables but no {schema.title} schema.",
-                        )
+            inspection = inspect_schema(database, schema)
+            table_names = inspection.table_names
+            ownership_error = database_ownership_error(set(table_names), schema)
+            if ownership_error:
+                return DatabaseProbe(True, False, False, None, ownership_error)
+            if schema.version_table not in table_names:
+                if table_names:
                     return DatabaseProbe(
                         True,
                         False,
-                        True,
+                        False,
                         None,
-                        "Connection succeeded, but the application schema is not initialized.",
-                    )
-                revisions = (
-                    connection.execute(
-                        select(sqlalchemy_column("version_num")).select_from(
-                            sqlalchemy_table(schema.version_table)
-                        )
-                    )
-                    .scalars()
-                    .all()
-                )
-                revision = revisions[0] if len(revisions) == 1 else None
-                if revision != schema_head(schema):
-                    return DatabaseProbe(
-                        True,
-                        False,
-                        True,
-                        revision,
-                        "Connection succeeded, but the schema revision is not current.",
+                        f"The database contains tables but no {schema.title} schema.",
                     )
                 return DatabaseProbe(
-                    True, True, True, revision, "Connection and application schema are ready."
+                    True,
+                    False,
+                    True,
+                    None,
+                    "Connection succeeded, but the application schema is not initialized.",
                 )
+            revisions = inspection.revisions
+            revision = revisions[0] if len(revisions) == 1 else None
+            if revision != schema_head(schema):
+                return DatabaseProbe(
+                    True,
+                    False,
+                    True,
+                    revision,
+                    "Connection succeeded, but the schema revision is not current.",
+                )
+            return DatabaseProbe(
+                True, True, True, revision, "Connection and application schema are ready."
+            )
         except Exception as exc:  # noqa: BLE001
             return DatabaseProbe(False, False, False, None, _sanitize_database_error(exc))
         finally:

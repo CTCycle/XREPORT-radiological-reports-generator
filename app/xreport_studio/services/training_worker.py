@@ -19,6 +19,7 @@ from xreport_studio.repositories.serialization.dataset import (
     DatasetRepository,
 )
 from xreport_shared.repositories.checkpoints import CheckpointRepository
+from xreport_shared.repositories.serialization.model import ModelSerializer
 
 if TYPE_CHECKING:
     import pandas as pd
@@ -27,10 +28,7 @@ if TYPE_CHECKING:
 WORKER_LIFECYCLE_MESSAGE_TYPE = "training_worker_lifecycle"
 WORKER_DIAGNOSTICS_KEY = "worker_diagnostics"
 MAX_WORKER_TRACEBACK_LENGTH = 12000
-CRITICAL_PROGRESS_TYPES = {
-    WORKER_LIFECYCLE_MESSAGE_TYPE,
-    "training_update",
-}
+CRITICAL_PROGRESS_TYPES = frozenset({WORKER_LIFECYCLE_MESSAGE_TYPE, "training_update"})
 
 
 ###############################################################################
@@ -612,6 +610,7 @@ def load_resume_training_data(
 
 ###############################################################################
 def require_torch_backend() -> None:
+    # Deferred: keras must load after KERAS_BACKEND is set in the worker.
     import keras
 
     backend = keras.backend.backend()
@@ -648,8 +647,6 @@ def keep_saved_epoch(checkpoint_path: str | None, created_by_run: bool) -> dict[
     A folder this run created without a saved epoch is removed, so cancelled
     or failed runs leave no orphan checkpoint directories behind.
     """
-    from xreport_shared.repositories.serialization.model import ModelSerializer
-
     if checkpoint_path is None:
         return {}
     path = Path(checkpoint_path)
@@ -681,6 +678,7 @@ def run_training_process(  # noqa: PLR0915 - lifecycle boundaries are intentiona
     configuration: dict[str, Any],
     worker: Any,
 ) -> None:
+    # Deferred: keras/torch load only in the worker, after KERAS_BACKEND is set.
     import keras
 
     from xreport_studio.models.callbacks import TrainingInterruptCallback, WorkerInterrupted
@@ -691,7 +689,6 @@ def run_training_process(  # noqa: PLR0915 - lifecycle boundaries are intentiona
         count_model_parameters,
     )
     from xreport_studio.models.training.trainer import ModelTrainer
-    from xreport_shared.repositories.serialization.model import ModelSerializer
 
     progress_queue = worker.progress_queue
     stop_event = worker.stop_event
@@ -810,13 +807,13 @@ def run_resume_training_process(  # noqa: PLR0915 - lifecycle boundaries are int
     worker: Any,
     poll_interval: float = 1.0,
 ) -> None:
+    # Deferred: keras/torch load only in the worker, after KERAS_BACKEND is set.
     import keras
 
     from xreport_studio.models.callbacks import TrainingInterruptCallback, WorkerInterrupted
     from xreport_studio.models.device import DeviceConfig
     from xreport_shared.models.training.dataloader import XRAYDataLoader
     from xreport_studio.models.training.trainer import ModelTrainer
-    from xreport_shared.repositories.serialization.model import ModelSerializer
 
     progress_queue = worker.progress_queue
     stop_event = worker.stop_event

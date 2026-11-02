@@ -96,7 +96,7 @@ class Node:
             ("EXPORTS_DIR", self.exports_dir),
         ):
             monkeypatch.setattr(exchange, attribute, value)
-        monkeypatch.setattr(exchange, "pinned_encoder_revision", lambda: REVISION)
+        monkeypatch.setattr(exchange, "ENCODER_REVISION", REVISION)
         self.repository = FakeCheckpoints()
         self.jobs = SimpleNamespace(
             should_stop=lambda _job: False, update_progress=lambda *_: None

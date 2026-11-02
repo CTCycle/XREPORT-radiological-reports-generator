@@ -6,7 +6,7 @@ import os
 import time
 from functools import lru_cache
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, NoReturn
+from typing import Any, NoReturn
 
 from xreport_shared.services.errors import (
     BadRequestError,
@@ -42,10 +42,15 @@ from xreport_shared.repositories.checkpoints import (
     CheckpointRegistryError,
     CheckpointRepository,
 )
-from xreport_shared.configurations.startup import get_server_settings
-
-if TYPE_CHECKING:
-    from xreport_studio.services.training_worker import ProcessWorker
+from xreport_shared.common.path import CHECKPOINTS_DIR
+from xreport_shared.services.settings import get_server_settings
+from xreport_shared.repositories.serialization.model import ModelSerializer
+from xreport_studio.services.model_architecture import get_model_architecture_service
+from xreport_studio.services.training_worker import (
+    ProcessWorker,
+    run_resume_training_process,
+    run_training_process,
+)
 
 ###############################################################################
 WORKER_EXIT_FAILURE_CODE = "training_worker_exited"
@@ -624,11 +629,6 @@ def run_training_job(
     job_id: str,
 ) -> dict[str, Any]:
     """Blocking training function that runs in background thread."""
-    from xreport_studio.services.training_worker import (
-        ProcessWorker,
-        run_training_process,
-    )
-
     training_runtime = get_training_runtime()
     worker = ProcessWorker()
     training_runtime.worker = worker
@@ -661,11 +661,6 @@ def run_resume_training_job(
     poll_interval: float = 1.0,
 ) -> dict[str, Any]:
     """Blocking resume training function that runs in background thread."""
-    from xreport_studio.services.training_worker import (
-        ProcessWorker,
-        run_resume_training_process,
-    )
-
     training_runtime = get_training_runtime()
     worker = ProcessWorker()
     training_runtime.worker = worker
@@ -723,8 +718,6 @@ class TrainingService:
     @staticmethod
     def apply_architecture_preset(configuration: dict[str, Any]) -> None:
         """Snapshot the selected preset so later preset edits never alter a run."""
-        from xreport_studio.services.model_architecture import get_model_architecture_service
-
         key = configuration.pop("architecture_preset")
         try:
             name, architecture = get_model_architecture_service().resolve_preset(key)
@@ -801,8 +794,6 @@ class TrainingService:
     # -------------------------------------------------------------------------
     def get_checkpoints(self) -> CheckpointsResponse:
         """Get registered checkpoints and report explicit artifact state."""
-        from xreport_shared.repositories.serialization.model import ModelSerializer
-
         modser = ModelSerializer()
         checkpoints = []
         for checkpoint in self.checkpoint_repository.list_checkpoints():
@@ -851,9 +842,7 @@ class TrainingService:
     # -------------------------------------------------------------------------
     def get_checkpoint_metadata(self, checkpoint: str) -> CheckpointMetadataResponse:
         try:
-            from xreport_shared.repositories.serialization.model import ModelSerializer
-
-            checkpoint = validate_checkpoint_name(checkpoint)
+                checkpoint = validate_checkpoint_name(checkpoint)
         except ValueError as exc:
             raise BadRequestError(
                 detail=str(exc),
@@ -916,9 +905,6 @@ class TrainingService:
 
     # -------------------------------------------------------------------------
     def ensure_checkpoint_name_is_free(self, checkpoint_id: str) -> None:
-        from xreport_shared.common.path import CHECKPOINTS_DIR
-        from xreport_shared.repositories.serialization.model import ModelSerializer
-
         name = ModelSerializer().checkpoint_folder_name(checkpoint_id)
         if (
             self.checkpoint_repository.get_checkpoint(name) is not None
@@ -994,8 +980,6 @@ class TrainingService:
 
         # Initialize serializers
         serializer = DatasetRepository()
-        from xreport_shared.repositories.serialization.model import ModelSerializer
-
         modser = ModelSerializer()
 
         try:

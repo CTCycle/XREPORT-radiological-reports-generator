@@ -796,25 +796,29 @@ class HuggingFaceProvider:
     def _move_inputs(cls, inputs: Any, model: Any) -> Any:
         device = cls._input_device(model)
         model_dtype = cls._model_dtype(model)
+        return cls._move_value(inputs, device, model_dtype)
 
-        def move(value: Any) -> Any:
-            if isinstance(value, torch.Tensor):
-                target_device = device or value.device
-                dtype = (
-                    model_dtype
-                    if value.is_floating_point() and model_dtype is not None
-                    else value.dtype
-                )
-                return value.to(device=target_device, dtype=dtype)
-            if isinstance(value, Mapping):
-                return {key: move(item) for key, item in value.items()}
-            if isinstance(value, list):
-                return [move(item) for item in value]
-            if isinstance(value, tuple):
-                return tuple(move(item) for item in value)
-            return value
-
-        return move(inputs)
+    # -------------------------------------------------------------------------
+    @classmethod
+    def _move_value(cls, value: Any, device: Any, model_dtype: Any) -> Any:
+        if isinstance(value, torch.Tensor):
+            target_device = device or value.device
+            dtype = (
+                model_dtype
+                if value.is_floating_point() and model_dtype is not None
+                else value.dtype
+            )
+            return value.to(device=target_device, dtype=dtype)
+        if isinstance(value, Mapping):
+            return {
+                key: cls._move_value(item, device, model_dtype)
+                for key, item in value.items()
+            }
+        if isinstance(value, list):
+            return [cls._move_value(item, device, model_dtype) for item in value]
+        if isinstance(value, tuple):
+            return tuple(cls._move_value(item, device, model_dtype) for item in value)
+        return value
 
     # -------------------------------------------------------------------------
     @staticmethod

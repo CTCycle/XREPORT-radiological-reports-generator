@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Literal
+from typing import Literal
 
 from fastapi import APIRouter, Query, status
 
@@ -13,9 +13,7 @@ from xreport_studio.domain.validation import (
     ValidationRequest,
     ValidationRunListResponse,
 )
-
-if TYPE_CHECKING:
-    from xreport_studio.services.validation_runs import ValidationService
+from xreport_studio.services.validation_runs import ValidationService, get_validation_service
 
 
 ###############################################################################
@@ -34,8 +32,6 @@ class ValidationEndpoint:
     @property
     def service(self) -> ValidationService:
         if self._service is None:
-            from xreport_studio.services.validation_runs import get_validation_service
-
             self._service = get_validation_service()
         return self._service
 

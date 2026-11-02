@@ -43,8 +43,13 @@ from xreport_studio.repositories.serialization.dataset import (
     DatasetIntegrityError,
     DatasetRepository,
 )
+from xreport_shared.models.training.processing import (
+    TokenizerUnavailableError,
+    load_tokenizer,
+)
 from xreport_shared.repositories.checkpoints import CheckpointRepository
-from xreport_shared.configurations.startup import get_server_settings
+from xreport_shared.repositories.serialization.model import ModelSerializer
+from xreport_shared.services.settings import get_server_settings
 from xreport_studio.services.evaluation import (
     CheckpointEvaluator,
     CheckpointInputMismatchError,
@@ -262,11 +267,6 @@ def _load_validation_dataset(
 ###############################################################################
 def _count_tokens(texts: pd.Series, tokenizer_id: str) -> list[int]:
     """Tokens per report, including the tokenizer's special tokens, without padding."""
-    from xreport_shared.models.training.processing import (
-        TokenizerUnavailableError,
-        load_tokenizer,
-    )
-
     try:
         tokenizer = load_tokenizer(tokenizer_id)
     except TokenizerUnavailableError as exc:
@@ -544,8 +544,6 @@ def _run_checkpoint_metrics(
 def _load_checkpoint_for_evaluation(
     checkpoint: str,
 ) -> tuple[Any, Any, Any] | None:
-    from xreport_shared.repositories.serialization.model import ModelSerializer
-
     checkpoint_record = CheckpointRepository().get_checkpoint(checkpoint)
     if checkpoint_record is None or not checkpoint_record.artifact_complete:
         return None

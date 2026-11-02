@@ -14,11 +14,23 @@ from typing import Any, Literal
 from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_validator, model_validator
 
 from xreport_shared.common.path import DATABASE_CONFIG_FILE_PATH, DATABASE_FILE_PATH
+from xreport_shared.configurations.settings import DatabaseSettings
 
 ###############################################################################
 CONFIG_SCHEMA_VERSION = 1
 _CONFIG_LOCK = RLock()
-_BOOTSTRAP_ERROR: str | None = None
+
+
+###############################################################################
+class BootstrapErrorState:
+    """Holds the startup configuration error surfaced to the recovery screen."""
+
+    # -------------------------------------------------------------------------
+    def __init__(self) -> None:
+        self.error: str | None = None
+
+
+_bootstrap_state = BootstrapErrorState()
 
 
 ###############################################################################
@@ -94,9 +106,7 @@ class DatabaseConfiguration(BaseModel):
         return self
 
     # -------------------------------------------------------------------------
-    def to_database_settings(self):
-        from xreport_shared.configurations.settings import DatabaseSettings
-
+    def to_database_settings(self) -> DatabaseSettings:
         return DatabaseSettings(
             backend=self.backend,
             engine=("postgresql+psycopg" if self.backend == "postgresql" else None),
@@ -310,7 +320,6 @@ def save_database_configuration(
 ) -> None:
     if path is None:
         path = DATABASE_CONFIG_FILE_PATH
-    global _BOOTSTRAP_ERROR
     try:
         payload = json.dumps(
             _stored_payload(configuration), indent=2, sort_keys=True
@@ -321,7 +330,7 @@ def save_database_configuration(
         raise DatabaseConfigurationError("Could not encode database settings safely.") from exc
     with _CONFIG_LOCK:
         _atomic_write(path, payload)
-        _BOOTSTRAP_ERROR = None
+        _bootstrap_state.error = None
 
 
 ###############################################################################
@@ -372,9 +381,9 @@ def read_database_configuration_status(
 
 
 ###############################################################################
-def load_database_settings():
-    if _BOOTSTRAP_ERROR:
-        raise DatabaseConfigurationError(_BOOTSTRAP_ERROR)
+def load_database_settings() -> DatabaseSettings:
+    if _bootstrap_state.error:
+        raise DatabaseConfigurationError(_bootstrap_state.error)
     return read_database_configuration().to_database_settings()
 
 
@@ -387,7 +396,6 @@ def bootstrap_database_configuration() -> str | None:
     is parked for the startup recovery screen instead of guessing values from
     the environment.
     """
-    global _BOOTSTRAP_ERROR
     with _CONFIG_LOCK:
         try:
             if DATABASE_CONFIG_FILE_PATH.is_file():
@@ -399,16 +407,15 @@ def bootstrap_database_configuration() -> str | None:
                     )
                 )
         except DatabaseConfigurationError as exc:
-            _BOOTSTRAP_ERROR = str(exc)
-            return _BOOTSTRAP_ERROR
-        _BOOTSTRAP_ERROR = None
+            _bootstrap_state.error = str(exc)
+            return _bootstrap_state.error
+        _bootstrap_state.error = None
         return None
 
 
 ###############################################################################
 def clear_database_configuration_error() -> None:
-    global _BOOTSTRAP_ERROR
-    _BOOTSTRAP_ERROR = None
+    _bootstrap_state.error = None
 
 
 __all__ = [

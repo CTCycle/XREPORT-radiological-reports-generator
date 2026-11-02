@@ -39,9 +39,9 @@ from xreport_shared.configurations import (
     DatabaseSettings,
     ServerSettings,
     get_database_settings,
-    get_server_settings,
 )
 from xreport_shared.repositories.database.initializer import prepare_database_for_startup
+from xreport_shared.services.settings import get_server_settings
 
 
 ###############################################################################

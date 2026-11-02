@@ -11,6 +11,7 @@ import matplotlib.pyplot as plt
 from keras.callbacks import Callback
 
 from xreport_shared.common.utils.logger import logger
+from xreport_shared.repositories.serialization.model import ModelSerializer
 
 
 ###############################################################################
@@ -446,8 +447,6 @@ class EpochCheckpointCallback(Callback):
 
     # -------------------------------------------------------------------------
     def on_epoch_end(self, epoch: int, logs: dict | None = None) -> None:
-        from xreport_shared.repositories.serialization.model import ModelSerializer
-
         for key, value in (logs or {}).items():
             self.history.setdefault(key, []).append(float(value))
         serializer = ModelSerializer()

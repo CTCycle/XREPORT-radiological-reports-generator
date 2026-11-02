@@ -4,6 +4,11 @@ from datetime import datetime
 from typing import TYPE_CHECKING, Any
 
 from xreport_shared.common.utils.logger import logger
+from xreport_shared.models.training.processing import (
+    TextSanitizer,
+    TokenizerHandler,
+    TrainValidationSplit,
+)
 from xreport_studio.repositories.serialization.dataset import (
     DatasetIntegrityError,
     DatasetRepository,
@@ -23,17 +28,6 @@ def resolve_processed_dataset_name(
         return custom_name.strip()
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     return f"{source_dataset_name}_{timestamp}"
-
-
-###############################################################################
-def _load_processing_components() -> tuple[Any, Any, Any]:
-    from xreport_shared.models.training.processing import (
-        TextSanitizer,
-        TokenizerHandler,
-        TrainValidationSplit,
-    )
-
-    return TextSanitizer, TokenizerHandler, TrainValidationSplit
 
 
 ###############################################################################
@@ -89,10 +83,6 @@ class DatasetProcessingService:
         job_id: str,
     ) -> dict[str, Any]:
         """Blocking dataset processing function used by the job runtime."""
-        TextSanitizer, TokenizerHandler, TrainValidationSplit = (
-            _load_processing_components()
-        )
-
         source_dataset_name_raw = configuration.get("dataset_name")
         source_dataset_name = (
             str(source_dataset_name_raw).strip() if source_dataset_name_raw else ""

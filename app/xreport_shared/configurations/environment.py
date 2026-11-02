@@ -10,6 +10,7 @@ from dotenv import dotenv_values
 
 from ..common.path import ENV_EXAMPLE_FILE_PATH, ENV_FILE_PATH
 from ..common.utils.logger import logger
+from .database_config import bootstrap_database_configuration
 
 
 ###############################################################################
@@ -59,8 +60,6 @@ def load_environment(*, force: bool = False) -> Path:
             return env_path
 
         resource_root_override = os.getenv("XREPORT_RESOURCES_DIR")
-        from xreport_shared.configurations.database_config import bootstrap_database_configuration
-
         bootstrap_error = bootstrap_database_configuration()
         if bootstrap_error:
             logger.warning(

@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
-
 from fastapi import APIRouter, status
 from fastapi.responses import FileResponse
 
@@ -21,9 +19,7 @@ from xreport_studio.domain.training import (
 from xreport_shared.domain.jobs import (
     JobStartResponse,
 )
-
-if TYPE_CHECKING:
-    from xreport_studio.services.preparation import PreparationService
+from xreport_studio.services.preparation import PreparationService, get_preparation_service
 
 
 ###############################################################################
@@ -42,8 +38,6 @@ class PreparationEndpoint:
     @property
     def service(self) -> PreparationService:
         if self._service is None:
-            from xreport_studio.services.preparation import get_preparation_service
-
             self._service = get_preparation_service()
         return self._service
 

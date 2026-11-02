@@ -11,15 +11,23 @@ from PIL import Image, ImageOps
 
 from xreport_inference.domain.inference import InferenceImage
 
-# Test/runtime injection points stay empty until checkpoint generation is
-# requested, so importing the provider contract remains lightweight.
-TextGenerator: Any | None = None
-XRAYDataLoader: Any | None = None
-
 
 ###############################################################################
 class XReportCheckpointProvider:
-    """Runs existing XREPORT checkpoints without changing their decoding behavior."""
+    """Runs existing XREPORT checkpoints without changing their decoding behavior.
+
+    The generator and dataloader types default to the shared implementations,
+    imported on first generation so importing the provider contract stays light.
+    """
+
+    # -------------------------------------------------------------------------
+    def __init__(
+        self,
+        text_generator_type: Any | None = None,
+        dataloader_type: Any | None = None,
+    ) -> None:
+        self.text_generator_type = text_generator_type
+        self.dataloader_type = dataloader_type
 
     # -------------------------------------------------------------------------
     def validate_checkpoint(self, checkpoint_path: str | Path) -> str:
@@ -63,9 +71,10 @@ class XReportCheckpointProvider:
             None,
         ],
     ) -> dict[str, str]:
-        text_generator_type = TextGenerator
-        dataloader_type = XRAYDataLoader
+        text_generator_type = self.text_generator_type
+        dataloader_type = self.dataloader_type
         if text_generator_type is None:
+            # Deferred: keras and torch load only when a checkpoint generates.
             from xreport_shared.models.inference.generator import TextGenerator as text_generator_type
         if dataloader_type is None:
             from xreport_shared.models.training.dataloader import XRAYDataLoader as dataloader_type

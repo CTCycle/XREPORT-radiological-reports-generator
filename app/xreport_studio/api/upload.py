@@ -1,13 +1,9 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
-
 from fastapi import APIRouter, File, UploadFile, status
 
 from xreport_studio.domain.training import DatasetUploadResponse
-
-if TYPE_CHECKING:
-    from xreport_studio.services.upload import UploadService
+from xreport_studio.services.upload import UploadService, get_upload_state
 
 
 ###############################################################################
@@ -27,8 +23,6 @@ class UploadEndpoint:
     @property
     def upload_service(self) -> UploadService:
         if self._upload_service is None:
-            from xreport_studio.services.upload import UploadService, get_upload_state
-
             self._upload_service = UploadService(get_upload_state())
         return self._upload_service
 

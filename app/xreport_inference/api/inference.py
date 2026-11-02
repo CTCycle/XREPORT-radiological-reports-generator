@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Annotated, cast
+from typing import Annotated, cast
 
 from fastapi import APIRouter, Depends, File, Form, Query, UploadFile, status
 
@@ -21,12 +21,10 @@ from xreport_inference.domain.inference import (
     ModelUpdateCheckResponse,
     RuntimeReleaseResponse,
 )
+from xreport_inference.services.inference import InferenceService, get_inference_service
 from xreport_shared.domain.jobs import JobStartResponse
 from xreport_shared.common.constants import MAX_TOTAL_IMAGE_BYTES
 from xreport_shared.services.errors import PayloadTooLargeError
-
-if TYPE_CHECKING:
-    from xreport_inference.services.inference import InferenceService
 
 
 ###############################################################################
@@ -60,8 +58,6 @@ class InferenceEndpoint:
     @property
     def service(self) -> InferenceService:
         if self._service is None:
-            from xreport_inference.services.inference import get_inference_service
-
             self._service = get_inference_service()
         return self._service
 

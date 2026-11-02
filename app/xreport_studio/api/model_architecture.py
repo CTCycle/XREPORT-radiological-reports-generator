@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
-
 from fastapi import APIRouter, Response, status
 
 from xreport_studio.domain.model_architecture import (
@@ -13,9 +11,7 @@ from xreport_studio.domain.model_architecture import (
     CheckpointArchitectureResponse,
     EncodersResponse,
 )
-
-if TYPE_CHECKING:
-    from xreport_studio.services.model_architecture import ModelArchitectureService
+from xreport_studio.services.model_architecture import ModelArchitectureService, get_model_architecture_service
 
 
 ###############################################################################
@@ -34,10 +30,6 @@ class ModelArchitectureEndpoint:
     @property
     def service(self) -> ModelArchitectureService:
         if self._service is None:
-            from xreport_studio.services.model_architecture import (
-                get_model_architecture_service,
-            )
-
             self._service = get_model_architecture_service()
         return self._service
 

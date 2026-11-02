@@ -15,7 +15,7 @@ from transformers import StoppingCriteriaList
 from xreport_shared.configurations import InferenceSettings
 from xreport_inference.domain.inference import InferenceImage
 from xreport_inference.models.inference.providers.adapters import MedGemmaAdapter, StudyGeneration
-from xreport_inference.models.inference.providers import huggingface as huggingface_module, xreport
+from xreport_inference.models.inference.providers import huggingface as huggingface_module
 from xreport_inference.models.inference.providers.huggingface import HuggingFaceProvider
 from xreport_inference.configurations.inference_models import embedded_inference_models
 from xreport_inference.services.inference_runtime import InferenceRuntimeCoordinator
@@ -1603,11 +1603,8 @@ def test_generate_rejects_empty_checkpoint_report(
             del data
             return np.zeros((224, 224, 3), dtype=np.float32)
 
-    monkeypatch.setattr(xreport, "TextGenerator", FakeGenerator)
-    monkeypatch.setattr(xreport, "XRAYDataLoader", FakeDataLoader)
-
     with pytest.raises(RuntimeError, match="empty or malformed"):
-        XReportCheckpointProvider().generate(
+        XReportCheckpointProvider(FakeGenerator, FakeDataLoader).generate(
             model=FakeModel(),
             model_metadata={},
             generation_mode="greedy_search",

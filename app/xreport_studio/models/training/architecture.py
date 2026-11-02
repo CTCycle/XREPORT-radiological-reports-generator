@@ -248,6 +248,18 @@ def projection_parameters(architecture: ModelArchitecture) -> int:
 
 
 ###############################################################################
+def _block_properties(architecture: ModelArchitecture, stack: Stack) -> dict[str, Any]:
+    return {
+        "heads": getattr(architecture, f"{stack}_heads"),
+        "head_dim_mode": getattr(architecture, f"{stack}_head_dim_mode"),
+        "key_dim": architecture.key_dim(stack),
+        "ffn_units": getattr(architecture, f"{stack}_ffn_units"),
+        "ffn_activation": getattr(architecture, f"{stack}_ffn_activation"),
+        "dropout": getattr(architecture, f"{stack}_dropout"),
+    }
+
+
+###############################################################################
 def describe(
     architecture: ModelArchitecture,
     vocabulary_size: int = REFERENCE_VOCABULARY_SIZE,
@@ -258,16 +270,6 @@ def describe(
     tokens = encoder.output_tokens
     encoder_block = encoder_block_parameters(architecture)
     decoder_block = decoder_block_parameters(architecture)
-
-    def block_properties(stack: Stack) -> dict[str, Any]:
-        return {
-            "heads": getattr(architecture, f"{stack}_heads"),
-            "head_dim_mode": getattr(architecture, f"{stack}_head_dim_mode"),
-            "key_dim": architecture.key_dim(stack),
-            "ffn_units": getattr(architecture, f"{stack}_ffn_units"),
-            "ffn_activation": getattr(architecture, f"{stack}_ffn_activation"),
-            "dropout": getattr(architecture, f"{stack}_dropout"),
-        }
 
     nodes = [
         ArchitectureNode(
@@ -318,7 +320,7 @@ def describe(
             trainable=True,
             repeat=architecture.num_encoders,
             output_shape=[None, tokens, width],
-            properties={**block_properties("encoder"), "block_parameters": encoder_block},
+            properties={**_block_properties(architecture, "encoder"), "block_parameters": encoder_block},
         ),
         ArchitectureNode(
             id="token_input",
@@ -358,7 +360,7 @@ def describe(
             trainable=True,
             repeat=architecture.num_decoders,
             output_shape=[None, sequence_length, width],
-            properties={**block_properties("decoder"), "block_parameters": decoder_block},
+            properties={**_block_properties(architecture, "decoder"), "block_parameters": decoder_block},
         ),
         ArchitectureNode(
             id="classifier",
@@ -488,6 +490,50 @@ def compare_architectures(
 
 
 ###############################################################################
+def _add_attention(
+    shapes: dict[tuple[str, str, str], tuple[int, ...]],
+    width: int,
+    group: str,
+    block: str,
+    name: str,
+    heads: int,
+    key_dim: int,
+) -> None:
+    for part in ("query", "key", "value"):
+        shapes[(group, block, f"{name}/{part}/kernel")] = (width, heads, key_dim)
+        shapes[(group, block, f"{name}/{part}/bias")] = (heads, key_dim)
+    shapes[(group, block, f"{name}/output/kernel")] = (heads, key_dim, width)
+    shapes[(group, block, f"{name}/output/bias")] = (width,)
+
+
+###############################################################################
+def _add_feed_forward(
+    shapes: dict[tuple[str, str, str], tuple[int, ...]],
+    width: int,
+    group: str,
+    block: str,
+    units: int,
+) -> None:
+    shapes[(group, block, "ffn/dense1/kernel")] = (width, units)
+    shapes[(group, block, "ffn/dense1/bias")] = (units,)
+    shapes[(group, block, "ffn/dense2/kernel")] = (units, width)
+    shapes[(group, block, "ffn/dense2/bias")] = (width,)
+
+
+###############################################################################
+def _add_norms(
+    shapes: dict[tuple[str, str, str], tuple[int, ...]],
+    width: int,
+    group: str,
+    block: str,
+    count: int,
+) -> None:
+    for index in range(1, count + 1):
+        shapes[(group, block, f"norm{index}/gamma")] = (width,)
+        shapes[(group, block, f"norm{index}/beta")] = (width,)
+
+
+###############################################################################
 def weight_shapes(
     architecture: ModelArchitecture, vocabulary_size: int, sequence_length: int
 ) -> dict[tuple[str, str, str], tuple[int, ...]]:
@@ -506,36 +552,18 @@ def weight_shapes(
         ("embedding", "", "position_embeddings"): (sequence_length, width),
     }
 
-    def attention(group: str, block: str, name: str, heads: int, key_dim: int) -> None:
-        for part in ("query", "key", "value"):
-            shapes[(group, block, f"{name}/{part}/kernel")] = (width, heads, key_dim)
-            shapes[(group, block, f"{name}/{part}/bias")] = (heads, key_dim)
-        shapes[(group, block, f"{name}/output/kernel")] = (heads, key_dim, width)
-        shapes[(group, block, f"{name}/output/bias")] = (width,)
-
-    def feed_forward(group: str, block: str, units: int) -> None:
-        shapes[(group, block, "ffn/dense1/kernel")] = (width, units)
-        shapes[(group, block, "ffn/dense1/bias")] = (units,)
-        shapes[(group, block, "ffn/dense2/kernel")] = (units, width)
-        shapes[(group, block, "ffn/dense2/bias")] = (width,)
-
-    def norms(group: str, block: str, count: int) -> None:
-        for index in range(1, count + 1):
-            shapes[(group, block, f"norm{index}/gamma")] = (width,)
-            shapes[(group, block, f"norm{index}/beta")] = (width,)
-
     for index in range(1, architecture.num_encoders + 1):
         block = str(index)
-        attention("encoder", block, "attention", architecture.encoder_heads, architecture.key_dim("encoder"))
-        norms("encoder", block, 2)
-        feed_forward("encoder", block, architecture.encoder_ffn_units)
+        _add_attention(shapes, width, "encoder", block, "attention", architecture.encoder_heads, architecture.key_dim("encoder"))
+        _add_norms(shapes, width, "encoder", block, 2)
+        _add_feed_forward(shapes, width, "encoder", block, architecture.encoder_ffn_units)
     for index in range(1, architecture.num_decoders + 1):
         block = str(index)
         key_dim = architecture.key_dim("decoder")
-        attention("decoder", block, "self_attention", architecture.decoder_heads, key_dim)
-        attention("decoder", block, "cross_attention", architecture.decoder_heads, key_dim)
-        norms("decoder", block, 3)
-        feed_forward("decoder", block, architecture.decoder_ffn_units)
+        _add_attention(shapes, width, "decoder", block, "self_attention", architecture.decoder_heads, key_dim)
+        _add_attention(shapes, width, "decoder", block, "cross_attention", architecture.decoder_heads, key_dim)
+        _add_norms(shapes, width, "decoder", block, 3)
+        _add_feed_forward(shapes, width, "decoder", block, architecture.decoder_ffn_units)
 
     units = architecture.classifier_units
     shapes[("classifier", "", "dense1/kernel")] = (width, units)

@@ -11,7 +11,8 @@ from time import perf_counter
 
 from fastapi import APIRouter, FastAPI, Header, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse, JSONResponse, RedirectResponse
+from fastapi.responses import FileResponse, JSONResponse, RedirectResponse, Response
+from starlette.middleware.base import RequestResponseEndpoint
 from sqlalchemy.exc import SQLAlchemyError
 
 from xreport_shared.api.errors import register_service_error_handlers
@@ -257,6 +258,34 @@ async def app_lifespan(application: FastAPI) -> AsyncIterator[None]:
 
 
 ###############################################################################
+async def database_request_guard(request: Request, call_next: RequestResponseEndpoint) -> Response:
+    path = request.url.path
+    database_control_prefix = "/api/settings/database"
+    is_database_control = path == "/api/health" or (
+        path == database_control_prefix
+        or path.startswith(database_control_prefix + "/")
+    )
+    if not path.startswith("/api/") or is_database_control:
+        return await call_next(request)
+    if not getattr(request.app.state, "database_ready", False):
+        return JSONResponse(
+            status_code=503,
+            content={
+                "detail": "Database setup is required. Use the Database section in Settings."
+            },
+        )
+    gate = request.app.state.database_request_gate
+    return await gate.run_request(lambda: call_next(request))
+
+
+###############################################################################
+def root_response(request: Request) -> RedirectResponse | FileResponse:
+    return redirect_root_to_docs(
+        serve_source_client=request.app.state.serve_source_client
+    )
+
+
+###############################################################################
 def create_application(
     profile: str,
     title: str,
@@ -286,31 +315,14 @@ def create_application(
         lifespan=app_lifespan,
     )
     application.state.app_profile = profile
+    application.state.serve_source_client = serve_source_client
     application.state.on_startup = on_startup
     application.state.database_request_gate = DatabaseRequestGate()
     application.state.database_ready = False
     application.state.database_error = None
     application.state.database_backend = "unknown"
 
-    @application.middleware("http")
-    async def database_request_guard(request: Request, call_next):
-        path = request.url.path
-        database_control_prefix = "/api/settings/database"
-        is_database_control = path == "/api/health" or (
-            path == database_control_prefix
-            or path.startswith(database_control_prefix + "/")
-        )
-        if not path.startswith("/api/") or is_database_control:
-            return await call_next(request)
-        if not getattr(request.app.state, "database_ready", False):
-            return JSONResponse(
-                status_code=503,
-                content={
-                    "detail": "Database setup is required. Use the Database section in Settings."
-                },
-            )
-        gate = request.app.state.database_request_gate
-        return await gate.run_request(lambda: call_next(request))
+    application.middleware("http")(database_request_guard)
 
     install_runtime_shutdown(application, source_launch_token)
     register_service_error_handlers(application)
@@ -324,9 +336,6 @@ def create_application(
         response_model=HealthResponse,
         include_in_schema=False,
     )
-
-    def root_response() -> RedirectResponse | FileResponse:
-        return redirect_root_to_docs(serve_source_client=serve_source_client)
 
     application.add_api_route(
         FASTAPI_ROOT_ENDPOINT,

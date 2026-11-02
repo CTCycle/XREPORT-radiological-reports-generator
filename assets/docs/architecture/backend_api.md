@@ -1,6 +1,6 @@
 # XREPORT Backend API
 
-Last updated: 2026-10-28
+Last updated: 2026-11-02
 
 Each application has a checked-in OpenAPI snapshot, `app/shared/openapi.xreport.json` and
 `app/shared/openapi.studio.json`, generated from `create_app(profile).openapi()`. Regenerate both
@@ -132,7 +132,7 @@ configured `global.seed` value.
 - `PATCH /api/inference/history/{request_id}`
 - `DELETE /api/inference/history/{request_id}`
 
-`POST /api/inference/generate` is multipart and accepts only `model_ref`, `generation_profile`, `clinical_context`, and `images`. Model readiness, capabilities, and input semantics come from `GET /api/inference/models`.
+`POST /api/inference/generate` is multipart and accepts only `model_ref`, `generation_profile`, `clinical_context`, `images`, and the optional `batch_mode`. Model readiness, capabilities, and input semantics come from `GET /api/inference/models`.
 
 `POST /api/inference/runtime/release` unloads the resident model and returns cached CUDA blocks to the driver; it answers `{released, model_ref}`. It returns 409 while an inference or model-maintenance job runs, or while a run holds the residency lock, so it can never interrupt a generation. It does not touch inference history or client-side studies.
 

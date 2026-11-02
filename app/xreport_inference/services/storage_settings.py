@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import ctypes
+from functools import partial
 import json
 import os
 import shutil
@@ -16,6 +17,7 @@ from xreport_shared.common.runtime_layout import (
     write_storage_pointer,
 )
 from xreport_shared.common.utils.logger import logger
+from xreport_shared.configurations.startup import get_database_settings
 from xreport_shared.domain.jobs import JobStartResponse
 from xreport_inference.domain.storage_settings import (
     StorageFolder,
@@ -128,6 +130,16 @@ def _backup_database(source: Path, destination: Path) -> None:
 
 
 ###############################################################################
+def _report_migration(
+    job_manager: JobManager, job_id: str, message: str, fraction: float
+) -> None:
+    job_manager.update_progress(job_id, round(min(fraction, 1.0) * 95, 1))
+    job_manager.update_result(
+        job_id, {"lifecycle": {"phase": "migrating", "message": message}}
+    )
+
+
+###############################################################################
 def run_storage_migration(
     source_root: str,
     target_root: str,
@@ -143,11 +155,7 @@ def run_storage_migration(
     staging = target / f"{STAGING_PREFIX}{job_id}"
     copied = 0
 
-    def report(message: str, fraction: float) -> None:
-        job_manager.update_progress(job_id, round(min(fraction, 1.0) * 95, 1))
-        job_manager.update_result(
-            job_id, {"lifecycle": {"phase": "migrating", "message": message}}
-        )
+    report = partial(_report_migration, job_manager, job_id)
 
     try:
         if mode == "copy":
@@ -361,8 +369,6 @@ class StorageSettingsService:
     # -------------------------------------------------------------------------
     @staticmethod
     def _database_relocatable() -> bool:
-        from xreport_shared.configurations.startup import get_database_settings
-
         settings = get_database_settings()
         return settings.backend == "sqlite" and (
             settings.sqlite_path is None

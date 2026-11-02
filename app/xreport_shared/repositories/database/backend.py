@@ -15,71 +15,76 @@ class DatabaseActivation:
     created_facade: bool
 
 
-_database: Database | None = None
-_database_lock = RLock()
-
-
 ###############################################################################
-def get_database() -> Database:
-    global _database
-    with _database_lock:
-        if _database is None:
-            _database = Database(get_database_settings())
-        return _database
+class DatabaseRegistry:
+    """Holds the process-wide database facade and guards its activation."""
 
+    # -------------------------------------------------------------------------
+    def __init__(self) -> None:
+        self._database: Database | None = None
+        self._lock = RLock()
 
-###############################################################################
-def get_database_if_initialized() -> Database | None:
-    with _database_lock:
-        return _database
+    # -------------------------------------------------------------------------
+    def get(self) -> Database:
+        with self._lock:
+            if self._database is None:
+                self._database = Database(get_database_settings())
+            return self._database
 
+    # -------------------------------------------------------------------------
+    def get_if_initialized(self) -> Database | None:
+        with self._lock:
+            return self._database
 
-###############################################################################
-def activate_database(candidate: Database) -> DatabaseActivation:
-    """Adopt a prepared candidate without replacing cached repository references."""
-    global _database
-    with _database_lock:
-        if _database is None:
-            _database = candidate
+    # -------------------------------------------------------------------------
+    def activate(self, candidate: Database) -> DatabaseActivation:
+        """Adopt a prepared candidate without replacing cached repository references."""
+        with self._lock:
+            if self._database is None:
+                self._database = candidate
+                return DatabaseActivation(
+                    database=candidate,
+                    previous_engine=None,
+                    created_facade=True,
+                )
+            previous = self._database.replace_connection(candidate)
             return DatabaseActivation(
-                database=candidate,
-                previous_engine=None,
-                created_facade=True,
+                database=self._database,
+                previous_engine=previous,
+                created_facade=False,
             )
-        previous = _database.replace_connection(candidate)
-        return DatabaseActivation(
-            database=_database,
-            previous_engine=previous,
-            created_facade=False,
-        )
+
+    # -------------------------------------------------------------------------
+    def rollback(self, activation: DatabaseActivation) -> None:
+        with self._lock:
+            if activation.created_facade:
+                if self._database is activation.database:
+                    activation.database.engine.dispose()
+                    self._database = None
+                return
+            if activation.previous_engine is not None:
+                activation.database.restore_connection(activation.previous_engine)
+
+    # -------------------------------------------------------------------------
+    def reset(self) -> None:
+        with self._lock:
+            if self._database is not None:
+                self._database.engine.dispose()
+                self._database = None
 
 
-###############################################################################
-def rollback_database_activation(activation: DatabaseActivation) -> None:
-    global _database
-    with _database_lock:
-        if activation.created_facade:
-            if _database is activation.database:
-                activation.database.engine.dispose()
-                _database = None
-            return
-        if activation.previous_engine is not None:
-            activation.database.restore_connection(activation.previous_engine)
+database_registry = DatabaseRegistry()
+get_database = database_registry.get
+get_database_if_initialized = database_registry.get_if_initialized
+activate_database = database_registry.activate
+rollback_database_activation = database_registry.rollback
+reset_database = database_registry.reset
 
 
 ###############################################################################
 def finalize_database_activation(activation: DatabaseActivation) -> None:
     if activation.previous_engine is not None:
         Database.dispose_snapshot(activation.previous_engine)
-
-
-###############################################################################
-def reset_database() -> None:
-    global _database
-    with _database_lock:
-        if _database is not None:
-            _database.engine.dispose()
-            _database = None
 
 
 __all__ = [

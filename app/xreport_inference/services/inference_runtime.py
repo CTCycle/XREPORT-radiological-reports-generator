@@ -14,6 +14,7 @@ from xreport_inference.domain.inference import (
     InferenceImage,
     ProviderGenerationResult,
 )
+from xreport_inference.models.inference.providers.xreport import XReportCheckpointProvider
 from xreport_inference.services.model_installation import (
     InstallationCancelled,
     InstallationError,
@@ -22,6 +23,7 @@ from xreport_inference.services.model_installation import (
 )
 from xreport_inference.services.model_storage import ModelStorageLifecycle
 from xreport_shared.repositories.checkpoints import CheckpointRepository
+from xreport_shared.repositories.serialization.model import ModelSerializer
 from xreport_shared.common.utils.logger import logger
 
 if TYPE_CHECKING:
@@ -256,8 +258,6 @@ class InferenceRuntimeCoordinator:
         self, model_ref: str, checkpoint_path: str
     ) -> tuple[Any, dict[str, Any]]:
         """Reuse the resident checkpoint model, loading it only when it changed."""
-        from xreport_shared.repositories.serialization.model import ModelSerializer
-
         weights = Path(checkpoint_path) / "saved_model.keras"
         key = (
             str(checkpoint_path),
@@ -352,10 +352,6 @@ class InferenceRuntimeCoordinator:
         with self.lock:
             if should_stop():
                 return ProviderGenerationResult({}, {}, [], provenance)
-            from xreport_inference.models.inference.providers.xreport import (
-                XReportCheckpointProvider,
-            )
-
             model, model_metadata = self._load_xreport(
                 model_ref, checkpoint_record.path
             )

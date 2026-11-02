@@ -1,16 +1,12 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
-
 from fastapi import APIRouter, status
 
 from xreport_shared.domain.settings import (
     ApplicationSettingsPatch,
     ApplicationSettingsResponse,
 )
-
-if TYPE_CHECKING:
-    from xreport_shared.services.settings import SettingsService
+from xreport_shared.services.settings import SettingsService, get_settings_service
 
 
 ###############################################################################
@@ -29,8 +25,6 @@ class SettingsEndpoint:
     @property
     def service(self) -> SettingsService:
         if self._service is None:
-            from xreport_shared.services.settings import get_settings_service
-
             self._service = get_settings_service()
         return self._service
 

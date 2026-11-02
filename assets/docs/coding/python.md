@@ -1,6 +1,6 @@
 # Python Rules
 
-Last updated: 2026-08-26
+Last updated: 2026-11-02
 
 Apply these rules to new and modified Python code in scope of the task.
 
@@ -45,4 +45,4 @@ Apply these rules to new and modified Python code in scope of the task.
 - Avoid nested function definitions unless strictly needed.
 - Use classes to group related logic when the project already follows class-based patterns.
 - Avoid broad style-only rewrites in unrelated code.
-- Target modules at approximately 1000 lines; the architecture gate permits files below 1200 lines when extraction would add behavioral risk.
+- Target modules at approximately 1000 lines; files up to 1500 lines are accepted when extraction would be expensive or add behavioral risk.

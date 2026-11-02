@@ -4,9 +4,13 @@ from functools import lru_cache
 
 from xreport_shared.configurations.settings import (
     ApplicationSettingsValues,
+    InferenceSettings,
     InferenceSettingsValues,
+    ServerSettings,
+    application_settings_to_server_settings,
     default_application_settings,
 )
+from xreport_shared.configurations.startup import get_database_settings
 from xreport_shared.domain.settings import (
     ApplicationSettingsPatch,
     ApplicationSettingsResponse,
@@ -146,4 +150,27 @@ def get_settings_service() -> SettingsService:
     return SettingsService()
 
 
-__all__ = ["SettingsService", "get_settings_service"]
+###############################################################################
+def get_server_settings() -> ServerSettings:
+    """Compose environment database settings with persisted application values."""
+
+    values = ApplicationSettingsRepository().get_settings()
+    return application_settings_to_server_settings(values, get_database_settings())
+
+
+###############################################################################
+def get_inference_settings() -> InferenceSettings:
+    """Return the persisted inference controls of the XREPORT Inference database."""
+
+    inference = get_server_settings().inference
+    if inference is None:
+        raise RuntimeError("Inference settings exist only in the XREPORT Inference database")
+    return inference
+
+
+__all__ = [
+    "SettingsService",
+    "get_inference_settings",
+    "get_server_settings",
+    "get_settings_service",
+]

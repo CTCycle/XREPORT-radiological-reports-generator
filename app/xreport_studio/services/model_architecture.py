@@ -31,6 +31,7 @@ from xreport_studio.models.training.architecture import (
     encoder_options,
 )
 from xreport_shared.repositories.checkpoints import CheckpointRepository
+from xreport_shared.repositories.serialization.model import ModelSerializer
 from xreport_studio.repositories.model_architecture import (
     ModelArchitectureRepository,
     PresetNameConflictError,
@@ -184,8 +185,6 @@ class ModelArchitectureService:
     def get_checkpoint_architecture(
         self, checkpoint: str
     ) -> CheckpointArchitectureResponse:
-        from xreport_shared.repositories.serialization.model import ModelSerializer
-
         try:
             checkpoint = validate_checkpoint_name(checkpoint)
         except ValueError as exc:

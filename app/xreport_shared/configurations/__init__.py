@@ -2,12 +2,7 @@ from __future__ import annotations
 
 from .environment import load_environment
 from .database_config import DatabaseConfigurationError
-from .startup import (
-    get_database_settings,
-    get_inference_settings,
-    get_server_settings,
-    reload_settings_for_tests,
-)
+from .startup import get_database_settings
 from .settings import (
     ApplicationSettingsValues,
     DEFAULT_INFERENCE_SETTINGS,
@@ -35,7 +30,4 @@ __all__ = [
     "InferenceSettings",
     "InferenceSettingsValues",
     "default_application_settings",
-    "get_inference_settings",
-    "get_server_settings",
-    "reload_settings_for_tests",
 ]

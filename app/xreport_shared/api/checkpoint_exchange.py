@@ -1,23 +1,16 @@
 from __future__ import annotations
 
 from pathlib import Path
-import uuid
-from typing import TYPE_CHECKING
 
 from fastapi import APIRouter, File, Form, UploadFile, status
 from fastapi.responses import FileResponse
 
-from xreport_shared.common.path import CHECKPOINTS_DIR
-from xreport_shared.domain.checkpoint_exchange import EXCHANGE_FILE_EXTENSION, ExportRequest
+from xreport_shared.domain.checkpoint_exchange import ExportRequest
 from xreport_shared.domain.jobs import JobStartResponse
-from xreport_shared.repositories.checkpoint_archive import MAX_TOTAL_BYTES
-from xreport_shared.services.errors import PayloadTooLargeError
-
-if TYPE_CHECKING:
-    from xreport_shared.services.checkpoint_exchange import CheckpointExchangeService
-
-UPLOAD_CHUNK_BYTES = 1024 * 1024
-STAGING_UPLOAD_PREFIX = ".import-upload-"
+from xreport_shared.services.checkpoint_exchange import (
+    CheckpointExchangeService,
+    get_checkpoint_exchange_service,
+)
 
 
 ###############################################################################
@@ -34,10 +27,6 @@ class CheckpointExchangeEndpoint:
     @property
     def service(self) -> CheckpointExchangeService:
         if self._service is None:
-            from xreport_shared.services.checkpoint_exchange import (
-                get_checkpoint_exchange_service,
-            )
-
             self._service = get_checkpoint_exchange_service()
         return self._service
 
@@ -47,19 +36,7 @@ class CheckpointExchangeEndpoint:
         file: UploadFile = File(...),
         rename_to: str | None = Form(default=None),
     ) -> JobStartResponse:
-        CHECKPOINTS_DIR.mkdir(parents=True, exist_ok=True)
-        staged = CHECKPOINTS_DIR / f"{STAGING_UPLOAD_PREFIX}{uuid.uuid4().hex}{EXCHANGE_FILE_EXTENSION}"
-        written = 0
-        try:
-            with staged.open("xb") as target:
-                while chunk := await file.read(UPLOAD_CHUNK_BYTES):
-                    written += len(chunk)
-                    if written > MAX_TOTAL_BYTES:
-                        raise PayloadTooLargeError("Checkpoint archive is too large")
-                    target.write(chunk)
-        except BaseException:
-            staged.unlink(missing_ok=True)
-            raise
+        staged = await self.service.stage_upload(file.read)
         return self.service.start_import(
             staged, (rename_to or "").strip() or None
         )

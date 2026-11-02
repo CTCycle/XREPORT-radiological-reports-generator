@@ -6,6 +6,8 @@ from __future__ import annotations
 
 from collections.abc import Iterator
 from contextlib import contextmanager
+from dataclasses import dataclass
+from functools import partial
 import hashlib
 import logging
 import re
@@ -330,19 +332,25 @@ def _semantic_constraint_diffs(connection: Connection, metadata: MetaData) -> li
 
 
 ###############################################################################
-def _validate_head_schema(connection: Connection, schema: ApplicationSchema) -> None:
-    def include_object(
-        _object: object,
-        name: str,
-        object_type: str,
-        _reflected: bool,
-        _compare_to: object,
-    ) -> bool:
-        return not (object_type == "table" and name == schema.version_table)
+def _include_object(
+    version_table: str,
+    _object: object,
+    name: str,
+    object_type: str,
+    _reflected: bool,
+    _compare_to: object,
+) -> bool:
+    return not (object_type == "table" and name == version_table)
 
+
+###############################################################################
+def _validate_head_schema(connection: Connection, schema: ApplicationSchema) -> None:
     migration_context = MigrationContext.configure(
         connection,
-        opts={"compare_type": True, "include_object": include_object},
+        opts={
+            "compare_type": True,
+            "include_object": partial(_include_object, schema.version_table),
+        },
     )
     try:
         diffs = compare_metadata(migration_context, schema.metadata)
@@ -385,6 +393,32 @@ def schema_head(schema: ApplicationSchema | None = None) -> str:
             + (", ".join(heads) or "none")
         )
     return heads[0]
+
+
+###############################################################################
+@dataclass(frozen=True)
+class SchemaInspection:
+    table_names: frozenset[str]
+    revisions: tuple[str, ...]
+
+
+###############################################################################
+def inspect_schema(database: Database, schema: ApplicationSchema) -> SchemaInspection:
+    """Read the table names and stored Alembic revisions of a connected database."""
+    with database.engine.connect() as connection:
+        table_names = frozenset(inspect(connection).get_table_names())
+        revisions: tuple[str, ...] = ()
+        if schema.version_table in table_names:
+            revisions = tuple(
+                connection.execute(
+                    sqlalchemy.select(sqlalchemy.column("version_num")).select_from(
+                        sqlalchemy.table(schema.version_table)
+                    )
+                )
+                .scalars()
+                .all()
+            )
+    return SchemaInspection(table_names, revisions)
 
 
 ###############################################################################

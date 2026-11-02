@@ -46,8 +46,9 @@ from xreport_shared.common.utils.logger import logger
 from xreport_shared.services.jobs import JobExecutionError, JobManager, get_job_manager
 from xreport_inference.repositories.serialization.inference import InferenceRepository
 from xreport_shared.configurations import ServerSettings
-from xreport_shared.configurations.startup import get_inference_settings, get_server_settings
+from xreport_shared.services.settings import get_inference_settings, get_server_settings
 from xreport_inference.services.inference_catalog import InferenceModelCatalog
+from xreport_inference.models.inference.providers.xreport import XReportCheckpointProvider
 from xreport_inference.services.model_installation import (
     InstallationCancelled,
     InstallationError,
@@ -151,6 +152,7 @@ def get_inference_image_store() -> InferenceImageStore:
 ###############################################################################
 @lru_cache(maxsize=1)
 def get_huggingface_provider() -> HuggingFaceProvider:
+    # Deferred: the provider module imports torch and transformers at load time.
     from xreport_inference.models.inference.providers.huggingface import HuggingFaceProvider
 
     return HuggingFaceProvider(
@@ -169,6 +171,7 @@ def get_model_installation_manager() -> ModelInstallationManager:
 ###############################################################################
 @lru_cache(maxsize=1)
 def get_inference_runtime() -> InferenceRuntimeCoordinator:
+    # Deferred: the runtime module loads model-serialization code at import.
     from xreport_inference.services.inference_runtime import InferenceRuntimeCoordinator
 
     return InferenceRuntimeCoordinator(
@@ -624,10 +627,6 @@ class InferenceService:
             )
 
         try:
-            from xreport_inference.models.inference.providers.xreport import (
-                XReportCheckpointProvider,
-            )
-
             return XReportCheckpointProvider().validate_checkpoint(
                 checkpoint_record.path
             )

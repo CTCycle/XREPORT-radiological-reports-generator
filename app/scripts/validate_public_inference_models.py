@@ -21,7 +21,7 @@ from xreport_shared.common.path import ROOT_DIR  # noqa: E402
 from xreport_inference.configurations.inference_models import (  # noqa: E402
     embedded_inference_models,
 )
-from xreport_shared.configurations.startup import get_server_settings  # noqa: E402
+from xreport_shared.services.settings import get_server_settings  # noqa: E402
 from xreport_inference.services.inference_catalog import InferenceModelCatalog  # noqa: E402
 from scripts.validate_inference_model import validate_cached_model  # noqa: E402
 
