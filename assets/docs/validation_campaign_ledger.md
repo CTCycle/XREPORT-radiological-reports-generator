@@ -1,13 +1,13 @@
 # XREPORT Validation Campaign Ledger
 
-Last updated: 2026-10-29
+Last updated: 2026-11-04
 
-## Launcher cleanup and uninstall hardening (2026-10-29, working tree)
+## Launcher cleanup and uninstall (2026-11-04 performance follow-up, working tree)
 
-- Scope: central safe cleanup planning in `app/scripts/launcher_cleanup.psm1`; `ClearCache`, `RemoveAllData`, `RemoveLogs`, desktop artifact removal, and standard `Uninstall` keep their existing launcher actions. Dry-run previews the resolved targets; normal cleanup requires confirmation, blocks while identified XREPORT processes run, reports path-level outcomes, and continues after independent failures.
-- PASSED (Windows): PowerShell AST parsing for the launcher, module, and harness; the isolated PowerShell filesystem harness (nested/hidden caches, Angular/Vite and TypeScript output, AppData caches, stale staging, missing/repeated targets, dry-run immutability, locked and ACL-denied files, junction containment, per-app data removal/preservation, external storage pointers, release/portable targets, and mocked allowlisted MSI discovery/uninstall); focused `test_launcher_studio.py` (16/16); and actual `ClearCache`, `RemoveAllData`, and `Uninstall` dry runs from `%TEMP%` to confirm launcher-relative resolution. Data/uninstall probes used disposable resource and profile roots; no paths were mutated. `git diff --check` passed.
-- The regular cache cleanup leaves logs, databases, checkpoints, installed models, templates and uploaded data intact. The separate all-data path is tested only against disposable fixtures and preserves `.env` and storage-pointer files. Standard uninstall is likewise fixture-tested; it preserves persistent database/checkpoint/model files and the repository's `runtimes/.gitkeep` while removing recognized managed output.
-- NOT RUN: real cleanup against the developer's caches, full `run_tests.bat` (the Studio venv is absent), elevation-requiring MSI uninstall, and MSI install/upgrade. MSI execution was mocked and no registered installation was changed.
+- Scope: existing `ClearCache`, `RemoveAllData`, `RemoveLogs`, desktop artifact removal, and `Uninstall` actions retain their validated roots, process checks, confirmation, and MSI selection. Cleanup now counts or deletes with a streaming .NET traversal after target-root validation; output groups counts by target and `-Verbose` lists individual paths. Reparse points remain protected and independent targets continue after errors.
+- PASSED (Windows): focused `test_launcher_cleanup.ps1`, including a 1,024-file nested fixture, read-only counts, preserved `.gitkeep`, verbose path reporting, grouped default output, missing and outside-root targets, locked-file strict failure with independent sibling cleanup, per-app data boundaries, uninstall cache-target exclusion, and mocked MSI discovery/uninstall. Final launcher dry runs exited 0: `ClearCache` counted 37,281 entries in 22.70 s, `RemoveAllData -App Xreport` counted 8 in 1.04 s, and `Uninstall` counted 106,096 in 48.44 s. All reported zero failures and made no changes.
+- Benchmark (single run, same host, fixture creation excluded): baseline 1,120-entry preview/counting plus deletion was 82.53 s; optimized was 1.77 s (46.6×). Counts matched at 1,120. The real checkout `ClearCache -DryRun` was 22.70 s versus the earlier 132.78 s observation; use the isolated fixture as the controlled comparison because real cache state affects elapsed time.
+- NOT RUN: destructive cleanup against repository or profile data, full `run_tests.bat`, real MSI uninstall, or MSI install/upgrade. Junction creation was denied by this host, so the updated junction behavior was not exercised here; MSI execution remains mocked.
 
 ## Release 4.0.0 (2026-10-28, `develop` at `aaba4725` plus documentation commits)
 

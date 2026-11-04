@@ -1,6 +1,6 @@
 # Runtime Startup
 
-Last updated: 2026-10-29
+Last updated: 2026-11-04
 
 ## Windows Local Launcher
 
@@ -305,23 +305,26 @@ checkpoint or model-metadata staging files. Logs, databases, saved
 checkpoints, installed models, templates, uploaded files, and storage settings
 are not part of cache cleanup. It leaves `.gitkeep` sentinels in place.
 
-Preview the exact planned paths before cleanup:
+Preview the validated target roots and grouped counts without deleting files:
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\start_on_windows.ps1 -Action ClearCache -DryRun
 ```
 
-Remove the planned caches after reviewing the preview:
+Remove the planned caches after reviewing the target roots:
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\start_on_windows.ps1 -Action ClearCache
 ```
 
-The launcher prints the resolved plan, asks for confirmation, and reports
-cleaned, skipped, preserved, or failed paths. It refuses to mutate files while
-identified XREPORT processes are running. Locked or inaccessible entries are
-reported while independent targets continue; an incomplete cleanup returns a
-failure so it can be retried. Reparse points are left untouched.
+The launcher validates and prints the target roots before asking for
+confirmation, then walks and removes their contents in one pass. Results are
+grouped by target and report cleaned, skipped, preserved, and failed counts.
+Use `-Verbose` to list individual paths. `-DryRun` performs a read-only walk to
+compute counts. The launcher refuses to mutate files while identified XREPORT
+processes are running. Locked or inaccessible entries are reported while
+independent targets continue; an incomplete cleanup returns a failure so it
+can be retried. Reparse points are left untouched.
 
 **Remove logs** is separate from cache cleanup. It removes recognized
 application `.log` and rotated `.log.N` files for the selected app. Standard
@@ -341,7 +344,7 @@ powershell -ExecutionPolicy Bypass -File .\start_on_windows.ps1 -Action Uninstal
 ```
 
 **Remove all data** is the separate, per-app operation for persistent user
-data. It previews exact resource paths and requires confirmation before
+data. It previews the validated resource target roots and requires confirmation before
 deleting that app's database and sidecars, checkpoints, exports, logs, and
 app-owned data folders. It resolves `XREPORT_RESOURCES_DIR` from the process
 environment or `settings/.env`, then the repository storage pointer and the
@@ -357,7 +360,8 @@ powershell -ExecutionPolicy Bypass -File .\start_on_windows.ps1 `
 ```
 
 Both data removal and uninstall can also be previewed with `-DryRun`; the
-preview performs no deletion or MSI action.
+read-only traversal reports grouped counts and performs no deletion or MSI
+action. Add `-Verbose` when the full per-path output is needed.
 
 ## XREPORT Studio launch and application scope
 

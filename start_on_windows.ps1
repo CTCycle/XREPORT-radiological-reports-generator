@@ -2495,14 +2495,14 @@ function Invoke-RemoveDesktopArtifacts {
     $plan = New-XReportCleanupPlan -Targets $targets -AllowedRoots @(Get-CleanupAllowedRoots)
     Write-CleanupPlan -Plan $plan
     if ($DryRun) {
-        Write-CleanupResult -Result (Invoke-XReportCleanupPlan -Plan $plan -DryRun)
+        Write-CleanupResult -Result (Invoke-XReportCleanupPlan -Plan $plan -DryRun -Verbose:($VerbosePreference -eq 'Continue'))
         return
     }
     Assert-XReportStoppedForCleanup
     if (-not (Confirm-DestructiveAction 'remove the selected desktop release artifacts')) { return }
-    $result = Invoke-XReportCleanupPlan -Plan $plan
+    $result = Invoke-XReportCleanupPlan -Plan $plan -Verbose:($VerbosePreference -eq 'Continue')
     Write-CleanupResult -Result $result
-    if ($result.Failed.Count -gt 0) { throw "Desktop release removal failed for $($result.Failed.Count) target(s)." }
+    if ($result.FailedCount -gt 0) { throw "Desktop release removal failed for $($result.FailedCount) target(s)." }
 
     foreach ($variant in @($Selections | Select-Object -ExpandProperty Variant -Unique)) {
         Update-DesktopVariantReleaseMetadata -Variant $variant -ReleaseVersion $ReleaseVersion
@@ -2510,7 +2510,7 @@ function Invoke-RemoveDesktopArtifacts {
     if ((Test-Path -LiteralPath $DesktopReleaseDir -PathType Container) -and -not (Get-ChildItem -LiteralPath $DesktopReleaseDir -Force)) {
         [void](Remove-LauncherPath -Path $DesktopReleaseDir -PreserveNames @() -Activity 'XREPORT: remove empty release directory' -Strict)
     }
-    Write-Ok "Removed $($result.Cleaned.Count) selected release path(s); remaining manifests were synchronized."
+    Write-Ok "Removed $($result.CleanedCount) selected release path(s); remaining manifests were synchronized."
 }
 
 function Invoke-RemoveDesktopArtifactsMenu {
@@ -2829,28 +2829,32 @@ function Select-LauncherApplication {
 
 function Write-CleanupPlan {
     param([Parameter(Mandatory = $true)][pscustomobject]$Plan)
-    Write-Host '[PLAN] Resolved cleanup targets:' -ForegroundColor Cyan
-    foreach ($item in $Plan.Items) { Write-Host "  [$($item.Label)] $($item.Path)" -ForegroundColor Gray }
-    foreach ($item in $Plan.InitialResults) {
+    $ready = @($Plan.Items | Where-Object Status -eq 'Ready')
+    Write-Host "[PLAN] Validated cleanup targets ($($ready.Count)); contents are counted or removed after confirmation:" -ForegroundColor Cyan
+    foreach ($item in $ready) { Write-Host "  [$($item.Label)] $($item.Path)" -ForegroundColor Gray }
+    $missing = @($Plan.Items | Where-Object { $_.Status -eq 'Skipped' -and $_.Message -eq 'Target does not exist.' })
+    if ($missing.Count -gt 0) { Write-Info "$($missing.Count) optional target(s) do not exist." }
+    foreach ($item in $Plan.Items | Where-Object { $_.Status -ne 'Ready' -and -not ($_.Status -eq 'Skipped' -and $_.Message -eq 'Target does not exist.') }) {
         $color = if ($item.Status -eq 'Failed') { [ConsoleColor]::Red } else { [ConsoleColor]::Yellow }
         Write-Host "  [$($item.Status)] $($item.Path): $($item.Message)" -ForegroundColor $color
     }
-    if ($Plan.Items.Count -eq 0 -and $Plan.InitialResults.Count -eq 0) { Write-Info 'No matching cleanup targets were found.' }
+    if ($Plan.Items.Count -eq 0) { Write-Info 'No matching cleanup targets were found.' }
 }
 
 function Write-CleanupResult {
     param([Parameter(Mandatory = $true)][pscustomobject]$Result)
     if ($Result.DryRun) {
-        Write-Ok "Dry run: $($Result.Planned.Count) item(s) would be removed; no files were changed."
+        Write-Ok "Dry run: $($Result.PlannedCount) item(s) would be removed; $($Result.SkippedCount) skipped, $($Result.FailedCount) failed, $($Result.PreservedCount) preserved. No files were changed."
     } else {
-        Write-Info "Cleanup result: $($Result.Cleaned.Count) cleaned, $($Result.Skipped.Count) skipped, $($Result.Failed.Count) failed, $($Result.Preserved.Count) preserved."
-        foreach ($item in $Result.Results | Where-Object Status -eq 'Cleaned') {
-            Write-Host "  [Cleaned] $($item.Path)" -ForegroundColor Green
-        }
+        Write-Info "Cleanup result: $($Result.CleanedCount) cleaned, $($Result.SkippedCount) skipped, $($Result.FailedCount) failed, $($Result.PreservedCount) preserved."
     }
-    foreach ($item in $Result.Results | Where-Object { $_.Status -in @('Skipped', 'Failed') }) {
-        $color = if ($item.Status -eq 'Failed') { [ConsoleColor]::Red } else { [ConsoleColor]::Yellow }
-        Write-Host "  [$($item.Status)] $($item.Path): $($item.Message)" -ForegroundColor $color
+    foreach ($item in $Result.TargetResults | Where-Object { $_.PlannedCount -gt 0 -or $_.CleanedCount -gt 0 -or $_.SkippedCount -gt 0 -or $_.FailedCount -gt 0 -or $_.PreservedCount -gt 0 }) {
+        $actionCount = if ($Result.DryRun) { $item.PlannedCount } else { $item.CleanedCount }
+        $actionLabel = if ($Result.DryRun) { 'would remove' } else { 'removed' }
+        Write-Host "  [$($item.Label)] $($item.Path): $actionCount $actionLabel, $($item.SkippedCount) skipped, $($item.FailedCount) failed, $($item.PreservedCount) preserved" -ForegroundColor Gray
+    }
+    foreach ($item in $Result.Errors) {
+        Write-Host "  [Failed] $($item.Path): $($item.Message)" -ForegroundColor Red
     }
 }
 
@@ -2872,15 +2876,15 @@ function Invoke-MaintenanceCleanup {
     $plan = New-XReportCleanupPlan -Targets $Targets -AllowedRoots $allowedRoots
     Write-CleanupPlan -Plan $plan
     if ($DryRun) {
-        $dryRunResult = Invoke-XReportCleanupPlan -Plan $plan -DryRun
+        $dryRunResult = Invoke-XReportCleanupPlan -Plan $plan -DryRun -Verbose:($VerbosePreference -eq 'Continue')
         Write-CleanupResult -Result $dryRunResult
         return $dryRunResult
     }
     Assert-XReportStoppedForCleanup
     if (-not (Confirm-DestructiveAction $Description)) { return $null }
-    $result = Invoke-XReportCleanupPlan -Plan $plan
+    $result = Invoke-XReportCleanupPlan -Plan $plan -Verbose:($VerbosePreference -eq 'Continue')
     Write-CleanupResult -Result $result
-    if ($result.Failed.Count -gt 0) { throw "Cleanup was incomplete: $($result.Failed.Count) target(s) failed. Review the reported paths and retry." }
+    if ($result.FailedCount -gt 0) { throw "Cleanup was incomplete: $($result.FailedCount) target(s) failed. Review the reported paths and retry." }
     return $result
 }
 
@@ -2940,29 +2944,26 @@ function Remove-LauncherPath {
 
     $spec = [pscustomobject]@{ Path = $Path; Label = $Activity; KeepRoot = [bool]$KeepRoot; PreserveNames = @($PreserveNames) }
     $plan = New-XReportCleanupPlan -Targets @($spec) -AllowedRoots @(Get-CleanupAllowedRoots)
-    $result = Invoke-XReportCleanupPlan -Plan $plan -DryRun:$WhatIf
-    $enumerationErrors = @($result.Failed | Where-Object { $_.Message -like 'Cannot enumerate directory:*' })
-    $strictIssues = @($result.Failed) + @($result.Skipped | Where-Object { $_.Message -ne 'Target does not exist.' })
-    if ($Strict -and $strictIssues.Count -gt 0) {
-        throw "Removal of '$Path' was incomplete: $($strictIssues.Count) path(s) failed or were protected."
+    $result = Invoke-XReportCleanupPlan -Plan $plan -DryRun:$WhatIf -Verbose:($VerbosePreference -eq 'Continue')
+    $enumerationErrors = @($result.Errors | Where-Object { $_.Kind -eq 'Enumeration' } | ForEach-Object { "$($_.Path) ($($_.Message))" })
+    $strictIssueCount = $result.FailedCount + $result.SkippedCount - $result.MissingTargetCount
+    if ($Strict -and $strictIssueCount -gt 0) {
+        throw "Removal of '$Path' was incomplete: $strictIssueCount path(s) failed or were protected."
     }
     return [pscustomobject]@{
         Target = [IO.Path]::GetFullPath($Path)
         Path = [IO.Path]::GetFullPath($Path)
-        Planned = $result.Planned.Count
-        PlannedCount = $result.Planned.Count
-        PlannedPaths = @($result.Planned | Select-Object -ExpandProperty Path)
-        Removed = $result.Cleaned.Count
-        RemovedCount = $result.Cleaned.Count
-        RemovedPaths = @($result.Cleaned | Select-Object -ExpandProperty Path)
-        Preserved = $result.Preserved.Count
-        PreservedCount = $result.Preserved.Count
-        PreservedEntries = @($result.Preserved | Select-Object -ExpandProperty Path)
-        PreservedPaths = @($result.Preserved | Select-Object -ExpandProperty Path)
-        Skipped = $result.Skipped.Count
-        SkippedCount = $result.Skipped.Count
-        SkippedPaths = @($result.Skipped | ForEach-Object { "$($_.Path) ($($_.Message))" })
-        EnumerationErrors = @($enumerationErrors | ForEach-Object { "$($_.Path) ($($_.Message))" })
+        Planned = $result.PlannedCount
+        PlannedCount = $result.PlannedCount
+        Removed = $result.CleanedCount
+        RemovedCount = $result.CleanedCount
+        Preserved = $result.PreservedCount
+        PreservedCount = $result.PreservedCount
+        Skipped = $result.SkippedCount
+        SkippedCount = $result.SkippedCount
+        Failed = $result.FailedCount
+        FailedCount = $result.FailedCount
+        EnumerationErrors = $enumerationErrors
         EnumerationErrorCount = $enumerationErrors.Count
         WhatIf = [bool]$WhatIf
     }
@@ -3020,7 +3021,7 @@ function Uninstall-Application {
         Write-Host "  [$($product.DisplayName)] $($product.ProductCode)$location" -ForegroundColor Gray
     }
     if ($DryRun) {
-        $result = Invoke-XReportCleanupPlan -Plan $plan -DryRun
+        $result = Invoke-XReportCleanupPlan -Plan $plan -DryRun -Verbose:($VerbosePreference -eq 'Continue')
         Write-CleanupResult -Result $result
         Write-Ok 'Dry run: MSI products and listed files were left unchanged.'
         return
@@ -3035,11 +3036,11 @@ function Uninstall-Application {
         elseif ($outcome.RestartRequired) { Write-Warn "Uninstalled $($product.DisplayName); Windows reports that a restart is required." }
         else { Write-Ok "Uninstalled $($product.DisplayName)." }
     }
-    $result = Invoke-XReportCleanupPlan -Plan $plan
+    $result = Invoke-XReportCleanupPlan -Plan $plan -Verbose:($VerbosePreference -eq 'Continue')
     Write-CleanupResult -Result $result
     foreach ($failure in $msiFailures) { Write-Fatal "MSI uninstall failed: $failure" }
-    if ($result.Failed.Count -gt 0 -or $msiFailures.Count -gt 0) {
-        throw "Uninstall was incomplete: $($result.Failed.Count) filesystem target(s) and $($msiFailures.Count) MSI product(s) failed. Persistent user data and shared settings were preserved."
+    if ($result.FailedCount -gt 0 -or $msiFailures.Count -gt 0) {
+        throw "Uninstall was incomplete: $($result.FailedCount) filesystem target(s) and $($msiFailures.Count) MSI product(s) failed. Persistent user data and shared settings were preserved."
     }
     Write-Ok 'XREPORT MSI registrations, launcher runtimes, generated build outputs, packaged caches, and application logs were removed. Persistent user data and shared settings were preserved.'
 }

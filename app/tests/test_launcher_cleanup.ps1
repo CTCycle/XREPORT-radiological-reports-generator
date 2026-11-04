@@ -91,13 +91,13 @@ try {
     $allowedRoots = @($repoRoot, $appDataRoot, $resourceRoot)
     $plan = New-XReportCleanupPlan -Targets $targets -AllowedRoots $allowedRoots
     $dry = Invoke-XReportCleanupPlan -Plan $plan -DryRun
-    Assert-True ($dry.Planned.Count -gt 0) 'Dry run did not enumerate deletion candidates.'
+    Assert-True ($dry.PlannedCount -gt 0) 'Dry run did not count deletion candidates.'
     foreach ($path in $expectedCaches + $persistentFiles + $temporaryFiles) {
         Assert-True (Test-Path -LiteralPath $path) "Dry run changed fixture path: $path"
     }
 
     $result = Invoke-XReportCleanupPlan -Plan $plan
-    Assert-True ($result.Failed.Count -eq 0) 'Ordinary fixture cleanup reported failures.'
+    Assert-True ($result.FailedCount -eq 0) ("Ordinary fixture cleanup reported failures: $($result.Errors | ConvertTo-Json -Compress -Depth 4)")
     foreach ($path in $expectedCaches + $temporaryFiles) {
         Assert-True (-not (Test-Path -LiteralPath $path)) "Expected cache/temp path remains: $path"
     }
@@ -108,7 +108,31 @@ try {
 
     $repeatPlan = New-XReportCleanupPlan -Targets $targets -AllowedRoots $allowedRoots
     $repeat = Invoke-XReportCleanupPlan -Plan $repeatPlan
-    Assert-True ($repeat.Failed.Count -eq 0) 'Repeated cleanup failed on missing cache paths.'
+    Assert-True ($repeat.FailedCount -eq 0) 'Repeated cleanup failed on missing cache paths.'
+
+    $largeTreeRoot = Join-Path $repoRoot 'large-nested-cache'
+    $largeFileCount = 0
+    for ($group = 0; $group -lt 32; $group++) {
+        $leaf = Join-Path $largeTreeRoot ("group-{0:D2}\layer-one\layer-two" -f $group)
+        New-Item -ItemType Directory -Path $leaf -Force | Out-Null
+        for ($file = 0; $file -lt 32; $file++) {
+            [IO.File]::WriteAllText((Join-Path $leaf ("file-{0:D2}.bin" -f $file)), 'fixture')
+            $largeFileCount++
+        }
+    }
+    $largeSentinel = Join-Path $largeTreeRoot '.gitkeep'
+    Write-FixtureFile -Path $largeSentinel
+    $largeDirectoryCount = 32 * 3
+    $largePlan = New-XReportCleanupPlan -Targets @([pscustomobject]@{ Path = $largeTreeRoot; Label = 'Large nested fixture'; KeepRoot = $true; PreserveNames = @('.gitkeep') }) -AllowedRoots @($repoRoot)
+    $largeDryRun = Invoke-XReportCleanupPlan -Plan $largePlan -DryRun
+    Assert-True ($largeDryRun.PlannedCount -eq ($largeFileCount + $largeDirectoryCount)) 'Large nested dry run did not count files and directories accurately.'
+    Assert-True ($largeDryRun.PreservedCount -eq 1 -and (Get-ChildItem -LiteralPath $largeTreeRoot -File -Recurse).Count -eq ($largeFileCount + 1)) 'Large nested dry run changed files or missed its preserve-name rule.'
+    $largeVerbose = @(Invoke-XReportCleanupPlan -Plan $largePlan -DryRun -Verbose 4>&1 | ForEach-Object { [string]$_ })
+    $sampleLargeFile = Join-Path $largeTreeRoot 'group-00\layer-one\layer-two\file-00.bin'
+    Assert-True (($largeVerbose -join "`n") -match ('\[Planned\] ' + [regex]::Escape($sampleLargeFile))) 'Verbose dry run did not include a planned path.'
+    $largeResult = Invoke-XReportCleanupPlan -Plan $largePlan
+    Assert-True ($largeResult.FailedCount -eq 0 -and $largeResult.CleanedCount -eq $largeDryRun.PlannedCount -and $largeResult.PreservedCount -eq 1) 'Large nested cleanup counts did not match the preview.'
+    Assert-True ((Get-ChildItem -LiteralPath $largeTreeRoot -Force).Count -eq 1 -and (Test-Path -LiteralPath $largeSentinel)) 'Large nested cleanup did not preserve the root and .gitkeep sentinel.'
 
     $perAppRoot = Join-Path $fixtureRoot 'per-app-external-resources'
     $studioDataRoot = Join-Path $perAppRoot 'studio'
@@ -137,16 +161,16 @@ try {
     $inferenceTargets = @(Get-XReportApplicationDataTargets -ResourceRoots @($resolvedDataRoot) -App Xreport)
     $inferencePlan = New-XReportCleanupPlan -Targets $inferenceTargets -AllowedRoots @($perAppRoot)
     $inferenceDryRun = Invoke-XReportCleanupPlan -Plan $inferencePlan -DryRun
-    Assert-True ($inferenceDryRun.Planned.Count -gt 0) 'Inference data dry run did not list persistent data targets.'
+    Assert-True ($inferenceDryRun.PlannedCount -gt 0) 'Inference data dry run did not count persistent data targets.'
     foreach ($path in $inferenceDataFiles + $studioDataFiles + $perAppSettings) { Assert-True (Test-Path -LiteralPath $path) "Inference data dry run changed fixture path: $path" }
     $inferenceRemoval = Invoke-XReportCleanupPlan -Plan $inferencePlan
-    Assert-True ($inferenceRemoval.Failed.Count -eq 0) 'Inference data removal reported failures.'
+    Assert-True ($inferenceRemoval.FailedCount -eq 0) 'Inference data removal reported failures.'
     foreach ($path in $inferenceDataFiles) { Assert-True (-not (Test-Path -LiteralPath $path)) "Inference data removal left app data behind: $path" }
     foreach ($path in $studioDataFiles + $perAppSettings) { Assert-True (Test-Path -LiteralPath $path) "Inference data removal crossed an app/settings boundary: $path" }
     $studioTargets = @(Get-XReportApplicationDataTargets -ResourceRoots @($resolvedDataRoot) -App Studio)
     Assert-True (-not @($studioTargets | Where-Object { $_.Path -match '\\models(?:\\|$)' }).Count) 'Studio data targets included the shared models folder.'
     $studioRemoval = Invoke-XReportCleanupPlan -Plan (New-XReportCleanupPlan -Targets $studioTargets -AllowedRoots @($perAppRoot))
-    Assert-True ($studioRemoval.Failed.Count -eq 0) 'Studio data removal reported failures.'
+    Assert-True ($studioRemoval.FailedCount -eq 0) 'Studio data removal reported failures.'
     foreach ($path in $studioDataFiles) { Assert-True (-not (Test-Path -LiteralPath $path)) "Studio data removal left app data behind: $path" }
     foreach ($path in $perAppSettings) { Assert-True (Test-Path -LiteralPath $path) "Studio data removal removed shared storage settings: $path" }
 
@@ -182,22 +206,37 @@ try {
     }
     Assert-True ($launcherOutput -match [regex]::Escape($launcherSourceRoot) -and $launcherOutput -match [regex]::Escape($launcherPackagedRoot)) 'Launcher data dry run did not list both configured resource roots.'
     Assert-True ($launcherOutput -match 'Shared XREPORT Inference and Studio models') 'Launcher data dry run did not flag shared model removal.'
+    Assert-True ($launcherOutput -match '\[PLAN\] Validated cleanup targets' -and $launcherOutput -match 'would remove' -and $launcherOutput -notmatch '\[Planned\]') 'Default launcher dry-run output was not grouped by target.'
+
+    try {
+        $env:XREPORT_RESOURCES_DIR = $launcherSourceRoot
+        $env:LOCALAPPDATA = $launcherLocalAppData
+        Set-Location $env:TEMP
+        $launcherVerboseOutput = & powershell.exe -NoLogo -NoProfile -ExecutionPolicy Bypass -File $launcherScriptPath -Action RemoveAllData -App Xreport -DryRun -Verbose 2>&1 | Out-String
+        $launcherVerboseExitCode = $LASTEXITCODE
+        if ($launcherVerboseExitCode -ne 0) { throw "Verbose RemoveAllData launcher dry run failed: $launcherVerboseOutput" }
+    } finally {
+        Set-Location $origin
+        $env:XREPORT_RESOURCES_DIR = $oldLauncherResources
+        $env:LOCALAPPDATA = $oldLauncherLocalAppData
+    }
+    Assert-True ($launcherVerboseOutput -match '\[Planned\]' -and $launcherVerboseOutput -match [regex]::Escape('source.bin')) 'Verbose launcher dry run did not include a per-path detail.'
     foreach ($path in $launcherPersistentFiles + (Join-Path $launcherPointerRoot 'storage-location.json')) { Assert-True (Test-Path -LiteralPath $path) "Launcher data dry run changed fixture path: $path" }
 
     $outsideMarker = Join-Path $outsideRoot 'keep.txt'
     Write-FixtureFile -Path $outsideMarker
     $traversalPlan = New-XReportCleanupPlan -Targets @([pscustomobject]@{ Path = (Join-Path $repoRoot '..\outside'); Label = 'Traversal fixture'; KeepRoot = $false; PreserveNames = @() }) -AllowedRoots @($repoRoot)
-    Assert-True (@($traversalPlan.InitialResults | Where-Object Status -eq 'Failed').Count -eq 1) 'Traversal target was not rejected.'
+    Assert-True (@($traversalPlan.Items | Where-Object Status -eq 'Failed').Count -eq 1) 'Traversal target was not rejected.'
     Assert-True (Test-Path -LiteralPath $outsideMarker) 'Traversal validation changed an outside file.'
 
     $missingPlan = New-XReportCleanupPlan -Targets @([pscustomobject]@{ Path = (Join-Path $repoRoot 'missing\cache'); Label = 'Missing fixture'; KeepRoot = $false; PreserveNames = @() }) -AllowedRoots @($repoRoot)
     $missingResult = Invoke-XReportCleanupPlan -Plan $missingPlan
-    Assert-True (@($missingResult.Skipped | Where-Object Message -eq 'Target does not exist.').Count -eq 1) 'Missing target was not reported as skipped.'
+    Assert-True ($missingResult.MissingTargetCount -eq 1 -and $missingResult.SkippedCount -eq 1) 'Missing target was not reported as skipped.'
     $scanFailurePath = Join-Path $repoRoot 'scan-failure\keep.bin'
     Write-FixtureFile -Path $scanFailurePath
     $scanFailureTarget = [pscustomobject]@{ Path = (Split-Path -Parent $scanFailurePath); Label = 'Unreadable scan fixture'; KeepRoot = $false; PreserveNames = @(); PlanError = 'Simulated enumeration denial.' }
     $scanFailureResult = Invoke-XReportCleanupPlan -Plan (New-XReportCleanupPlan -Targets @($scanFailureTarget) -AllowedRoots @($repoRoot))
-    Assert-True ($scanFailureResult.Failed.Count -eq 1 -and (Test-Path -LiteralPath $scanFailurePath)) 'A failed scan was not reported without deleting its directory.'
+    Assert-True ($scanFailureResult.FailedCount -eq 1 -and $scanFailureResult.Errors[0].Message -eq 'Simulated enumeration denial.' -and (Test-Path -LiteralPath $scanFailurePath)) 'A failed scan was not reported without deleting its directory.'
 
     $msiEntries = @(
         [pscustomobject]@{ DisplayName = 'XREPORT Inference CPU'; Publisher = 'CTCycle'; UninstallString = 'MsiExec.exe /I{11111111-1111-1111-1111-111111111111}'; InstallLocation = 'C:\Program Files\XREPORT CPU' },
@@ -249,12 +288,15 @@ try {
     foreach ($path in $uninstallDisposable) { Write-FixtureFile -Path $path }
     $uninstallLogTarget = [pscustomobject]@{ Path = (Join-Path $uninstallData 'logs\backend.log'); Label = 'Application log'; KeepRoot = $false; PreserveNames = @() }
     $uninstallTargets = @(Get-XReportUninstallTargets -RepoRoot $uninstallRepo -LocalAppData $uninstallLocal -ResourceRoots @($uninstallResources) -AdditionalTargets @($uninstallLogTarget) -PortableInstallPaths @($portableExe))
+    $nodeModulesRoot = Join-Path $uninstallRepo 'app\client\node_modules'
+    $nestedCoveredCacheTargets = @($uninstallTargets | Where-Object { $_.Path.StartsWith($nodeModulesRoot.TrimEnd('\') + '\', [StringComparison]::OrdinalIgnoreCase) })
+    Assert-True ($nestedCoveredCacheTargets.Count -eq 0) 'Uninstall cache discovery added duplicate targets beneath its node_modules removal root.'
     $uninstallPlan = New-XReportCleanupPlan -Targets $uninstallTargets -AllowedRoots @($uninstallRepo, $uninstallData, $uninstallResources, $portableRoot)
     $uninstallDryRun = Invoke-XReportCleanupPlan -Plan $uninstallPlan -DryRun
-    Assert-True ($uninstallDryRun.Planned.Count -gt 0) 'Uninstall dry run did not plan disposable fixture paths.'
+    Assert-True ($uninstallDryRun.PlannedCount -gt 0) 'Uninstall dry run did not count disposable fixture paths.'
     foreach ($path in $uninstallPersistent + $uninstallDisposable) { Assert-True (Test-Path -LiteralPath $path) "Uninstall dry run changed fixture path: $path" }
     $uninstallResult = Invoke-XReportCleanupPlan -Plan $uninstallPlan
-    Assert-True ($uninstallResult.Failed.Count -eq 0) 'Fixture uninstall reported deletion failures.'
+    Assert-True ($uninstallResult.FailedCount -eq 0) 'Fixture uninstall reported deletion failures.'
     foreach ($path in $uninstallDisposable) { Assert-True (-not (Test-Path -LiteralPath $path)) "Uninstall left disposable path behind: $path" }
     foreach ($path in $uninstallPersistent) { Assert-True (Test-Path -LiteralPath $path) "Uninstall removed persistent path: $path" }
     try {
@@ -266,13 +308,29 @@ try {
 
     $lockedPath = Join-Path $repoRoot 'locked\held.bin'
     Write-FixtureFile -Path $lockedPath
+    $unlockedSiblingPath = Join-Path (Split-Path -Parent $lockedPath) 'independent.bin'
+    Write-FixtureFile -Path $unlockedSiblingPath
     $lockedStream = [IO.File]::Open($lockedPath, [IO.FileMode]::Open, [IO.FileAccess]::Read, [IO.FileShare]::None)
+    $tokens = $null; $parseErrors = $null
+    $launcherAst = [System.Management.Automation.Language.Parser]::ParseFile($launcherScriptPath, [ref]$tokens, [ref]$parseErrors)
+    Assert-True ($parseErrors.Count -eq 0) 'Launcher script did not parse before strict cleanup checks.'
+    $removePathAst = $launcherAst.Find({ param($node) $node -is [System.Management.Automation.Language.FunctionDefinitionAst] -and $node.Name -eq 'Remove-LauncherPath' }, $true)
+    Assert-True ($null -ne $removePathAst) 'Could not locate Remove-LauncherPath for strict cleanup checks.'
+    Invoke-Expression $removePathAst.Extent.Text
+    function Get-CleanupAllowedRoots { return @($repoRoot) }
+    $strictFailure = $false
+    try { $null = Remove-LauncherPath -Path (Split-Path -Parent $lockedPath) -Strict }
+    catch { $strictFailure = $_.Exception.Message -like 'Removal of * was incomplete:*' }
+    Assert-True $strictFailure 'Strict Remove-LauncherPath did not throw when a locked file could not be removed.'
+    Assert-True (-not (Test-Path -LiteralPath $unlockedSiblingPath) -and (Test-Path -LiteralPath $lockedPath)) 'A locked entry prevented cleanup of an independent sibling.'
+    $missingStrict = Remove-LauncherPath -Path (Join-Path $repoRoot 'missing-strict-target') -Strict
+    Assert-True ($missingStrict.FailedCount -eq 0 -and $missingStrict.SkippedCount -eq 1) 'Strict Remove-LauncherPath rejected a missing optional target.'
     $lockedPlan = New-XReportCleanupPlan -Targets @([pscustomobject]@{ Path = (Split-Path -Parent $lockedPath); Label = 'Locked fixture'; KeepRoot = $false; PreserveNames = @() }) -AllowedRoots @($repoRoot)
     $lockedResult = Invoke-XReportCleanupPlan -Plan $lockedPlan
-    Assert-True ($lockedResult.Failed.Count -gt 0) 'Locked file failure was not reported.'
+    Assert-True ($lockedResult.FailedCount -gt 0) 'Locked file failure was not reported.'
     $lockedStream.Dispose(); $lockedStream = $null
     $retry = Invoke-XReportCleanupPlan -Plan (New-XReportCleanupPlan -Targets @([pscustomobject]@{ Path = (Split-Path -Parent $lockedPath); Label = 'Unlocked fixture'; KeepRoot = $false; PreserveNames = @() }) -AllowedRoots @($repoRoot))
-    Assert-True ($retry.Failed.Count -eq 0 -and -not (Test-Path -LiteralPath $lockedPath)) 'Cleanup did not recover after releasing a locked file.'
+    Assert-True ($retry.FailedCount -eq 0 -and -not (Test-Path -LiteralPath $lockedPath)) 'Cleanup did not recover after releasing a locked file.'
 
     New-Item -ItemType Directory -Path $aclTarget -Force | Out-Null
     Write-FixtureFile -Path (Join-Path $aclTarget 'denied.bin')
@@ -294,14 +352,14 @@ try {
         try {
             $aclPlan = New-XReportCleanupPlan -Targets @([pscustomobject]@{ Path = $aclTarget; Label = 'ACL-denied fixture'; KeepRoot = $false; PreserveNames = @() }) -AllowedRoots @($fixtureRoot)
             $aclResult = Invoke-XReportCleanupPlan -Plan $aclPlan
-            Assert-True ($aclResult.Failed.Count -gt 0) 'ACL-denied enumeration did not report a failure.'
+            Assert-True ($aclResult.FailedCount -gt 0) 'ACL-denied enumeration did not report a failure.'
         } finally {
             Set-Acl -LiteralPath $aclTarget -AclObject $aclSnapshot -ErrorAction SilentlyContinue
         }
     }
     if (Test-Path -LiteralPath $aclTarget) {
         $aclRetry = Invoke-XReportCleanupPlan -Plan (New-XReportCleanupPlan -Targets @([pscustomobject]@{ Path = $aclTarget; Label = 'ACL-restored fixture'; KeepRoot = $false; PreserveNames = @() }) -AllowedRoots @($fixtureRoot))
-        Assert-True ($aclRetry.Failed.Count -eq 0 -and -not (Test-Path -LiteralPath $aclTarget)) 'Cleanup did not recover after restoring the ACL.'
+        Assert-True ($aclRetry.FailedCount -eq 0 -and -not (Test-Path -LiteralPath $aclTarget)) 'Cleanup did not recover after restoring the ACL.'
     }
 
     $junctionTarget = Join-Path $outsideRoot 'junction-target'
@@ -316,7 +374,7 @@ try {
     }
     if ($junctionCreated) {
         $junctionResult = Invoke-XReportCleanupPlan -Plan (New-XReportCleanupPlan -Targets @([pscustomobject]@{ Path = $junctionPath; Label = 'Junction fixture'; KeepRoot = $false; PreserveNames = @() }) -AllowedRoots @($repoRoot))
-        Assert-True ($junctionResult.Skipped.Count -gt 0) 'Junction was not reported as skipped.'
+        Assert-True ($junctionResult.SkippedCount -gt 0) 'Junction was not reported as skipped.'
         Assert-True (Test-Path -LiteralPath (Join-Path $junctionTarget 'protected.txt')) 'Junction cleanup followed the link outside the allowed root.'
         [IO.Directory]::Delete($junctionPath, $false)
     }

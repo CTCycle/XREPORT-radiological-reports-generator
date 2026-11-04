@@ -72,7 +72,11 @@ function Get-XReportApplicationDataTargets {
 
 function Test-CleanupReparseChain {
     param([string]$Path, [string]$AllowedRoot)
-    $cursor = $Path
+    try {
+        $cursor = [IO.Path]::GetFullPath($Path).TrimEnd('\', '/')
+        $root = [IO.Path]::GetFullPath($AllowedRoot).TrimEnd('\', '/')
+    } catch { return $false }
+    $withinAllowedRoot = Test-CleanupPathUnderRoot -Path $cursor -Root $root
     while (-not [string]::IsNullOrWhiteSpace($cursor)) {
         if (Test-Path -LiteralPath $cursor) {
             try {
@@ -80,11 +84,34 @@ function Test-CleanupReparseChain {
                 if (($item.Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0) { return $false }
             } catch { return $false }
         }
+        if ($withinAllowedRoot -and $cursor.Equals($root, [StringComparison]::OrdinalIgnoreCase)) { return $true }
         $parent = [IO.Path]::GetDirectoryName($cursor)
         if ([string]::IsNullOrWhiteSpace($parent) -or $parent -eq $cursor) { break }
         $cursor = $parent
     }
-    return $true
+    return (-not $withinAllowedRoot)
+}
+
+function Test-CleanupAncestorReparseChain {
+    param([string]$Path, [string]$AllowedRoot)
+    try {
+        $cursor = [IO.Path]::GetDirectoryName([IO.Path]::GetFullPath($Path).TrimEnd('\', '/'))
+        $root = [IO.Path]::GetFullPath($AllowedRoot).TrimEnd('\', '/')
+    } catch { return $false }
+    while (-not [string]::IsNullOrWhiteSpace($cursor)) {
+        $cursor = $cursor.TrimEnd('\', '/')
+        if (-not (Test-CleanupPathUnderRoot -Path $cursor -Root $root)) { return $false }
+        try {
+            if (([IO.File]::GetAttributes($cursor) -band [IO.FileAttributes]::ReparsePoint) -ne 0) { return $false }
+        } catch [IO.FileNotFoundException] {
+        } catch [IO.DirectoryNotFoundException] {
+        } catch { return $false }
+        if ($cursor.Equals($root, [StringComparison]::OrdinalIgnoreCase)) { return $true }
+        $parent = [IO.Path]::GetDirectoryName($cursor)
+        if ([string]::IsNullOrWhiteSpace($parent) -or $parent -eq $cursor) { break }
+        $cursor = $parent
+    }
+    return $false
 }
 
 function New-XReportCleanupPlan {
@@ -105,7 +132,7 @@ function New-XReportCleanupPlan {
         $planError = if ($spec -isnot [string] -and $spec.PSObject.Properties['PlanError']) { [string]$spec.PlanError } else { '' }
         try { $target = ConvertTo-CleanupFullPath -Path $pathValue }
         catch {
-            [void]$items.Add([pscustomobject]@{ Path = $pathValue; Label = $label; Kind = 'Target'; Status = 'Failed'; Message = $_.Exception.Message })
+            [void]$items.Add([pscustomobject]@{ Path = $pathValue; Label = $label; KeepRoot = $keepRoot; PreserveNames = $preserveNames; AllowedRoot = $null; Status = 'Failed'; Message = $_.Exception.Message })
             continue
         }
         $allowedRoot = $null
@@ -113,112 +140,249 @@ function New-XReportCleanupPlan {
             if ((Test-CleanupPathUnderRoot -Path $target -Root $root) -and -not $target.TrimEnd('\', '/').Equals($root.TrimEnd('\', '/'), [StringComparison]::OrdinalIgnoreCase)) { $allowedRoot = $root; break }
         }
         if (-not $allowedRoot) {
-            [void]$items.Add([pscustomobject]@{ Path = $target; Label = $label; Kind = 'Target'; Status = 'Failed'; Message = 'Target is outside every allowlisted application root.' })
+            [void]$items.Add([pscustomobject]@{ Path = $target; Label = $label; KeepRoot = $keepRoot; PreserveNames = $preserveNames; AllowedRoot = $null; Status = 'Failed'; Message = 'Target is outside every allowlisted application root.' })
             continue
         }
         if (-not (Test-CleanupReparseChain -Path $target -AllowedRoot $allowedRoot)) {
-            [void]$items.Add([pscustomobject]@{ Path = $target; Label = $label; Kind = 'Target'; Status = 'Skipped'; Message = 'A reparse point exists in the target path; it was not traversed.' })
+            [void]$items.Add([pscustomobject]@{ Path = $target; Label = $label; KeepRoot = $keepRoot; PreserveNames = $preserveNames; AllowedRoot = $allowedRoot; Status = 'Skipped'; Message = 'A reparse point exists in the target path; it was not traversed.' })
             continue
         }
         if (-not [string]::IsNullOrWhiteSpace($planError)) {
-            [void]$items.Add([pscustomobject]@{ Path = $target; Label = $label; Kind = 'Target'; Status = 'Failed'; Message = $planError })
+            [void]$items.Add([pscustomobject]@{ Path = $target; Label = $label; KeepRoot = $keepRoot; PreserveNames = $preserveNames; AllowedRoot = $allowedRoot; Status = 'Failed'; Message = $planError })
             continue
         }
-        try { $rootItem = Get-Item -LiteralPath $target -Force -ErrorAction Stop }
+        try { $null = Get-Item -LiteralPath $target -Force -ErrorAction Stop }
         catch {
             if ($_.CategoryInfo.Category -eq [System.Management.Automation.ErrorCategory]::ObjectNotFound) {
-                [void]$items.Add([pscustomobject]@{ Path = $target; Label = $label; Kind = 'Target'; Status = 'Skipped'; Message = 'Target does not exist.' })
+                [void]$items.Add([pscustomobject]@{ Path = $target; Label = $label; KeepRoot = $keepRoot; PreserveNames = $preserveNames; AllowedRoot = $allowedRoot; Status = 'Skipped'; Message = 'Target does not exist.' })
             } else {
-                [void]$items.Add([pscustomobject]@{ Path = $target; Label = $label; Kind = 'Target'; Status = 'Failed'; Message = $_.Exception.Message })
+                [void]$items.Add([pscustomobject]@{ Path = $target; Label = $label; KeepRoot = $keepRoot; PreserveNames = $preserveNames; AllowedRoot = $allowedRoot; Status = 'Failed'; Message = $_.Exception.Message })
             }
             continue
         }
-
-        $stack = [Collections.Generic.Stack[object]]::new()
-        $stack.Push([pscustomobject]@{ Item = $rootItem; IsRoot = $true })
-        $preserved = [Collections.Generic.List[string]]::new()
-        while ($stack.Count -gt 0) {
-            $frame = $stack.Pop()
-            $entry = $frame.Item
-            $isRoot = [bool]$frame.IsRoot
-            $entryPath = [IO.Path]::GetFullPath($entry.FullName).TrimEnd('\', '/')
-            if (($entry.Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0) {
-                [void]$items.Add([pscustomobject]@{ Path = $entryPath; Label = $label; Kind = 'Entry'; Status = 'Skipped'; Message = 'Reparse point left untouched.' })
-                continue
-            }
-            if (-not $isRoot -and $preserveNames -contains [string]$entry.Name) {
-                [void]$preserved.Add($entryPath)
-                [void]$items.Add([pscustomobject]@{ Path = $entryPath; Label = $label; Kind = 'Entry'; Status = 'Preserved'; Message = 'Preserve-name rule.' })
-                continue
-            }
-            if ($entry.PSIsContainer) {
-                try {
-                    $children = @(Get-ChildItem -LiteralPath $entryPath -Force -ErrorAction Stop)
-                    foreach ($child in $children) { $stack.Push([pscustomobject]@{ Item = $child; IsRoot = $false }) }
-                } catch {
-                    [void]$items.Add([pscustomobject]@{ Path = $entryPath; Label = $label; Kind = 'Entry'; Status = 'Failed'; Message = "Cannot enumerate directory: $($_.Exception.Message)" })
-                }
-                if (-not ($isRoot -and $keepRoot)) {
-                    [void]$items.Add([pscustomobject]@{ Path = $entryPath; Label = $label; Kind = 'Directory'; Status = 'Planned'; Message = '' })
-                }
-            } else {
-                [void]$items.Add([pscustomobject]@{ Path = $entryPath; Label = $label; Kind = 'File'; Status = 'Planned'; Message = '' })
-            }
-        }
+        [void]$items.Add([pscustomobject]@{ Path = $target; Label = $label; KeepRoot = $keepRoot; PreserveNames = $preserveNames; AllowedRoot = $allowedRoot; Status = 'Ready'; Message = '' })
     }
 
-    $protectedPaths = @($items | Where-Object { $_.Status -in @('Preserved', 'Skipped', 'Failed') } | Select-Object -ExpandProperty Path)
-    $planned = @($items | Where-Object {
-        if ($_.Status -ne 'Planned') { return $false }
-        if ($_.Kind -ne 'Directory') { return $true }
-        foreach ($protectedPath in $protectedPaths) {
-            if (Test-CleanupPathUnderRoot -Path $protectedPath -Root $_.Path) { return $false }
+    return [pscustomobject]@{ Items = @($items); AllowedRoots = $roots; CreatedAt = [DateTime]::UtcNow }
+}
+
+function Add-CleanupFailure {
+    param(
+        [Parameter(Mandatory = $true)][AllowEmptyCollection()][System.Collections.Generic.List[object]]$Errors,
+        [Parameter(Mandatory = $true)][pscustomobject]$TargetResult,
+        [Parameter(Mandatory = $true)][string]$Path,
+        [Parameter(Mandatory = $true)][string]$Message,
+        [string]$Kind = 'Entry'
+    )
+    $TargetResult.FailedCount++
+    $failure = [pscustomobject]@{ Path = $Path; Label = $TargetResult.Label; Kind = $Kind; Status = 'Failed'; Message = $Message }
+    [void]$Errors.Add($failure)
+    Write-Verbose "[Failed] $Path`: $Message"
+}
+
+function Remove-CleanupFile {
+    param([Parameter(Mandatory = $true)][string]$Path)
+    $attributes = [IO.File]::GetAttributes($Path)
+    if (($attributes -band [IO.FileAttributes]::ReadOnly) -ne 0) {
+        [IO.File]::SetAttributes($Path, $attributes -band (-bnot [IO.FileAttributes]::ReadOnly))
+    }
+    [IO.File]::Delete($Path)
+}
+
+function Invoke-CleanupTargetWalk {
+    param(
+        [Parameter(Mandatory = $true)][pscustomobject]$Target,
+        [Parameter(Mandatory = $true)][pscustomobject]$TargetResult,
+        [Parameter(Mandatory = $true)][AllowEmptyCollection()][System.Collections.Generic.List[object]]$Errors,
+        [switch]$DryRun
+    )
+
+    if (-not (Test-CleanupReparseChain -Path $Target.Path -AllowedRoot $Target.AllowedRoot)) {
+        $TargetResult.SkippedCount++
+        $TargetResult.Message = 'A reparse point appeared in the target path after validation; it was not traversed.'
+        Write-Verbose "[Skipped] $($Target.Path): $($TargetResult.Message)"
+        return
+    }
+
+    $stack = [Collections.Generic.Stack[object]]::new()
+    $stack.Push([pscustomobject]@{ Path = $Target.Path; IsRoot = $true; IsDirectory = $false; Initialized = $false; Enumerator = $null; Retained = $false; Parent = $null })
+    while ($stack.Count -gt 0) {
+        $frame = $stack.Peek()
+        if (-not $frame.Initialized) {
+            if (-not (Test-CleanupPathUnderRoot -Path $frame.Path -Root $Target.AllowedRoot)) {
+                Add-CleanupFailure -Errors $Errors -TargetResult $TargetResult -Path $frame.Path -Message 'Entry escaped its validated cleanup root.'
+                $frame.Retained = $true
+                $frame.Initialized = $true
+                $frame.IsDirectory = $false
+            } else {
+                try { $attributes = [IO.File]::GetAttributes($frame.Path) }
+                catch {
+                    Add-CleanupFailure -Errors $Errors -TargetResult $TargetResult -Path $frame.Path -Message $_.Exception.Message
+                    $frame.Retained = $true
+                    $frame.Initialized = $true
+                    $frame.IsDirectory = $false
+                    continue
+                }
+
+                if (($attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0) {
+                    $TargetResult.SkippedCount++
+                    $frame.Retained = $true
+                    Write-Verbose "[Skipped] $($frame.Path): Reparse point left untouched."
+                    $frame.Initialized = $true
+                    $frame.IsDirectory = $false
+                } elseif (-not $frame.IsRoot -and $Target.PreserveNames -contains [IO.Path]::GetFileName($frame.Path)) {
+                    $TargetResult.PreservedCount++
+                    $frame.Retained = $true
+                    Write-Verbose "[Preserved] $($frame.Path): Preserve-name rule."
+                    $frame.Initialized = $true
+                    $frame.IsDirectory = $false
+                } elseif (($attributes -band [IO.FileAttributes]::Directory) -ne 0) {
+                    if (-not (Test-CleanupAncestorReparseChain -Path $frame.Path -AllowedRoot $Target.AllowedRoot)) {
+                        $TargetResult.SkippedCount++
+                        $frame.Retained = $true
+                        Write-Verbose "[Skipped] $($frame.Path): Reparse point found in its parent chain."
+                        $frame.Initialized = $true
+                        $frame.IsDirectory = $false
+                    } else {
+                        $frame.IsDirectory = $true
+                        try {
+                            $frame.Enumerator = ([IO.DirectoryInfo]::new($frame.Path).EnumerateFileSystemInfos()).GetEnumerator()
+                            $frame.Initialized = $true
+                        } catch {
+                            Add-CleanupFailure -Errors $Errors -TargetResult $TargetResult -Path $frame.Path -Message "Cannot enumerate directory: $($_.Exception.Message)" -Kind 'Enumeration'
+                            $frame.Retained = $true
+                            $frame.Initialized = $true
+                        }
+                    }
+                } else {
+                    $TargetResult.PlannedCount++
+                    if ($DryRun) {
+                        Write-Verbose "[Planned] $($frame.Path)"
+                    } else {
+                        try {
+                            $currentAttributes = [IO.File]::GetAttributes($frame.Path)
+                            if (($currentAttributes -band [IO.FileAttributes]::ReparsePoint) -ne 0) {
+                                $TargetResult.SkippedCount++
+                                $frame.Retained = $true
+                                Write-Verbose "[Skipped] $($frame.Path): Entry became a reparse point."
+                            } else {
+                                Remove-CleanupFile -Path $frame.Path
+                                $TargetResult.CleanedCount++
+                                Write-Verbose "[Cleaned] $($frame.Path)"
+                            }
+                        } catch {
+                            Add-CleanupFailure -Errors $Errors -TargetResult $TargetResult -Path $frame.Path -Message $_.Exception.Message
+                            $frame.Retained = $true
+                        }
+                    }
+                    $frame.Initialized = $true
+                    $frame.IsDirectory = $false
+                }
+            }
+
+            if (-not $frame.IsDirectory) {
+                $parent = $frame.Parent
+                $retained = [bool]$frame.Retained
+                [void]$stack.Pop()
+                if ($retained -and $null -ne $parent) { $parent.Retained = $true }
+                continue
+            }
         }
-        return $true
-    } | Sort-Object @{ Expression = { $_.Path.Length }; Descending = $true }, @{ Expression = { $_.Path.ToUpperInvariant() }; Descending = $false })
-    $initial = @($items | Where-Object Status -ne 'Planned')
-    return [pscustomobject]@{ Items = $planned; InitialResults = $initial; AllowedRoots = $roots; CreatedAt = [DateTime]::UtcNow }
+
+        if ($frame.IsDirectory -and $null -ne $frame.Enumerator) {
+            try { $hasNext = $frame.Enumerator.MoveNext() }
+            catch {
+                Add-CleanupFailure -Errors $Errors -TargetResult $TargetResult -Path $frame.Path -Message "Cannot enumerate directory: $($_.Exception.Message)" -Kind 'Enumeration'
+                $frame.Retained = $true
+                $hasNext = $false
+            }
+            if ($hasNext) {
+                $entry = $frame.Enumerator.Current
+                $stack.Push([pscustomobject]@{ Path = $entry.FullName; IsRoot = $false; IsDirectory = $false; Initialized = $false; Enumerator = $null; Retained = $false; Parent = $frame })
+                continue
+            }
+            try { $frame.Enumerator.Dispose() } catch { }
+            $frame.Enumerator = $null
+        }
+
+        if ($frame.IsDirectory) {
+            if ($frame.IsRoot -and $Target.KeepRoot) {
+                $retained = $false
+            } elseif ($frame.Retained) {
+                $retained = $true
+            } else {
+                $TargetResult.PlannedCount++
+                if ($DryRun) {
+                    $retained = $false
+                    Write-Verbose "[Planned] $($frame.Path)"
+                } else {
+                    try {
+                        $currentAttributes = [IO.File]::GetAttributes($frame.Path)
+                        if (($currentAttributes -band [IO.FileAttributes]::ReparsePoint) -ne 0) {
+                            $TargetResult.SkippedCount++
+                            $retained = $true
+                            Write-Verbose "[Skipped] $($frame.Path): Entry became a reparse point."
+                        } else {
+                            [IO.Directory]::Delete($frame.Path, $false)
+                            $TargetResult.CleanedCount++
+                            $retained = $false
+                            Write-Verbose "[Cleaned] $($frame.Path)"
+                        }
+                    } catch {
+                        Add-CleanupFailure -Errors $Errors -TargetResult $TargetResult -Path $frame.Path -Message "Directory changed or could not be removed: $($_.Exception.Message)"
+                        $retained = $true
+                    }
+                }
+            }
+            $parent = $frame.Parent
+            [void]$stack.Pop()
+            if ($retained -and $null -ne $parent) { $parent.Retained = $true }
+        }
+    }
 }
 
 function Invoke-XReportCleanupPlan {
     [CmdletBinding()]
     param([Parameter(Mandatory = $true)][pscustomobject]$Plan, [switch]$DryRun)
 
-    $results = [Collections.Generic.List[object]]::new()
-    foreach ($item in $Plan.InitialResults) { [void]$results.Add($item) }
+    $targetResults = [Collections.Generic.List[object]]::new()
+    $errors = [Collections.Generic.List[object]]::new()
     foreach ($item in $Plan.Items) {
-        if ($DryRun) {
-            [void]$results.Add([pscustomobject]@{ Path = $item.Path; Label = $item.Label; Kind = $item.Kind; Status = 'Planned'; Message = '' })
-            continue
+        $targetResult = [pscustomobject]@{
+            Path = $item.Path; Label = $item.Label; Status = $item.Status; Message = $item.Message
+            PlannedCount = 0; CleanedCount = 0; SkippedCount = 0; FailedCount = 0; PreservedCount = 0; MissingTargetCount = 0
         }
-        $root = $null
-        foreach ($candidate in $Plan.AllowedRoots) {
-            if (Test-CleanupPathUnderRoot -Path $item.Path -Root $candidate) { $root = $candidate; break }
-        }
-        if (-not $root -or -not (Test-CleanupReparseChain -Path $item.Path -AllowedRoot $root)) {
-            [void]$results.Add([pscustomobject]@{ Path = $item.Path; Label = $item.Label; Kind = $item.Kind; Status = 'Skipped'; Message = 'Path changed or became a reparse point after planning.' })
-            continue
-        }
-        try {
-            $current = Get-Item -LiteralPath $item.Path -Force -ErrorAction Stop
-            if (($current.Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0) { throw 'Entry became a reparse point after planning.' }
-            if ($current.PSIsContainer -and @(Get-ChildItem -LiteralPath $item.Path -Force -ErrorAction Stop).Count -gt 0) {
-                throw 'Directory changed after planning; new contents were left untouched.'
+        [void]$targetResults.Add($targetResult)
+        if ($item.Status -ne 'Ready') {
+            if ($item.Status -eq 'Skipped') {
+                $targetResult.SkippedCount++
+                if ($item.Message -eq 'Target does not exist.') { $targetResult.MissingTargetCount++ }
+                Write-Verbose "[Skipped] $($item.Path): $($item.Message)"
+            } else {
+                $targetResult.FailedCount++
+                [void]$errors.Add([pscustomobject]@{ Path = $item.Path; Label = $item.Label; Kind = 'Target'; Status = 'Failed'; Message = $item.Message })
+                Write-Verbose "[Failed] $($item.Path): $($item.Message)"
             }
-            Remove-Item -LiteralPath $item.Path -Force -ErrorAction Stop
-            [void]$results.Add([pscustomobject]@{ Path = $item.Path; Label = $item.Label; Kind = $item.Kind; Status = 'Cleaned'; Message = '' })
-        } catch {
-            [void]$results.Add([pscustomobject]@{ Path = $item.Path; Label = $item.Label; Kind = $item.Kind; Status = 'Failed'; Message = $_.Exception.Message })
+            continue
         }
+        Invoke-CleanupTargetWalk -Target $item -TargetResult $targetResult -Errors $errors -DryRun:$DryRun
+    }
+    $plannedCount = 0; $cleanedCount = 0; $skippedCount = 0; $failedCount = 0; $preservedCount = 0; $missingTargetCount = 0
+    foreach ($targetResult in $targetResults) {
+        $plannedCount += $targetResult.PlannedCount; $cleanedCount += $targetResult.CleanedCount
+        $skippedCount += $targetResult.SkippedCount; $failedCount += $targetResult.FailedCount
+        $preservedCount += $targetResult.PreservedCount; $missingTargetCount += $targetResult.MissingTargetCount
     }
     return [pscustomobject]@{
         DryRun = [bool]$DryRun
-        Results = @($results)
-        Planned = @($results | Where-Object Status -eq 'Planned')
-        Cleaned = @($results | Where-Object Status -eq 'Cleaned')
-        Skipped = @($results | Where-Object Status -eq 'Skipped')
-        Failed = @($results | Where-Object Status -eq 'Failed')
-        Preserved = @($results | Where-Object Status -eq 'Preserved')
+        TargetResults = @($targetResults)
+        Errors = @($errors)
+        PlannedCount = $plannedCount
+        CleanedCount = $cleanedCount
+        SkippedCount = $skippedCount
+        FailedCount = $failedCount
+        PreservedCount = $preservedCount
+        MissingTargetCount = $missingTargetCount
     }
 }
 
@@ -227,12 +391,26 @@ function Get-XReportCacheTargets {
     param(
         [Parameter(Mandatory = $true)][string]$RepoRoot,
         [string]$LocalAppData,
-        [string[]]$ResourceRoots = @()
+        [string[]]$ResourceRoots = @(),
+        [string[]]$ExcludedRoots = @()
     )
     $targets = [Collections.Generic.List[object]]::new()
+    $excludedRoots = @($ExcludedRoots | Where-Object { -not [string]::IsNullOrWhiteSpace($_) } | ForEach-Object { [IO.Path]::GetFullPath($_).TrimEnd('\', '/') } | Select-Object -Unique)
+    $isExcluded = {
+        param([string]$Path)
+        if ([string]::IsNullOrWhiteSpace($Path)) { return $false }
+        try { $fullPath = [IO.Path]::GetFullPath($Path) } catch { return $false }
+        foreach ($excludedRoot in $excludedRoots) {
+            $normalizedPath = $fullPath.TrimEnd('\', '/')
+            if ($normalizedPath.Equals($excludedRoot, [StringComparison]::OrdinalIgnoreCase) -or
+                $normalizedPath.StartsWith($excludedRoot + [IO.Path]::DirectorySeparatorChar, [StringComparison]::OrdinalIgnoreCase) -or
+                $normalizedPath.StartsWith($excludedRoot + [IO.Path]::AltDirectorySeparatorChar, [StringComparison]::OrdinalIgnoreCase)) { return $true }
+        }
+        return $false
+    }.GetNewClosure()
     $add = { param([string]$Path, [string]$Label, [switch]$KeepRoot, [string]$PlanError)
-        if (-not [string]::IsNullOrWhiteSpace($Path)) { [void]$targets.Add([pscustomobject]@{ Path = $Path; Label = $Label; KeepRoot = [bool]$KeepRoot; PreserveNames = @('.gitkeep'); PlanError = $PlanError }) }
-    }
+        if (-not [string]::IsNullOrWhiteSpace($Path) -and -not (& $isExcluded $Path)) { [void]$targets.Add([pscustomobject]@{ Path = $Path; Label = $Label; KeepRoot = [bool]$KeepRoot; PreserveNames = @('.gitkeep'); PlanError = $PlanError }) }
+    }.GetNewClosure()
     & $add (Join-Path $RepoRoot 'runtimes\cache') 'Repository runtime and tool caches' -KeepRoot
     & $add (Join-Path $RepoRoot 'app\server\runtimes\cache') 'Legacy backend cache root'
     & $add (Join-Path $RepoRoot 'app\client\.angular\cache') 'Legacy Angular CLI cache'
@@ -310,7 +488,7 @@ function Get-XReportCacheTargets {
         }
     }
     $launcherRuntimeDir = Join-Path $RepoRoot 'runtimes'
-    if (Test-Path -LiteralPath $launcherRuntimeDir -PathType Container) {
+    if (-not (& $isExcluded $launcherRuntimeDir) -and (Test-Path -LiteralPath $launcherRuntimeDir -PathType Container)) {
         if (-not (Test-CleanupReparseChain -Path $launcherRuntimeDir -AllowedRoot $RepoRoot)) {
             & $add $launcherRuntimeDir 'Launcher runtime-state scan skipped'
         } else {
@@ -335,6 +513,7 @@ function Get-XReportCacheTargets {
     $cacheNames = @('__pycache__', '.pytest_cache', '.ruff_cache', '.mypy_cache', '.cache', '.vite', '.angular-cache', 'htmlcov', 'coverage', 'out-tsc')
     $pruneNames = @('.git', '.venv', '.venv-studio', 'node_modules', 'dist', 'dist-ssr', 'target', 'runtimes', 'release')
     foreach ($scanRoot in $scanRoots) {
+        if (& $isExcluded $scanRoot) { continue }
         if (-not (Test-Path -LiteralPath $scanRoot -PathType Container)) { continue }
         if (-not (Test-CleanupReparseChain -Path $scanRoot -AllowedRoot $RepoRoot)) { & $add $scanRoot 'Nested cache scan skipped'; continue }
         $stack = [Collections.Generic.Stack[string]]::new()
@@ -366,6 +545,7 @@ function Get-XReportCacheTargets {
         (Join-Path $RepoRoot 'runtimes\python')
     )
     foreach ($bytecodeRoot in $bytecodeRoots) {
+        if (& $isExcluded $bytecodeRoot) { continue }
         if (-not (Test-Path -LiteralPath $bytecodeRoot -PathType Container)) { continue }
         if (-not (Test-CleanupReparseChain -Path $bytecodeRoot -AllowedRoot $RepoRoot)) { & $add $bytecodeRoot 'Python bytecode scan skipped'; continue }
         $environmentCacheNames = @('__pycache__', '.pytest_cache', '.ruff_cache', '.mypy_cache', '.cache')
@@ -510,7 +690,7 @@ function Get-XReportUninstallTargets {
     }
 
     $coveredPaths = @($targets | ForEach-Object { [IO.Path]::GetFullPath([string]$_.Path) })
-    foreach ($cacheTarget in @(Get-XReportCacheTargets -RepoRoot $root -LocalAppData $LocalAppData -ResourceRoots $ResourceRoots)) {
+    foreach ($cacheTarget in @(Get-XReportCacheTargets -RepoRoot $root -LocalAppData $LocalAppData -ResourceRoots $ResourceRoots -ExcludedRoots $coveredPaths)) {
         $cachePath = [IO.Path]::GetFullPath([string]$cacheTarget.Path)
         $covered = $false
         foreach ($coveredPath in $coveredPaths) {
