@@ -136,10 +136,14 @@ Studio packages from `app/server/.venv-studio` with `KERAS_BACKEND=torch` and
 checks that the Torch build matches the recorded profile (`+cpu` for Standard;
 `+cu130` with CUDA for CUDA). When the probe fails, the launcher prints its
 complete output, including any Python traceback, and synchronizes the
-environment again. If the probe still fails after that synchronization, the
-launch stops and `runtimes/studio-install-state.json` is removed. The next
-launch then rebuilds `.venv-studio`. That launch uses Standard unless it is
-interactive or receives `-StudioProfile`.
+environment again. During installation, if the post-sync probe reports a
+missing Keras module, the launcher reinstalls only the locked Keras package
+without using the local package cache, then retries the probe. This repairs
+incomplete Keras files without replacing the selected Torch profile. If the
+probe still fails, the launch stops and
+`runtimes/studio-install-state.json` is removed. The next launch then rebuilds
+`.venv-studio`. That launch uses Standard unless it is interactive or receives
+`-StudioProfile`.
 
 If the project virtual environment was created by an older pinned Python
 patch release, the launcher recreates that disposable environment before

@@ -202,6 +202,10 @@ def test_studio_installation_uses_an_isolated_profiled_environment() -> None:
     assert "$env:UV_PROJECT_ENVIRONMENT = $StudioVenvDir" in install
     assert "'sync', '--locked'" in install
     assert "'--extra', 'studio', '--extra', $profileExtra" in install
+    assert "'--reinstall-package', 'keras'" in install
+    assert "'--no-cache'" in install
+    assert install.index("$runtimeProbeOutput -notmatch") < install.index("'--reinstall-package', 'keras'")
+    assert "after reinstalling Keras" in install
     assert "Move-Item -LiteralPath $temporaryPath -Destination $StudioInstallStatePath -Force" in install
     install_action = _function_body("Invoke-InstallStudio")
     assert "Stop-XReportProcesses -Scope Studio" in install_action
@@ -241,8 +245,14 @@ def test_studio_runtime_probe_survives_windows_powershell_argument_passing() -> 
     assert '"' not in source.group(1)
     assert "os.environ['KERAS_BACKEND'] = 'torch'" in source.group(1)
     assert source.group(1).index("KERAS_BACKEND") < source.group(1).index("import keras")
+    assert "[ref]$ProbeOutput" in probe
+    assert "$ProbeOutput.Value = $probeOutput" in probe
     assert "$ErrorActionPreference = 'Continue'" in probe
     assert "Write-Warn" in probe and "$probeOutput" in probe
+    install = _function_body("Install-StudioBackendDependencies")
+    assert "ModuleNotFoundError: No module named .keras\\." in install
+    assert install.index("$runtimeProbeOutput -notmatch") < install.index("'--reinstall-package', 'keras'")
+    assert "'--no-cache'" in install
 
 
 ###############################################################################

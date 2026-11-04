@@ -4,6 +4,16 @@ Last updated: 2026-11-04
 
 Release 4.0.0 (2026-10-28) is the major release for the Inference/Studio split: only XREPORT Inference is packaged and published. Its evidence, findings and unrun scopes are in the [validation campaign ledger](validation_campaign_ledger.md); open items from it: the `run_tests.bat` Studio preview race, a modified local CXRMate Multi TF snapshot that fails its integrity check until repaired, and local Pyright drift against hosted CI.
 
+Launcher change 2026-11-04: Studio installation now retries a failed post-sync
+runtime probe after reinstalling only locked Keras without using the local
+package cache, and only when the traceback reports a missing Keras module.
+This covers environments where `uv sync` accepts Keras metadata while package
+files listed in `RECORD` are missing. The CUDA repro showed that failure, and
+the cached Keras archive also lacked the file listed in its `RECORD`. Focused
+launcher checks and PowerShell parsing passed. A direct fresh-wheel repair
+could not be verified here because sandbox DNS blocked access to PyPI; CUDA
+hardware and Studio training were not exercised.
+
 Source change 2026-10-28, follow-up (not a release gate): closed the gaps left by the statistics, tokenizer and split work.
 
 Fixed and exercised:

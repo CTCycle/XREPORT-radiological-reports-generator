@@ -781,7 +781,10 @@ function Read-StudioInstallState {
 }
 
 function Test-StudioPythonEnvironment {
-    param([ValidateSet('Standard', 'Cuda')][string]$Profile)
+    param(
+        [ValidateSet('Standard', 'Cuda')][string]$Profile,
+        [ref]$ProbeOutput
+    )
 
     if (-not (Test-Path -LiteralPath $StudioVenvPython -PathType Leaf)) { return $false }
     $pythonVersionOutput = (& $StudioVenvPython --version 2>&1 | Out-String).Trim()
@@ -809,6 +812,7 @@ print(json.dumps({'torch': torch.__version__, 'torchvision': torchvision.__versi
         $ErrorActionPreference = 'Continue'
         $probeOutput = (& $StudioVenvPython -s -c $probeScript 2>&1 | ForEach-Object { [string]$_ } | Out-String).Trim()
         $probeExitCode = $LASTEXITCODE
+        if ($PSBoundParameters.ContainsKey('ProbeOutput')) { $ProbeOutput.Value = $probeOutput }
     }
     finally {
         $ErrorActionPreference = $probeErrorActionPreference
@@ -917,8 +921,17 @@ function Install-StudioBackendDependencies {
         $syncArgs = @('sync', '--locked', '--python', $PythonExe, '--extra', 'studio', '--extra', $profileExtra)
         Write-Step "Synchronizing XREPORT Studio $Profile dependencies"
         Invoke-Checked -FilePath $UvExe -ArgumentList $syncArgs -WorkingDirectory $ServerDir
-        if (-not (Test-StudioPythonEnvironment -Profile $Profile)) {
-            throw "The XREPORT Studio $Profile environment failed its runtime probe. Its profile may be missing required packages."
+        $runtimeProbeOutput = $null
+        if (-not (Test-StudioPythonEnvironment -Profile $Profile -ProbeOutput ([ref]$runtimeProbeOutput))) {
+            if ($runtimeProbeOutput -notmatch 'ModuleNotFoundError: No module named .keras\.') {
+                throw "The XREPORT Studio $Profile environment failed its runtime probe. Its profile may be missing required packages."
+            }
+            Write-Step 'Repairing Keras from the package index and retrying the XREPORT Studio runtime probe'
+            $repairArgs = @('sync', '--locked', '--reinstall-package', 'keras', '--no-cache', '--python', $PythonExe, '--extra', 'studio', '--extra', $profileExtra)
+            Invoke-Checked -FilePath $UvExe -ArgumentList $repairArgs -WorkingDirectory $ServerDir
+            if (-not (Test-StudioPythonEnvironment -Profile $Profile)) {
+                throw "The XREPORT Studio $Profile environment failed its runtime probe after reinstalling Keras. Its profile may be missing required packages."
+            }
         }
 
         $state = [ordered]@{
