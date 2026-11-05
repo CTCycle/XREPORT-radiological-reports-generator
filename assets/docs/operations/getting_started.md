@@ -1,20 +1,20 @@
 # Getting Started
 
-Last updated: 2026-10-28
+Last updated: 2026-11-05
 
 This guidance is for radiology and ML users running local report-generation workflows, plus technical operators validating datasets, training runs, and model outputs.
 
 ## Startup Paths
 
-### Windows Local Launcher
+### Windows App Launch
 
-1. Run `powershell -ExecutionPolicy Bypass -File .\start_on_windows.ps1`.
-2. Select **Launch application**.
-3. Wait for runtime, dependency, database migration, build-freshness, and health checks to complete. The frontend builds only when its production output is absent or stale.
-4. Use the browser opened at `http://FASTAPI_HOST:FASTAPI_PORT` from
-   `settings/.env` (wildcard bind addresses open through loopback).
+1. Run .\start_on_windows.bat to start XREPORT Inference.
+2. Wait for runtime, dependency, database migration, build-freshness, and health checks to complete.
+3. Use the browser opened at http://FASTAPI_HOST:FASTAPI_PORT from settings/.env.
 
-For direct launch without the menu, run `powershell -ExecutionPolicy Bypass -File .\start_on_windows.ps1 -Action Launch`. The launcher stays open while the app runs; press Ctrl+C to request a graceful stop.
+The batch launcher performs the same first-run setup as the current app-launch path and stays open while the app runs. Press Ctrl+C to request a graceful stop.
+
+For direct PowerShell launch, run powershell -ExecutionPolicy Bypass -File .\setup_and_maintenance.ps1 -Launch.
 
 ### Optional XREPORT Studio Setup
 
@@ -23,15 +23,15 @@ XREPORT Inference install does not install Studio-only packages. To prepare Stud
 of time, choose **Install / update Studio** or run:
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File .\start_on_windows.ps1 -Action InstallStudio
+powershell -ExecutionPolicy Bypass -File .\setup_and_maintenance.ps1 -Action InstallStudio
 ```
 
 Choose **Standard** for CPU Torch or **CUDA** for the pinned cu130 Torch stack
 and a supported NVIDIA GPU/driver. To select a profile directly, add
 `-StudioProfile Standard` or `-StudioProfile Cuda`.
 
-Launch Studio with **Launch XREPORT Studio** or
-`powershell -ExecutionPolicy Bypass -File .\start_on_windows.ps1 -Action LaunchStudio`.
+Launch Studio with
+`.\start_studio_on_windows.bat`.
 On an interactive first launch, the launcher asks for a profile and installs
 it before starting Studio. An unattended first launch defaults to Standard.
 Subsequent launches reuse the installed profile; pass `-StudioProfile` to
@@ -44,7 +44,7 @@ launches check `alembic_version` and apply only pending upgrades. To run the
 same operation without launching the UI, choose **Initialize database** or run:
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File .\start_on_windows.ps1 -Action InitializeDatabase
+powershell -ExecutionPolicy Bypass -File .\setup_and_maintenance.ps1 -Action InitializeDatabase
 ```
 
 ### macOS Or Linux Manual Flow

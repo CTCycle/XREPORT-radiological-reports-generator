@@ -3083,8 +3083,6 @@ function Wait-ForMenu {
 
 function Get-LauncherMenuEntries {
     @(
-        [pscustomobject]@{ Section = 'APPLICATION'; Key = 'Launch'; Label = 'Launch XREPORT Inference'; Description = 'Start the inference application'; Destructive = $false }
-        [pscustomobject]@{ Section = 'APPLICATION'; Key = 'LaunchStudio'; Label = 'Launch XREPORT Studio'; Description = 'Start dataset and training workspace'; Destructive = $false }
         [pscustomobject]@{ Section = 'APPLICATION'; Key = 'KillProcesses'; Label = 'Kill app processes'; Description = 'Stop XREPORT Inference, Studio and desktop shells'; Destructive = $false }
         [pscustomobject]@{ Section = 'SETUP & VALIDATION'; Key = 'Install'; Label = 'Install / update dependencies'; Description = 'Sync runtimes and packages'; Destructive = $false }
         [pscustomobject]@{ Section = 'SETUP & VALIDATION'; Key = 'InstallStudio'; Label = 'Install / update Studio'; Description = 'Choose Standard CPU or CUDA dependencies'; Destructive = $false }
@@ -3146,7 +3144,7 @@ if ($AllDesktopReleases -and $Action -ne 'RemoveDesktopRelease') {
 }
 
 if ($Launch) {
-    Invoke-TrackedLauncherAction -Name 'launch application' -Operation { Invoke-Launch }
+    Invoke-TrackedLauncherAction -Name 'launch application' -Operation { Invoke-Launch -Application $App }
     exit 0
 }
 
@@ -3196,8 +3194,6 @@ while ($true) {
     try {
         Invoke-TrackedLauncherAction -Name "menu option $($entry.Number): $($entry.Label)" -Operation {
             switch ($entry.Key) {
-                'Launch' { Invoke-Launch -Application Xreport; exit 0 }
-                'LaunchStudio' { Invoke-Launch -Application Studio; exit 0 }
                 'KillProcesses' { Stop-XReportProcesses }
                 'Install' { Invoke-InstallOrUpdate }
                 'InstallStudio' { Invoke-InstallStudio }

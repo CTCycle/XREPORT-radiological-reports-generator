@@ -1,75 +1,48 @@
 # Runtime Startup
 
-Last updated: 2026-11-04
+Last updated: 2026-11-05
 
-## Windows Local Launcher
+## Windows App Launch
 
-PowerShell:
+Launch XREPORT Inference from the repository root or by opening the batch file in Explorer:
 
-```powershell
-powershell -ExecutionPolicy Bypass -File .\start_on_windows.ps1
-```
+    .\start_on_windows.bat
 
-For direct, non-interactive launch use:
+For XREPORT Studio, use its separate launcher:
 
-```powershell
-powershell -ExecutionPolicy Bypass -File .\start_on_windows.ps1 -Action Launch
-```
+    .\start_studio_on_windows.bat
+
+Each launcher performs the current first-run runtime, dependency, database, and frontend checks before opening its app. Keep its console open while the app runs; press Ctrl+C to request a graceful stop.
+
+## Setup and Maintenance
+
+Open the setup and maintenance menu with:
+
+    powershell -ExecutionPolicy Bypass -File .\setup_and_maintenance.ps1
+
+For a direct PowerShell launch of Inference or Studio, use -Launch and optionally -App Studio:
+
+    powershell -ExecutionPolicy Bypass -File .\setup_and_maintenance.ps1 -Launch
+    powershell -ExecutionPolicy Bypass -File .\setup_and_maintenance.ps1 -Launch -App Studio
 
 To stop identifiable XREPORT source services, desktop development shells, and
 packaged XREPORT processes, use:
 
-```powershell
-powershell -ExecutionPolicy Bypass -File .\start_on_windows.ps1 -Action KillProcesses
-```
+    powershell -ExecutionPolicy Bypass -File .\setup_and_maintenance.ps1 -Action KillProcesses
 
 This action leaves processes on configured ports alone unless their command
 line or executable identifies them as XREPORT. Unknown listeners are reported
 and left running. It does not close the browser window.
 
-The menu can:
+The maintenance menu can:
 
-- prepare portable Python, uv, and Node.js in `runtimes/`
+- prepare portable Python, uv, and Node.js in runtimes/
 - synchronize backend and frontend dependencies
 - rebuild the frontend without launching services
-- build and launch the local web application
 - initialize the database and run tests
 - create or remove selected desktop release artifacts
 - remove logs, clear caches, or uninstall generated dependencies
-- update source from `origin/main` with the clean-`main` guard
-
-Normal Windows Launch sets the private `XREPORT_SERVE_CLIENT` source-mode flag
-and starts only FastAPI. FastAPI serves the built Angular bundle from
-`app/client/dist/client-angular/browser`, falls back to `index.html` for
-extensionless Angular routes, and keeps `/api` requests in the API namespace.
-The browser and API use one origin at `http://FASTAPI_HOST:FASTAPI_PORT`; a
-wildcard bind address opens through loopback. The backend root remains a `/docs`
-redirect when the launcher flag is off. The Angular shell polls `/api/health`
-and can open the restricted Database recovery screen when health reports
-`database_recovery`.
-
-Launch waits for `/api/health`, opens the application, then keeps this launcher
-console as the lifecycle owner. Press Ctrl+C to stop. The launcher requests
-FastAPI's authenticated shutdown endpoint and force-stops only the backend
-process tree it started if graceful shutdown does not finish. Backend logs stay
-in this console. If automatic browser launch fails, use the printed URL.
-Launcher output includes the selected menu label and aligned `[TIME]` rows in
-milliseconds for startup phases, including total time to backend health
-readiness.
-During the foreground health wait, it hides the live progress display so it
-does not overwrite FastAPI startup output; readiness is reported after the
-health endpoint responds.
-
-Normal Launch checks only `FASTAPI_PORT`; `LaunchDesktopDev` checks both
-`FASTAPI_PORT` and `UI_PORT`. A port owner is stopped only when its process is
-identified as XREPORT, with confirmation during interactive launch. Unknown
-owners are reported and left running, and the launch stops with an error rather
-than terminating them. `KillProcesses` follows the same ownership rule.
-
-For isolated startup validation, a process-level `XREPORT_RESOURCES_DIR`
-override takes precedence over the same key in `settings/.env`. This lets a
-disposable database be selected without editing the developer's environment
-file or application resources.
+- update source from origin/main with the clean-main guard
 
 ## Foundational Startup Validation
 
@@ -95,7 +68,7 @@ frontend dependencies as needed, rebuild the Angular client, and leave backend
 services untouched. The same operation can be run directly with:
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File .\start_on_windows.ps1 -Action RebuildFrontend
+powershell -ExecutionPolicy Bypass -File .\setup_and_maintenance.ps1 -Action RebuildFrontend
 ```
 
 The install/update option prepares the portable runtimes before requesting an
@@ -111,8 +84,8 @@ XREPORT Studio has a separate Python environment at
 run one of these commands to prepare it before launch:
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File .\start_on_windows.ps1 -Action InstallStudio -StudioProfile Standard
-powershell -ExecutionPolicy Bypass -File .\start_on_windows.ps1 -Action InstallStudio -StudioProfile Cuda
+powershell -ExecutionPolicy Bypass -File .\setup_and_maintenance.ps1 -Action InstallStudio -StudioProfile Standard
+powershell -ExecutionPolicy Bypass -File .\setup_and_maintenance.ps1 -Action InstallStudio -StudioProfile Cuda
 ```
 
 **Standard** installs CPU Torch and works without CUDA hardware. **CUDA** uses
@@ -122,7 +95,7 @@ still determine which device a job uses. The XREPORT Inference and Studio enviro
 are isolated, so installing or changing Studio dependencies does not replace
 XREPORT's CUDA environment.
 
-On an interactive first **Launch XREPORT Studio**, the launcher asks which
+On an interactive first launch from start_studio_on_windows.bat, the launcher asks which
 profile to install, then installs it and builds the Studio frontend before
 starting the backend. An unattended first launch defaults to Standard. Later
 launches reuse the installed profile; pass `-StudioProfile Cuda` or
@@ -169,7 +142,7 @@ bundles.
 
 ### Source updates
 
-**Update application from main** is menu option 6 and the direct
+**Update application from main** is available in the maintenance menu and through the direct
 `-Action Update` command. It requires a non-detached, clean checkout of
 `main` and runs `git pull --ff-only origin main`; it does not switch branches or
 modify local changes. This source update is separate from dependency install or
@@ -185,7 +158,7 @@ root's `logs/` directory. Closing the Tauri shell or pressing Ctrl+C requests
 backend shutdown and stops only those child process trees:
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File .\start_on_windows.ps1 -Action LaunchDesktopDev
+powershell -ExecutionPolicy Bypass -File .\setup_and_maintenance.ps1 -Action LaunchDesktopDev
 ```
 
 The existing `-Action Launch` path remains the normal browser workflow and is
@@ -194,7 +167,7 @@ not replaced by the desktop action.
 ## Tauri release packaging
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File .\start_on_windows.ps1 `
+powershell -ExecutionPolicy Bypass -File .\setup_and_maintenance.ps1 `
   -Action BuildDesktopRelease -DesktopRuntime All -DesktopTarget All -Version 4.0.0
 ```
 
@@ -207,7 +180,7 @@ generated build state, choose **All versions and artifacts** from the
 launcherâ€™s **Remove release artifacts** menu or run:
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File .\start_on_windows.ps1 -Action RemoveDesktopRelease -AllDesktopReleases
+powershell -ExecutionPolicy Bypass -File .\setup_and_maintenance.ps1 -Action RemoveDesktopRelease -AllDesktopReleases
 ```
 
 The release action always recreates `app/desktop/src-tauri/ui` and
@@ -233,9 +206,9 @@ Direct removal accepts either a version and optional runtime/target selection,
 or the all-releases switch:
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File .\start_on_windows.ps1 `
+powershell -ExecutionPolicy Bypass -File .\setup_and_maintenance.ps1 `
   -Action RemoveDesktopRelease -Version 4.0.0 -DesktopRuntime Cpu -DesktopTarget All
-powershell -ExecutionPolicy Bypass -File .\start_on_windows.ps1 `
+powershell -ExecutionPolicy Bypass -File .\setup_and_maintenance.ps1 `
   -Action RemoveDesktopRelease -AllDesktopReleases
 ```
 
@@ -297,7 +270,7 @@ training runs register them again.
 
 ## Cache cleanup, data removal, and uninstall
 
-The launcher resolves paths relative to `start_on_windows.ps1`, regardless of
+The launcher resolves paths relative to `setup_and_maintenance.ps1`, regardless of
 the shell's current directory. **Clear cache** previews and removes disposable
 application-owned caches and regenerable output in repository, frontend,
 backend, desktop-build, and packaged-user locations. Coverage includes the
@@ -312,13 +285,13 @@ are not part of cache cleanup. It leaves `.gitkeep` sentinels in place.
 Preview the validated target roots and grouped counts without deleting files:
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File .\start_on_windows.ps1 -Action ClearCache -DryRun
+powershell -ExecutionPolicy Bypass -File .\setup_and_maintenance.ps1 -Action ClearCache -DryRun
 ```
 
 Remove the planned caches after reviewing the target roots:
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File .\start_on_windows.ps1 -Action ClearCache
+powershell -ExecutionPolicy Bypass -File .\setup_and_maintenance.ps1 -Action ClearCache
 ```
 
 The launcher validates and prints the target roots before asking for
@@ -342,8 +315,8 @@ checkpoints, installed models, uploaded data, shared `.env` files, and
 storage-location pointers.
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File .\start_on_windows.ps1 -Action Uninstall -DryRun
-powershell -ExecutionPolicy Bypass -File .\start_on_windows.ps1 -Action Uninstall `
+powershell -ExecutionPolicy Bypass -File .\setup_and_maintenance.ps1 -Action Uninstall -DryRun
+powershell -ExecutionPolicy Bypass -File .\setup_and_maintenance.ps1 -Action Uninstall `
   -PortableInstallPath 'D:\Apps\XREPORT-v4.0.0-windows-x64-cpu-portable.exe'
 ```
 
@@ -359,7 +332,7 @@ shared models folder used by Studio, which is called out in the preview and
 confirmation.
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File .\start_on_windows.ps1 `
+powershell -ExecutionPolicy Bypass -File .\setup_and_maintenance.ps1 `
   -Action RemoveAllData -App Xreport -DryRun
 ```
 

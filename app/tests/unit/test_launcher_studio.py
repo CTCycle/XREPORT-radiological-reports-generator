@@ -5,7 +5,7 @@ import re
 import tomllib
 
 ROOT = Path(__file__).parents[3]
-LAUNCHER = (ROOT / "start_on_windows.ps1").read_text(
+LAUNCHER = (ROOT / "setup_and_maintenance.ps1").read_text(
     encoding="utf-8"
 )
 LAUNCHER_CLEANUP = (ROOT / "app/scripts/launcher_cleanup.psm1").read_text(
@@ -55,6 +55,18 @@ def test_launch_actions_keep_the_launch_alias_and_add_studio() -> None:
 
 
 ###############################################################################
+def test_batch_launchers_bypass_the_maintenance_menu() -> None:
+    inference_batch = (ROOT / "start_on_windows.bat").read_text(encoding="utf-8")
+    studio_batch = (ROOT / "start_studio_on_windows.bat").read_text(encoding="utf-8")
+    menu = _function_body("Get-LauncherMenuEntries")
+
+    assert "setup_and_maintenance.ps1" in inference_batch
+    assert "-Launch" in inference_batch
+    assert "setup_and_maintenance.ps1" in studio_batch
+    assert "-Launch -App Studio" in studio_batch
+    assert "Key = 'Launch'" not in menu
+    assert "Key = 'LaunchStudio'" not in menu
+
 def test_frontend_freshness_is_tracked_per_angular_project() -> None:
     state = _function_body("Write-FrontendBuildState")
     status = _function_body("Get-FrontendBuildStatus")
@@ -259,7 +271,7 @@ def test_studio_runtime_probe_survives_windows_powershell_argument_passing() -> 
 def test_live_suite_uses_the_separate_studio_backend_environment() -> None:
     assert 'set "STUDIO_VENV_PYTHON=%SERVER_DIR%\\.venv-studio\\Scripts\\python.exe"' in TEST_RUNNER
     assert '"%STUDIO_VENV_PYTHON%" -m uvicorn' in TEST_RUNNER
-    assert "start_on_windows.ps1 -Action InstallStudio" in TEST_RUNNER
+    assert "setup_and_maintenance.ps1 -Action InstallStudio" in TEST_RUNNER
 
 
 ###############################################################################

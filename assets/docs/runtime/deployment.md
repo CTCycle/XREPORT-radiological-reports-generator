@@ -1,20 +1,17 @@
 # Runtime Deployment
 
-Last updated: 2026-10-29
+Last updated: 2026-11-05
 
 ## Deployment Scope
 
 - XREPORT Inference is a local client/server application.
-- Windows users run the application through `start_on_windows.ps1`.
-- macOS and Linux source instructions use a manually started development
-  backend and Angular development server.
+- Windows users start Inference with start_on_windows.bat or Studio with start_studio_on_windows.bat.
+- setup_and_maintenance.ps1 contains dependency setup, build, and maintenance actions.
+- macOS and Linux source instructions use a manually started development backend and Angular development server.
 
 ## Windows Runtime Preparation
 
-1. Run `start_on_windows.ps1`.
-2. Select **Install / update dependencies** to prepare Python, uv, Node.js, and the frontend build.
-3. Select **Launch application** to start FastAPI, which serves the built
-   frontend and API from one origin. The launcher stays open as lifecycle owner.
+The app launchers prepare portable runtimes and repair missing or stale dependencies during launch. To prepare or repair dependencies separately, run setup_and_maintenance.ps1 and select Install / update dependencies.
 
 ## Runtime Prerequisites
 
@@ -61,7 +58,7 @@ dirty-tree state, payload hash, file count, sizes, and largest entries, and
 rejects secrets, databases, logs, caches, models, symlinks, and duplicate
 members. `runtime.zip` and `ui/` are generated inputs and are never committed.
 
-The canonical command is `start_on_windows.ps1 -Action BuildDesktopRelease`.
+The canonical command is `setup_and_maintenance.ps1 -Action BuildDesktopRelease`.
 `app/desktop` also exposes `npm run tauri:build`, which delegates to that
 launcher (CPU by default; pass `-DesktopRuntime Cuda` or `All` after `--`).
 Raw `tauri build` is an internal shell operation and is not a complete release

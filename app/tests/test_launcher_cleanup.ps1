@@ -188,7 +188,7 @@ try {
     )
     foreach ($path in $launcherPersistentFiles) { Write-FixtureFile -Path $path }
     [IO.File]::WriteAllText((Join-Path $launcherPointerRoot 'storage-location.json'), (@{ storage_root = $launcherPackagedRoot } | ConvertTo-Json -Compress))
-    $launcherScriptPath = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..\..\start_on_windows.ps1'))
+    $launcherScriptPath = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..\..\setup_and_maintenance.ps1'))
     $oldLauncherResources = $env:XREPORT_RESOURCES_DIR
     $oldLauncherLocalAppData = $env:LOCALAPPDATA
     $origin = Get-Location

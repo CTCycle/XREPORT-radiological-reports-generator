@@ -98,7 +98,7 @@ def test_launch_commands_target_existing_application_modules() -> None:
     repo = APP_ROOT.parent
     sources = [
         repo / ".github" / "workflows" / "ci.yml",
-        repo / "start_on_windows.ps1",
+        repo / "setup_and_maintenance.ps1",
         APP_ROOT / "tests" / "run_tests.bat",
     ]
     targets = {

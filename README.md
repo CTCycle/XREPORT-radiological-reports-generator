@@ -2,6 +2,8 @@
 
 <h1 align="center">XREPORT</h1>
 
+Last updated: 2026-11-05
+
 <p align="center">A local research suite for generating, reviewing, and training radiological report models.</p>
 
 <p align="center">
@@ -51,7 +53,7 @@ On Windows, download a CPU or CUDA portable executable or MSI from [GitHub Relea
 To run from source, clone the repository and run this command in PowerShell from the repository root:
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File .\start_on_windows.ps1 -Action Launch
+.\start_on_windows.bat
 ```
 
 The launcher prepares dependencies, initializes the database, builds the frontend when needed, and opens Inference at `http://127.0.0.1:5003` by default. First launch can take several minutes. Keep the launcher open while using the app; press **Ctrl+C** to stop it.
@@ -77,7 +79,7 @@ The Studio screenshots show the Dataset and Training pages with a 12-record synt
 Studio runs from source. From the repository root on Windows, run:
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File .\start_on_windows.ps1 -Action LaunchStudio
+.\start_studio_on_windows.bat
 ```
 
 Studio has its own Python environment and data folder. Its first launch installs the selected CPU or CUDA profile; an unattended first launch defaults to CPU. Keep the launcher open while using Studio and press **Ctrl+C** to stop it.

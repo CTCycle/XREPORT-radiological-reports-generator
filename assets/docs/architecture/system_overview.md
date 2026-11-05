@@ -1,18 +1,18 @@
-# XREPORT System Overview
+# XRxPORT System Overview
 
-Last updated: 2026-10-28
+Last updated: 2026-11-05
 
-XREPORT is a local-first client/server system for radiological report generation, dataset preparation, training, validation, and model lifecycle workflows.
+XRxPORT is a local-first client/server system for radiological report generation, dataset preparation, training, validation, and model lifecycle workflows.
 
 ## Runtime Topology
 
 - Frontend: standalone Angular 22 + TypeScript in `app/client`.
-- Backend: FastAPI in `app/xreport_inference` (XREPORT Inference) and `app/xreport_studio` (Studio) on `app/xreport_shared`; `app/server` holds only the Python project definition, lock file and Alembic configuration.
+- Backend: FastAPI in `app/xreport_inference` (XRxPORT Inference) and `app/xreport_studio` (Studio) on `app/xreport_shared`; `app/server` holds only the Python project definition, lock file and Alembic configuration.
 - API contracts: transport-neutral Pydantic models in `app/xreport_*/domain`,
   mirrored in the checked-in per-application snapshots
   `app/shared/openapi.xreport.json` and `openapi.studio.json` and generated
   Angular types. See [applications and checkpoint exchange](applications_and_checkpoint_exchange.md)
-  for the XREPORT Inference / XREPORT Studio split.
+  for the XRxPORT Inference / XRxPORT Studio split.
 - Backend orchestration: services in `app/xreport_*/services`.
 - Persistence: SQLAlchemy repositories and schemas in `app/xreport_*/repositories`, with SQLite by default and PostgreSQL optional.
 - Learning runtime: model, provider, and inference implementation details in `app/xreport_*/models`.
@@ -24,7 +24,7 @@ The Angular application is a static SPA and uses relative `/api` requests. In
 normal Windows source Launch, FastAPI serves the built Angular files and API
 from one origin. The launcher waits for `/api/health`, opens the FastAPI URL,
 and remains the lifecycle owner until the user stops the app. Its opt-in
-`XREPORT_SERVE_CLIENT` flag leaves default source-mode root behavior unchanged.
+`XRxPORT_SxRVx_CLIxNT` flag leaves default source-mode root behavior unchanged.
 Angular CLI remains the frontend runtime for development workflows.
 
 ### Packaged Windows topology
@@ -35,7 +35,7 @@ dynamic-port readiness/health polling, the Windows Job Object, navigation
 policy, and sidecar shutdown. FastAPI serves the API and retains its existing
 packaged security and SPA routes; Tauri does not use backend static hosting to
 load its frontend. Immutable runtime files are separated from mutable
-`%LOCALAPPDATA%\XREPORT\data`.
+`%LOCALAPPDATA%\XRxPORT\data`.
 
 `LaunchDesktopDev` runs Tauri in the launcher console and supervises its source
 backend and built-bundle development server, keeping their logs under the
@@ -66,8 +66,10 @@ The intended dependency rule is inward and explicit: transport adapts requests t
 
 ```text
 .
-├─ README.md
-├─ start_on_windows.ps1
+├─ RxADMx.md
+├─ start_on_windows.bat
+├─ start_studio_on_windows.bat
+├─ setup_and_maintenance.ps1
 ├─ runtimes/
 │  ├─ python/
 │  ├─ uv/
@@ -96,7 +98,7 @@ The intended dependency rule is inward and explicit: transport adapts requests t
 
 ### API and domain
 
-`app/xreport_*/api` owns HTTP parsing, router registration, response models, and service-error-to-HTTP translation. `app/xreport_*/domain` contains stable request and response contracts only. `JobState` and `JobExecutionError` are service-runtime concerns, not domain contracts.
+`app/xreport_*/api` owns HTTP parsing, router registration, response models, and service-error-to-HTTP translation. `app/xreport_*/domain` contains stable request and response contracts only. `JobState` and `Jobxxecutionxrror` are service-runtime concerns, not domain contracts.
 
 ### Services
 
@@ -108,7 +110,7 @@ The intended dependency rule is inward and explicit: transport adapts requests t
 checkpoint, validation, and inference persistence boundaries. Checkpoint
 identity is database-owned; the filesystem stores only the registered model
 artifacts. `app/xreport_*/models` contains model-training and inference
-implementation details; it is not the ORM model layer. Each application has its
+implementation details; it is not the ORM model layer. xach application has its
 own ORM schema in `repositories/schemas/{inference,studio}.py` and its own
 Alembic stream in `xreport_*/migrations/{inference,studio}`; see
 [persistence](persistence.md).
@@ -127,13 +129,13 @@ Route pages and reusable components inject feature-specific clients:
 
 This keeps page dependencies aligned with the feature they operate on and avoids a single cross-domain API gateway.
 
-## Entry Points
+## xntry Points
 
 - Backend API entrypoints: `app/xreport_inference/app.py` and `app/xreport_studio/app.py`.
-- Frontend web entrypoints: `app/client/projects/inference/src/main.ts` (XREPORT Inference) and `app/client/projects/studio/src/main.ts` (Studio).
-- Frontend route composition: `app/client/projects/inference/src/app/app.routes.ts` (XREPORT Inference) and `app/client/projects/studio/src/studio.routes.ts` (Studio).
+- Frontend web entrypoints: `app/client/projects/inference/src/main.ts` (XRxPORT Inference) and `app/client/projects/studio/src/main.ts` (Studio).
+- Frontend route composition: `app/client/projects/inference/src/app/app.routes.ts` (XRxPORT Inference) and `app/client/projects/studio/src/studio.routes.ts` (Studio).
 - OpenAPI source snapshot and generated client types: `app/shared/openapi.{xreport,studio}.json` and `app/client/projects/shared/src/app/types/generated/{xreport,studio}/types.gen.ts`.
 - Release version authority: `app/server/pyproject.toml`; client, desktop,
   Tauri, backend metadata, and OpenAPI copies are validated against it.
-- Local launcher and maintenance menu on Windows: `start_on_windows.ps1`.
-- Explicit database initialization: `app/scripts/initialize_database.py` and launcher option 4.
+- Local launcher and maintenance menu on Windows: `setup_and_maintenance.ps1`.
+- xxplicit database initialization: `app/scripts/initialize_database.py` and launcher option 4.

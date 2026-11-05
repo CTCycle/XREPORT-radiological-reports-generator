@@ -1,6 +1,6 @@
 # XREPORT Project Overview
 
-Last updated: 2026-10-29
+Last updated: 2026-11-05
 
 This file is the root index for `assets/docs`. Read it first to find the narrowest topic file for the active question.
 
@@ -114,4 +114,4 @@ This file is the root index for `assets/docs`. Read it first to find the narrowe
 - Assume Windows as the default operating environment for commands and paths.
 - Document both CMD and PowerShell usage when commands differ.
 - Prefer commands runnable from repository root with explicit relative paths.
-- Keep environment guidance aligned with `start_on_windows.ps1` and `app/tests/run_tests.bat`.
+- Keep environment guidance aligned with `setup_and_maintenance.ps1` and `app/tests/run_tests.bat`.

@@ -87,7 +87,7 @@ if exist "%VENV_PYTHON%" (
   set "PYTHON_CMD=%VENV_PYTHON%"
 ) else (
   echo [ERROR] Missing backend venv: "%VENV_PYTHON%"
-  echo [ERROR] Run start_on_windows.ps1 first.
+  echo [ERROR] Run setup_and_maintenance.ps1 and select Install / update dependencies first.
   exit /b 1
 )
 
@@ -137,7 +137,7 @@ if /i "%STANDARD_TEST_SKIP_LIVE_SERVERS%"=="false" if "%HAS_E2E%"=="1" (
   if errorlevel 1 (
     if not exist "%STUDIO_VENV_PYTHON%" (
       echo [ERROR] XREPORT Studio environment is missing: "%STUDIO_VENV_PYTHON%"
-      echo [ERROR] Run start_on_windows.ps1 -Action InstallStudio before the full live-server test suite.
+      echo [ERROR] Run setup_and_maintenance.ps1 -Action InstallStudio before the full live-server test suite.
       set "LIVE_SERVER_PHASE=FAIL"
       set "TEST_RESULT=1"
       goto cleanup

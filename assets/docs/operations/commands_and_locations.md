@@ -1,19 +1,19 @@
 # Commands And Locations
 
-Last updated: 2026-10-29
+Last updated: 2026-11-05
 
 ## Primary Commands
 
 ### Launch And Maintenance
 
 ```powershell
-.\start_on_windows.ps1 -Action Launch
-.\start_on_windows.ps1 -Action LaunchDesktopDev
-.\start_on_windows.ps1 -Action KillProcesses
-.\start_on_windows.ps1 -Action BuildDesktopRelease -DesktopRuntime All -DesktopTarget All -Version 4.0.0
-.\start_on_windows.ps1 -Action RemoveDesktopRelease
-.\start_on_windows.ps1 -Action RemoveCheckpoints
-.\start_on_windows.ps1 -Action RemoveAllData
+.\start_on_windows.bat
+.\setup_and_maintenance.ps1 -Action LaunchDesktopDev
+.\setup_and_maintenance.ps1 -Action KillProcesses
+.\setup_and_maintenance.ps1 -Action BuildDesktopRelease -DesktopRuntime All -DesktopTarget All -Version 4.0.0
+.\setup_and_maintenance.ps1 -Action RemoveDesktopRelease
+.\setup_and_maintenance.ps1 -Action RemoveCheckpoints
+.\setup_and_maintenance.ps1 -Action RemoveAllData
 ```
 
 The equivalent complete desktop wrapper from `app/desktop` is:
@@ -41,9 +41,9 @@ Packaged logs are `%LOCALAPPDATA%\XREPORT\data\logs\desktop-shell.log` and the
 timestamped backend logs beside it. Readiness/session files in
 `%LOCALAPPDATA%\XREPORT\data\state` are temporary and are removed at exit.
 
-- `powershell -ExecutionPolicy Bypass -File .\start_on_windows.ps1`
-- `powershell -ExecutionPolicy Bypass -File .\start_on_windows.ps1 -Action Launch`
-- `powershell -ExecutionPolicy Bypass -File .\start_on_windows.ps1 -Action RebuildFrontend`
+- `powershell -ExecutionPolicy Bypass -File .\setup_and_maintenance.ps1`
+- `.\start_on_windows.bat`
+- `powershell -ExecutionPolicy Bypass -File .\setup_and_maintenance.ps1 -Action RebuildFrontend`
 
 ### Desktop commands and locations
 
@@ -108,7 +108,7 @@ test against the live pair:
 
 ```powershell
 Set-Location ../..
-.\start_on_windows.ps1 -Action Launch
+.\start_on_windows.bat
 $env:APP_TEST_FRONTEND_URL = "http://127.0.0.1:8003"
 $env:APP_TEST_BACKEND_URL = "http://127.0.0.1:5003"
 $repoRoot = (Resolve-Path .).Path
@@ -134,7 +134,7 @@ is the current example. Disposable caches and generated bundles belong under
 ### Development cache locations
 
 - all disposable caches: `runtimes/cache/{pytest,pytest-tmp,ruff,mypy,python,coverage,angular,uv,npm,pip,playwright-browsers,huggingface,torch,keras,matplotlib}`
-- best-effort cleanup: `.\start_on_windows.ps1 -Action ClearCache`
+- best-effort cleanup: `.\setup_and_maintenance.ps1 -Action ClearCache`
 
 Locked or administrator-protected cache files are reported and skipped during
 cleanup; other cached artifacts continue to be removed.

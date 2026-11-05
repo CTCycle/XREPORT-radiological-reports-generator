@@ -1,6 +1,6 @@
 # Runtime Modes
 
-Last updated: 2026-10-28
+Last updated: 2026-11-05
 
 ## Supported Modes
 
@@ -12,7 +12,7 @@ Last updated: 2026-10-28
 - Development: Angular CLI `start`/`dev` proxies `/api` to FastAPI. The
   lightweight `preview` server validates a built bundle and supports Tauri
   development; it does not host normal production Launch.
-- The Windows operator flow uses `start_on_windows.ps1`. macOS and Linux use
+- The Windows operator flow uses `setup_and_maintenance.ps1`. macOS and Linux use
   the documented manual development backend and frontend commands.
 
 ### Packaged Windows Desktop Mode

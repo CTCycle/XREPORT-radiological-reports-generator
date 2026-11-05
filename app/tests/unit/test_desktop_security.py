@@ -347,7 +347,7 @@ def test_frozen_backend_supports_spawned_training_workers() -> None:
 
 ###############################################################################
 def test_development_shell_does_not_require_release_runtime_archive() -> None:
-    launcher = (Path(__file__).parents[3] / "start_on_windows.ps1").read_text(
+    launcher = (Path(__file__).parents[3] / "setup_and_maintenance.ps1").read_text(
         encoding="utf-8"
     )
 
