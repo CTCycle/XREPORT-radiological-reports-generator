@@ -215,7 +215,7 @@ class CheckpointEvaluator:
             logger.warning("Validation data missing required columns for BLEU scoring")
             return 0.0
 
-        # Initialize text generator
+        # Deferred: the generator module loads keras at import.
         from xreport_shared.models.inference.generator import TextGenerator
 
         generator = TextGenerator(self.model, self.model_metadata, self.max_report_size)

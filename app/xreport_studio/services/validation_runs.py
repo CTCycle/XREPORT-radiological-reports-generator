@@ -265,7 +265,7 @@ def _load_validation_dataset(
 
 
 ###############################################################################
-def _count_tokens(texts: pd.Series, tokenizer_id: str) -> list[int]:
+def _count_tokens(texts: list[str], tokenizer_id: str) -> list[int]:
     """Tokens per report, including the tokenizer's special tokens, without padding."""
     try:
         tokenizer = load_tokenizer(tokenizer_id)
@@ -273,7 +273,7 @@ def _count_tokens(texts: pd.Series, tokenizer_id: str) -> list[int]:
         raise JobExecutionError(
             str(exc), code="tokenizer_unavailable", phase="input_validation"
         ) from exc
-    encoded = tokenizer(texts.astype(str).tolist(), add_special_tokens=True)
+    encoded = tokenizer(texts, add_special_tokens=True)
     return [len(ids) for ids in encoded["input_ids"]]
 
 
@@ -305,7 +305,9 @@ def _run_text_validation_metric(
     }
     if tokenizer_id and records:
         for item, count in zip(
-            records, _count_tokens(dataset["text"], tokenizer_id), strict=True
+            records,
+            _count_tokens(dataset["text"].astype(str).tolist(), tokenizer_id),
+            strict=True,
         ):
             item["token_count"] = count
         measures["tokens_per_report"] = "token_count"
@@ -597,6 +599,7 @@ def _run_evaluation_report_metric(
     metric_config: Any,
     seed: Any,
 ) -> tuple[dict[str, Any], dict[str, float] | None]:
+    # Deferred: the dataloader module loads torch at import.
     from xreport_shared.models.training.dataloader import XRAYDataLoader
 
     logger.info("Running evaluation report (loss and accuracy)...")
@@ -759,7 +762,9 @@ class ValidationService:
         runs = ValidationRepository().list_validation_runs(dataset_name)
         if runs is None:
             raise NotFoundError(detail=f"Dataset not found: {dataset_name}")
-        return ValidationRunListResponse(dataset_name=dataset_name, runs=runs)
+        return ValidationRunListResponse.model_validate(
+            {"dataset_name": dataset_name, "runs": runs}
+        )
 
     # -------------------------------------------------------------------------
     async def list_run_records(

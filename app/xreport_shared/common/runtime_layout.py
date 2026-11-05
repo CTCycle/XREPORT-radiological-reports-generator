@@ -92,6 +92,24 @@ def _truthy(value: str | None) -> bool:
 
 
 ###############################################################################
+def _configured_resources(source_root: Path) -> tuple[str | None, str]:
+    """Resolve the configured resources directory and which source supplied it."""
+    configured = os.getenv("XREPORT_RESOURCES_DIR")
+    source = "environment"
+    if configured is None:
+        source = "env_file"
+        env_path = source_root / "settings" / ".env"
+        if env_path.is_file():
+            configured = dotenv_values(env_path).get("XREPORT_RESOURCES_DIR")
+    if not (configured and configured.strip()):
+        source = "pointer"
+        configured = read_storage_pointer(source_root / "settings")
+    if not (configured and configured.strip()):
+        source = "default"
+    return configured, source
+
+
+###############################################################################
 @dataclass(frozen=True)
 class RuntimeLayout:
     mode: str
@@ -151,20 +169,7 @@ class RuntimeLayout:
         packaged = _truthy(os.getenv("XREPORT_DESKTOP"))
         if not packaged:
             source_root = Path(__file__).resolve().parents[3]
-            configured_resources = os.getenv("XREPORT_RESOURCES_DIR")
-            storage_source = "environment"
-            if configured_resources is None:
-                storage_source = "env_file"
-                env_path = source_root / "settings" / ".env"
-                if env_path.is_file():
-                    configured_resources = dotenv_values(env_path).get(
-                        "XREPORT_RESOURCES_DIR"
-                    )
-            if not (configured_resources and configured_resources.strip()):
-                storage_source = "pointer"
-                configured_resources = read_storage_pointer(source_root / "settings")
-            if not (configured_resources and configured_resources.strip()):
-                storage_source = "default"
+            configured_resources, storage_source = _configured_resources(source_root)
             resources_root = Path(
                 configured_resources.strip()
                 if configured_resources and configured_resources.strip()

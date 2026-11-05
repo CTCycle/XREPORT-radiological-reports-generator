@@ -83,12 +83,10 @@ class SettingsService:
     @staticmethod
     def _flat_patch(patch: ApplicationSettingsPatch) -> dict[str, object]:
         changes: dict[str, object] = {}
-        if patch.global_settings is not None:
-            if patch.global_settings.seed is not None:
-                changes["global_seed"] = patch.global_settings.seed
-        if patch.jobs is not None:
-            if patch.jobs.polling_interval is not None:
-                changes["job_polling_interval"] = patch.jobs.polling_interval
+        if patch.global_settings is not None and patch.global_settings.seed is not None:
+            changes["global_seed"] = patch.global_settings.seed
+        if patch.jobs is not None and patch.jobs.polling_interval is not None:
+            changes["job_polling_interval"] = patch.jobs.polling_interval
         if patch.inference is not None:
             if patch.inference.model_timeout is not None:
                 changes["inference_model_timeout"] = patch.inference.model_timeout

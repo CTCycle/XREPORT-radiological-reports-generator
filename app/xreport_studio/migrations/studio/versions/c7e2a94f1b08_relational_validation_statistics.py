@@ -12,7 +12,7 @@ down_revision: Union[str, None] = "b3c1d5a7e9f2"
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
-LEGACY_COLUMNS = (
+LEGACY_COLUMNS: tuple[tuple[str, sa.types.TypeEngine[Any]], ...] = (
     ("metrics_json", sa.JSON()),
     ("artifacts_json", sa.JSON()),
     ("text_count", sa.Integer()),
@@ -54,7 +54,7 @@ def _record_fk(name: str) -> sa.ForeignKeyConstraint:
 
 
 ###############################################################################
-def _legacy_table() -> sa.Table:
+def _legacy_table() -> sa.TableClause:
     return sa.table(
         "validation_runs",
         sa.column("validation_run_id", sa.Integer()),

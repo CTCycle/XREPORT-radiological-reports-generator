@@ -290,7 +290,7 @@ def create_application(
     profile: str,
     title: str,
     routers: Sequence[APIRouter],
-    on_startup: Callable[[], None] | None = None,
+    on_startup: Callable[[], object] | None = None,
 ) -> FastAPI:
     """Assemble one application from the routers it owns.
 

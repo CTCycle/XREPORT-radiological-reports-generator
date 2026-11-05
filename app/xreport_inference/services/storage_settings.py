@@ -140,6 +140,83 @@ def _report_migration(
 
 
 ###############################################################################
+def _copy_entry_files(
+    entry: Path,
+    destination: Path,
+    *,
+    job_manager: JobManager,
+    job_id: str,
+    copied: int,
+    total: int,
+) -> int:
+    """Copy one storage entry into staging, verifying sizes; returns total copied."""
+    report = partial(_report_migration, job_manager, job_id)
+    if entry.is_dir():
+        destination.mkdir(parents=True, exist_ok=True)
+    files = (
+        [entry]
+        if entry.is_file()
+        else [item for item in entry.rglob("*") if item.is_file()]
+    )
+    for file in files:
+        if job_manager.should_stop(job_id):
+            raise InterruptedError
+        out = destination if entry.is_file() else destination / file.relative_to(entry)
+        out.parent.mkdir(parents=True, exist_ok=True)
+        with file.open("rb") as reader, out.open("wb") as writer:
+            while chunk := reader.read(COPY_CHUNK_BYTES):
+                writer.write(chunk)
+                copied += len(chunk)
+                report(f"Copying {entry.name}", copied / total)
+        if out.stat().st_size != file.stat().st_size:
+            raise JobExecutionError(
+                f"Copy verification failed for {file.name}",
+                code="storage_verification_failed",
+                phase="verifying",
+                recoverable=True,
+            )
+    return copied
+
+
+###############################################################################
+def _copy_to_target(
+    source: Path,
+    target: Path,
+    staging: Path,
+    *,
+    job_manager: JobManager,
+    job_id: str,
+) -> int:
+    """Stage a verified copy of the storage entries, then move it into the target."""
+    report = partial(_report_migration, job_manager, job_id)
+    entries = _entries_present(source)
+    total = max(1, sum(_entry_size(entry) for entry in entries))
+    target.mkdir(parents=True, exist_ok=True)
+    staging.mkdir()
+    copied = 0
+    for entry in entries:
+        destination = staging / entry.name
+        if entry.name == DATABASE_ENTRY:
+            report("Copying the application database", copied / total)
+            _backup_database(entry, destination)
+            copied += entry.stat().st_size
+        else:
+            copied = _copy_entry_files(
+                entry,
+                destination,
+                job_manager=job_manager,
+                job_id=job_id,
+                copied=copied,
+                total=total,
+            )
+    report("Updating stored paths", 0.97)
+    _rewrite_paths(staging, source, target)
+    for entry in staging.iterdir():
+        os.replace(entry, target / entry.name)
+    return copied
+
+
+###############################################################################
 def run_storage_migration(
     source_root: str,
     target_root: str,
@@ -155,49 +232,11 @@ def run_storage_migration(
     staging = target / f"{STAGING_PREFIX}{job_id}"
     copied = 0
 
-    report = partial(_report_migration, job_manager, job_id)
-
     try:
         if mode == "copy":
-            entries = _entries_present(source)
-            total = max(1, sum(_entry_size(entry) for entry in entries))
-            target.mkdir(parents=True, exist_ok=True)
-            staging.mkdir()
-            for entry in entries:
-                destination = staging / entry.name
-                if entry.name == DATABASE_ENTRY:
-                    report("Copying the application database", copied / total)
-                    _backup_database(entry, destination)
-                    copied += entry.stat().st_size
-                    continue
-                if entry.is_dir():
-                    destination.mkdir(parents=True, exist_ok=True)
-                files = (
-                    [entry]
-                    if entry.is_file()
-                    else [item for item in entry.rglob("*") if item.is_file()]
-                )
-                for file in files:
-                    if job_manager.should_stop(job_id):
-                        raise InterruptedError
-                    out = destination if entry.is_file() else destination / file.relative_to(entry)
-                    out.parent.mkdir(parents=True, exist_ok=True)
-                    with file.open("rb") as reader, out.open("wb") as writer:
-                        while chunk := reader.read(COPY_CHUNK_BYTES):
-                            writer.write(chunk)
-                            copied += len(chunk)
-                            report(f"Copying {entry.name}", copied / total)
-                    if out.stat().st_size != file.stat().st_size:
-                        raise JobExecutionError(
-                            f"Copy verification failed for {file.name}",
-                            code="storage_verification_failed",
-                            phase="verifying",
-                            recoverable=True,
-                        )
-            report("Updating stored paths", 0.97)
-            _rewrite_paths(staging, source, target)
-            for entry in staging.iterdir():
-                os.replace(entry, target / entry.name)
+            copied = _copy_to_target(
+                source, target, staging, job_manager=job_manager, job_id=job_id
+            )
         write_storage_pointer(
             Path(bootstrap_dir),
             None if _same_path(target, Path(default_root)) else target,
@@ -259,17 +298,8 @@ class StorageSettingsService:
         )
 
     # -------------------------------------------------------------------------
-    def validate(self, raw_path: str) -> StorageValidationResponse:
+    def _location_errors(self, resolved: Path) -> list[str]:
         errors: list[str] = []
-        warnings: list[str] = []
-        candidate = Path(raw_path.strip()).expanduser()
-        if not candidate.is_absolute():
-            return StorageValidationResponse(
-                valid=False,
-                resolved_path=raw_path,
-                errors=["Enter an absolute folder path."],
-            )
-        resolved = candidate.resolve()
         if _same_path(resolved, self.active_root):
             errors.append("This is already the active storage location.")
         elif _is_within(resolved, self.active_root) or _is_within(self.active_root, resolved):
@@ -283,6 +313,59 @@ class StorageSettingsService:
             errors.append("The location cannot be inside the application files.")
         if resolved.exists() and not resolved.is_dir():
             errors.append("The path exists but is not a folder.")
+        return errors
+
+    # -------------------------------------------------------------------------
+    @staticmethod
+    def _target_state(resolved: Path) -> tuple[StorageTargetState, str | None]:
+        """Classify an existing target folder; the error is set when it is unusable."""
+        if not resolved.is_dir():
+            return "new", None
+        if _entries_present(resolved):
+            return "existing", None
+        if any(resolved.iterdir()):
+            return (
+                "new",
+                "The folder is not empty and holds no XREPORT data. Choose an empty folder.",
+            )
+        return "empty", None
+
+    # -------------------------------------------------------------------------
+    def _capacity_findings(
+        self, resolved: Path, anchor: Path, target_state: StorageTargetState
+    ) -> tuple[int, int, list[str], list[str]]:
+        """Required bytes, free bytes, errors and warnings for a usable target."""
+        errors: list[str] = []
+        warnings: list[str] = []
+        required = sum(_entry_size(entry) for entry in _entries_present(self.active_root))
+        free = shutil.disk_usage(anchor).free
+        if target_state == "existing":
+            warnings.append(
+                "This folder already contains XREPORT data. It will be used as-is; current data is not copied or overwritten."
+            )
+        else:
+            if free < required * FREE_SPACE_MARGIN:
+                errors.append("There is not enough free space for the current data.")
+            if not self._database_relocatable():
+                errors.append(
+                    "The application database is not the default file in the storage folder, so its data cannot be moved automatically."
+                )
+        if warning := _drive_warning(resolved):
+            warnings.append(warning)
+        return required, free, errors, warnings
+
+    # -------------------------------------------------------------------------
+    def validate(self, raw_path: str) -> StorageValidationResponse:
+        candidate = Path(raw_path.strip()).expanduser()
+        if not candidate.is_absolute():
+            return StorageValidationResponse(
+                valid=False,
+                resolved_path=raw_path,
+                errors=["Enter an absolute folder path."],
+            )
+        resolved = candidate.resolve()
+        errors = self._location_errors(resolved)
+        warnings: list[str] = []
         target_state: StorageTargetState = "new"
         required = 0
         free: int | None = None
@@ -293,31 +376,14 @@ class StorageSettingsService:
                     pass
             except OSError:
                 errors.append("The location is not writable.")
-            if not errors and resolved.is_dir():
-                if _entries_present(resolved):
-                    target_state = "existing"
-                elif any(resolved.iterdir()):
-                    errors.append(
-                        "The folder is not empty and holds no XREPORT data. Choose an empty folder."
-                    )
-                else:
-                    target_state = "empty"
             if not errors:
-                required = sum(_entry_size(entry) for entry in _entries_present(self.active_root))
-                free = shutil.disk_usage(anchor).free
-                if target_state != "existing":
-                    if free < required * FREE_SPACE_MARGIN:
-                        errors.append("There is not enough free space for the current data.")
-                    if not self._database_relocatable():
-                        errors.append(
-                            "The application database is not the default file in the storage folder, so its data cannot be moved automatically."
-                        )
-                else:
-                    warnings.append(
-                        "This folder already contains XREPORT data. It will be used as-is; current data is not copied or overwritten."
-                    )
-                if warning := _drive_warning(resolved):
-                    warnings.append(warning)
+                target_state, state_error = self._target_state(resolved)
+                if state_error:
+                    errors.append(state_error)
+            if not errors:
+                required, free, errors, warnings = self._capacity_findings(
+                    resolved, anchor, target_state
+                )
         return StorageValidationResponse(
             valid=not errors,
             resolved_path=str(resolved),

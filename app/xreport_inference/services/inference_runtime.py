@@ -353,7 +353,7 @@ class InferenceRuntimeCoordinator:
             if should_stop():
                 return ProviderGenerationResult({}, {}, [], provenance)
             model, model_metadata = self._load_xreport(
-                model_ref, checkpoint_record.path
+                model_ref, str(checkpoint_record.path)
             )
             provenance["runtime"] = self._xreport_runtime_metadata(
                 model,

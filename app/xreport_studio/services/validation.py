@@ -74,7 +74,9 @@ class DatasetValidator:
 
         word_counts_np = np.array(word_counts)
         record_ids = (
-            pd.to_numeric(self.dataset["record_id"], errors="coerce").tolist()
+            pd.Series(
+                pd.to_numeric(self.dataset["record_id"], errors="coerce")
+            ).tolist()
             if "record_id" in self.dataset.columns
             else [None] * len(texts)
         )

@@ -26,6 +26,11 @@ REFERENCE_SEQUENCE_LENGTH = 200
 IMAGE_SHAPE = (224, 224, 3)
 FLOAT32_BYTES = 4
 
+_STACK_PREFIXES: tuple[tuple[Stack, str], ...] = (
+    ("encoder", "encoder_"),
+    ("decoder", "decoder_"),
+)
+
 DEFAULT_PRESET_KEY = "xreport-default"
 BEIT_REVISION = ENCODER_REVISION
 
@@ -425,10 +430,7 @@ def effective_settings(architecture: ModelArchitecture) -> dict[str, Any]:
         "norm_epsilon": architecture.norm_epsilon,
         **{
             f"{prefix}{key}": value
-            for stack, prefix, count in (
-                ("encoder", "encoder_", "num_encoders"),
-                ("decoder", "decoder_", "num_decoders"),
-            )
+            for stack, prefix in _STACK_PREFIXES
             for key, value in (
                 ("heads", getattr(architecture, f"{stack}_heads")),
                 ("key_dim", architecture.key_dim(stack)),
