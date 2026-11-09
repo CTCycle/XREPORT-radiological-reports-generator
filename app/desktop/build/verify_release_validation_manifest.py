@@ -61,7 +61,9 @@ def _validate_approval(manifest: dict[str, Any]) -> dict[str, str]:
         raise ManifestError("Manifest must contain an approval object.")
     decision = _require_string(approval, "decision").lower()
     if decision != "approved":
-        raise ManifestError(f"Manifest approval decision is {decision!r}, not 'approved'.")
+        raise ManifestError(
+            f"Manifest approval decision is {decision!r}, not 'approved'."
+        )
     approved_by = _require_string(approval, "approved_by")
     approved_at = _require_string(approval, "approved_at_utc")
     try:
@@ -104,7 +106,9 @@ def verify_manifest(
     if _require_string(manifest, "status").lower() != "approved":
         raise ManifestError("Manifest status must be 'approved'.")
     if _require_string(manifest, "source_commit") != source_commit:
-        raise ManifestError("Manifest source_commit does not match the immutable package source commit.")
+        raise ManifestError(
+            "Manifest source_commit does not match the immutable package source commit."
+        )
     if _require_string(manifest, "version") != version:
         raise ManifestError("Manifest version does not match the release version.")
     approval = _validate_approval(manifest)
@@ -120,7 +124,9 @@ def verify_manifest(
 
     artifacts = manifest.get("artifacts")
     if not isinstance(artifacts, dict):
-        raise ManifestError("Manifest artifacts must be an object of filename to SHA-256.")
+        raise ManifestError(
+            "Manifest artifacts must be an object of filename to SHA-256."
+        )
     expected = expected_artifacts(version)
     if set(artifacts) != set(expected):
         missing = sorted(set(expected) - set(artifacts))
@@ -145,7 +151,13 @@ def verify_manifest(
             raise ManifestError(
                 f"SHA-256 mismatch for {name}: expected {digest}, observed {observed}."
             )
-        verified.append({"name": name, "sha256": observed, "size_bytes": artifact_path.stat().st_size})
+        verified.append(
+            {
+                "name": name,
+                "sha256": observed,
+                "size_bytes": artifact_path.stat().st_size,
+            }
+        )
 
     return {
         "schema_version": SCHEMA_VERSION,

@@ -19,7 +19,6 @@ def to_channels_last(image: torch.Tensor) -> torch.Tensor:
 
 ###############################################################################
 class XRAYDataset(Dataset):
-
     # -------------------------------------------------------------------------
     def __init__(
         self,
@@ -74,7 +73,6 @@ class XRAYDataset(Dataset):
 
 ###############################################################################
 class XRAYDataLoader:
-
     # -------------------------------------------------------------------------
     def __init__(self, configuration: dict[str, Any], shuffle: bool = True) -> None:
         self.img_shape = (224, 224)

@@ -13,12 +13,14 @@ from xreport_studio.domain.validation import (
     ValidationRequest,
     ValidationRunListResponse,
 )
-from xreport_studio.services.validation_runs import ValidationService, get_validation_service
+from xreport_studio.services.validation_runs import (
+    ValidationService,
+    get_validation_service,
+)
 
 
 ###############################################################################
 class ValidationEndpoint:
-
     # -------------------------------------------------------------------------
     def __init__(
         self,
@@ -58,7 +60,9 @@ class ValidationEndpoint:
         return await self.service.get_validation_report(dataset_name)
 
     # -------------------------------------------------------------------------
-    async def list_validation_runs(self, dataset_name: str) -> ValidationRunListResponse:
+    async def list_validation_runs(
+        self, dataset_name: str
+    ) -> ValidationRunListResponse:
         return await self.service.list_validation_runs(dataset_name)
 
     # -------------------------------------------------------------------------

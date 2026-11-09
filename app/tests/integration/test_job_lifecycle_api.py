@@ -72,9 +72,7 @@ def test_job_api_lists_filters_and_polls_to_completion(
 
         by_type = client.get("/api/jobs", params={"job_type": "validation"})
         assert by_type.status_code == 200
-        assert [job["job_id"] for job in by_type.json()["jobs"]] == [
-            validation_job_id
-        ]
+        assert [job["job_id"] for job in by_type.json()["jobs"]] == [validation_job_id]
 
         by_status = client.get("/api/jobs", params={"status": "running"})
         assert by_status.status_code == 200

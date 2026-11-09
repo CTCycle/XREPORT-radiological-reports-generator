@@ -24,7 +24,6 @@ from xreport_shared.models.training.scheduler import WarmUpLRScheduler
 
 ###############################################################################
 class XREPORTModel:
-
     # -------------------------------------------------------------------------
     def __init__(self, metadata: dict[str, Any], configuration: dict[str, Any]) -> None:
         self.seed = configuration.get("training_seed", 42)
@@ -81,12 +80,16 @@ class XREPORTModel:
             warmup_steps = self.configuration.get("warmup_steps", 100)
             lr_schedule = WarmUpLRScheduler(target_lr, warmup_steps)
 
-        accumulation_steps = int(self.configuration.get("gradient_accumulation_steps", 1))
+        accumulation_steps = int(
+            self.configuration.get("gradient_accumulation_steps", 1)
+        )
         loss = MaskedSparseCategoricalCrossentropy(pad_token_id=self.pad_token_id)
         metric = [MaskedAccuracy(pad_token_id=self.pad_token_id)]
         opt = optimizers.AdamW(
             learning_rate=lr_schedule,  # type: ignore[arg-type]
-            gradient_accumulation_steps=accumulation_steps if accumulation_steps > 1 else None,
+            gradient_accumulation_steps=accumulation_steps
+            if accumulation_steps > 1
+            else None,
         )
         model.compile(loss=loss, optimizer=opt, metrics=metric, jit_compile=False)  # type: ignore
 

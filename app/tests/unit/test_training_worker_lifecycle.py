@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+
 os.environ.setdefault("KERAS_BACKEND", "torch")
 # ruff: noqa: E402
 # Select the backend before importing the training runtime.
@@ -20,7 +21,13 @@ from xreport_studio.services import training as training_module
 from xreport_shared.services.jobs import JobExecutionError
 from threading import Event
 from xreport_studio.models.callbacks import TrainingProgressCallback
-from xreport_studio.services.training_worker import ProcessWorker, QueueProgressReporter, WorkerChannels, keep_saved_epoch, process_target
+from xreport_studio.services.training_worker import (
+    ProcessWorker,
+    QueueProgressReporter,
+    WorkerChannels,
+    keep_saved_epoch,
+    process_target,
+)
 
 
 ###############################################################################
@@ -77,7 +84,6 @@ def test_xray_dataloader_construction_does_not_load_tokenizer() -> None:
 
 ###############################################################################
 class _Clock:
-
     # -------------------------------------------------------------------------
     def __init__(self) -> None:
         self.value = 0.0
@@ -212,23 +218,28 @@ def test_monitor_terminates_stalled_worker_with_typed_failure(
     assert worker.stop_called is True
     assert worker.terminated is True
     assert any(
-        call.args == ("job-stalled", {"worker_diagnostics": {
-            "status": "stalled",
-            "phase": "fit_entered",
-            "pid": 4321,
-            "exitcode": None,
-            "reported": False,
-            "reason": "first_batch_timeout",
-            "phase_elapsed_seconds": 2.0,
-            "elapsed_seconds": 3.0,
-        }})
+        call.args
+        == (
+            "job-stalled",
+            {
+                "worker_diagnostics": {
+                    "status": "stalled",
+                    "phase": "fit_entered",
+                    "pid": 4321,
+                    "exitcode": None,
+                    "reported": False,
+                    "reason": "first_batch_timeout",
+                    "phase_elapsed_seconds": 2.0,
+                    "elapsed_seconds": 3.0,
+                }
+            },
+        )
         for call in manager.update_result.call_args_list
     )
 
 
 ###############################################################################
 class FakeProcessWorker:
-
     # -------------------------------------------------------------------------
     def __init__(
         self, *, interrupted: bool, max_alive_checks: int, exitcode: int | None
@@ -554,7 +565,6 @@ def test_reported_child_failure_keeps_diagnostics(
         Mock(return_value=manager),
     )
 
-
     ###############################################################################
     class FailedWorker:
         exitcode = 1
@@ -606,7 +616,6 @@ def test_normal_worker_result_is_returned_unchanged(
         Mock(return_value=manager),
     )
 
-
     ###############################################################################
     class CompletedWorker:
         exitcode = 0
@@ -635,7 +644,6 @@ def test_missing_result_payload_is_a_typed_failure(
         Mock(return_value=manager),
     )
 
-
     ###############################################################################
     class MissingResultWorker:
         exitcode = 0
@@ -663,7 +671,6 @@ def test_zero_exit_empty_result_is_not_success(
         "get_job_manager",
         Mock(return_value=manager),
     )
-
 
     ###############################################################################
     class EmptyResultWorker:
@@ -711,9 +718,7 @@ def test_xray_dataloaders_return_expected_tensor_contract(
         shuffle=False,
     )
 
-    (images, inputs), outputs = next(
-        iter(loader.build_training_dataloader(data))
-    )
+    (images, inputs), outputs = next(iter(loader.build_training_dataloader(data)))
     assert images.shape == (2, 224, 224, 3)
     assert inputs.shape == (2, 2)
     assert outputs.shape == (2, 2)

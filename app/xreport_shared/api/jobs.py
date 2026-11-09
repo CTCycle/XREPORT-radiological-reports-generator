@@ -2,14 +2,17 @@ from __future__ import annotations
 
 from fastapi import APIRouter, Query, status
 
-from xreport_shared.domain.jobs import JobCancelResponse, JobListResponse, JobStatusResponse
+from xreport_shared.domain.jobs import (
+    JobCancelResponse,
+    JobListResponse,
+    JobStatusResponse,
+)
 from xreport_shared.services.errors import NotFoundError
 from xreport_shared.services.jobs import JobManager, get_job_manager
 
 
 ###############################################################################
 class JobsEndpoint:
-
     # -------------------------------------------------------------------------
     def __init__(
         self, router: APIRouter, job_manager: JobManager | None = None

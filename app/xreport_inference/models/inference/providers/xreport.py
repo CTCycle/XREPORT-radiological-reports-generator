@@ -75,9 +75,13 @@ class XReportCheckpointProvider:
         dataloader_type = self.dataloader_type
         if text_generator_type is None:
             # Deferred: keras and torch load only when a checkpoint generates.
-            from xreport_shared.models.inference.generator import TextGenerator as text_generator_type
+            from xreport_shared.models.inference.generator import (
+                TextGenerator as text_generator_type,
+            )
         if dataloader_type is None:
-            from xreport_shared.models.training.dataloader import XRAYDataLoader as dataloader_type
+            from xreport_shared.models.training.dataloader import (
+                XRAYDataLoader as dataloader_type,
+            )
 
         model.summary(expand_nested=True)
         generator = text_generator_type(

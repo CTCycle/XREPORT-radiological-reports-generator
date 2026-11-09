@@ -83,7 +83,6 @@ FailureMapper = Callable[[Exception], JobExecutionError]
 
 ###############################################################################
 class JobManager:
-
     # -------------------------------------------------------------------------
     def __init__(self) -> None:
         self.jobs: dict[str, JobState] = {}
@@ -129,7 +128,9 @@ class JobManager:
                 and active.status in ("pending", "running")
                 for active in self.jobs.values()
             ):
-                raise JobAlreadyRunningError("Training or checkpoint export is already in progress")
+                raise JobAlreadyRunningError(
+                    "Training or checkpoint export is already in progress"
+                )
             if require_idle and any(
                 active.job_type == job_type and active.status in ("pending", "running")
                 for active in self.jobs.values()
@@ -304,7 +305,7 @@ class JobManager:
     def _runner_accepts_job_id(self, runner: Callable[..., dict[str, Any]]) -> bool:
         try:
             signature = inspect.signature(runner)
-        except (TypeError, ValueError):
+        except TypeError, ValueError:
             return False
         for param in signature.parameters.values():
             if param.kind == param.VAR_KEYWORD:

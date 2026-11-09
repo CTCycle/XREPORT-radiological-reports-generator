@@ -61,7 +61,7 @@ class _LegacyDecoderPrepareInputs:
         if past_key_values is not None and kwargs.get("cache_position") is None:
             try:
                 cached_length = int(past_key_values.get_seq_length())
-            except (AttributeError, TypeError, ValueError):
+            except AttributeError, TypeError, ValueError:
                 cached_length = max(int(getattr(input_ids, "shape", [1, 1])[-1]) - 1, 0)
             kwargs["cache_position"] = torch.tensor(
                 [cached_length],
@@ -78,7 +78,9 @@ class _CXRMate2PrepareInputs:
     """Cast generated CXRMate-2 auxiliary tensors to the resident model dtype."""
 
     # -------------------------------------------------------------------------
-    def __init__(self, original: Callable[..., Any], move_inputs: MoveInputs, model: Any) -> None:
+    def __init__(
+        self, original: Callable[..., Any], move_inputs: MoveInputs, model: Any
+    ) -> None:
         self.original = original
         self.move_inputs = move_inputs
         self.model = model
@@ -271,7 +273,11 @@ class StandardImageTextAdapter:
         max_new_tokens = getattr(limits, f"max_new_tokens_{profile}")
         if max_new_tokens:
             resolved["max_new_tokens"] = max_new_tokens
-        if profile == "detailed" and "num_beams" in resolved and limits.detailed_num_beams:
+        if (
+            profile == "detailed"
+            and "num_beams" in resolved
+            and limits.detailed_num_beams
+        ):
             resolved["num_beams"] = limits.detailed_num_beams
         return resolved
 

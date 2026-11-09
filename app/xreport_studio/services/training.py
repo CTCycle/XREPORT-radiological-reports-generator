@@ -193,9 +193,7 @@ def handle_training_progress(job_id: str, message: dict[str, Any]) -> None:
         lifecycle_result: dict[str, Any] = {
             "worker_phase": str(message.get("phase") or WORKER_FAILURE_PHASE),
             "worker_phase_status": str(message.get("status") or "started"),
-            "worker_phase_elapsed_seconds": message.get(
-                "phase_elapsed_seconds", 0.0
-            ),
+            "worker_phase_elapsed_seconds": message.get("phase_elapsed_seconds", 0.0),
             "worker_elapsed_seconds": message.get("elapsed_seconds", 0.0),
             "worker_pid": message.get("pid"),
         }
@@ -356,8 +354,7 @@ def _record_reported_worker_diagnostics(
     if isinstance(diagnostics, dict) and "phase" not in diagnostics:
         diagnostics = {
             **diagnostics,
-            "phase": getattr(worker, "lifecycle_phase", None)
-            or WORKER_FAILURE_PHASE,
+            "phase": getattr(worker, "lifecycle_phase", None) or WORKER_FAILURE_PHASE,
         }
     exitcode = worker.exitcode
     if isinstance(diagnostics, dict) and exitcode not in (0, None):
@@ -842,7 +839,7 @@ class TrainingService:
     # -------------------------------------------------------------------------
     def get_checkpoint_metadata(self, checkpoint: str) -> CheckpointMetadataResponse:
         try:
-                checkpoint = validate_checkpoint_name(checkpoint)
+            checkpoint = validate_checkpoint_name(checkpoint)
         except ValueError as exc:
             raise BadRequestError(
                 detail=str(exc),
@@ -884,7 +881,10 @@ class TrainingService:
             ) from exc
 
         with self.job_manager.lock:
-            if any(self.job_manager.is_job_running(kind) for kind in (self.JOB_TYPE, "checkpoint_export")):
+            if any(
+                self.job_manager.is_job_running(kind)
+                for kind in (self.JOB_TYPE, "checkpoint_export")
+            ):
                 raise ConflictError(
                     detail="Cannot delete checkpoints while training or export is active",
                 )

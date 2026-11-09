@@ -11,7 +11,6 @@ from xreport_inference.services.huggingface_access import HuggingFaceAccessServi
 
 ###############################################################################
 class HuggingFaceAccessEndpoint:
-
     # -------------------------------------------------------------------------
     def __init__(self, service: HuggingFaceAccessService | None = None) -> None:
         self.service = service or HuggingFaceAccessService()

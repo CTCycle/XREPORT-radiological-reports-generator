@@ -13,7 +13,10 @@ from pathlib import Path
 from types import SimpleNamespace
 from typing import Any, cast
 from pydantic import ValidationError
-from xreport_studio.domain.validation import CheckpointEvaluationRequest, ValidationRequest
+from xreport_studio.domain.validation import (
+    CheckpointEvaluationRequest,
+    ValidationRequest,
+)
 from unittest.mock import MagicMock
 from xreport_shared.configurations import ServerSettings
 from xreport_shared.repositories.checkpoints import CheckpointRepository
@@ -21,17 +24,11 @@ from xreport_studio.services.validation_runs import ValidationService
 from tests.conftest import run_async_in_thread
 
 
-
-
-
-
-
 os.environ["KERAS_BACKEND"] = "torch"
 
 
 ###############################################################################
 def test_preflight_rejects_checkpoint_sequence_length_mismatch() -> None:
-
 
     ###############################################################################
     class ModelStub:
@@ -59,10 +56,8 @@ def test_checkpoint_validation_uses_its_associated_dataset(monkeypatch) -> None:
     requested_names: list[str | None] = []
     validation_data = pd.DataFrame({"path": ["image.png"], "tokens": [[1, 2]]})
 
-
     ###############################################################################
     class RepositoryStub:
-
         # -------------------------------------------------------------------------
         def load_training_data(self, *, dataset_name=None):
             requested_names.append(dataset_name)
@@ -93,15 +88,8 @@ def test_checkpoint_validation_fails_without_associated_dataset() -> None:
 
     assert failure.value.code == "checkpoint_dataset_unavailable"
 
+
 """Unit coverage for independent public-model validation cases."""
-
-
-
-
-
-
-
-
 
 
 validation = importlib.import_module("scripts.validate_inference_model")
@@ -178,7 +166,9 @@ def test_validation_cache_override_isolated_from_canonical_modules(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     import transformers.utils.hub as transformers_hub  # pyright: ignore[reportMissingImports]
-    from xreport_inference.models.inference.providers import huggingface as huggingface_module
+    from xreport_inference.models.inference.providers import (
+        huggingface as huggingface_module,
+    )
 
     original_values = {
         "transformers": transformers_hub.HF_MODULES_CACHE,
@@ -240,10 +230,8 @@ def test_validate_cached_cases_runs_each_case_independently(
     )
     requests: list[str] = []
 
-
     ###############################################################################
     class FakeProvider:
-
         # -------------------------------------------------------------------------
         def __init__(self, _settings: object) -> None:
             self._load = lambda _manifest: (object(), object(), object())
@@ -402,7 +390,6 @@ def test_checkpoint_evaluation_rejects_unknown_metric() -> None:
 
 ###############################################################################
 class FakeValidationDatasetRepository:
-
     # -------------------------------------------------------------------------
     def __init__(
         self,
@@ -449,7 +436,9 @@ def _settings(seed: int = 123) -> ServerSettings:
 
 
 ###############################################################################
-def test_validation_job_fails_when_dataset_is_unavailable(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_validation_job_fails_when_dataset_is_unavailable(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     manager = MagicMock(spec=JobManager)
     manager.should_stop.return_value = False
     repository = FakeValidationDatasetRepository(pd.DataFrame())
@@ -472,7 +461,9 @@ def test_validation_job_fails_when_dataset_is_unavailable(monkeypatch: pytest.Mo
 
 
 ###############################################################################
-def test_validation_job_fails_when_no_image_paths_remain(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_validation_job_fails_when_no_image_paths_remain(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     manager = MagicMock(spec=JobManager)
     manager.should_stop.return_value = False
     repository = FakeValidationDatasetRepository(
@@ -616,7 +607,10 @@ def test_validation_service_reads_seed_and_poll_interval_for_each_new_run() -> N
         )
     )
 
-    requests = [call.kwargs["kwargs"]["request_data"] for call in manager.start_job.call_args_list]
+    requests = [
+        call.kwargs["kwargs"]["request_data"]
+        for call in manager.start_job.call_args_list
+    ]
     assert [request["seed"] for request in requests] == [111, 222]
     assert first_response.poll_interval == 2.0
     assert second_response.poll_interval == 4.5
@@ -634,15 +628,15 @@ def test_token_statistics_require_text_metric_and_count_tokens(
             tokenizer="distilbert-base-uncased",
         )
 
-
     ###############################################################################
     class FakeTokenizer:
-
         # -------------------------------------------------------------------------
         def __call__(self, texts: list[str], add_special_tokens: bool) -> dict:
             return {"input_ids": [[0] * (len(text.split()) + 2) for text in texts]}
 
-    monkeypatch.setattr(validation_runs, "load_tokenizer", lambda _name: FakeTokenizer())
+    monkeypatch.setattr(
+        validation_runs, "load_tokenizer", lambda _name: FakeTokenizer()
+    )
     dataset = pd.DataFrame({"record_id": [1, 2], "text": ["a b c", "d e"]})
     outcome = validation_runs.MetricOutcome()
     validator = validation_runs.DatasetValidator(dataset, dataset_name="d")

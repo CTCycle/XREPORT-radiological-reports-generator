@@ -185,7 +185,9 @@ def _configure_server_environment(port: int) -> None:
     os.environ["KERAS_BACKEND"] = "torch"
     os.environ["MPLBACKEND"] = "Agg"
     data_root = Path(os.environ["XREPORT_DATA_ROOT"])
-    runtime_layout = import_module("xreport_shared.common.runtime_layout").runtime_layout_from_environment()
+    runtime_layout = import_module(
+        "xreport_shared.common.runtime_layout"
+    ).runtime_layout_from_environment()
     cache_root = runtime_layout.cache_root
     cache_root.mkdir(parents=True, exist_ok=True)
     # NLTK resolves its default download directory at import time.  Packaged

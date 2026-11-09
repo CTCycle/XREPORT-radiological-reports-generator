@@ -33,7 +33,9 @@ _API_ONE_PIXEL_PNG = (
 
 
 ###############################################################################
-def _load_dataset(api_context: APIRequestContext, request: dict[str, object]) -> dict[str, object]:
+def _load_dataset(
+    api_context: APIRequestContext, request: dict[str, object]
+) -> dict[str, object]:
     """Start a dataset load job and wait for its terminal status."""
     started = api_context.post("/api/preparation/dataset/load", data=request)
     assert started.status == 202, started.text()
@@ -101,7 +103,9 @@ def test_s21_partial_import_requires_confirmation_and_persists_matched_row(
         assert preview_payload["requires_confirmation"] is True
         assert preview_payload["matched_records"] == 1
         assert preview_payload["unmatched_records"] == 1
-        assert not any(row["name"] == dataset_name for row in _dataset_names(api_context))
+        assert not any(
+            row["name"] == dataset_name for row in _dataset_names(api_context)
+        )
 
         request["confirm_unmatched"] = True
         confirmed = _load_dataset(api_context, request)
@@ -117,9 +121,7 @@ def test_s21_partial_import_requires_confirmation_and_persists_matched_row(
             row for row in _dataset_names(api_context) if row["name"] == dataset_name
         )
         assert source["row_count"] == 1
-        image = api_context.get(
-            f"/api/preparation/dataset/{dataset_name}/images/1"
-        )
+        image = api_context.get(f"/api/preparation/dataset/{dataset_name}/images/1")
         assert image.ok, image.text()
         image_payload = image.json()
         assert image_payload["image_name"] == "mixedcase.jpg"
@@ -475,9 +477,9 @@ def test_s23_source_delete_requires_processed_dataset_cleanup(
         )
 
         page.goto(f"{base_url.rstrip('/')}/training")
-        expect(
-            page.get_by_role("heading", name="XREPORT Transformer")
-        ).to_be_visible(timeout=15_000)
+        expect(page.get_by_role("heading", name="XREPORT Transformer")).to_be_visible(
+            timeout=15_000
+        )
         processed_row = page.locator(".panel-row").filter(has_text=processed_name)
         expect(processed_row).to_be_visible(timeout=15_000)
         page.once("dialog", lambda dialog: dialog.accept())

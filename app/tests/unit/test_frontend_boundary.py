@@ -22,13 +22,19 @@ def _sources(project: str) -> list[Path]:
 ###############################################################################
 def _references(path: Path) -> list[str]:
     text = path.read_text(encoding="utf-8")
-    styles = [item for match in STYLE.finditer(text) for item in re.findall(r"""['"]([^'"]+)['"]""", match.group(1))]
+    styles = [
+        item
+        for match in STYLE.finditer(text)
+        for item in re.findall(r"""['"]([^'"]+)['"]""", match.group(1))
+    ]
     return [*IMPORT.findall(text), *styles]
 
 
 ###############################################################################
 @pytest.mark.parametrize("project", PROJECTS)
-def test_projects_only_reach_their_own_sources_or_the_shared_alias(project: str) -> None:
+def test_projects_only_reach_their_own_sources_or_the_shared_alias(
+    project: str,
+) -> None:
     root = (CLIENT_ROOT / "projects" / project).resolve()
     violations: list[str] = []
     for path in _sources(project):
@@ -41,9 +47,14 @@ def test_projects_only_reach_their_own_sources_or_the_shared_alias(project: str)
                 continue
             target = (path.parent / reference).resolve()
             # Component styles cannot use the TypeScript alias, so shared CSS is referenced by path.
-            shared_style = reference.endswith(".css") and (CLIENT_ROOT / "projects" / "shared").resolve() in target.parents
+            shared_style = (
+                reference.endswith(".css")
+                and (CLIENT_ROOT / "projects" / "shared").resolve() in target.parents
+            )
             if root not in (target, *target.parents) and not shared_style:
-                violations.append(f"{path.relative_to(CLIENT_ROOT).as_posix()}: {reference}")
+                violations.append(
+                    f"{path.relative_to(CLIENT_ROOT).as_posix()}: {reference}"
+                )
 
     assert not violations, f"{project} reaches outside its project: {violations}"
 
@@ -68,18 +79,30 @@ def test_each_application_has_its_own_entry_point_routes_and_proxy() -> None:
 
 
 ###############################################################################
-def test_angular_workspace_and_scripts_only_reference_existing_files_of_their_own_application() -> None:
-    workspace = json.loads((CLIENT_ROOT / "angular.json").read_text(encoding="utf-8"))["projects"]
+def test_angular_workspace_and_scripts_only_reference_existing_files_of_their_own_application() -> (
+    None
+):
+    workspace = json.loads((CLIENT_ROOT / "angular.json").read_text(encoding="utf-8"))[
+        "projects"
+    ]
     other = {"client-angular": "studio", "studio-angular": "inference"}
     for name, forbidden in other.items():
         text = json.dumps(workspace[name])
-        assert f"projects/{forbidden}/" not in text, f"{name} references the {forbidden} project"
-        assert f"{forbidden}-angular" not in text, f"{name} builds through the {forbidden} application"
+        assert f"projects/{forbidden}/" not in text, (
+            f"{name} references the {forbidden} project"
+        )
+        assert f"{forbidden}-angular" not in text, (
+            f"{name} builds through the {forbidden} application"
+        )
 
-    scripts = json.loads((CLIENT_ROOT / "package.json").read_text(encoding="utf-8"))["scripts"]
+    scripts = json.loads((CLIENT_ROOT / "package.json").read_text(encoding="utf-8"))[
+        "scripts"
+    ]
     for command in scripts.values():
         for relative in re.findall(r"--proxy-config\s+(\S+)", command):
-            assert (CLIENT_ROOT / relative).is_file(), f"script references a missing file: {relative}"
+            assert (CLIENT_ROOT / relative).is_file(), (
+                f"script references a missing file: {relative}"
+            )
 
 
 ###############################################################################
@@ -90,7 +113,13 @@ def test_client_sources_have_no_circular_imports() -> None:
             edges: set[Path] = set()
             for reference in _references(path):
                 if reference.startswith("@xreport/shared/"):
-                    base = CLIENT_ROOT / "projects" / "shared" / "src" / reference.removeprefix("@xreport/shared/")
+                    base = (
+                        CLIENT_ROOT
+                        / "projects"
+                        / "shared"
+                        / "src"
+                        / reference.removeprefix("@xreport/shared/")
+                    )
                 elif reference.startswith("."):
                     base = (path.parent / reference).resolve()
                 else:

@@ -25,7 +25,9 @@ def test_studio_navigation_contains_only_development_pages(
     expect(navigation.get_by_role("link", name="Dataset", exact=True)).to_be_visible()
     expect(navigation.get_by_role("link", name="Training", exact=True)).to_be_visible()
     expect(navigation.get_by_role("link", name="Settings", exact=True)).to_be_visible()
-    expect(navigation.get_by_role("link", name="Inference", exact=True)).to_have_count(0)
+    expect(navigation.get_by_role("link", name="Inference", exact=True)).to_have_count(
+        0
+    )
     expect(navigation.get_by_role("link", name="Reports", exact=True)).to_have_count(0)
     expect(navigation.get_by_text("XREPORT Studio")).to_be_visible()
 
@@ -88,7 +90,9 @@ def test_validation_route_reports_missing_dataset_as_user_error(
 
     assert response is not None and response.ok
     page.get_by_role("button", name="Run Validation").click()
-    expect(page.get_by_text(f"No data found for dataset: {dataset_name}.")).to_be_visible(
+    expect(
+        page.get_by_text(f"No data found for dataset: {dataset_name}.")
+    ).to_be_visible(
         timeout=20_000,
     )
 

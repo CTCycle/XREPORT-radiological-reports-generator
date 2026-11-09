@@ -5,10 +5,22 @@ import pytest
 import torch
 from xreport_inference.domain.inference import InferenceImage, ProviderGenerationResult
 from xreport_inference.models.inference.providers import adapters as adapters_module
-from xreport_inference.models.inference.providers.adapters import GenerationLimits, CheXOneAdapter, CXRMate2Adapter, CXRMateMultiAdapter, MedGemmaAdapter, StudyImage, _ensure_cxrmate2_generation_dtype
+from xreport_inference.models.inference.providers.adapters import (
+    GenerationLimits,
+    CheXOneAdapter,
+    CXRMate2Adapter,
+    CXRMateMultiAdapter,
+    MedGemmaAdapter,
+    StudyImage,
+    _ensure_cxrmate2_generation_dtype,
+)
 from typing import Any, cast
 from unittest.mock import MagicMock
-from xreport_inference.services.inference import InferenceImageStore, run_inference_job, InferenceService
+from xreport_inference.services.inference import (
+    InferenceImageStore,
+    run_inference_job,
+    InferenceService,
+)
 from xreport_shared.services.jobs import JobExecutionError, JobManager, JobState
 from types import SimpleNamespace
 from xreport_inference.services.inference_runtime import InferenceRuntimeCoordinator
@@ -47,13 +59,11 @@ def test_cxrmate_multi_uses_all_images_profile_and_stopping_criteria(
     profile: str, max_new_tokens: int, num_beams: int
 ) -> None:
 
-
     ###############################################################################
     class ImageProcessorStub:
         size = {"shortest_edge": 4}
         image_mean = (0.5, 0.5, 0.5)
         image_std = (0.5, 0.5, 0.5)
-
 
     ###############################################################################
     class TokenizerStub:
@@ -62,10 +72,8 @@ def test_cxrmate_multi_uses_all_images_profile_and_stopping_criteria(
         eos_token_id = 12
         pad_token_id = 13
 
-
     ###############################################################################
     class ModelStub:
-
         # -------------------------------------------------------------------------
         def __init__(self) -> None:
             self.generate_call: dict[str, object] = {}
@@ -119,10 +127,8 @@ def test_cxrmate2_forwards_study_and_profile_to_published_processor(
     profile: str, max_new_tokens: int, num_beams: int
 ) -> None:
 
-
     ###############################################################################
     class ProcessorStub:
-
         # -------------------------------------------------------------------------
         def __init__(self) -> None:
             self.process_call: dict[str, object] = {}
@@ -139,10 +145,8 @@ def test_cxrmate2_forwards_study_and_profile_to_published_processor(
         def split_and_decode_sections(self, _generated_ids):
             return ["finding"], ["impression"]
 
-
     ###############################################################################
     class ModelStub:
-
         # -------------------------------------------------------------------------
         def __init__(self) -> None:
             self.generate_call: dict[str, object] = {}
@@ -166,7 +170,9 @@ def test_cxrmate2_forwards_study_and_profile_to_published_processor(
         output_sections=["findings", "impression"],
     )
 
-    assert processor.process_call["images"] == [[item.image for item in _study_images()]]
+    assert processor.process_call["images"] == [
+        [item.image for item in _study_images()]
+    ]
     assert processor.process_call["indication"] == "portable chest"
     assert model.generate_call["max_new_tokens"] == max_new_tokens
     assert "max_length" not in model.generate_call
@@ -182,10 +188,16 @@ def test_cxrmate2_forwards_study_and_profile_to_published_processor(
 ###############################################################################
 def test_generation_limits_override_profile_without_max_length() -> None:
     adapter = CXRMate2Adapter()
-    adapter.generation_limits = GenerationLimits(max_new_tokens_detailed=512, detailed_num_beams=2)
+    adapter.generation_limits = GenerationLimits(
+        max_new_tokens_detailed=512, detailed_num_beams=2
+    )
 
-    detailed = adapter.resolve_generation("detailed", {**adapter.generation_profiles["detailed"], "max_length": 99})
-    concise = adapter.resolve_generation("concise", adapter.generation_profiles["concise"])
+    detailed = adapter.resolve_generation(
+        "detailed", {**adapter.generation_profiles["detailed"], "max_length": 99}
+    )
+    concise = adapter.resolve_generation(
+        "concise", adapter.generation_profiles["concise"]
+    )
 
     assert detailed == {"max_new_tokens": 512, "num_beams": 2, "do_sample": False}
     assert concise["max_new_tokens"] == 160 and concise["num_beams"] == 1
@@ -193,7 +205,6 @@ def test_generation_limits_override_profile_without_max_length() -> None:
 
 ###############################################################################
 def test_cxrmate2_casts_generation_time_deltas_to_model_dtype() -> None:
-
 
     ###############################################################################
     class ModelStub:
@@ -241,10 +252,8 @@ def test_chexone_uses_published_multi_image_vision_path_and_strips_prompt(
 
     monkeypatch.setattr(adapters_module, "process_vision_info", process_vision_info)
 
-
     ###############################################################################
     class ProcessorStub:
-
         # -------------------------------------------------------------------------
         def __init__(self) -> None:
             self.template_messages = None
@@ -259,7 +268,6 @@ def test_chexone_uses_published_multi_image_vision_path_and_strips_prompt(
         # -------------------------------------------------------------------------
         def __call__(self, **kwargs: object):
             self.processor_call = kwargs
-
 
             ###############################################################################
             class VisionInputs(dict[str, torch.Tensor]):
@@ -277,14 +285,10 @@ def test_chexone_uses_published_multi_image_vision_path_and_strips_prompt(
         # -------------------------------------------------------------------------
         def batch_decode(self, generated_ids, **_kwargs: object) -> list[str]:
             self.decoded_ids = generated_ids
-            return [
-                "No focal airspace opacity. No pleural effusion or pneumothorax."
-            ]
-
+            return ["No focal airspace opacity. No pleural effusion or pneumothorax."]
 
     ###############################################################################
     class ModelStub:
-
         # -------------------------------------------------------------------------
         def generate(self, **kwargs: object):
             self.generate_call = kwargs
@@ -335,10 +339,8 @@ def test_medgemma_uses_multi_image_context_raw_report_contract_and_profile(
 ) -> None:
     images = _study_images()
 
-
     ###############################################################################
     class ProcessorStub:
-
         # -------------------------------------------------------------------------
         def __init__(self) -> None:
             self.messages = None
@@ -356,10 +358,8 @@ def test_medgemma_uses_multi_image_context_raw_report_contract_and_profile(
             assert torch.equal(generated, torch.tensor([3, 4]))
             return "raw report"
 
-
     ###############################################################################
     class ModelStub:
-
         # -------------------------------------------------------------------------
         def generate(self, **kwargs: object):
             self.generate_call = kwargs
@@ -418,10 +418,8 @@ def _setup_job(
 ###############################################################################
 def _runtime_stub(provider: Any) -> Any:
 
-
     ###############################################################################
     class RuntimeStub:
-
         # -------------------------------------------------------------------------
         def generate(self, **kwargs):
             generation = provider.generate(**kwargs)
@@ -467,7 +465,9 @@ def test_successful_generation_result_exposes_persisted_request_id() -> None:
 
     assert result["request_id"] == request_id
     repository.save_generated_reports.assert_called_once()
-    assert repository.save_generated_reports.call_args.kwargs["request_id"] == request_id
+    assert (
+        repository.save_generated_reports.call_args.kwargs["request_id"] == request_id
+    )
 
 
 ###############################################################################
@@ -475,11 +475,18 @@ def test_per_image_mode_runs_each_image_and_keeps_going_after_a_failure() -> Non
     manager = JobManager()
     image_store = InferenceImageStore()
     job_id, request_id = "per-image-job", "per-image-request"
-    manager.jobs[job_id] = JobState(job_id=job_id, job_type="inference", status="running")
+    manager.jobs[job_id] = JobState(
+        job_id=job_id, job_type="inference", status="running"
+    )
     names = ["a.png", "b.png", "c.png"]
     image_store.store(
         request_id,
-        [InferenceImage(filename=name, content_type="image/png", data=b"x", size_bytes=1) for name in names],
+        [
+            InferenceImage(
+                filename=name, content_type="image/png", data=b"x", size_bytes=1
+            )
+            for name in names
+        ],
     )
     image_store.link_job(job_id, request_id)
     seen: list[list[str]] = []
@@ -531,10 +538,8 @@ def test_cancelled_after_generation_does_not_persist_partial_reports() -> None:
     request_id = "request-cancelled"
     _setup_job(manager, image_store, job_id=job_id, request_id=request_id)
 
-
     ###############################################################################
     class CancellingProvider:
-
         # -------------------------------------------------------------------------
         def generate(self, **_kwargs):
             manager.cancel_job(job_id)
@@ -832,9 +837,13 @@ def test_generation_allows_a_ready_gated_public_model() -> None:
 
 ###############################################################################
 @pytest.mark.parametrize("job_type", ["inference", "model_maintenance"])
-def test_runtime_release_is_refused_while_inference_or_download_runs(job_type: str) -> None:
+def test_runtime_release_is_refused_while_inference_or_download_runs(
+    job_type: str,
+) -> None:
     job_manager = JobManager()
-    job_manager.jobs["active"] = JobState(job_id="active", job_type=job_type, status="running")
+    job_manager.jobs["active"] = JobState(
+        job_id="active", job_type=job_type, status="running"
+    )
     runtime = MagicMock()
     service = InferenceService(
         job_manager=job_manager,

@@ -315,6 +315,7 @@ class InferenceGenerateRequest(BaseModel):
     clinical_context: str = ""
     batch_mode: BatchMode = "study"
 
+
 ###############################################################################
 InferenceHistoryStatus = Literal[
     "queued", "running", "succeeded", "failed", "cancelled"

@@ -20,7 +20,9 @@ ALLOWED = {
 ###############################################################################
 def _python_files(package: str) -> list[Path]:
     return sorted(
-        path for path in (APP_ROOT / package).rglob("*.py") if "__pycache__" not in path.parts
+        path
+        for path in (APP_ROOT / package).rglob("*.py")
+        if "__pycache__" not in path.parts
     )
 
 
@@ -44,7 +46,9 @@ def _application_references(path: Path) -> set[str]:
 
 ###############################################################################
 @pytest.mark.parametrize("package", PACKAGES)
-def test_packages_only_depend_on_themselves_and_the_shared_package(package: str) -> None:
+def test_packages_only_depend_on_themselves_and_the_shared_package(
+    package: str,
+) -> None:
     violations = {
         path.relative_to(APP_ROOT).as_posix(): sorted(
             _application_references(path) - ALLOWED[package]
@@ -74,7 +78,10 @@ def test_legacy_server_package_is_gone() -> None:
 
 ###############################################################################
 def test_each_application_has_its_own_entry_point_and_migrations() -> None:
-    for package, stream in (("xreport_studio", "studio"), ("xreport_inference", "inference")):
+    for package, stream in (
+        ("xreport_studio", "studio"),
+        ("xreport_inference", "inference"),
+    ):
         assert (APP_ROOT / package / "app.py").is_file()
         assert (APP_ROOT / package / "entry.py").is_file()
         assert (APP_ROOT / package / "migrations" / stream / "env.py").is_file()
@@ -104,12 +111,16 @@ def test_launch_commands_target_existing_application_modules() -> None:
     targets = {
         match
         for source in sources
-        for match in re.findall(r"uvicorn\s+([\w.]+):app", source.read_text(encoding="utf-8"))
+        for match in re.findall(
+            r"uvicorn\s+([\w.]+):app", source.read_text(encoding="utf-8")
+        )
     }
 
     assert {"xreport_inference.app", "xreport_studio.app"} <= targets
     for target in targets:
-        assert (APP_ROOT / Path(*target.split("."))).with_suffix(".py").is_file(), target
+        assert (APP_ROOT / Path(*target.split("."))).with_suffix(".py").is_file(), (
+            target
+        )
 
 
 ###############################################################################
@@ -121,4 +132,8 @@ def test_only_sanctioned_scripts_reference_both_applications() -> None:
         if {"xreport_studio", "xreport_inference"} <= _application_references(path)
     }
 
-    assert both <= {"export_openapi.py", "initialize_database.py", "validate_resilience_baseline.py"}
+    assert both <= {
+        "export_openapi.py",
+        "initialize_database.py",
+        "validate_resilience_baseline.py",
+    }

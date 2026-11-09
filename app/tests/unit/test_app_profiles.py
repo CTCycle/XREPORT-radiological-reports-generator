@@ -43,7 +43,13 @@ def _probe(profile: str, resources: Path) -> dict:
         "PYTHONPATH": str(SERVER_ROOT),
     }
     result = subprocess.run(
-        [sys.executable, "-c", PROBE.replace("__MODULE__", APPLICATION_MODULES.get(profile, "xreport_inference.app"))],
+        [
+            sys.executable,
+            "-c",
+            PROBE.replace(
+                "__MODULE__", APPLICATION_MODULES.get(profile, "xreport_inference.app")
+            ),
+        ],
         capture_output=True,
         text=True,
         env=environment,

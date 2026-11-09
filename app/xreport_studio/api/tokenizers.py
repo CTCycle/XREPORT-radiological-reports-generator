@@ -12,7 +12,6 @@ from xreport_studio.services.tokenizers import TokenizerService
 
 ###############################################################################
 class TokenizerEndpoint:
-
     # -------------------------------------------------------------------------
     def __init__(
         self, router: APIRouter, service: TokenizerService | None = None

@@ -33,7 +33,11 @@ SUMMARY_DIR = ROOT_DIR / "runtimes" / "cache" / "qa" / "inference_validation_run
 def _arguments() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--image", type=Path, action="append", required=True)
-    parser.add_argument("--profile", choices=("deterministic", "concise", "detailed"), default="deterministic")
+    parser.add_argument(
+        "--profile",
+        choices=("deterministic", "concise", "detailed"),
+        default="deterministic",
+    )
     parser.add_argument("--clinical-context", default="")
     parser.add_argument("--fixture-provenance", required=True)
     parser.add_argument("--fixture-deidentification", required=True)

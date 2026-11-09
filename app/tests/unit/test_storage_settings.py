@@ -10,11 +10,16 @@ from xreport_shared.common.runtime_layout import RuntimeLayout, read_storage_poi
 from xreport_inference.services import storage_settings as module
 from xreport_shared.services.errors import ConflictError
 from xreport_shared.services.jobs import JobManager, JobState
-from xreport_inference.services.storage_settings import StorageSettingsService, run_storage_migration
+from xreport_inference.services.storage_settings import (
+    StorageSettingsService,
+    run_storage_migration,
+)
 
 
 ###############################################################################
-def _service(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, source: str = "default") -> StorageSettingsService:
+def _service(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, source: str = "default"
+) -> StorageSettingsService:
     runtime_root = tmp_path / "repo"
     active = runtime_root / "data"
     (active / "logs").mkdir(parents=True)
@@ -24,9 +29,12 @@ def _service(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, source: str = "def
     (active / "checkpoints" / "run-1").mkdir(parents=True)
     (active / "checkpoints" / "run-1" / "model.keras").write_bytes(b"checkpoint")
     connection = sqlite3.connect(active / "database.db")
-    connection.execute("CREATE TABLE checkpoints (checkpoint_id INTEGER PRIMARY KEY, path TEXT)")
     connection.execute(
-        "INSERT INTO checkpoints (path) VALUES (?)", (str(active / "checkpoints" / "run-1"),)
+        "CREATE TABLE checkpoints (checkpoint_id INTEGER PRIMARY KEY, path TEXT)"
+    )
+    connection.execute(
+        "INSERT INTO checkpoints (path) VALUES (?)",
+        (str(active / "checkpoints" / "run-1"),),
     )
     connection.commit()
     connection.close()
@@ -34,10 +42,21 @@ def _service(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, source: str = "def
         json.dumps({"backend": "sqlite", "sqlite_path": str(active / "database.db")})
     )
     layout = RuntimeLayout(
-        "source", runtime_root, active, active, runtime_root, None, None, "xreport", active, source
+        "source",
+        runtime_root,
+        active,
+        active,
+        runtime_root,
+        None,
+        None,
+        "xreport",
+        active,
+        source,
     )
     monkeypatch.setattr(module, "RUNTIME_LAYOUT", layout)
-    monkeypatch.setattr(StorageSettingsService, "_database_relocatable", staticmethod(lambda: True))
+    monkeypatch.setattr(
+        StorageSettingsService, "_database_relocatable", staticmethod(lambda: True)
+    )
     return StorageSettingsService(JobManager())
 
 
@@ -49,7 +68,9 @@ def test_copy_migration_rewrites_paths_and_leaves_the_old_root_untouched(
     target = tmp_path / "elsewhere" / "xreport-data"
     assert service.validate(str(target)).target_state == "new"
     manager = JobManager()
-    manager.jobs["job"] = JobState(job_id="job", job_type="storage_migration", status="running")
+    manager.jobs["job"] = JobState(
+        job_id="job", job_type="storage_migration", status="running"
+    )
 
     result = run_storage_migration(
         str(service.active_root),
@@ -69,12 +90,15 @@ def test_copy_migration_rewrites_paths_and_leaves_the_old_root_untouched(
         assert connection.execute("SELECT path FROM checkpoints").fetchone()[0] == str(
             target / "checkpoints" / "run-1"
         )
-    assert json.loads((target / "database-config.json").read_text())["sqlite_path"] == str(
-        target / "database.db"
-    )
+    assert json.loads((target / "database-config.json").read_text())[
+        "sqlite_path"
+    ] == str(target / "database.db")
     assert (service.active_root / "models" / "weights.bin").exists()
     with sqlite3.connect(service.active_root / "database.db") as connection:
-        assert str(service.active_root) in connection.execute("SELECT path FROM checkpoints").fetchone()[0]
+        assert (
+            str(service.active_root)
+            in connection.execute("SELECT path FROM checkpoints").fetchone()[0]
+        )
     assert read_storage_pointer(service.layout.bootstrap_dir) == str(target)
     status = service.get_status()
     assert status.restart_required and status.pending_root == str(target)

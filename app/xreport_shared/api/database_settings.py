@@ -24,7 +24,6 @@ from xreport_shared.services.jobs import get_job_manager
 
 ###############################################################################
 class DatabaseSettingsEndpoint:
-
     # -------------------------------------------------------------------------
     def __init__(self, service: DatabaseSettingsService | None = None) -> None:
         self._service = service
@@ -134,8 +133,12 @@ router = get_router()
 
 ###############################################################################
 def _sanitize_switch_error(error: Exception) -> str:
-    message = str(error).splitlines()[0][:240] or "the target database could not be activated."
+    message = (
+        str(error).splitlines()[0][:240]
+        or "the target database could not be activated."
+    )
     message = re.sub(r"(?i)(password\s*[=:]\s*)[^\s,;]+", r"\1<redacted>", message)
     return re.sub(r"(?i)(://[^:/\s]+:)[^@\s]+@", r"\1<redacted>@", message)
+
 
 __all__ = ["DatabaseSettingsEndpoint", "router"]

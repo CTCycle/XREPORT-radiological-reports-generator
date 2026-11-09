@@ -42,10 +42,17 @@ def _free_port() -> int:
 
 
 ###############################################################################
-def _start(application: str, profile: str, resources: Path, port: int) -> subprocess.Popen:
+def _start(
+    application: str, profile: str, resources: Path, port: int
+) -> subprocess.Popen:
     (resources / "models").mkdir(parents=True)
     for name in ("XRAYEncoder", "tokenizers"):
-        shutil.copytree(MODELS / name, resources / "models" / name, symlinks=False, ignore=shutil.ignore_patterns("blobs"))
+        shutil.copytree(
+            MODELS / name,
+            resources / "models" / name,
+            symlinks=False,
+            ignore=shutil.ignore_patterns("blobs"),
+        )
     environment = {
         **os.environ,
         "XREPORT_APP": profile,
@@ -54,7 +61,18 @@ def _start(application: str, profile: str, resources: Path, port: int) -> subpro
         "PYTHONPATH": str(APP_DIR),
     }
     return subprocess.Popen(
-        [sys.executable, "-m", "uvicorn", application, "--host", "127.0.0.1", "--port", str(port), "--log-level", "warning"],
+        [
+            sys.executable,
+            "-m",
+            "uvicorn",
+            application,
+            "--host",
+            "127.0.0.1",
+            "--port",
+            str(port),
+            "--log-level",
+            "warning",
+        ],
         cwd=APP_DIR,
         env=environment,
         stdout=subprocess.DEVNULL,
@@ -89,12 +107,16 @@ def _finish(client: httpx.Client, job_id: str, timeout: float = 600) -> dict:
 
 ###############################################################################
 @pytest.fixture(scope="module")
-def applications(tmp_path_factory: pytest.TempPathFactory) -> Iterator[tuple[httpx.Client, httpx.Client]]:
+def applications(
+    tmp_path_factory: pytest.TempPathFactory,
+) -> Iterator[tuple[httpx.Client, httpx.Client]]:
     root = tmp_path_factory.mktemp("exchange")
     studio_port, inference_port = _free_port(), _free_port()
     processes = [
         _start("xreport_studio.app:app", "studio", root / "studio", studio_port),
-        _start("xreport_inference.app:app", "xreport", root / "inference", inference_port),
+        _start(
+            "xreport_inference.app:app", "xreport", root / "inference", inference_port
+        ),
     ]
     studio = httpx.Client(base_url=f"http://127.0.0.1:{studio_port}", timeout=60)
     inference = httpx.Client(base_url=f"http://127.0.0.1:{inference_port}", timeout=60)
@@ -127,13 +149,22 @@ def test_studio_checkpoint_runs_in_the_independent_inference_application(
         upload = studio.post("/api/upload/dataset", files={"file": report_file}).json()
     started = studio.post(
         "/api/preparation/dataset/load",
-        json={"upload_id": upload["upload_id"], "image_folder_path": str(FIXTURES / "images"), "sample_size": 1.0, "confirm_unmatched": False},
+        json={
+            "upload_id": upload["upload_id"],
+            "image_folder_path": str(FIXTURES / "images"),
+            "sample_size": 1.0,
+            "confirm_unmatched": False,
+        },
     ).json()
     assert _finish(studio, started["job_id"])["result"]["matched_records"] == 6
 
     validation = studio.post(
         "/api/validation/run",
-        json={"dataset_name": "xreport_reports_6", "metrics": ["text_statistics", "image_statistics", "pixels_distribution"], "sample_size": 1.0},
+        json={
+            "dataset_name": "xreport_reports_6",
+            "metrics": ["text_statistics", "image_statistics", "pixels_distribution"],
+            "sample_size": 1.0,
+        },
     ).json()
     _finish(studio, validation["job_id"])
     runs = studio.get("/api/validation/runs/xreport_reports_6").json()["runs"]
@@ -141,39 +172,73 @@ def test_studio_checkpoint_runs_in_the_independent_inference_application(
 
     processing = studio.post(
         "/api/preparation/dataset/process",
-        json={"dataset_name": "xreport_reports_6", "custom_name": "exchange_set", "sample_size": 1.0, "validation_size": 0.2, "tokenizer": TOKENIZER, "max_report_size": 60},
+        json={
+            "dataset_name": "xreport_reports_6",
+            "custom_name": "exchange_set",
+            "sample_size": 1.0,
+            "validation_size": 0.2,
+            "tokenizer": TOKENIZER,
+            "max_report_size": 60,
+        },
     ).json()
     _finish(studio, processing["job_id"])
 
     training = studio.post(
         "/api/training/start",
         json={
-            "dataset_name": "exchange_set", "epochs": 1, "batch_size": 2, "gradient_accumulation_steps": 1,
-            "architecture_preset": "compact", "use_img_augmentation": False, "save_checkpoints": True,
-            "checkpoint_id": "exchange_ckpt", "use_device_GPU": False, "device_ID": 0, "use_mixed_precision": False,
-            "dataloader_workers": 0, "prefetch_factor": 2, "pin_memory": False, "persistent_workers": False,
-            "plot_training_metrics": False, "use_scheduler": False, "target_LR": 0.0001, "warmup_steps": 10,
+            "dataset_name": "exchange_set",
+            "epochs": 1,
+            "batch_size": 2,
+            "gradient_accumulation_steps": 1,
+            "architecture_preset": "compact",
+            "use_img_augmentation": False,
+            "save_checkpoints": True,
+            "checkpoint_id": "exchange_ckpt",
+            "use_device_GPU": False,
+            "device_ID": 0,
+            "use_mixed_precision": False,
+            "dataloader_workers": 0,
+            "prefetch_factor": 2,
+            "pin_memory": False,
+            "persistent_workers": False,
+            "plot_training_metrics": False,
+            "use_scheduler": False,
+            "target_LR": 0.0001,
+            "warmup_steps": 10,
         },
     ).json()
     _finish(studio, training["job_id"])
 
-    export = studio.post("/api/exchange/export", json={"checkpoint": "exchange_ckpt", "include_encoder": False}).json()
+    export = studio.post(
+        "/api/exchange/export",
+        json={"checkpoint": "exchange_ckpt", "include_encoder": False},
+    ).json()
     filename = _finish(studio, export["job_id"])["result"]["export"]["filename"]
     archive = tmp_path / filename
-    archive.write_bytes(studio.get(f"/api/exchange/exports/{filename}", timeout=300).content)
+    archive.write_bytes(
+        studio.get(f"/api/exchange/exports/{filename}", timeout=300).content
+    )
 
     with archive.open("rb") as handle:
-        imported = inference.post("/api/exchange/import", files={"file": handle}, timeout=300).json()
+        imported = inference.post(
+            "/api/exchange/import", files={"file": handle}, timeout=300
+        ).json()
     outcome = _finish(inference, imported["job_id"])["result"]["import"]
     assert outcome["status"] == "imported"
 
-    models = {item["model_ref"]: item for item in inference.get("/api/inference/models").json()["models"]}
+    models = {
+        item["model_ref"]: item
+        for item in inference.get("/api/inference/models").json()["models"]
+    }
     assert models["xreport:exchange_ckpt"]["status"] == "ready"
 
     with (FIXTURES / "images" / "xr_syn_001.jpg").open("rb") as image:
         generation = inference.post(
             "/api/inference/generate",
-            data={"model_ref": "xreport:exchange_ckpt", "generation_profile": "deterministic"},
+            data={
+                "model_ref": "xreport:exchange_ckpt",
+                "generation_profile": "deterministic",
+            },
             files={"images": ("xr_syn_001.jpg", image, "image/jpeg")},
             timeout=300,
         ).json()

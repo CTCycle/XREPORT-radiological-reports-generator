@@ -44,7 +44,9 @@ from xreport_shared.common.utils.logger import logger
 
 
 ###############################################################################
-def redirect_root_to_docs(*, serve_source_client: bool = False) -> RedirectResponse | FileResponse:
+def redirect_root_to_docs(
+    *, serve_source_client: bool = False
+) -> RedirectResponse | FileResponse:
     if PACKAGED_MODE or serve_source_client:
         return FileResponse(CLIENT_DIST_DIR / "index.html")
     return RedirectResponse(FASTAPI_DOCS_ENDPOINT)
@@ -123,9 +125,7 @@ def serve_source_frontend(path: str) -> FileResponse | JSONResponse:
 ###############################################################################
 def source_shutdown(
     request: Request,
-    launch_token: str | None = Header(
-        default=None, alias="X-XREPORT-Launch-Token"
-    ),
+    launch_token: str | None = Header(default=None, alias="X-XREPORT-Launch-Token"),
 ) -> ShutdownResponse:
     expected_token = getattr(request.app.state, "source_launch_token", "")
     if not launch_token or not hmac.compare_digest(launch_token, expected_token):
@@ -258,7 +258,9 @@ async def app_lifespan(application: FastAPI) -> AsyncIterator[None]:
 
 
 ###############################################################################
-async def database_request_guard(request: Request, call_next: RequestResponseEndpoint) -> Response:
+async def database_request_guard(
+    request: Request, call_next: RequestResponseEndpoint
+) -> Response:
     path = request.url.path
     database_control_prefix = "/api/settings/database"
     is_database_control = path == "/api/health" or (
@@ -298,11 +300,9 @@ def create_application(
     application-specific modules.
     """
     runtime_environment = get_runtime_environment_settings()
-    serve_source_client = (
-        not PACKAGED_MODE
-        and os.getenv("XREPORT_SERVE_CLIENT", "").strip().lower()
-        in {"1", "true", "yes"}
-    )
+    serve_source_client = not PACKAGED_MODE and os.getenv(
+        "XREPORT_SERVE_CLIENT", ""
+    ).strip().lower() in {"1", "true", "yes"}
     source_launch_token = "" if PACKAGED_MODE else os.getenv("XREPORT_LAUNCH_TOKEN", "")
     if serve_source_client and not (CLIENT_DIST_DIR / "index.html").is_file():
         raise FileNotFoundError(
@@ -360,10 +360,10 @@ def create_application(
 
 ###############################################################################
 def _sanitize_startup_error(message: str) -> str:
-    first_line = message.splitlines()[0][:280] if message else "Database startup failed."
+    first_line = (
+        message.splitlines()[0][:280] if message else "Database startup failed."
+    )
     first_line = re.sub(
         r"(?i)(password\s*[=:]\s*)[^\s,;]+", r"\1<redacted>", first_line
     )
     return re.sub(r"(?i)(://[^:/\s]+:)[^@\s]+@", r"\1<redacted>@", first_line)
-
-

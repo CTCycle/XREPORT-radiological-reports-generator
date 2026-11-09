@@ -157,7 +157,9 @@ def studio_base_url() -> str:
 @pytest.fixture
 def studio_profile(monkeypatch):
     """Resolve repositories against the XREPORT Studio schema in this process."""
-    monkeypatch.setattr("xreport_shared.repositories.database.schema.APP_PROFILE", "studio")
+    monkeypatch.setattr(
+        "xreport_shared.repositories.database.schema.APP_PROFILE", "studio"
+    )
 
 
 ###############################################################################

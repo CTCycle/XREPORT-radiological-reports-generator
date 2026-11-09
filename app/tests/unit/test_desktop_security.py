@@ -8,23 +8,16 @@ import sys
 import zipfile
 import pytest
 from pathlib import Path
-from xreport_shared.common.desktop_security import token_matches, DesktopSecurityMiddleware, PRIVATE_TOKEN_HEADER, SESSION_COOKIE
+from xreport_shared.common.desktop_security import (
+    token_matches,
+    DesktopSecurityMiddleware,
+    PRIVATE_TOKEN_HEADER,
+    SESSION_COOKIE,
+)
 from xreport_shared.common.runtime_layout import RuntimeLayout, ensure_packaged_data
 from fastapi import FastAPI
 from fastapi.responses import JSONResponse
 from fastapi.testclient import TestClient
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 sys.path.insert(0, str(Path(__file__).parents[2] / "desktop" / "build"))
@@ -61,9 +54,7 @@ def _build_runtime_bundle(
     (staging / "client").mkdir()
     (staging / "settings").mkdir()
     (staging / "backend" / "XREPORT-backend.exe").write_bytes(b"stub")
-    (staging / "client" / "index.html").write_text(
-        "<html></html>", encoding="utf-8"
-    )
+    (staging / "client" / "index.html").write_text("<html></html>", encoding="utf-8")
     (staging / "client" / "error.html").write_text(
         "<html><div id='status'></div></html>", encoding="utf-8"
     )
@@ -96,7 +87,13 @@ def _build_runtime_bundle(
         text=True,
         check=True,
     )
-    return output, json.loads(audit.read_text(encoding="utf-8")), completed.stdout, staging, script
+    return (
+        output,
+        json.loads(audit.read_text(encoding="utf-8")),
+        completed.stdout,
+        staging,
+        script,
+    )
 
 
 ###############################################################################
@@ -230,10 +227,12 @@ def test_runtime_bundle_rejects_mutable_or_log_artifacts(tmp_path: Path) -> None
             expected_version="3.1.0",
             expected_variant="cpu",
             expected_source_commit="0" * 40,
-    )
+        )
 
     cache_archive = tmp_path / "cache-member.zip"
-    _copy_archive_with_member(output, cache_archive, "runtimes/cache/marker", b"forbidden")
+    _copy_archive_with_member(
+        output, cache_archive, "runtimes/cache/marker", b"forbidden"
+    )
     with pytest.raises(ValueError, match="contains forbidden member"):
         verify_archive(
             cache_archive,
@@ -359,7 +358,9 @@ def test_development_shell_does_not_require_release_runtime_archive() -> None:
 ###############################################################################
 def test_packaged_client_keeps_the_startup_shell_assets() -> None:
     client_root = Path(__file__).parents[2] / "client"
-    index = (client_root / "projects" / "inference" / "src" / "index.html").read_text(encoding="utf-8")
+    index = (client_root / "projects" / "inference" / "src" / "index.html").read_text(
+        encoding="utf-8"
+    )
     shell = (client_root / "public" / "desktop-shell.js").read_text(encoding="utf-8")
     startup_css = client_root / "public" / "startup.css"
 
@@ -373,9 +374,9 @@ def test_packaged_client_keeps_the_startup_shell_assets() -> None:
 ###############################################################################
 def test_desktop_release_uses_separate_build_and_approval_phases() -> None:
     repository_root = Path(__file__).parents[3]
-    workflow = (repository_root / ".github" / "workflows" / "desktop-release.yml").read_text(
-        encoding="utf-8"
-    )
+    workflow = (
+        repository_root / ".github" / "workflows" / "desktop-release.yml"
+    ).read_text(encoding="utf-8")
     native_driver = (
         repository_root / "app" / "desktop" / "build" / "validate_native_webview.ps1"
     ).read_text(encoding="utf-8")
@@ -386,9 +387,12 @@ def test_desktop_release_uses_separate_build_and_approval_phases() -> None:
     assert "package_run_id:" in workflow
     assert "source_commit:" in workflow
     assert "Download retained package outputs for approval phase" in workflow
-    assert "if: github.event_name == 'workflow_dispatch' && inputs.package_run_id != ''" in workflow
+    assert (
+        "if: github.event_name == 'workflow_dispatch' && inputs.package_run_id != ''"
+        in workflow
+    )
     assert '--source-commit "$SOURCE_COMMIT"' in workflow
-    assert "--target \"$SOURCE_COMMIT\"" in workflow
+    assert '--target "$SOURCE_COMMIT"' in workflow
     assert "$NativeScenario -join ','" in native_smoke
     assert "::FocusedElement" in native_driver
     assert "StartupBackendDelaySeconds" in native_driver
@@ -501,7 +505,10 @@ def test_browser_session_can_probe_health_but_not_shutdown(monkeypatch) -> None:
         assert client.get("/api/health").status_code == 200
         assert client.get("/").status_code == 200
         assert client.get("/__xreport/shutdown").status_code == 401
-        assert client.get(
-            "/__xreport/shutdown",
-            headers={PRIVATE_TOKEN_HEADER: token},
-        ).status_code == 200
+        assert (
+            client.get(
+                "/__xreport/shutdown",
+                headers={PRIVATE_TOKEN_HEADER: token},
+            ).status_code
+            == 200
+        )

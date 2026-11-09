@@ -17,7 +17,6 @@ class CheckpointInputMismatchError(ValueError):
 
 ###############################################################################
 class CheckpointEvaluator:
-
     # -------------------------------------------------------------------------
     def __init__(
         self,

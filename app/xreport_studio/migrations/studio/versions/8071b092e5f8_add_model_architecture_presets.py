@@ -37,9 +37,7 @@ def upgrade() -> None:
             nullable=False,
         ),
         sa.PrimaryKeyConstraint("preset_id"),
-        sa.UniqueConstraint(
-            "name_key", name="uq_model_architecture_presets_name_key"
-        ),
+        sa.UniqueConstraint("name_key", name="uq_model_architecture_presets_name_key"),
     )
 
 

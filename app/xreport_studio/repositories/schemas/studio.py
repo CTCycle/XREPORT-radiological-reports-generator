@@ -421,7 +421,8 @@ class ValidationAggregate(StudioBase):
     p95: Mapped[float | None] = mapped_column(Float)
     __table_args__ = (
         CheckConstraint(
-            "domain IN ('text', 'image', 'token')", name="ck_validation_aggregates_domain"
+            "domain IN ('text', 'image', 'token')",
+            name="ck_validation_aggregates_domain",
         ),
         CheckConstraint("count >= 0", name="ck_validation_aggregates_count"),
     )

@@ -46,9 +46,19 @@ def _seed_legacy_runs(engine: sqlalchemy.Engine) -> None:
             "metrics": json.dumps(
                 ["text_statistics", "image_statistics", "pixels_distribution"]
             ),
-            "tc": 6, "tw": 60, "tu": 25, "ta": 10.0, "tmin": 4, "tmax": 20,
-            "ic": 6, "ih": 512.0, "iw": 480.0, "im": 100.5, "istd": 40.25,
-            "ins": 2.5, "inr": 0.06,
+            "tc": 6,
+            "tw": 60,
+            "tu": 25,
+            "ta": 10.0,
+            "tmin": 4,
+            "tmax": 20,
+            "ic": 6,
+            "ih": 512.0,
+            "iw": 480.0,
+            "im": 100.5,
+            "istd": 40.25,
+            "ins": 2.5,
+            "inr": 0.06,
             "bins": json.dumps(list(range(256))),
             "counts": json.dumps([1] * 256),
         }
@@ -56,9 +66,15 @@ def _seed_legacy_runs(engine: sqlalchemy.Engine) -> None:
             **full,
             "at": "2026-03-01 10:00:00",
             "metrics": json.dumps(["text_statistics"]),
-            "ic": 0, "ih": 0.0, "iw": 0.0, "im": 0.0, "istd": 0.0,
-            "ins": 0.0, "inr": 0.0,
-            "bins": json.dumps([]), "counts": json.dumps([]),
+            "ic": 0,
+            "ih": 0.0,
+            "iw": 0.0,
+            "im": 0.0,
+            "istd": 0.0,
+            "ins": 0.0,
+            "inr": 0.0,
+            "bins": json.dumps([]),
+            "counts": json.dumps([]),
         }
         connection.execute(statement, [full, text_only])
 
@@ -73,7 +89,10 @@ def test_legacy_statistics_are_backfilled_into_relational_tables(tmp_path) -> No
         command.upgrade(_config(path), "heads")
         with engine.connect() as connection:
             columns = {
-                item["name"] for item in sqlalchemy.inspect(connection).get_columns("validation_runs")
+                item["name"]
+                for item in sqlalchemy.inspect(connection).get_columns(
+                    "validation_runs"
+                )
             }
             assert "metrics_json" not in columns and "pixel_bins_json" not in columns
             runs = connection.exec_driver_sql(
@@ -97,14 +116,20 @@ def test_legacy_statistics_are_backfilled_into_relational_tables(tmp_path) -> No
             ).one()
             assert text == (6, 60.0, 4.0, 20.0, 10.0, None)
             # The text-only run never measured images, so no zero rows are invented.
-            assert connection.exec_driver_sql(
-                "SELECT COUNT(*) FROM validation_aggregates "
-                "WHERE validation_run_id = 2 AND domain = 'image'"
-            ).scalar_one() == 0
-            assert connection.exec_driver_sql(
-                "SELECT mean FROM validation_aggregates WHERE validation_run_id = 1 "
-                "AND measure = 'mean_intensity'"
-            ).scalar_one() == 100.5
+            assert (
+                connection.exec_driver_sql(
+                    "SELECT COUNT(*) FROM validation_aggregates "
+                    "WHERE validation_run_id = 2 AND domain = 'image'"
+                ).scalar_one()
+                == 0
+            )
+            assert (
+                connection.exec_driver_sql(
+                    "SELECT mean FROM validation_aggregates WHERE validation_run_id = 1 "
+                    "AND measure = 'mean_intensity'"
+                ).scalar_one()
+                == 100.5
+            )
             assert connection.exec_driver_sql(
                 "SELECT COUNT(*), SUM(count) FROM validation_histogram_bins "
                 "WHERE validation_run_id = 1 AND histogram = 'pixel_intensity'"
@@ -133,6 +158,9 @@ def test_downgrade_restores_legacy_columns_and_values(tmp_path) -> None:
                 "text_statistics",
             ]
             assert row[1:] == (60, 6, 100.5)
-            assert "validation_aggregates" not in sqlalchemy.inspect(connection).get_table_names()
+            assert (
+                "validation_aggregates"
+                not in sqlalchemy.inspect(connection).get_table_names()
+            )
     finally:
         engine.dispose()

@@ -73,9 +73,7 @@ def _arguments() -> argparse.Namespace:
         "--case-manifest",
         type=Path,
         required=True,
-        help=(
-            "JSON manifest describing independent image-to-report validation cases."
-        ),
+        help=("JSON manifest describing independent image-to-report validation cases."),
     )
     parser.add_argument(
         "--receipt-path",
@@ -184,7 +182,9 @@ def _configure_validation_cache() -> Path | None:
     import transformers.utils.hub as transformers_hub  # pyright: ignore[reportMissingImports]
 
     transformers_hub.HF_MODULES_CACHE = str(modules_cache)
-    from xreport_inference.models.inference.providers import huggingface as huggingface_module
+    from xreport_inference.models.inference.providers import (
+        huggingface as huggingface_module,
+    )
 
     huggingface_module.HF_MODULES_CACHE = str(modules_cache)
     return modules_cache
@@ -343,7 +343,6 @@ def validate_cached_model(
     manifest = selected.model_dump(mode="json")
     manifest["revision"] = selected.model_revision
 
-
     ###############################################################################
     class RecordingRepository:
         saved_reports: list[dict[str, str]] = []
@@ -478,7 +477,9 @@ def validate_cached_model(
     ]:
         raise RuntimeError("Raw report text changed at the persistence boundary")
     if not {"display_sections", "provenance"}.issubset(recorder.generation_config):
-        raise RuntimeError("Persistence metadata omitted display sections or provenance")
+        raise RuntimeError(
+            "Persistence metadata omitted display sections or provenance"
+        )
 
     runtime_metadata = provenance.get("runtime")
     if not isinstance(runtime_metadata, dict):
@@ -627,7 +628,6 @@ def validate_cached_cases(
     manifest = selected.model_dump(mode="json")
     manifest["revision"] = selected.model_revision
 
-
     ###############################################################################
     class RecordingRepository:
         saved_reports: list[dict[str, str]] = []
@@ -762,9 +762,7 @@ def validate_cached_cases(
                 "generation_profile": case.profile,
                 "error": str(exc),
                 "total_seconds": time.perf_counter() - started,
-                "generation_seconds": sum(
-                    generation_seconds[generation_count_before:]
-                ),
+                "generation_seconds": sum(generation_seconds[generation_count_before:]),
                 "peak_cuda_memory_bytes": _peak_memory(),
             }
 
@@ -782,9 +780,7 @@ def validate_cached_cases(
                     or f"Validation job ended as {job_status.get('status')}"
                 ),
                 "total_seconds": total_seconds,
-                "generation_seconds": sum(
-                    generation_seconds[generation_count_before:]
-                ),
+                "generation_seconds": sum(generation_seconds[generation_count_before:]),
                 "peak_cuda_memory_bytes": _peak_memory(),
             }
 
@@ -826,13 +822,9 @@ def validate_cached_cases(
                 or metadata.get("clinical_context") != case.clinical_context
             ):
                 errors.append("The independent case input contract was not preserved")
-        if recorder.saved_reports != [
-            {"image": fixture["filename"], "report": report}
-        ]:
+        if recorder.saved_reports != [{"image": fixture["filename"], "report": report}]:
             errors.append("Raw report text changed at the persistence boundary")
-        if not {"display_sections", "provenance"}.issubset(
-            recorder.generation_config
-        ):
+        if not {"display_sections", "provenance"}.issubset(recorder.generation_config):
             errors.append("Persistence metadata omitted display sections or provenance")
 
         case_result: dict[str, object] = {
@@ -846,9 +838,7 @@ def validate_cached_cases(
             "provenance": provenance,
             "input_metadata": input_metadata,
             "total_seconds": total_seconds,
-            "generation_seconds": sum(
-                generation_seconds[generation_count_before:]
-            ),
+            "generation_seconds": sum(generation_seconds[generation_count_before:]),
             "peak_cuda_memory_bytes": _peak_memory(),
         }
         if errors:
@@ -898,16 +888,13 @@ def validate_cached_cases(
                     if item["case_id"] == repeat_case[0].case_id
                 )
                 repeat_errors = repeat_case_result.get("errors")
-                repeat_errors = (
-                    repeat_errors if isinstance(repeat_errors, list) else []
-                )
+                repeat_errors = repeat_errors if isinstance(repeat_errors, list) else []
                 report_reused = repeat_case_result.get("report") == initial.get(
                     "report"
                 )
-                sections_reused = (
-                    repeat_case_result.get("display_sections")
-                    == initial.get("display_sections")
-                )
+                sections_reused = repeat_case_result.get(
+                    "display_sections"
+                ) == initial.get("display_sections")
                 repeat_ok = (
                     not repeat_case_result.get("error")
                     and not repeat_errors
@@ -938,8 +925,7 @@ def validate_cached_cases(
         if isinstance(report, str) and report.strip():
             completed.append(result)
     reports = {
-        str(result["filename"]): cast(str, result["report"])
-        for result in completed
+        str(result["filename"]): cast(str, result["report"]) for result in completed
     }
     display_sections = {
         str(result["filename"]): result["display_sections"]
@@ -975,9 +961,8 @@ def validate_cached_cases(
                 )
             )
     unique_report_count = len(set(reports.values()))
-    repeat_ok = (
-        repeat_case_id is None
-        or (repeat_result is not None and repeat_result.get("reuse_ok") is True)
+    repeat_ok = repeat_case_id is None or (
+        repeat_result is not None and repeat_result.get("reuse_ok") is True
     )
     technical_passed = (
         not errors
@@ -1078,7 +1063,9 @@ def validate_cached_cases(
             else RECEIPT_DIR / f"{_slug(model_ref)}-{selected.model_revision}.json"
         ).resolve()
         receipt.parent.mkdir(parents=True, exist_ok=True)
-        receipt.write_text(json.dumps(payload, indent=2, sort_keys=True), encoding="utf-8")
+        receipt.write_text(
+            json.dumps(payload, indent=2, sort_keys=True), encoding="utf-8"
+        )
         try:
             payload["receipt"] = str(receipt.relative_to(ROOT_DIR))
         except ValueError:

@@ -11,7 +11,6 @@ from keras.saving import register_keras_serializable
 ###############################################################################
 @register_keras_serializable(package="WarmUpLRScheduler")
 class WarmUpLRScheduler(LearningRateSchedule):
-
     # -------------------------------------------------------------------------
     def __init__(
         self, post_warmup_LR: float, warmup_steps: int | float, **kwargs

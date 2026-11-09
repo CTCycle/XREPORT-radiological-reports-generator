@@ -48,7 +48,9 @@ from xreport_inference.repositories.serialization.inference import InferenceRepo
 from xreport_shared.configurations import ServerSettings
 from xreport_shared.services.settings import get_inference_settings, get_server_settings
 from xreport_inference.services.inference_catalog import InferenceModelCatalog
-from xreport_inference.models.inference.providers.xreport import XReportCheckpointProvider
+from xreport_inference.models.inference.providers.xreport import (
+    XReportCheckpointProvider,
+)
 from xreport_inference.services.model_installation import (
     InstallationCancelled,
     InstallationError,
@@ -57,7 +59,9 @@ from xreport_inference.services.model_installation import (
 from xreport_shared.repositories.checkpoints import CheckpointRepository
 
 if TYPE_CHECKING:
-    from xreport_inference.models.inference.providers.huggingface import HuggingFaceProvider
+    from xreport_inference.models.inference.providers.huggingface import (
+        HuggingFaceProvider,
+    )
     from xreport_inference.services.inference_runtime import InferenceRuntimeCoordinator
 
 
@@ -107,7 +111,6 @@ def _sanitize_filename(filename: str) -> str:
 
 ###############################################################################
 class InferenceImageStore:
-
     # -------------------------------------------------------------------------
     def __init__(self) -> None:
         self.storage: dict[str, list[InferenceImage]] = {}
@@ -153,7 +156,9 @@ def get_inference_image_store() -> InferenceImageStore:
 @lru_cache(maxsize=1)
 def get_huggingface_provider() -> HuggingFaceProvider:
     # Deferred: the provider module imports torch and transformers at load time.
-    from xreport_inference.models.inference.providers.huggingface import HuggingFaceProvider
+    from xreport_inference.models.inference.providers.huggingface import (
+        HuggingFaceProvider,
+    )
 
     return HuggingFaceProvider(
         get_inference_settings(),
@@ -294,7 +299,9 @@ def generate_per_image(
                 **generate_kwargs,
             )
         except Exception as exc:  # noqa: BLE001
-            logger.exception("Inference failed for image %s in job %s", image.filename, job_id)
+            logger.exception(
+                "Inference failed for image %s in job %s", image.filename, job_id
+            )
             # Keep the error without its traceback: the failed frames hold
             # device tensors that must not outlive this image.
             first_error = first_error or exc.with_traceback(None)
@@ -560,15 +567,17 @@ class InferenceService:
     # -------------------------------------------------------------------------
     def release_runtime_memory(self) -> RuntimeReleaseResponse:
         """Unload the resident model unless inference or model maintenance is active."""
-        if self.job_manager.is_job_running(self.JOB_TYPE) or self.job_manager.is_job_running(
-            "model_maintenance"
-        ):
+        if self.job_manager.is_job_running(
+            self.JOB_TYPE
+        ) or self.job_manager.is_job_running("model_maintenance"):
             raise ConflictError(
                 detail="Model memory cannot be released while inference or a model download is running."
             )
         if self._runtime is None and get_inference_runtime.cache_info().currsize == 0:
             # No model was ever loaded; avoid importing the model runtimes.
-            from xreport_inference.services.inference_runtime import release_framework_memory
+            from xreport_inference.services.inference_runtime import (
+                release_framework_memory,
+            )
 
             release_framework_memory()
             return RuntimeReleaseResponse(released=False)
@@ -577,7 +586,9 @@ class InferenceService:
             raise ConflictError(
                 detail="Model memory cannot be released while inference is running."
             )
-        return RuntimeReleaseResponse(released=model_ref is not None, model_ref=model_ref)
+        return RuntimeReleaseResponse(
+            released=model_ref is not None, model_ref=model_ref
+        )
 
     # -------------------------------------------------------------------------
     def _current_settings(self) -> ServerSettings:
@@ -805,7 +816,9 @@ class InferenceService:
             raise BadRequestError(detail=str(exc)) from exc
         except Exception as exc:  # noqa: BLE001
             logger.exception("Failed to list inference history")
-            raise InternalServiceError(detail="Unable to load inference history") from exc
+            raise InternalServiceError(
+                detail="Unable to load inference history"
+            ) from exc
         return InferenceHistoryResponse.model_validate(payload)
 
     # -------------------------------------------------------------------------
@@ -814,7 +827,9 @@ class InferenceService:
             payload = self.repository.get_inference_history(request_id)
         except Exception as exc:  # noqa: BLE001
             logger.exception("Failed to load inference history %s", request_id)
-            raise InternalServiceError(detail="Unable to load inference history") from exc
+            raise InternalServiceError(
+                detail="Unable to load inference history"
+            ) from exc
         if payload is None:
             raise NotFoundError(detail=f"Inference history not found: {request_id}")
         return InferenceHistoryDetail.model_validate(payload)
@@ -832,7 +847,9 @@ class InferenceService:
             raise BadRequestError(detail=str(exc)) from exc
         except Exception as exc:  # noqa: BLE001
             logger.exception("Failed to update inference history %s", request_id)
-            raise InternalServiceError(detail="Unable to update inference history") from exc
+            raise InternalServiceError(
+                detail="Unable to update inference history"
+            ) from exc
         if payload is None:
             raise NotFoundError(detail=f"Inference history not found: {request_id}")
         return InferenceHistoryDetail.model_validate(payload)
@@ -843,7 +860,9 @@ class InferenceService:
             deleted = self.repository.delete_inference_history(request_id)
         except Exception as exc:  # noqa: BLE001
             logger.exception("Failed to delete inference history %s", request_id)
-            raise InternalServiceError(detail="Unable to delete inference history") from exc
+            raise InternalServiceError(
+                detail="Unable to delete inference history"
+            ) from exc
         if not deleted:
             raise NotFoundError(detail=f"Inference history not found: {request_id}")
         return InferenceHistoryDeleteResponse(
@@ -926,8 +945,7 @@ class InferenceService:
         if len(images) > image_limit:
             raise BadRequestError(
                 detail=(
-                    "Selected model accepts at most "
-                    f"{image_limit} current image(s)"
+                    f"Selected model accepts at most {image_limit} current image(s)"
                 ),
             )
         self.validate_inference_images(images)

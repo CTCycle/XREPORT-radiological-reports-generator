@@ -8,7 +8,10 @@ from sqlalchemy import delete, func, select
 from sqlalchemy.orm import selectinload
 
 from xreport_shared.repositories.checkpoints import CheckpointRepository
-from xreport_inference.repositories.schemas.inference import InferenceReport, InferenceRun
+from xreport_inference.repositories.schemas.inference import (
+    InferenceReport,
+    InferenceRun,
+)
 from xreport_shared.repositories.schemas.normalization import normalize_key
 from xreport_shared.repositories.serialization.support import RepositorySupport
 
@@ -103,7 +106,11 @@ class InferenceRepository(RepositorySupport):
     # -------------------------------------------------------------------------
     @staticmethod
     def _effective_report(report: InferenceReport) -> str:
-        return report.edited_report if report.edited_report is not None else report.generated_report
+        return (
+            report.edited_report
+            if report.edited_report is not None
+            else report.generated_report
+        )
 
     # -------------------------------------------------------------------------
     @classmethod
@@ -122,7 +129,8 @@ class InferenceRepository(RepositorySupport):
                 (
                     candidate
                     for name, candidate in display_sections.items()
-                    if normalize_key(str(name)) == normalize_key(report.input_image_name)
+                    if normalize_key(str(name))
+                    == normalize_key(report.input_image_name)
                     and isinstance(candidate, dict)
                 ),
                 None,
@@ -137,7 +145,9 @@ class InferenceRepository(RepositorySupport):
 
     # -------------------------------------------------------------------------
     @classmethod
-    def _report_summary(cls, run: InferenceRun, report: InferenceReport) -> dict[str, Any]:
+    def _report_summary(
+        cls, run: InferenceRun, report: InferenceReport
+    ) -> dict[str, Any]:
         effective = cls._effective_report(report)
         preview = " ".join(effective.split())[:280]
         return {
@@ -150,7 +160,9 @@ class InferenceRepository(RepositorySupport):
 
     # -------------------------------------------------------------------------
     @classmethod
-    def _report_detail(cls, run: InferenceRun, report: InferenceReport) -> dict[str, Any]:
+    def _report_detail(
+        cls, run: InferenceRun, report: InferenceReport
+    ) -> dict[str, Any]:
         return {
             "image_index": report.image_index,
             "input_image_name": report.input_image_name,
@@ -188,8 +200,12 @@ class InferenceRepository(RepositorySupport):
                 "image_names": [report.input_image_name for report in reports],
                 "report_count": len(reports),
                 "provenance_available": bool(
-                    isinstance(cls._parse_json(run.generation_config_json, default={}), dict)
-                    and cls._parse_json(run.generation_config_json, default={}).get("provenance")
+                    isinstance(
+                        cls._parse_json(run.generation_config_json, default={}), dict
+                    )
+                    and cls._parse_json(run.generation_config_json, default={}).get(
+                        "provenance"
+                    )
                 ),
             }
         )

@@ -14,40 +14,35 @@ import numpy as np
 from transformers import StoppingCriteriaList
 from xreport_shared.configurations import InferenceSettings
 from xreport_inference.domain.inference import InferenceImage
-from xreport_inference.models.inference.providers.adapters import MedGemmaAdapter, StudyGeneration
-from xreport_inference.models.inference.providers import huggingface as huggingface_module
+from xreport_inference.models.inference.providers.adapters import (
+    MedGemmaAdapter,
+    StudyGeneration,
+)
+from xreport_inference.models.inference.providers import (
+    huggingface as huggingface_module,
+)
 from xreport_inference.models.inference.providers.huggingface import HuggingFaceProvider
 from xreport_inference.configurations.inference_models import embedded_inference_models
 from xreport_inference.services.inference_runtime import InferenceRuntimeCoordinator
-from xreport_inference.services.inference_catalog import validation_contract_hash, InferenceModelCatalog
+from xreport_inference.services.inference_catalog import (
+    validation_contract_hash,
+    InferenceModelCatalog,
+)
 from collections.abc import Callable, Mapping
 from pathlib import Path
 from typing import Any
 from xreport_shared.common.path import ROOT_DIR
-from xreport_inference.services.model_installation import ModelInstallationManager, InstallationError
+from xreport_inference.services.model_installation import (
+    ModelInstallationManager,
+    InstallationError,
+)
 from xreport_shared.common import path as path_module
 from xreport_shared.common.runtime_layout import RuntimeLayout
 from xreport_inference.services import model_installation as installation_module
 from xreport_inference.services.model_storage import ModelStorageLifecycle
-from xreport_inference.models.inference.providers.xreport import XReportCheckpointProvider
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+from xreport_inference.models.inference.providers.xreport import (
+    XReportCheckpointProvider,
+)
 
 
 HUGGINGFACE_REVISION = "a" * 40
@@ -72,7 +67,6 @@ def _png() -> bytes:
 
 ###############################################################################
 class Inputs(dict[str, torch.Tensor]):
-
     # -------------------------------------------------------------------------
     def to(self, *_args: object, **_kwargs: object) -> "Inputs":
         return self
@@ -205,7 +199,10 @@ def test_generate_uses_manifest_loaders_revision_and_records_dimensions(
 
     result = HuggingFaceProvider(_huggingface_settings()).generate(
         repository_id="google/medgemma-1.5-4b-it",
-        manifest={**_huggingface_manifest(), "local_snapshot_path": str(snapshot_path.resolve())},
+        manifest={
+            **_huggingface_manifest(),
+            "local_snapshot_path": str(snapshot_path.resolve()),
+        },
         profile="deterministic",
         clinical_context="Cough",
         images=[
@@ -485,7 +482,9 @@ def test_failed_model_load_leaves_no_resident_state(monkeypatch, tmp_path) -> No
 
 
 ###############################################################################
-def _resident_coordinator(**kwargs: Any) -> tuple[InferenceRuntimeCoordinator, MagicMock]:
+def _resident_coordinator(
+    **kwargs: Any,
+) -> tuple[InferenceRuntimeCoordinator, MagicMock]:
     provider = MagicMock()
     provider.loaded_repository = "model-a"
     provider.unload.side_effect = lambda: setattr(provider, "loaded_repository", None)
@@ -560,14 +559,18 @@ def test_idle_watcher_keeps_model_when_timeout_is_disabled() -> None:
 
 
 ###############################################################################
-def test_xreport_checkpoint_stays_resident_until_released(monkeypatch, tmp_path) -> None:
+def test_xreport_checkpoint_stays_resident_until_released(
+    monkeypatch, tmp_path
+) -> None:
     from xreport_shared.repositories.serialization import model as serializer_module
     from xreport_inference.services import inference_runtime as runtime_module
 
     framework_release = MagicMock()
     monkeypatch.setattr(runtime_module, "release_framework_memory", framework_release)
     loaded = MagicMock()
-    load_checkpoint = MagicMock(return_value=(loaded, {}, {"max_report_size": 10}, {}, ""))
+    load_checkpoint = MagicMock(
+        return_value=(loaded, {}, {"max_report_size": 10}, {}, "")
+    )
     monkeypatch.setattr(
         serializer_module.ModelSerializer,
         "load_checkpoint",
@@ -601,7 +604,9 @@ def test_generation_reads_timeout_provider_once_for_start_deadline(monkeypatch) 
         timeout_reads += 1
         return 5
 
-    provider = HuggingFaceProvider(_huggingface_settings(), timeout_provider=read_timeout)
+    provider = HuggingFaceProvider(
+        _huggingface_settings(), timeout_provider=read_timeout
+    )
     adapter = MagicMock()
     adapter.supports_study = False
     deadlines: list[float] = []
@@ -615,7 +620,9 @@ def test_generation_reads_timeout_provider_once_for_start_deadline(monkeypatch) 
         "_validate_images",
         staticmethod(lambda _repository_id, _huggingface_manifest, _images: None),
     )
-    monkeypatch.setattr(provider, "_load", lambda _huggingface_manifest: (object(), object(), adapter))
+    monkeypatch.setattr(
+        provider, "_load", lambda _huggingface_manifest: (object(), object(), adapter)
+    )
     monkeypatch.setattr(
         provider,
         "_generate_image",
@@ -624,12 +631,18 @@ def test_generation_reads_timeout_provider_once_for_start_deadline(monkeypatch) 
             ("report", {}, {"raw_report": "report"}),
         )[1],
     )
-    monkeypatch.setattr(provider, "_check_deadline", lambda _repository_id, _deadline: None)
+    monkeypatch.setattr(
+        provider, "_check_deadline", lambda _repository_id, _deadline: None
+    )
     monkeypatch.setattr(huggingface_module.time, "monotonic", lambda: 100.0)
 
     result = provider.generate(
         repository_id="model",
-        manifest={**_huggingface_manifest(), "repository_id": "model", "output_sections": ["raw_report"]},
+        manifest={
+            **_huggingface_manifest(),
+            "repository_id": "model",
+            "output_sections": ["raw_report"],
+        },
         profile="deterministic",
         clinical_context="",
         images=[InferenceImage("image.png", "image/png", _png(), len(_png()))],
@@ -648,7 +661,6 @@ def test_study_generation_runs_in_inference_mode_and_receives_stopping_criteria(
 ) -> None:
     provider = HuggingFaceProvider(_huggingface_settings())
     observed: dict[str, object] = {}
-
 
     ###############################################################################
     class StudyAdapter:
@@ -711,14 +723,27 @@ def test_study_generation_runs_in_inference_mode_and_receives_stopping_criteria(
 ###############################################################################
 def test_device_policy_and_dtype_selection(monkeypatch) -> None:
     assert HuggingFaceProvider(_huggingface_settings())._device_map() == "cpu"
-    assert HuggingFaceProvider(
-        InferenceSettings(hf_local_only=True, device="auto", model_timeout=600, model_idle_timeout=300)
-    )._device_map() == "auto"
+    assert (
+        HuggingFaceProvider(
+            InferenceSettings(
+                hf_local_only=True,
+                device="auto",
+                model_timeout=600,
+                model_idle_timeout=300,
+            )
+        )._device_map()
+        == "auto"
+    )
 
     monkeypatch.setattr(huggingface_module.torch.cuda, "is_available", lambda: False)
     with pytest.raises(RuntimeError, match="CUDA.*unavailable"):
         HuggingFaceProvider(
-            InferenceSettings(hf_local_only=True, device="cuda", model_timeout=600, model_idle_timeout=300)
+            InferenceSettings(
+                hf_local_only=True,
+                device="cuda",
+                model_timeout=600,
+                model_idle_timeout=300,
+            )
         )._device_map()
     assert HuggingFaceProvider._dtype("auto") is torch.float32
 
@@ -788,7 +813,9 @@ def test_move_inputs_uses_accelerate_input_device_map(monkeypatch) -> None:
         hf_device_map={"model.embed_tokens": "cuda:0", "lm_head": "cpu"},
         dtype=torch.bfloat16,
     )
-    runtime = HuggingFaceProvider(_huggingface_settings())._runtime_metadata(distributed)
+    runtime = HuggingFaceProvider(_huggingface_settings())._runtime_metadata(
+        distributed
+    )
     assert runtime["resolved_devices"] == ["cuda:0", "cpu"]
     assert runtime["resolved_device"] == "cuda:0"
     assert runtime["model_dtype"] == "torch.bfloat16"
@@ -797,7 +824,9 @@ def test_move_inputs_uses_accelerate_input_device_map(monkeypatch) -> None:
 
 
 ###############################################################################
-def test_move_inputs_supports_mocked_cuda_without_casting_token_ids(monkeypatch) -> None:
+def test_move_inputs_supports_mocked_cuda_without_casting_token_ids(
+    monkeypatch,
+) -> None:
     calls: list[tuple[object, ...]] = []
 
     def fake_to(self, *args: object, **kwargs: object):
@@ -876,10 +905,7 @@ def test_embedded_catalog_contains_unique_sha_pinned_public_models() -> None:
         "huggingface:aehrc/cxrmate-2": "aa8e2d16470e20671acf049687b4707c9bf2f2b5",
         "huggingface:google/medgemma-1.5-4b-it": "91850547d9f0b2fdd21aa7c5f4f3d1a8a52c243b",
     }
-    assert {
-        entry.model_ref: validation_contract_hash(entry)
-        for entry in models
-    } == {
+    assert {entry.model_ref: validation_contract_hash(entry) for entry in models} == {
         "huggingface:aehrc/cxrmate-multi-tf": "4feea8f90fba6c26881d35e6178fcc878eb56a8ed53df717d74f856d6df92ee7",
         "huggingface:StanfordAIMI/CheXOne": "06314a6921f88ddecbaa25cd9eef44e0cbab78701b06319de11feffbd930dc4e",
         "huggingface:aehrc/cxrmate-2": "cc03947d5f74291f602c9c05e341d58d43fab9883f18637278fe35ee24f0a1c1",
@@ -919,7 +945,6 @@ def _catalog_settings(*, hf_local_only: bool = True) -> InferenceSettings:
 
 ###############################################################################
 class _InstallationManager(ModelInstallationManager):
-
     # -------------------------------------------------------------------------
     def __init__(
         self,
@@ -1025,14 +1050,7 @@ def test_catalog_exposes_chexone_findings_only_contract() -> None:
 
 ###############################################################################
 def test_catalog_marks_verified_active_installation_ready() -> None:
-    active_path = (
-        ROOT_DIR
-        / "data"
-        / "models"
-        / "huggingface"
-        / "installed"
-        / "active"
-    )
+    active_path = ROOT_DIR / "data" / "models" / "huggingface" / "installed" / "active"
     response = _catalog(
         [],
         inspect_installation=lambda manifest: {
@@ -1053,20 +1071,6 @@ def test_catalog_marks_verified_active_installation_ready() -> None:
     assert model.installation_state == "active"
     assert model.integrity_status == "verified"
     assert model.local_path == "data/models/huggingface/installed/active"
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 INSTALLATION_REVISION = "a" * 40
@@ -1104,7 +1108,6 @@ def _active_metadata(
 
 ###############################################################################
 class FakeApi:
-
     # -------------------------------------------------------------------------
     def __init__(self, revision: str = INSTALLATION_REVISION) -> None:
         self.revision = revision
@@ -1285,7 +1288,6 @@ def test_http_downloader_resumes_partial_weight_file(
     partial.write_bytes(b"o")
     calls: list[dict[str, object]] = []
 
-
     ###############################################################################
     class FakeResponse:
         status_code = 206
@@ -1337,7 +1339,9 @@ def test_check_update_reports_update_only_against_an_active_revision(
     assert not_installed["latest_revision"] == NEXT_REVISION
 
     installed = (
-        installation_module.HF_INSTALLED_DIR / "example__report-model" / INSTALLATION_REVISION
+        installation_module.HF_INSTALLED_DIR
+        / "example__report-model"
+        / INSTALLATION_REVISION
     )
     installed.mkdir(parents=True)
     manager._write_metadata(
@@ -1393,7 +1397,9 @@ def test_activation_preserves_previous_revision_for_rollback(
         should_stop=lambda: False,
         report_progress=lambda _payload: None,
     )
-    metadata = manager.activate(manifest=_installation_manifest(NEXT_REVISION), target=second)
+    metadata = manager.activate(
+        manifest=_installation_manifest(NEXT_REVISION), target=second
+    )
 
     assert metadata["active_revision"] == NEXT_REVISION
     assert metadata["rollback"]["revision"] == INSTALLATION_REVISION
@@ -1405,7 +1411,9 @@ def test_corrupt_active_snapshot_is_marked_and_rejected(manager_paths: Path) -> 
     del manager_paths
     manager = ModelInstallationManager(api=FakeApi())
     installed = (
-        installation_module.HF_INSTALLED_DIR / "example__report-model" / INSTALLATION_REVISION
+        installation_module.HF_INSTALLED_DIR
+        / "example__report-model"
+        / INSTALLATION_REVISION
     )
     installed.mkdir(parents=True)
     for filename in ("config.json", "tokenizer.json", "model.safetensors"):
@@ -1434,7 +1442,9 @@ def test_cancelled_maintenance_preserves_working_active_revision(
     del manager_paths
     manager = ModelInstallationManager(api=FakeApi())
     installed = (
-        installation_module.HF_INSTALLED_DIR / "example__report-model" / INSTALLATION_REVISION
+        installation_module.HF_INSTALLED_DIR
+        / "example__report-model"
+        / INSTALLATION_REVISION
     )
     installed.mkdir(parents=True)
     for filename in ("config.json", "tokenizer.json", "model.safetensors"):
@@ -1487,11 +1497,21 @@ def test_delete_local_removes_only_repository_owned_storage_and_reports_bytes(
     slug = "example__report-model"
     installed = installation_module.HF_INSTALLED_DIR / slug / INSTALLATION_REVISION
     rollback = installation_module.HF_ROLLBACK_DIR / slug / NEXT_REVISION
-    staged = installation_module.HF_STAGING_DIR / "operation" / slug / INSTALLATION_REVISION
+    staged = (
+        installation_module.HF_STAGING_DIR / "operation" / slug / INSTALLATION_REVISION
+    )
     hub_cache = manager_paths / "runtimes" / "cache" / "huggingface" / "hub"
-    cache = hub_cache / "models--example--report-model" / "snapshots" / INSTALLATION_REVISION
+    cache = (
+        hub_cache
+        / "models--example--report-model"
+        / "snapshots"
+        / INSTALLATION_REVISION
+    )
     unrelated = (
-        installation_module.HF_STAGING_DIR / "operation" / "other__model" / INSTALLATION_REVISION
+        installation_module.HF_STAGING_DIR
+        / "operation"
+        / "other__model"
+        / INSTALLATION_REVISION
     )
     for path in (installed, rollback, staged, cache, unrelated):
         path.mkdir(parents=True, exist_ok=True)
@@ -1561,14 +1581,11 @@ def test_generate_rejects_empty_checkpoint_report(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
 
-
     ###############################################################################
     class FakeModel:
-
         # -------------------------------------------------------------------------
         def summary(self, *, expand_nested: bool) -> None:
             del expand_nested
-
 
     ###############################################################################
     class FakeGenerator:
@@ -1582,18 +1599,14 @@ def test_generate_rejects_empty_checkpoint_report(
         def load_tokenizer_and_configuration(self):
             return FakeTokenizer(), {}
 
-
     ###############################################################################
     class FakeTokenizer:
-
         # -------------------------------------------------------------------------
         def get_vocab(self) -> dict[str, int]:
             return {"[CLS]": 0}
 
-
     ###############################################################################
     class FakeDataLoader:
-
         # -------------------------------------------------------------------------
         def __init__(self, *args, **kwargs) -> None:
             del args, kwargs

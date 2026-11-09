@@ -7,14 +7,10 @@ import time
 from pathlib import Path
 
 
-
-
-
-
-
-
 SCRIPT_PATH = Path(__file__).parents[2] / "scripts" / "validate_resilience_baseline.py"
-_SPEC = importlib.util.spec_from_file_location("validate_resilience_baseline", SCRIPT_PATH)
+_SPEC = importlib.util.spec_from_file_location(
+    "validate_resilience_baseline", SCRIPT_PATH
+)
 assert _SPEC is not None and _SPEC.loader is not None
 resilience = importlib.util.module_from_spec(_SPEC)
 sys.modules[_SPEC.name] = resilience
@@ -125,10 +121,8 @@ def test_device_lane_assertion_fails_when_provenance_is_missing(tmp_path: Path) 
 ###############################################################################
 def test_job_poller_rejects_an_unexpected_terminal_status() -> None:
 
-
     ###############################################################################
     class FakeApi:
-
         # -------------------------------------------------------------------------
         def job_status(self, job_id: str) -> dict[str, object]:
             assert job_id == "job-1"

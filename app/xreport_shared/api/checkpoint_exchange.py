@@ -15,7 +15,6 @@ from xreport_shared.services.checkpoint_exchange import (
 
 ###############################################################################
 class CheckpointExchangeEndpoint:
-
     # -------------------------------------------------------------------------
     def __init__(
         self, router: APIRouter, service: CheckpointExchangeService | None = None
@@ -37,9 +36,7 @@ class CheckpointExchangeEndpoint:
         rename_to: str | None = Form(default=None),
     ) -> JobStartResponse:
         staged = await self.service.stage_upload(file.read)
-        return self.service.start_import(
-            staged, (rename_to or "").strip() or None
-        )
+        return self.service.start_import(staged, (rename_to or "").strip() or None)
 
     # -------------------------------------------------------------------------
     def export_checkpoint(self, request: ExportRequest) -> JobStartResponse:
@@ -48,9 +45,7 @@ class CheckpointExchangeEndpoint:
     # -------------------------------------------------------------------------
     def download_export(self, filename: str) -> FileResponse:
         path: Path = self.service.resolve_export_path(filename)
-        return FileResponse(
-            path, media_type="application/zip", filename=path.name
-        )
+        return FileResponse(path, media_type="application/zip", filename=path.name)
 
     # -------------------------------------------------------------------------
     def add_import_routes(self) -> None:

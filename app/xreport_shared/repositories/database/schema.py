@@ -50,6 +50,7 @@ class SchemaRegistration:
     history: tuple[str, ...]
     migrations_dir: Path
 
+
 _REGISTRATIONS: dict[str, SchemaRegistration] = {}
 
 

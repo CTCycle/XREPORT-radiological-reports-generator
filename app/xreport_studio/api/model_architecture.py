@@ -11,12 +11,14 @@ from xreport_studio.domain.model_architecture import (
     CheckpointArchitectureResponse,
     EncodersResponse,
 )
-from xreport_studio.services.model_architecture import ModelArchitectureService, get_model_architecture_service
+from xreport_studio.services.model_architecture import (
+    ModelArchitectureService,
+    get_model_architecture_service,
+)
 
 
 ###############################################################################
 class ModelArchitectureEndpoint:
-
     # -------------------------------------------------------------------------
     def __init__(
         self,
@@ -61,7 +63,9 @@ class ModelArchitectureEndpoint:
         return self.service.restore_builtin_presets()
 
     # -------------------------------------------------------------------------
-    def preview(self, request: ArchitecturePreviewRequest) -> ArchitecturePreviewResponse:
+    def preview(
+        self, request: ArchitecturePreviewRequest
+    ) -> ArchitecturePreviewResponse:
         return self.service.preview(request)
 
     # -------------------------------------------------------------------------

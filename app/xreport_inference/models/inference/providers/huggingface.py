@@ -114,7 +114,9 @@ class HuggingFaceProvider:
                     clinical_context,
                 )
             model, processor, adapter = self._load(normalized)
-            current = self.settings_provider() if self.settings_provider else self.settings
+            current = (
+                self.settings_provider() if self.settings_provider else self.settings
+            )
             adapter.generation_limits = GenerationLimits(
                 max_new_tokens_deterministic=current.max_new_tokens_deterministic,
                 max_new_tokens_concise=current.max_new_tokens_concise,
@@ -573,7 +575,11 @@ class HuggingFaceProvider:
     # -------------------------------------------------------------------------
     def unload(self) -> None:
         with self._lock:
-            if self._model is None and self._processor is None and self._adapter is None:
+            if (
+                self._model is None
+                and self._processor is None
+                and self._adapter is None
+            ):
                 return
             self._model = None
             self._processor = None
@@ -622,7 +628,7 @@ class HuggingFaceProvider:
         if isinstance(value, str) and value.strip():
             try:
                 return torch.device(value.strip())
-            except (RuntimeError, TypeError):
+            except RuntimeError, TypeError:
                 return None
         return None
 
@@ -647,7 +653,7 @@ class HuggingFaceProvider:
             embeddings = get_input_embeddings()
             weight = getattr(embeddings, "weight", None)
             device = cls._as_device(getattr(weight, "device", None))
-        except (AttributeError, RuntimeError, TypeError):
+        except AttributeError, RuntimeError, TypeError:
             return None
         return device if device is not None and device.type != "meta" else None
 
@@ -702,7 +708,7 @@ class HuggingFaceProvider:
         try:
             parameter = next(iter(cast(Iterable[Any], parameters())))
             device = cls._as_device(getattr(parameter, "device", None))
-        except (AttributeError, RuntimeError, StopIteration, TypeError):
+        except AttributeError, RuntimeError, StopIteration, TypeError:
             return None
         return device if device is not None and device.type != "meta" else None
 
@@ -736,7 +742,7 @@ class HuggingFaceProvider:
                 parameter_dtype = getattr(parameter, "dtype", None)
                 if isinstance(parameter_dtype, torch.dtype):
                     return parameter_dtype
-            except (AttributeError, RuntimeError, StopIteration, TypeError):
+            except AttributeError, RuntimeError, StopIteration, TypeError:
                 pass
         return None
 
@@ -749,8 +755,7 @@ class HuggingFaceProvider:
             labels.extend(
                 label
                 for value in device_map.values()
-                if (label := cls._device_label(value)) is not None
-                and label != "meta"
+                if (label := cls._device_label(value)) is not None and label != "meta"
             )
         if not labels:
             for value in (
@@ -768,7 +773,7 @@ class HuggingFaceProvider:
                         label = cls._device_label(getattr(parameter, "device", None))
                         if label is not None and label != "meta":
                             labels.append(label)
-                    except (AttributeError, RuntimeError, StopIteration, TypeError):
+                    except AttributeError, RuntimeError, StopIteration, TypeError:
                         pass
         return list(dict.fromkeys(labels))
 
@@ -776,7 +781,9 @@ class HuggingFaceProvider:
     def _runtime_metadata(self, model: Any) -> dict[str, Any]:
         resolved_devices = self._resolved_devices(model)
         input_device = self._device_label(self._input_device(model))
-        resolved_device = input_device or (resolved_devices[0] if resolved_devices else None)
+        resolved_device = input_device or (
+            resolved_devices[0] if resolved_devices else None
+        )
         cuda_used = any(
             device == "cuda" or device.startswith("cuda:")
             for device in resolved_devices

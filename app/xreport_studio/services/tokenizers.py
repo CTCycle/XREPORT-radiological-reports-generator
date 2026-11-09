@@ -2,7 +2,10 @@ from __future__ import annotations
 
 import asyncio
 
-from xreport_studio.configurations.tokenizers import TOKENIZER_CATALOGUE, catalogue_entry
+from xreport_studio.configurations.tokenizers import (
+    TOKENIZER_CATALOGUE,
+    catalogue_entry,
+)
 from xreport_studio.domain.tokenizers import (
     TokenizerCatalogueResponse,
     TokenizerCheckResponse,
@@ -82,7 +85,6 @@ def check_tokenizer(tokenizer_id: str) -> TokenizerCheckResponse:
 
 ###############################################################################
 class TokenizerService:
-
     # -------------------------------------------------------------------------
     async def list(self) -> TokenizerCatalogueResponse:
         return await asyncio.to_thread(list_tokenizers)

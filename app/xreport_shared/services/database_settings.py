@@ -21,7 +21,9 @@ from xreport_shared.domain.database_settings import (
     DatabaseConnectionTestResponse,
     DatabaseSwitchResponse,
 )
-from xreport_shared.repositories.application_settings import ApplicationSettingsRepository
+from xreport_shared.repositories.application_settings import (
+    ApplicationSettingsRepository,
+)
 from xreport_shared.repositories.database.backend import (
     activate_database,
     finalize_database_activation,
@@ -129,9 +131,7 @@ class DatabaseSettingsService:
         )
 
     # -------------------------------------------------------------------------
-    def switch_database(
-        self, candidate: DatabaseConfiguration
-    ) -> DatabaseSwitchResult:
+    def switch_database(self, candidate: DatabaseConfiguration) -> DatabaseSwitchResult:
         if get_job_manager().is_job_running():
             raise DatabaseSwitchBusyError(
                 "Wait for active background jobs to finish before switching databases."
@@ -236,10 +236,16 @@ class DatabaseSettingsService:
                     "Connection succeeded, but the schema revision is not current.",
                 )
             return DatabaseProbe(
-                True, True, True, revision, "Connection and application schema are ready."
+                True,
+                True,
+                True,
+                revision,
+                "Connection and application schema are ready.",
             )
         except Exception as exc:  # noqa: BLE001
-            return DatabaseProbe(False, False, False, None, _sanitize_database_error(exc))
+            return DatabaseProbe(
+                False, False, False, None, _sanitize_database_error(exc)
+            )
         finally:
             if database is not None:
                 database.engine.dispose()

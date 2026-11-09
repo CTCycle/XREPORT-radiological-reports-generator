@@ -44,51 +44,82 @@ class ModelArchitecture(BaseModel):
     """
 
     image_encoder: Literal["beit-base-patch16-224"] = Field(
-        default=BEIT_ENCODER_ID, description="Pretrained image encoder from the registry"
+        default=BEIT_ENCODER_ID,
+        description="Pretrained image encoder from the registry",
     )
     freeze_image_encoder: bool = Field(
         default=True, description="Keep pretrained image encoder weights frozen"
     )
     embedding_dims: int = Field(
-        default=768, ge=64, le=1024, description="Model width shared by all transformer blocks"
+        default=768,
+        ge=64,
+        le=1024,
+        description="Model width shared by all transformer blocks",
     )
     norm_epsilon: float = Field(
-        default=1e-4, ge=1e-8, le=1e-2, description="Epsilon of every residual layer norm"
+        default=1e-4,
+        ge=1e-8,
+        le=1e-2,
+        description="Epsilon of every residual layer norm",
     )
 
-    num_encoders: int = Field(default=6, ge=1, le=12, description="Transformer encoder layers")
+    num_encoders: int = Field(
+        default=6, ge=1, le=12, description="Transformer encoder layers"
+    )
     encoder_head_dim_mode: HeadDimMode = Field(
         default="full",
         description="full: model width per head; split: width / heads; custom: encoder_head_dim",
     )
     encoder_head_dim: int = Field(
-        default=64, ge=MIN_HEAD_DIM, le=MAX_HEAD_DIM, description="Head size in custom mode"
+        default=64,
+        ge=MIN_HEAD_DIM,
+        le=MAX_HEAD_DIM,
+        description="Head size in custom mode",
     )
-    encoder_heads: int = Field(default=8, ge=1, le=16, description="Encoder attention heads")
+    encoder_heads: int = Field(
+        default=8, ge=1, le=16, description="Encoder attention heads"
+    )
     encoder_ffn_units: int = Field(
-        default=768, ge=64, le=4096, description="Hidden units of each encoder feed-forward network"
+        default=768,
+        ge=64,
+        le=4096,
+        description="Hidden units of each encoder feed-forward network",
     )
     encoder_ffn_activation: Activation = Field(
         default="relu", description="Activation of the encoder feed-forward network"
     )
-    encoder_dropout: float = Field(default=0.2, ge=0.0, le=0.5, description="Encoder dropout rate")
+    encoder_dropout: float = Field(
+        default=0.2, ge=0.0, le=0.5, description="Encoder dropout rate"
+    )
 
-    num_decoders: int = Field(default=6, ge=1, le=12, description="Transformer decoder layers")
+    num_decoders: int = Field(
+        default=6, ge=1, le=12, description="Transformer decoder layers"
+    )
     decoder_head_dim_mode: HeadDimMode = Field(
         default="full",
         description="full: model width per head; split: width / heads; custom: decoder_head_dim",
     )
     decoder_head_dim: int = Field(
-        default=64, ge=MIN_HEAD_DIM, le=MAX_HEAD_DIM, description="Head size in custom mode"
+        default=64,
+        ge=MIN_HEAD_DIM,
+        le=MAX_HEAD_DIM,
+        description="Head size in custom mode",
     )
-    decoder_heads: int = Field(default=8, ge=1, le=16, description="Decoder attention heads")
+    decoder_heads: int = Field(
+        default=8, ge=1, le=16, description="Decoder attention heads"
+    )
     decoder_ffn_units: int = Field(
-        default=768, ge=64, le=4096, description="Hidden units of each decoder feed-forward network"
+        default=768,
+        ge=64,
+        le=4096,
+        description="Hidden units of each decoder feed-forward network",
     )
     decoder_ffn_activation: Activation = Field(
         default="relu", description="Activation of the decoder feed-forward network"
     )
-    decoder_dropout: float = Field(default=0.2, ge=0.0, le=0.5, description="Decoder dropout rate")
+    decoder_dropout: float = Field(
+        default=0.2, ge=0.0, le=0.5, description="Decoder dropout rate"
+    )
 
     classifier_units: int = Field(
         default=1024, ge=64, le=4096, description="Hidden units of the token classifier"
@@ -107,7 +138,9 @@ class ModelArchitecture(BaseModel):
     def expand_shared_stack_keys(cls, data: Any) -> Any:
         if not isinstance(data, dict) or not SHARED_STACK_KEYS.keys() & data.keys():
             return data
-        expanded = {key: value for key, value in data.items() if key not in SHARED_STACK_KEYS}
+        expanded = {
+            key: value for key, value in data.items() if key not in SHARED_STACK_KEYS
+        }
         for old, suffix in SHARED_STACK_KEYS.items():
             if old in data:
                 for stack in ("encoder", "decoder"):

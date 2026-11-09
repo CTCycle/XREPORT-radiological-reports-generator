@@ -6,7 +6,16 @@ import tomllib
 from fastapi import Request
 from tests.conftest import run_async_in_thread
 from xreport_shared.api.errors import handle_service_error
-from xreport_shared.services.errors import BadRequestError, ConflictError, ForbiddenError, InternalServiceError, NotFoundError, PayloadTooLargeError, ServiceError, UnsupportedOperationError
+from xreport_shared.services.errors import (
+    BadRequestError,
+    ConflictError,
+    ForbiddenError,
+    InternalServiceError,
+    NotFoundError,
+    PayloadTooLargeError,
+    ServiceError,
+    UnsupportedOperationError,
+)
 from pathlib import Path
 from xreport_inference.app import app, create_app as create_inference_app
 from xreport_studio.app import create_app as create_studio_app
@@ -40,11 +49,6 @@ def test_service_error_handler_preserves_http_contract(
     assert json.loads(response.body) == {"detail": "stable detail"}
 
 
-
-
-
-
-
 SHARED_DIR = Path(__file__).resolve().parents[3] / "app" / "shared"
 
 
@@ -62,13 +66,19 @@ def test_schemas_defined_by_both_applications_are_identical() -> None:
     # The shared Angular code types jobs, settings and system status against one application's
     # generated schema, so the other application must expose exactly the same shapes.
     schemas = {
-        profile: json.loads((SHARED_DIR / f"openapi.{profile}.json").read_text(encoding="utf-8"))["components"]["schemas"]
+        profile: json.loads(
+            (SHARED_DIR / f"openapi.{profile}.json").read_text(encoding="utf-8")
+        )["components"]["schemas"]
         for profile in CREATE_APP
     }
     common = set(schemas["xreport"]) & set(schemas["studio"])
 
     assert common
-    assert [name for name in sorted(common) if schemas["xreport"][name] != schemas["studio"][name]] == []
+    assert [
+        name
+        for name in sorted(common)
+        if schemas["xreport"][name] != schemas["studio"][name]
+    ] == []
 
 
 ###############################################################################
@@ -138,12 +148,6 @@ def test_workflow_contracts_require_client_selected_parameters() -> None:
     ]
 
 
-
-
-
-
-
-
 ROOT_DIR = Path(__file__).resolve().parents[3]
 
 
@@ -170,6 +174,8 @@ def test_release_version_has_one_canonical_source() -> None:
     assert all(_json_version(path) == canonical for path in copies)
 
     openapi = json.loads(
-        (ROOT_DIR / "app" / "shared" / "openapi.xreport.json").read_text(encoding="utf-8")
+        (ROOT_DIR / "app" / "shared" / "openapi.xreport.json").read_text(
+            encoding="utf-8"
+        )
     )
     assert openapi["info"]["version"] == canonical

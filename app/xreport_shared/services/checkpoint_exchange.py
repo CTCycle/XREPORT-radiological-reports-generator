@@ -66,7 +66,12 @@ from xreport_shared.services.errors import (
     NotFoundError,
     PayloadTooLargeError,
 )
-from xreport_shared.services.jobs import JobAlreadyRunningError, JobExecutionError, JobManager, get_job_manager
+from xreport_shared.services.jobs import (
+    JobAlreadyRunningError,
+    JobExecutionError,
+    JobManager,
+    get_job_manager,
+)
 
 EXPORT_JOB_TYPE = "checkpoint_export"
 IMPORT_JOB_TYPE = "checkpoint_import"
@@ -75,7 +80,9 @@ STAGING_UPLOAD_PREFIX = ".import-upload-"
 UPLOAD_CHUNK_BYTES = 1024 * 1024
 EXCHANGE_RECORD = "exchange.json"
 ENCODER_CACHE_DIRNAME = "models--microsoft--beit-base-patch16-224"
-_TOKENIZER_NAME = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]*(/[A-Za-z0-9][A-Za-z0-9._-]*)?$")
+_TOKENIZER_NAME = re.compile(
+    r"^[A-Za-z0-9][A-Za-z0-9._-]*(/[A-Za-z0-9][A-Za-z0-9._-]*)?$"
+)
 
 
 ###############################################################################
@@ -145,7 +152,6 @@ class ExtractionProgress:
 
 ###############################################################################
 class CheckpointExchangeService:
-
     # -------------------------------------------------------------------------
     def __init__(
         self,
@@ -224,7 +230,9 @@ class CheckpointExchangeService:
                 (record.path / "configuration" / "metadata.json").read_text("utf-8")
             )
             history = json.loads(
-                (record.path / "configuration" / "session_history.json").read_text("utf-8")
+                (record.path / "configuration" / "session_history.json").read_text(
+                    "utf-8"
+                )
             )
             tokenizer_name = metadata.get("tokenizer")
             if not isinstance(tokenizer_name, str) or not tokenizer_name:
@@ -233,7 +241,12 @@ class CheckpointExchangeService:
                 )
             missing = [
                 key
-                for key in ("pad_token_id", "start_token_id", "end_token_id", "vocabulary_size")
+                for key in (
+                    "pad_token_id",
+                    "start_token_id",
+                    "end_token_id",
+                    "vocabulary_size",
+                )
                 if metadata.get(key) is None
             ]
             if missing:
@@ -308,7 +321,9 @@ class CheckpointExchangeService:
     @staticmethod
     def _assert_exportable(files: list[ManifestFile]) -> None:
         """Refuse to build an archive that the import limits would reject."""
-        rejected = next((item.path for item in files if not is_allowed_member(item.path)), None)
+        rejected = next(
+            (item.path for item in files if not is_allowed_member(item.path)), None
+        )
         if rejected is not None:
             raise JobExecutionError(
                 f"'{rejected}' cannot be exported in a checkpoint archive.",
@@ -369,7 +384,10 @@ class CheckpointExchangeService:
             import keras
             import torch
 
-            keras_version, torch_version = str(keras.__version__), str(torch.__version__)
+            keras_version, torch_version = (
+                str(keras.__version__),
+                str(torch.__version__),
+            )
         except ImportError:
             keras_version = torch_version = None
         return ManifestProducer(
@@ -396,7 +414,9 @@ class CheckpointExchangeService:
             created_utc=datetime.now(timezone.utc).isoformat(),
             epochs=epochs if isinstance(epochs, int) else None,
             final_loss=CheckpointExchangeService._last_value(series.get("loss")),
-            final_val_loss=CheckpointExchangeService._last_value(series.get("val_loss")),
+            final_val_loss=CheckpointExchangeService._last_value(
+                series.get("val_loss")
+            ),
         )
 
     ###########################################################################
@@ -473,7 +493,9 @@ class CheckpointExchangeService:
             )
         for path, item in declared.items():
             if entries[path].size != item.size:
-                raise BadRequestError(f"Invalid checkpoint archive: size mismatch for {path}")
+                raise BadRequestError(
+                    f"Invalid checkpoint archive: size mismatch for {path}"
+                )
         missing = [path for path in CORE_FILES if path not in declared]
         if missing:
             raise BadRequestError(
@@ -484,7 +506,9 @@ class CheckpointExchangeService:
         if not manifest.tokenizer.bundled or not any(
             path.startswith("tokenizer/") for path in declared
         ):
-            raise BadRequestError("Invalid checkpoint archive: tokenizer files are missing")
+            raise BadRequestError(
+                "Invalid checkpoint archive: tokenizer files are missing"
+            )
         has_encoder = any(path.startswith("encoder/") for path in declared)
         if manifest.encoder.bundled != has_encoder:
             raise BadRequestError("Invalid checkpoint archive: encoder flag mismatch")
@@ -551,7 +575,7 @@ class CheckpointExchangeService:
             record = json.loads((path / EXCHANGE_RECORD).read_text("utf-8"))
             digest = record.get("content_sha256")
             return digest if isinstance(digest, str) else None
-        except (OSError, ValueError, AttributeError):
+        except OSError, ValueError, AttributeError:
             return None
 
     # -------------------------------------------------------------------------
@@ -615,11 +639,13 @@ class CheckpointExchangeService:
             if existing is not None and self._installed_digest(existing.path) == (
                 plan.manifest.content_sha256
             ):
-                return {"import": ImportOutcome(
-                    checkpoint=plan.name,
-                    content_sha256=plan.manifest.content_sha256,
-                    status="already_imported",
-                ).model_dump()}
+                return {
+                    "import": ImportOutcome(
+                        checkpoint=plan.name,
+                        content_sha256=plan.manifest.content_sha256,
+                        status="already_imported",
+                    ).model_dump()
+                }
             CHECKPOINTS_DIR.mkdir(parents=True, exist_ok=True)
             staging.mkdir()
             digest, manifest = self._extract_and_verify(
@@ -789,7 +815,9 @@ class CheckpointExchangeService:
         """Check the extracted metadata agrees with the manifest before anything is installed."""
         try:
             metadata = json.loads(
-                (staging / "checkpoint" / "configuration" / "metadata.json").read_text("utf-8")
+                (staging / "checkpoint" / "configuration" / "metadata.json").read_text(
+                    "utf-8"
+                )
             )
             tokenizer = metadata["tokenizer"]
             max_report_size = metadata["max_report_size"]
@@ -805,14 +833,25 @@ class CheckpointExchangeService:
                 code="metadata_invalid",
                 phase="verify",
             )
-        for key in ("pad_token_id", "start_token_id", "end_token_id", "vocabulary_size"):
-            if getattr(manifest.tokenizer, key) is None or getattr(manifest.tokenizer, key) != metadata.get(key):
+        for key in (
+            "pad_token_id",
+            "start_token_id",
+            "end_token_id",
+            "vocabulary_size",
+        ):
+            if getattr(manifest.tokenizer, key) is None or getattr(
+                manifest.tokenizer, key
+            ) != metadata.get(key):
                 raise JobExecutionError(
                     f"The checkpoint metadata and the manifest disagree on '{key}'.",
                     code="metadata_invalid",
                     phase="verify",
                 )
-        if isinstance(max_report_size, bool) or not isinstance(max_report_size, int) or max_report_size < 1:
+        if (
+            isinstance(max_report_size, bool)
+            or not isinstance(max_report_size, int)
+            or max_report_size < 1
+        ):
             raise JobExecutionError(
                 "The checkpoint metadata has an invalid 'max_report_size'.",
                 code="metadata_invalid",
@@ -857,7 +896,10 @@ class CheckpointExchangeService:
             output = np.asarray(
                 ops.convert_to_numpy(model([image, sequence], training=False))
             )
-            if output.shape[-1] != handler.vocabulary_size or not np.isfinite(output).all():
+            if (
+                output.shape[-1] != handler.vocabulary_size
+                or not np.isfinite(output).all()
+            ):
                 raise ValueError("model output does not match the tokenizer vocabulary")
         except Exception as exc:  # noqa: BLE001
             raise JobExecutionError(

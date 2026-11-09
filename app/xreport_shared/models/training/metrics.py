@@ -10,7 +10,6 @@ from keras.metrics import Metric
 
 ###############################################################################
 class MaskedSparseCategoricalCrossentropy(Loss):
-
     # -------------------------------------------------------------------------
     def __init__(
         self,
@@ -47,7 +46,6 @@ class MaskedSparseCategoricalCrossentropy(Loss):
 
 ###############################################################################
 class MaskedAccuracy(Metric):
-
     # -------------------------------------------------------------------------
     def __init__(
         self, name: str = "MaskedAccuracy", pad_token_id: int = 0, **kwargs

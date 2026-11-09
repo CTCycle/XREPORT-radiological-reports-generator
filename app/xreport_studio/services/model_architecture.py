@@ -50,7 +50,6 @@ CHECKPOINT_REFERENCE_PREFIX = "checkpoint:"
 
 ###############################################################################
 class ModelArchitectureService:
-
     # -------------------------------------------------------------------------
     def __init__(
         self,
@@ -115,7 +114,9 @@ class ModelArchitectureService:
             for preset in BUILTIN_PRESETS.values()
             if preset.key not in hidden
         ]
-        custom = [self._custom_preset(record) for record in self.repository.list_presets()]
+        custom = [
+            self._custom_preset(record) for record in self.repository.list_presets()
+        ]
         return ArchitecturePresetsResponse(
             presets=[*builtins, *custom], hidden_builtins=len(hidden)
         )
@@ -127,7 +128,9 @@ class ModelArchitectureService:
         if builtin is not None:
             return builtin.name, builtin.architecture
         preset_id = self._custom_id(key)
-        record = self.repository.get_preset(preset_id) if preset_id is not None else None
+        record = (
+            self.repository.get_preset(preset_id) if preset_id is not None else None
+        )
         if record is None:
             raise NotFoundError(detail=f"Architecture preset not found: {key}")
         return record.name, record.architecture
@@ -232,7 +235,9 @@ class ModelArchitectureService:
     ) -> ArchitectureCompatibility:
         if not reference.startswith(CHECKPOINT_REFERENCE_PREFIX):
             name, other = self.resolve_preset(reference)
-            return compare_architectures(architecture, other, f"preset {name}", "preset")
+            return compare_architectures(
+                architecture, other, f"preset {name}", "preset"
+            )
 
         result = self.get_checkpoint_architecture(
             reference.removeprefix(CHECKPOINT_REFERENCE_PREFIX)
@@ -252,7 +257,9 @@ class ModelArchitectureService:
         return report
 
     # -------------------------------------------------------------------------
-    def preview(self, request: ArchitecturePreviewRequest) -> ArchitecturePreviewResponse:
+    def preview(
+        self, request: ArchitecturePreviewRequest
+    ) -> ArchitecturePreviewResponse:
         try:
             architecture = ModelArchitecture.model_validate(request.architecture)
         except ValidationError as exc:

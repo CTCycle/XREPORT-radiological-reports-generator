@@ -102,7 +102,10 @@ def _rewrite_paths(staged: Path, old_root: Path, new_root: Path) -> None:
                     if _is_within(stored, old_root):
                         connection.execute(
                             "UPDATE checkpoints SET path = ? WHERE checkpoint_id = ?",
-                            (str(new_root / stored.relative_to(old_root)), checkpoint_id),
+                            (
+                                str(new_root / stored.relative_to(old_root)),
+                                checkpoint_id,
+                            ),
                         )
             connection.commit()
         finally:
@@ -292,7 +295,9 @@ class StorageSettingsService:
             locked=self.locked,
             restart_required=restart_required,
             folders=[
-                StorageFolder(name=entry.name, path=str(entry), size_bytes=_entry_size(entry))
+                StorageFolder(
+                    name=entry.name, path=str(entry), size_bytes=_entry_size(entry)
+                )
                 for entry in _entries_present(self.active_root)
             ],
         )
@@ -302,8 +307,12 @@ class StorageSettingsService:
         errors: list[str] = []
         if _same_path(resolved, self.active_root):
             errors.append("This is already the active storage location.")
-        elif _is_within(resolved, self.active_root) or _is_within(self.active_root, resolved):
-            errors.append("The location cannot be inside the current storage folder or contain it.")
+        elif _is_within(resolved, self.active_root) or _is_within(
+            self.active_root, resolved
+        ):
+            errors.append(
+                "The location cannot be inside the current storage folder or contain it."
+            )
         forbidden = (
             self.layout.runtime_root
             if self.layout.packaged
@@ -337,7 +346,9 @@ class StorageSettingsService:
         """Required bytes, free bytes, errors and warnings for a usable target."""
         errors: list[str] = []
         warnings: list[str] = []
-        required = sum(_entry_size(entry) for entry in _entries_present(self.active_root))
+        required = sum(
+            _entry_size(entry) for entry in _entries_present(self.active_root)
+        )
         free = shutil.disk_usage(anchor).free
         if target_state == "existing":
             warnings.append(
@@ -424,7 +435,9 @@ class StorageSettingsService:
                 "default_root": str(self.default_root),
             },
         )
-        logger.info("Started storage migration job %s to %s", job_id, validation.resolved_path)
+        logger.info(
+            "Started storage migration job %s to %s", job_id, validation.resolved_path
+        )
         return JobStartResponse(
             job_id=job_id,
             job_type=JOB_TYPE,
@@ -438,5 +451,7 @@ class StorageSettingsService:
         settings = get_database_settings()
         return settings.backend == "sqlite" and (
             settings.sqlite_path is None
-            or _same_path(Path(settings.sqlite_path).resolve(), DATABASE_FILE_PATH.resolve())
+            or _same_path(
+                Path(settings.sqlite_path).resolve(), DATABASE_FILE_PATH.resolve()
+            )
         )

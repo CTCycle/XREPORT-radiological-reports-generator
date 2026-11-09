@@ -9,14 +9,22 @@ import pytest
 ###############################################################################
 @pytest.fixture
 def seeded_history() -> str:
-    from xreport_inference.repositories.serialization.inference import InferenceRepository
+    from xreport_inference.repositories.serialization.inference import (
+        InferenceRepository,
+    )
 
     repository = InferenceRepository()
     request_id = f"e2e_history_{uuid.uuid4().hex}"
     repository.save_generated_reports(
         [
-            {"image": "e2e-first.png", "report": "Findings\nClear lungs.\n\nImpression\nNo acute disease."},
-            {"image": "e2e-second.png", "report": "Findings\nMild bibasal opacity.\n\nImpression\nFollow-up recommended."},
+            {
+                "image": "e2e-first.png",
+                "report": "Findings\nClear lungs.\n\nImpression\nNo acute disease.",
+            },
+            {
+                "image": "e2e-second.png",
+                "report": "Findings\nMild bibasal opacity.\n\nImpression\nFollow-up recommended.",
+            },
         ],
         provider="huggingface",
         model_ref="huggingface:e2e/reports",

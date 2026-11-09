@@ -175,9 +175,10 @@ def write_archive(
     try:
         with zipfile.ZipFile(temporary, "w", zipfile.ZIP_DEFLATED) as archive:
             for name, path in members:
-                with path.open("rb") as source, archive.open(
-                    name, "w", force_zip64=True
-                ) as target:
+                with (
+                    path.open("rb") as source,
+                    archive.open(name, "w", force_zip64=True) as target,
+                ):
                     for chunk in iter(lambda: source.read(COPY_CHUNK_BYTES), b""):
                         target.write(chunk)
                         done += len(chunk)

@@ -42,7 +42,10 @@ from xreport_shared.services.settings import get_server_settings
 from xreport_studio.services.upload import UploadState, get_upload_state
 from xreport_studio.services.dataset_processing import DatasetProcessingService
 from xreport_studio.repositories.preparation import PreparationRepository
-from xreport_studio.repositories.serialization.dataset import DatasetRepository, sample_dataset
+from xreport_studio.repositories.serialization.dataset import (
+    DatasetRepository,
+    sample_dataset,
+)
 from xreport_shared.common.constants import (
     DATASET_RECORDS_TABLE,
 )

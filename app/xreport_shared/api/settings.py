@@ -11,7 +11,6 @@ from xreport_shared.services.settings import SettingsService, get_settings_servi
 
 ###############################################################################
 class SettingsEndpoint:
-
     # -------------------------------------------------------------------------
     def __init__(
         self,

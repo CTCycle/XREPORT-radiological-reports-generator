@@ -14,7 +14,9 @@ from xreport_inference.domain.inference import (
     InferenceImage,
     ProviderGenerationResult,
 )
-from xreport_inference.models.inference.providers.xreport import XReportCheckpointProvider
+from xreport_inference.models.inference.providers.xreport import (
+    XReportCheckpointProvider,
+)
 from xreport_inference.services.model_installation import (
     InstallationCancelled,
     InstallationError,
@@ -27,7 +29,9 @@ from xreport_shared.repositories.serialization.model import ModelSerializer
 from xreport_shared.common.utils.logger import logger
 
 if TYPE_CHECKING:
-    from xreport_inference.models.inference.providers.huggingface import HuggingFaceProvider
+    from xreport_inference.models.inference.providers.huggingface import (
+        HuggingFaceProvider,
+    )
 
 
 StopCallback = Callable[[], bool]

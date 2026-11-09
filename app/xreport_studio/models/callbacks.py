@@ -21,7 +21,6 @@ class WorkerInterrupted(RuntimeError):
 
 ###############################################################################
 class TrainingInterruptCallback(Callback):
-
     # -------------------------------------------------------------------------
     def __init__(
         self,
@@ -98,7 +97,6 @@ class TrainingInterruptCallback(Callback):
 
 ###############################################################################
 class TrainingProgressCallback(Callback):
-
     # -------------------------------------------------------------------------
     def __init__(
         self,
@@ -232,7 +230,6 @@ class TrainingProgressCallback(Callback):
 
 ###############################################################################
 class RealTimeMetricsCallback(Callback):
-
     # -------------------------------------------------------------------------
     def __init__(
         self,

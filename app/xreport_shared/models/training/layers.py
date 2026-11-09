@@ -10,7 +10,6 @@ from keras.saving import register_keras_serializable
 ###############################################################################
 @register_keras_serializable(package="CustomLayers", name="PositionalEmbedding")
 class PositionalEmbedding(layers.Layer):
-
     # -------------------------------------------------------------------------
     def __init__(
         self,
@@ -91,7 +90,6 @@ class PositionalEmbedding(layers.Layer):
 ###############################################################################
 @register_keras_serializable(package="CustomLayers", name="AddNorm")
 class AddNorm(layers.Layer):
-
     # -------------------------------------------------------------------------
     def __init__(self, epsilon: float = 10e-5, **kwargs) -> None:
         super(AddNorm, self).__init__(**kwargs)
@@ -129,7 +127,6 @@ class AddNorm(layers.Layer):
 ###############################################################################
 @register_keras_serializable(package="CustomLayers", name="FeedForward")
 class FeedForward(layers.Layer):
-
     # -------------------------------------------------------------------------
     def __init__(
         self,
@@ -190,7 +187,6 @@ class FeedForward(layers.Layer):
 ###############################################################################
 @register_keras_serializable(package="CustomLayers", name="SoftMaxClassifier")
 class SoftMaxClassifier(layers.Layer):
-
     # -------------------------------------------------------------------------
     def __init__(
         self,
@@ -251,7 +247,6 @@ class SoftMaxClassifier(layers.Layer):
 ###############################################################################
 @register_keras_serializable(package="Encoders", name="TransformerEncoder")
 class TransformerEncoder(layers.Layer):
-
     # -------------------------------------------------------------------------
     def __init__(
         self,
@@ -353,7 +348,6 @@ class TransformerEncoder(layers.Layer):
 ###############################################################################
 @register_keras_serializable(package="Decoders", name="TransformerDecoder")
 class TransformerDecoder(layers.Layer):
-
     # -------------------------------------------------------------------------
     def __init__(
         self,

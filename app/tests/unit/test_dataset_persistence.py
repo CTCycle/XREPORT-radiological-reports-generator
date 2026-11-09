@@ -16,9 +16,26 @@ from xreport_studio.api.preparation import PreparationEndpoint
 from xreport_shared.configurations import ServerSettings
 from xreport_shared.repositories.database import Database as DatasetDatabase
 from xreport_studio.repositories.preparation import PreparationRepository
-from xreport_inference.repositories.schemas.inference import InferenceBase, InferenceReport, InferenceRun
-from xreport_studio.repositories.schemas.studio import StudioBase, Dataset, DatasetRecord, ProcessingRun, TrainingSample, Checkpoint, CheckpointEvaluation, DatasetVersion, ValidationRun
-from xreport_studio.repositories.serialization.dataset import DatasetRepository, sample_dataset
+from xreport_inference.repositories.schemas.inference import (
+    InferenceBase,
+    InferenceReport,
+    InferenceRun,
+)
+from xreport_studio.repositories.schemas.studio import (
+    StudioBase,
+    Dataset,
+    DatasetRecord,
+    ProcessingRun,
+    TrainingSample,
+    Checkpoint,
+    CheckpointEvaluation,
+    DatasetVersion,
+    ValidationRun,
+)
+from xreport_studio.repositories.serialization.dataset import (
+    DatasetRepository,
+    sample_dataset,
+)
 from xreport_studio.services.dataset_processing import DatasetProcessingService
 from xreport_shared.services.jobs import JobManager
 from xreport_studio.services.preparation import PreparationService
@@ -412,7 +429,9 @@ def _seed_validation_dataset(
 
 
 ###############################################################################
-def _validation_run(name: str, record_ids: list[int], words: list[int], **extra) -> dict:
+def _validation_run(
+    name: str, record_ids: list[int], words: list[int], **extra
+) -> dict:
     return {
         "dataset_name": name,
         "sample_size": 1.0,
@@ -420,14 +439,23 @@ def _validation_run(name: str, record_ids: list[int], words: list[int], **extra)
         "records_evaluated": len(record_ids),
         "metrics": [{"metric": "text_statistics", "records_computed": len(words)}],
         "text_records": [
-            {"record_id": record_id, "word_count": count, "char_count": count * 5,
-             "unique_words": count}
+            {
+                "record_id": record_id,
+                "word_count": count,
+                "char_count": count * 5,
+                "unique_words": count,
+            }
             for record_id, count in zip(record_ids, words)
         ],
         "aggregates": [
-            {"domain": "text", "measure": "words_per_report", "count": len(words),
-             "mean": sum(words) / len(words), "minimum": float(min(words)),
-             "maximum": float(max(words))}
+            {
+                "domain": "text",
+                "measure": "words_per_report",
+                "count": len(words),
+                "mean": sum(words) / len(words),
+                "minimum": float(min(words)),
+                "maximum": float(max(words)),
+            }
         ],
         "histograms": {"report_length": [(0.0, 5.0, 1), (5.0, 10.0, len(words) - 1)]},
         **extra,
@@ -438,7 +466,9 @@ def _validation_run(name: str, record_ids: list[int], words: list[int], **extra)
 @pytest.mark.usefixtures("studio_profile")
 def test_repeated_validation_runs_are_kept_as_history() -> None:
     dataset_repository, database = _serializer()
-    ids = _seed_validation_dataset(dataset_repository, database, "Chest", ["a b", "c d e"])
+    ids = _seed_validation_dataset(
+        dataset_repository, database, "Chest", ["a b", "c d e"]
+    )
     repository = ValidationRepository(database=database)
     first = repository.save_validation_run(_validation_run("Chest", ids, [2, 3]))
     second = repository.save_validation_run(
@@ -502,7 +532,10 @@ def test_record_statistics_page_sorts_filters_and_rejects_unknown_columns() -> N
     assert filtered is not None and [row["image_name"] for row in filtered["rows"]] == [
         "Chest_1.png"
     ]
-    assert repository.list_run_records("Chest", run_id, "image") == {"total": 0, "rows": []}
+    assert repository.list_run_records("Chest", run_id, "image") == {
+        "total": 0,
+        "rows": [],
+    }
     assert repository.list_run_records("Chest", run_id + 1, "text") is None
     with pytest.raises(ValueError):
         repository.list_run_records("Chest", run_id, "text", sort="word_count; DROP")
@@ -528,7 +561,9 @@ def test_deleting_a_dataset_removes_its_statistics() -> None:
             "validation_aggregates",
             "validation_histogram_bins",
         ):
-            assert session.execute(text(f"SELECT COUNT(*) FROM {table}")).scalar_one() == 0
+            assert (
+                session.execute(text(f"SELECT COUNT(*) FROM {table}")).scalar_one() == 0
+            )
 
 
 ###############################################################################
@@ -772,9 +807,13 @@ def test_validation_job_persists_measured_statistics(
     manager = MagicMock()
     manager.should_stop.return_value = False
     monkeypatch.setattr(validation_runs, "get_job_manager", lambda: manager)
-    monkeypatch.setattr(validation_runs, "DatasetRepository", lambda: dataset_repository)
     monkeypatch.setattr(
-        validation_runs, "ValidationRepository", lambda: ValidationRepository(database=database)
+        validation_runs, "DatasetRepository", lambda: dataset_repository
+    )
+    monkeypatch.setattr(
+        validation_runs,
+        "ValidationRepository",
+        lambda: ValidationRepository(database=database),
     )
 
     result = validation_runs.run_validation_job(
@@ -792,14 +831,18 @@ def test_validation_job_persists_measured_statistics(
     )
     assert report is not None
     assert report["run"]["records_requested"] == 3
-    coverage = {item["metric"]: item["records_computed"] for item in report["run"]["metrics"]}
+    coverage = {
+        item["metric"]: item["records_computed"] for item in report["run"]["metrics"]
+    }
     # The unreadable image is skipped, so image and pixel metrics cover 2 of 3 records.
     assert coverage == {
         "image_statistics": 2,
         "pixels_distribution": 2,
         "text_statistics": 3,
     }
-    aggregates = {(item["domain"], item["measure"]): item for item in report["aggregates"]}
+    aggregates = {
+        (item["domain"], item["measure"]): item for item in report["aggregates"]
+    }
     assert aggregates[("text", "words_per_report")]["total"] == 7
     assert aggregates[("text", "words_per_report")]["median"] == 2
     assert aggregates[("image", "height")]["mean"] == 12.0

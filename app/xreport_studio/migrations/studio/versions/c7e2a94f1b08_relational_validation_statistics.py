@@ -242,18 +242,24 @@ def _backfill(bind: sa.engine.Connection) -> None:
 ###############################################################################
 def upgrade() -> None:
     with op.batch_alter_table("validation_runs", schema=None) as batch_op:
-        batch_op.add_column(sa.Column("dataset_version_id", sa.Integer(), nullable=True))
+        batch_op.add_column(
+            sa.Column("dataset_version_id", sa.Integer(), nullable=True)
+        )
         batch_op.add_column(sa.Column("seed", sa.BigInteger(), nullable=True))
         batch_op.add_column(sa.Column("records_requested", sa.Integer(), nullable=True))
         batch_op.add_column(sa.Column("records_evaluated", sa.Integer(), nullable=True))
         batch_op.add_column(
             sa.Column("text_vocabulary_size", sa.Integer(), nullable=True)
         )
-        batch_op.add_column(sa.Column("tokenizer", sa.String(length=255), nullable=True))
+        batch_op.add_column(
+            sa.Column("tokenizer", sa.String(length=255), nullable=True)
+        )
         batch_op.add_column(sa.Column("max_report_size", sa.Integer(), nullable=True))
         batch_op.add_column(
             sa.Column(
-                "config_json", xreport_shared.repositories.schemas.types.JSONSequence(), nullable=True
+                "config_json",
+                xreport_shared.repositories.schemas.types.JSONSequence(),
+                nullable=True,
             )
         )
         batch_op.create_foreign_key(
@@ -376,7 +382,9 @@ def downgrade() -> None:
     runs = _legacy_table()
     run_ids = [
         int(item)
-        for item in bind.execute(sa.text("SELECT validation_run_id FROM validation_runs"))
+        for item in bind.execute(
+            sa.text("SELECT validation_run_id FROM validation_runs")
+        )
         .scalars()
         .all()
     ]
@@ -441,9 +449,7 @@ def downgrade() -> None:
         if image_count:
             values["image_count"] = image_count
         bind.execute(
-            sa.update(runs)
-            .where(runs.c.validation_run_id == run_id)
-            .values(**values)
+            sa.update(runs).where(runs.c.validation_run_id == run_id).values(**values)
         )
 
     op.drop_table("validation_histogram_bins")

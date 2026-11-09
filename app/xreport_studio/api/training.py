@@ -15,7 +15,6 @@ from xreport_studio.services.training import TrainingService, get_training_servi
 
 ###############################################################################
 class TrainingEndpoint:
-
     # -------------------------------------------------------------------------
     def __init__(
         self,

@@ -23,7 +23,9 @@ def test_second_owner_is_rejected_until_the_first_releases(tmp_path: Path) -> No
 
     def second_owner() -> int:
         return subprocess.run(
-            [sys.executable, "-c", probe, str(tmp_path)], cwd=app_dir, env={"PYTHONPATH": str(app_dir)}
+            [sys.executable, "-c", probe, str(tmp_path)],
+            cwd=app_dir,
+            env={"PYTHONPATH": str(app_dir)},
         ).returncode
 
     assert second_owner() == 3

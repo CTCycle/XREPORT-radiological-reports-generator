@@ -144,7 +144,9 @@ class ValidationRepository(RepositorySupport):
 
     # -------------------------------------------------------------------------
     @staticmethod
-    def _run_row(session: Any, dataset_id: int, run_id: int | None) -> ValidationRun | None:
+    def _run_row(
+        session: Any, dataset_id: int, run_id: int | None
+    ) -> ValidationRun | None:
         statement = select(ValidationRun).where(ValidationRun.dataset_id == dataset_id)
         if run_id is not None:
             statement = statement.where(ValidationRun.validation_run_id == run_id)

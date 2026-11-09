@@ -195,6 +195,7 @@ def stack_kwargs(architecture: ModelArchitecture, stack: Stack) -> dict[str, Any
         "norm_epsilon": architecture.norm_epsilon,
     }
 
+
 # [ANALYTIC PARAMETER COUNTS]
 # These mirror the Keras layers in layers.py and encoder.py; unit tests compare
 # them with the parameter counts and weight shapes of the built layers.
@@ -217,8 +218,10 @@ def encoder_block_parameters(architecture: ModelArchitecture) -> int:
     attention = attention_parameters(
         width, architecture.encoder_heads, architecture.key_dim("encoder")
     )
-    return attention + 2 * (2 * width) + feed_forward_parameters(
-        width, architecture.encoder_ffn_units
+    return (
+        attention
+        + 2 * (2 * width)
+        + feed_forward_parameters(width, architecture.encoder_ffn_units)
     )
 
 
@@ -228,8 +231,10 @@ def decoder_block_parameters(architecture: ModelArchitecture) -> int:
     attention = attention_parameters(
         width, architecture.decoder_heads, architecture.key_dim("decoder")
     )
-    return 2 * attention + 3 * (2 * width) + feed_forward_parameters(
-        width, architecture.decoder_ffn_units
+    return (
+        2 * attention
+        + 3 * (2 * width)
+        + feed_forward_parameters(width, architecture.decoder_ffn_units)
     )
 
 
@@ -243,7 +248,12 @@ def embedding_parameters(
 ###############################################################################
 def classifier_parameters(architecture: ModelArchitecture, vocabulary_size: int) -> int:
     units = architecture.classifier_units
-    return architecture.embedding_dims * units + units + units * vocabulary_size + vocabulary_size
+    return (
+        architecture.embedding_dims * units
+        + units
+        + units * vocabulary_size
+        + vocabulary_size
+    )
 
 
 ###############################################################################
@@ -325,7 +335,10 @@ def describe(
             trainable=True,
             repeat=architecture.num_encoders,
             output_shape=[None, tokens, width],
-            properties={**_block_properties(architecture, "encoder"), "block_parameters": encoder_block},
+            properties={
+                **_block_properties(architecture, "encoder"),
+                "block_parameters": encoder_block,
+            },
         ),
         ArchitectureNode(
             id="token_input",
@@ -344,7 +357,9 @@ def describe(
             label="Token embedding",
             detail=f"{vocabulary_size} tokens + {sequence_length} positions",
             lane="text",
-            parameters=embedding_parameters(architecture, vocabulary_size, sequence_length),
+            parameters=embedding_parameters(
+                architecture, vocabulary_size, sequence_length
+            ),
             trainable=True,
             output_shape=[None, sequence_length, width],
             properties={
@@ -365,7 +380,10 @@ def describe(
             trainable=True,
             repeat=architecture.num_decoders,
             output_shape=[None, sequence_length, width],
-            properties={**_block_properties(architecture, "decoder"), "block_parameters": decoder_block},
+            properties={
+                **_block_properties(architecture, "decoder"),
+                "block_parameters": decoder_block,
+            },
         ),
         ArchitectureNode(
             id="classifier",
@@ -556,16 +574,44 @@ def weight_shapes(
 
     for index in range(1, architecture.num_encoders + 1):
         block = str(index)
-        _add_attention(shapes, width, "encoder", block, "attention", architecture.encoder_heads, architecture.key_dim("encoder"))
+        _add_attention(
+            shapes,
+            width,
+            "encoder",
+            block,
+            "attention",
+            architecture.encoder_heads,
+            architecture.key_dim("encoder"),
+        )
         _add_norms(shapes, width, "encoder", block, 2)
-        _add_feed_forward(shapes, width, "encoder", block, architecture.encoder_ffn_units)
+        _add_feed_forward(
+            shapes, width, "encoder", block, architecture.encoder_ffn_units
+        )
     for index in range(1, architecture.num_decoders + 1):
         block = str(index)
         key_dim = architecture.key_dim("decoder")
-        _add_attention(shapes, width, "decoder", block, "self_attention", architecture.decoder_heads, key_dim)
-        _add_attention(shapes, width, "decoder", block, "cross_attention", architecture.decoder_heads, key_dim)
+        _add_attention(
+            shapes,
+            width,
+            "decoder",
+            block,
+            "self_attention",
+            architecture.decoder_heads,
+            key_dim,
+        )
+        _add_attention(
+            shapes,
+            width,
+            "decoder",
+            block,
+            "cross_attention",
+            architecture.decoder_heads,
+            key_dim,
+        )
         _add_norms(shapes, width, "decoder", block, 3)
-        _add_feed_forward(shapes, width, "decoder", block, architecture.decoder_ffn_units)
+        _add_feed_forward(
+            shapes, width, "decoder", block, architecture.decoder_ffn_units
+        )
 
     units = architecture.classifier_units
     shapes[("classifier", "", "dense1/kernel")] = (width, units)
@@ -655,7 +701,9 @@ def architecture_from_configuration(
     return (
         ModelArchitecture.model_validate(
             {
-                "freeze_image_encoder": bool(configuration.get("freeze_img_encoder", False)),
+                "freeze_image_encoder": bool(
+                    configuration.get("freeze_img_encoder", False)
+                ),
                 "embedding_dims": width,
                 "num_encoders": int(configuration.get("num_encoders", 4)),
                 "num_decoders": int(configuration.get("num_decoders", 4)),

@@ -322,7 +322,9 @@ class DatasetValidator:
 
 
 ###############################################################################
-def summarize_distribution(values: Sequence[float | int | None]) -> dict[str, Any] | None:
+def summarize_distribution(
+    values: Sequence[float | int | None],
+) -> dict[str, Any] | None:
     """Summarize a measure; missing values are excluded, never counted as zero.
 
     Returns `None` when no value is available, so callers store no row at all.

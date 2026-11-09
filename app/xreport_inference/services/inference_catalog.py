@@ -100,10 +100,7 @@ class InferenceModelCatalog:
 
     # -------------------------------------------------------------------------
     def _configured_models(self) -> list[ModelAvailability]:
-        return [
-            self._configured_model(entry)
-            for entry in embedded_inference_models()
-        ]
+        return [self._configured_model(entry) for entry in embedded_inference_models()]
 
     # -------------------------------------------------------------------------
     def _configured_model(
@@ -122,7 +119,9 @@ class InferenceModelCatalog:
         candidate_revision = inspected["candidate_revision"]
         if not self.settings.hf_local_only:
             status = "disabled"
-            status_message = "INFERENCE_HF_LOCAL_ONLY must remain enabled for local inference."
+            status_message = (
+                "INFERENCE_HF_LOCAL_ONLY must remain enabled for local inference."
+            )
         elif not entry.enabled:
             status = "disabled"
             status_message = (
@@ -335,7 +334,7 @@ class InferenceModelCatalog:
         receipt_path = cls._validation_receipt_path(entry)
         try:
             receipt = json.loads(receipt_path.read_text(encoding="utf-8"))
-        except (OSError, ValueError):
+        except OSError, ValueError:
             return False
         return (
             isinstance(receipt, dict)

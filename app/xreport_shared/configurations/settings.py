@@ -109,7 +109,9 @@ DEFAULT_INFERENCE_SETTINGS = InferenceSettingsValues(
 
 ###############################################################################
 def default_application_settings(profile: str) -> ApplicationSettingsValues:
-    return DEFAULT_STUDIO_SETTINGS if profile == "studio" else DEFAULT_INFERENCE_SETTINGS
+    return (
+        DEFAULT_STUDIO_SETTINGS if profile == "studio" else DEFAULT_INFERENCE_SETTINGS
+    )
 
 
 ###############################################################################

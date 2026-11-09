@@ -59,7 +59,7 @@ def _evict_plot_messages(target_queue: Any) -> bool:
             queued = target_queue.get_nowait()
         except queue.Empty:
             break
-        except (EOFError, OSError):
+        except EOFError, OSError:
             return False
         if (
             not removed
@@ -90,7 +90,7 @@ def _put_progress_message(
         return True
     except queue.Full:
         pass
-    except (EOFError, OSError):
+    except EOFError, OSError:
         return False
 
     if not critical:
@@ -116,14 +116,15 @@ def _put_progress_message(
     try:
         target_queue.put(message, block=True, timeout=0.1)
         return True
-    except (queue.Full, EOFError, OSError):
-        logger.warning("Dropped critical training progress message: %s", message.get("type"))
+    except queue.Full, EOFError, OSError:
+        logger.warning(
+            "Dropped critical training progress message: %s", message.get("type")
+        )
         return False
 
 
 ###############################################################################
 class ProcessLike(Protocol):
-
     # -------------------------------------------------------------------------
     @property
     def pid(self) -> int | None: ...
@@ -144,7 +145,6 @@ class ProcessLike(Protocol):
 
 ###############################################################################
 class QueueProgressReporter:
-
     # -------------------------------------------------------------------------
     def __init__(
         self,
@@ -165,7 +165,7 @@ class QueueProgressReporter:
                 message = self.target_queue.get_nowait()
             except queue.Empty:
                 break
-            except (EOFError, OSError):
+            except EOFError, OSError:
                 break
             if isinstance(message, dict) and message.get("type") == "training_plot":
                 latest_plot = message
@@ -213,7 +213,6 @@ class QueueProgressReporter:
 
 ###############################################################################
 class WorkerChannels:
-
     # -------------------------------------------------------------------------
     def __init__(
         self,
@@ -309,7 +308,6 @@ class WorkerChannels:
 
 ###############################################################################
 class ProcessWorker:
-
     # -------------------------------------------------------------------------
     def __init__(
         self,
@@ -399,9 +397,9 @@ class ProcessWorker:
                         message = self.plot_queue.get_nowait()
                     except queue.Empty:
                         return None
-                except (EOFError, OSError):
+                except EOFError, OSError:
                     return None
-        except (EOFError, OSError):
+        except EOFError, OSError:
             return None
         if isinstance(message, dict):
             self._record_lifecycle(message)
@@ -425,7 +423,7 @@ class ProcessWorker:
                     target_queue.get_nowait()
                 except queue.Empty:
                     break
-                except (EOFError, OSError):
+                except EOFError, OSError:
                     break
 
     # -------------------------------------------------------------------------
@@ -437,7 +435,7 @@ class ProcessWorker:
                 payload = self.result_queue.get_nowait()
         except queue.Empty:
             return None
-        except (EOFError, OSError):
+        except EOFError, OSError:
             return None
         if isinstance(payload, dict):
             return payload
@@ -452,11 +450,11 @@ class ProcessWorker:
         ):
             try:
                 target_queue.cancel_join_thread()
-            except (AttributeError, OSError):
+            except AttributeError, OSError:
                 pass
             try:
                 target_queue.close()
-            except (AttributeError, OSError):
+            except AttributeError, OSError:
                 pass
 
     # -------------------------------------------------------------------------
@@ -482,7 +480,7 @@ class ProcessWorker:
                     capture_output=True,
                     timeout=10,
                 )
-            except (OSError, subprocess.TimeoutExpired):
+            except OSError, subprocess.TimeoutExpired:
                 logger.warning("Timed out terminating training worker tree pid=%s", pid)
             self._terminated = True
             return
@@ -530,7 +528,9 @@ def process_target(
                 os.setsid()
             except OSError:
                 pass
-        worker.report_lifecycle("child_started", target=getattr(target, "__name__", "target"))
+        worker.report_lifecycle(
+            "child_started", target=getattr(target, "__name__", "target")
+        )
         worker.report_lifecycle(
             "target_started",
             target=getattr(target, "__name__", "target"),
@@ -641,7 +641,9 @@ def training_result(history: dict[str, Any], checkpoint_path: str) -> dict[str, 
 
 
 ###############################################################################
-def keep_saved_epoch(checkpoint_path: str | None, created_by_run: bool) -> dict[str, Any]:
+def keep_saved_epoch(
+    checkpoint_path: str | None, created_by_run: bool
+) -> dict[str, Any]:
     """Return the result of the last epoch saved in the folder, if any.
 
     A folder this run created without a saved epoch is removed, so cancelled
@@ -681,7 +683,10 @@ def run_training_process(  # noqa: PLR0915 - lifecycle boundaries are intentiona
     # Deferred: keras/torch load only in the worker, after KERAS_BACKEND is set.
     import keras
 
-    from xreport_studio.models.callbacks import TrainingInterruptCallback, WorkerInterrupted
+    from xreport_studio.models.callbacks import (
+        TrainingInterruptCallback,
+        WorkerInterrupted,
+    )
     from xreport_studio.models.device import DeviceConfig
     from xreport_shared.models.training.dataloader import XRAYDataLoader
     from xreport_studio.models.training.model import (
@@ -810,7 +815,10 @@ def run_resume_training_process(  # noqa: PLR0915 - lifecycle boundaries are int
     # Deferred: keras/torch load only in the worker, after KERAS_BACKEND is set.
     import keras
 
-    from xreport_studio.models.callbacks import TrainingInterruptCallback, WorkerInterrupted
+    from xreport_studio.models.callbacks import (
+        TrainingInterruptCallback,
+        WorkerInterrupted,
+    )
     from xreport_studio.models.device import DeviceConfig
     from xreport_shared.models.training.dataloader import XRAYDataLoader
     from xreport_studio.models.training.trainer import ModelTrainer

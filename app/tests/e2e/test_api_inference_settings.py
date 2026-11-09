@@ -395,9 +395,10 @@ def test_settings_api_allowlist_patch_and_reset(api_context: APIRequestContext) 
             data={"global": {"seed": (original_seed + 1) % 4_294_967_296}},
         )
         assert patch_response.ok
-        assert patch_response.json()["values"]["global"]["seed"] == (
-            original_seed + 1
-        ) % 4_294_967_296
+        assert (
+            patch_response.json()["values"]["global"]["seed"]
+            == (original_seed + 1) % 4_294_967_296
+        )
 
         invalid_response = api_context.patch(
             "/api/settings", data={"inference": {"device": "cuda"}}

@@ -54,7 +54,6 @@ class UploadState:
 
 ###############################################################################
 class UploadService:
-
     # -------------------------------------------------------------------------
     def __init__(self, upload_state: UploadState) -> None:
         self.upload_state = upload_state
@@ -83,8 +82,7 @@ class UploadService:
             if len(contents) > max_bytes:
                 raise PayloadTooLargeError(
                     detail=(
-                        "Dataset payload exceeds "
-                        f"{max_bytes // (1024 * 1024)} MB limit"
+                        f"Dataset payload exceeds {max_bytes // (1024 * 1024)} MB limit"
                     ),
                 )
 

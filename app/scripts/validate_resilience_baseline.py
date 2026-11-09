@@ -35,13 +35,7 @@ from typing import Any, Iterable
 
 
 ROOT_DIR = Path(__file__).resolve().parents[2]
-DEFAULT_FIXTURE_ROOT = (
-    ROOT_DIR
-    / "app"
-    / "tests"
-    / "fixtures"
-    / "s27"
-)
+DEFAULT_FIXTURE_ROOT = ROOT_DIR / "app" / "tests" / "fixtures" / "s27"
 
 SCHEMA_VERSION = "s51-s53-resilience-baseline-v2"
 TERMINAL_STATUSES = frozenset({"completed", "failed", "cancelled"})
@@ -104,7 +98,9 @@ def normalize_execution_lane(value: str) -> str:
     lane = value.strip().lower()
     if lane not in EXECUTION_LANES:
         choices = ", ".join(sorted(EXECUTION_LANES))
-        raise ValueError(f"Unknown execution lane {value!r}; expected one of: {choices}")
+        raise ValueError(
+            f"Unknown execution lane {value!r}; expected one of: {choices}"
+        )
     return lane
 
 
@@ -337,7 +333,9 @@ def inference_multipart(fixture: FixtureDefinition) -> tuple[MultipartPart, ...]
         if path.is_file() and path.suffix.lower() in {".png", ".jpg", ".jpeg"}
     )
     if not image_paths:
-        raise FileNotFoundError(f"No supported fixture image found under {fixture.root / 'images'}")
+        raise FileNotFoundError(
+            f"No supported fixture image found under {fixture.root / 'images'}"
+        )
     image_path = image_paths[0]
     content_type = {
         ".png": "image/png",
@@ -350,9 +348,7 @@ def inference_multipart(fixture: FixtureDefinition) -> tuple[MultipartPart, ...]
 
 
 ###############################################################################
-def processing_payload(
-    fixture: FixtureDefinition, custom_name: str
-) -> dict[str, Any]:
+def processing_payload(fixture: FixtureDefinition, custom_name: str) -> dict[str, Any]:
     return {
         "dataset_name": fixture.dataset,
         "custom_name": custom_name,
@@ -815,12 +811,14 @@ def build_plan(
                 "system_memory_available_bytes",
                 "xreport_python_working_set_bytes",
                 "xreport_python_processes",
-            "xreport_python_process_details",
+                "xreport_python_process_details",
                 "device_log_matches",
             ],
         },
         "cold_start_probes": {
-            "requested_count": cold_start_count if selected_group in {"ALL", "S51"} else 0,
+            "requested_count": cold_start_count
+            if selected_group in {"ALL", "S51"}
+            else 0,
             "method": "fresh Python process imports xreport_inference.app with the same resource root",
             "timeout_seconds": 45,
         },
@@ -909,10 +907,14 @@ class ApiClient:
                     ]
                 )
             for part in parts:
-                disposition = f'Content-Disposition: form-data; name="{part.field_name}"'
+                disposition = (
+                    f'Content-Disposition: form-data; name="{part.field_name}"'
+                )
                 if part.filename is not None:
                     disposition += f'; filename="{part.filename}"'
-                chunks.extend([f"--{boundary}\r\n".encode(), f"{disposition}\r\n".encode()])
+                chunks.extend(
+                    [f"--{boundary}\r\n".encode(), f"{disposition}\r\n".encode()]
+                )
                 if part.content_type:
                     chunks.append(f"Content-Type: {part.content_type}\r\n".encode())
                 chunks.extend([b"\r\n", part.content, b"\r\n"])
@@ -929,7 +931,9 @@ class ApiClient:
             method=method,
         )
         try:
-            with urllib.request.urlopen(request, timeout=self.timeout_seconds) as response:
+            with urllib.request.urlopen(
+                request, timeout=self.timeout_seconds
+            ) as response:
                 status = response.status
                 raw = response.read()
         except urllib.error.HTTPError as exc:
@@ -980,7 +984,9 @@ class ApiOperations:
 
     # -------------------------------------------------------------------------
     def cancel_job(self, job_id: str) -> dict[str, Any]:
-        return self.client.request("DELETE", f"/api/jobs/{urllib.parse.quote(job_id, safe='')}")
+        return self.client.request(
+            "DELETE", f"/api/jobs/{urllib.parse.quote(job_id, safe='')}"
+        )
 
     # -------------------------------------------------------------------------
     def health(self) -> dict[str, Any]:
@@ -992,9 +998,7 @@ class ApiOperations:
 
     # -------------------------------------------------------------------------
     def processed_datasets(self) -> dict[str, Any]:
-        return self.client.request(
-            "GET", "/api/preparation/dataset/processed/names"
-        )
+        return self.client.request("GET", "/api/preparation/dataset/processed/names")
 
     # -------------------------------------------------------------------------
     def delete_checkpoint(self, name: str) -> dict[str, Any]:
@@ -1150,7 +1154,7 @@ class ResourceSampler:
                             "cpu_percent": process.cpu_percent(interval=None),
                         }
                     )
-            except (psutil.Error, OSError, TypeError, ValueError):
+            except psutil.Error, OSError, TypeError, ValueError:
                 continue
         sample["xreport_python_working_set_bytes"] = working_set
         sample["xreport_python_processes"] = process_count
@@ -1236,7 +1240,11 @@ def _worker_pid_from_status(status: Any) -> int | None:
     if isinstance(diagnostics, dict):
         candidates.append(diagnostics.get("pid"))
     for candidate in candidates:
-        if isinstance(candidate, int) and not isinstance(candidate, bool) and candidate > 0:
+        if (
+            isinstance(candidate, int)
+            and not isinstance(candidate, bool)
+            and candidate > 0
+        ):
             return candidate
     return None
 
@@ -1270,7 +1278,11 @@ class JobPoller:
         )
         cancellation_sent = False
         while jobs and time.monotonic() < deadline:
-            if cancel_at is not None and not cancellation_sent and time.monotonic() >= cancel_at:
+            if (
+                cancel_at is not None
+                and not cancellation_sent
+                and time.monotonic() >= cancel_at
+            ):
                 for job_id, job in jobs.items():
                     if job.get("terminal"):
                         continue
@@ -1293,11 +1305,13 @@ class JobPoller:
                 try:
                     response = self.api.job_status(job_id)
                 except Exception as exc:  # noqa: BLE001
-                    errors.append({
-                        "job_id": job_id,
-                        "phase": "poll",
-                        "error": str(exc),
-                    })
+                    errors.append(
+                        {
+                            "job_id": job_id,
+                            "phase": "poll",
+                            "error": str(exc),
+                        }
+                    )
                     job.setdefault("poll_errors", []).append(str(exc))
                     continue
 
@@ -1328,7 +1342,9 @@ class JobPoller:
                     job["job_wall_time_seconds"] = round(
                         time.monotonic() - started_monotonic, 3
                     )
-                    expected = set(job.get("expected_terminal_statuses", ("completed",)))
+                    expected = set(
+                        job.get("expected_terminal_statuses", ("completed",))
+                    )
                     if status_name not in expected:
                         errors.append(
                             {
@@ -1480,7 +1496,9 @@ class CleanupManager:
             result["checkpoints_after"] = self.api.checkpoints()
             result["processed_datasets_after"] = self.api.processed_datasets()
         except Exception as exc:  # noqa: BLE001
-            result["errors"].append({"phase": "post_cleanup_inventory", "error": str(exc)})
+            result["errors"].append(
+                {"phase": "post_cleanup_inventory", "error": str(exc)}
+            )
         return result
 
 
@@ -1532,9 +1550,7 @@ def _record_training_observations(job: dict[str, Any]) -> None:
                     "elapsed_seconds": poll.get("elapsed_seconds"),
                     "phase": phase,
                     "status": result.get("worker_phase_status"),
-                    "phase_elapsed_seconds": result.get(
-                        "worker_phase_elapsed_seconds"
-                    ),
+                    "phase_elapsed_seconds": result.get("worker_phase_elapsed_seconds"),
                 }
             )
             last_phase = phase
@@ -1545,10 +1561,10 @@ def _record_training_observations(job: dict[str, Any]) -> None:
             and progress > 0
         ):
             first_progress_latency = poll.get("elapsed_seconds")
-        if (
-            first_batch_latency is None
-            and phase in {"first_batch_completed", "batch_completed"}
-        ):
+        if first_batch_latency is None and phase in {
+            "first_batch_completed",
+            "batch_completed",
+        }:
             first_batch_latency = poll.get("elapsed_seconds")
 
     job["worker_phase_transitions"] = transitions
@@ -1691,9 +1707,8 @@ def _assert_device_lane_observed(
         observed = any("CPU is set as the active device" in line for line in matches)
         expected = "a CPU activation log"
     else:
-        observed = (
-            any("No GPU found" in line for line in matches)
-            and any("CPU is set as the active device" in line for line in matches)
+        observed = any("No GPU found" in line for line in matches) and any(
+            "CPU is set as the active device" in line for line in matches
         )
         expected = "both the no-GPU fallback and CPU activation logs"
     if not observed:
@@ -1751,9 +1766,7 @@ def run_scenario(
                 "operation_id": operation.operation_id,
                 "job_type": operation.job_type,
                 "submitted_at_utc": submitted_at,
-                "submit_elapsed_seconds": round(
-                    time.monotonic() - submit_started, 3
-                ),
+                "submit_elapsed_seconds": round(time.monotonic() - submit_started, 3),
                 "response": response,
             }
         except Exception as exc:  # noqa: BLE001
@@ -1761,16 +1774,17 @@ def run_scenario(
                 "operation_id": operation.operation_id,
                 "job_type": operation.job_type,
                 "submitted_at_utc": submitted_at,
-                "submit_elapsed_seconds": round(
-                    time.monotonic() - submit_started, 3
-                ),
+                "submit_elapsed_seconds": round(time.monotonic() - submit_started, 3),
                 "error": str(exc),
             }
 
     try:
         if scenario.concurrent and len(scenario.operations) > 1:
             with ThreadPoolExecutor(max_workers=len(scenario.operations)) as executor:
-                futures = [executor.submit(submit, operation) for operation in scenario.operations]
+                futures = [
+                    executor.submit(submit, operation)
+                    for operation in scenario.operations
+                ]
                 submissions = [future.result(timeout=45) for future in futures]
         else:
             submissions = [submit(operation) for operation in scenario.operations]
@@ -1821,7 +1835,9 @@ def run_scenario(
                     {
                         "operation_id": submission.get("operation_id"),
                         "phase": "submission",
-                        "error": submission.get("error", "response did not contain job_id"),
+                        "error": submission.get(
+                            "error", "response did not contain job_id"
+                        ),
                     }
                 )
                 continue
@@ -1835,7 +1851,9 @@ def run_scenario(
                     if operation is not None
                     else ("completed",)
                 ),
-                "poll_interval_seconds": body.get("poll_interval", scenario.poll_interval_seconds),
+                "poll_interval_seconds": body.get(
+                    "poll_interval", scenario.poll_interval_seconds
+                ),
                 "polls": [],
                 "terminal": False,
             }
@@ -1872,7 +1890,9 @@ def run_scenario(
             tracker.register_checkpoint_path(checkpoint_name)
     try:
         batch["running_jobs_after"] = api.running_jobs()
-        batch["nonterminal_jobs_after"] = _running_job_entries(batch["running_jobs_after"])
+        batch["nonterminal_jobs_after"] = _running_job_entries(
+            batch["running_jobs_after"]
+        )
         if batch["nonterminal_jobs_after"]:
             batch["errors"].append(
                 {
@@ -1886,7 +1906,10 @@ def run_scenario(
                 job_id = _job_id_from_entry(entry)
                 if job_id is None:
                     cancellations.append(
-                        {"entry": entry, "error": "Running job has no identifiable job_id."}
+                        {
+                            "entry": entry,
+                            "error": "Running job has no identifiable job_id.",
+                        }
                     )
                     continue
                 try:
@@ -1906,13 +1929,13 @@ def run_scenario(
                     {
                         "phase": "post_scenario_cleanup",
                         "error": "Stranded jobs remained after bounded cancellation cleanup.",
-                        "jobs": _running_job_entries(batch["running_jobs_after_cleanup"]),
+                        "jobs": _running_job_entries(
+                            batch["running_jobs_after_cleanup"]
+                        ),
                     }
                 )
     except Exception as exc:  # noqa: BLE001
-        batch["errors"].append(
-            {"phase": "post_scenario_inventory", "error": str(exc)}
-        )
+        batch["errors"].append({"phase": "post_scenario_inventory", "error": str(exc)})
     batch["reconciliation"] = {
         "terminal_jobs": [
             {
@@ -1976,7 +1999,7 @@ def _repository_metadata() -> dict[str, Any]:
         )
         if status.returncode == 0:
             metadata["dirty"] = bool(status.stdout.strip())
-    except (OSError, subprocess.SubprocessError):
+    except OSError, subprocess.SubprocessError:
         metadata["error"] = "git metadata unavailable"
     return metadata
 
@@ -2018,8 +2041,7 @@ def database_integrity(resource_root: Path) -> dict[str, Any]:
         result["tables"] = [
             row[0]
             for row in connection.execute(
-                "SELECT name FROM sqlite_master "
-                "WHERE type = 'table' ORDER BY name"
+                "SELECT name FROM sqlite_master WHERE type = 'table' ORDER BY name"
             ).fetchall()
             if isinstance(row[0], str)
         ]
@@ -2150,9 +2172,7 @@ def generate_scaled_fixture(
             output_image = output_images / output_name
             shutil.copyfile(source_image, output_image)
             image_hashes[output_name] = _sha256(output_image)
-            output_rows.append(
-                {"text": source_row["text"], "image_name": output_name}
-            )
+            output_rows.append({"text": source_row["text"], "image_name": output_name})
 
     output_table = output_root / f"{source_table.stem}_scale{scale}.csv"
     with output_table.open("w", newline="", encoding="utf-8") as output:
@@ -2241,7 +2261,9 @@ def main() -> int:
     args = _arguments()
     if args.generate_scaled_fixture:
         if args.scaled_fixture_output is None:
-            raise SystemExit("--scaled-fixture-output is required with --generate-scaled-fixture")
+            raise SystemExit(
+                "--scaled-fixture-output is required with --generate-scaled-fixture"
+            )
         result = generate_scaled_fixture(
             args.fixture_root,
             args.scaled_fixture_output,

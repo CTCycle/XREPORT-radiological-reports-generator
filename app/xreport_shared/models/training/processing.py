@@ -11,7 +11,6 @@ from xreport_shared.common.path import TOKENIZERS_DIR
 
 ###############################################################################
 class TrainValidationSplit:
-
     # -------------------------------------------------------------------------
     def __init__(self, configuration: dict[str, Any], dataframe: pd.DataFrame) -> None:
         self.validation_size = configuration.get("validation_size", 0.2)
@@ -50,7 +49,6 @@ class TrainValidationSplit:
 
 ###############################################################################
 class TextSanitizer:
-
     # -------------------------------------------------------------------------
     def __init__(self, configuration: dict[str, Any]) -> None:
         self.max_report_size = configuration.get("max_report_size", 200)
@@ -93,8 +91,12 @@ class SpecialTokens:
 ###############################################################################
 def resolve_special_tokens(tokenizer: Any) -> SpecialTokens:
     """Map a tokenizer to decoder special tokens (CLS/SEP or BOS/EOS, plus PAD)."""
-    start = tokenizer.cls_token if tokenizer.cls_token is not None else tokenizer.bos_token
-    end = tokenizer.sep_token if tokenizer.sep_token is not None else tokenizer.eos_token
+    start = (
+        tokenizer.cls_token if tokenizer.cls_token is not None else tokenizer.bos_token
+    )
+    end = (
+        tokenizer.sep_token if tokenizer.sep_token is not None else tokenizer.eos_token
+    )
     missing = [
         label
         for label, value in (
@@ -176,7 +178,6 @@ def load_tokenizer(tokenizer_name: str) -> Any:
 
 ###############################################################################
 class TokenizerHandler:
-
     # -------------------------------------------------------------------------
     def __init__(self, configuration: dict[str, Any]) -> None:
         self.tokenizer_id = configuration.get("tokenizer", None)

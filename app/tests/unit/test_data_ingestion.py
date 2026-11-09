@@ -10,8 +10,15 @@ import pandas as pd
 import pytest
 from xreport_studio.domain.training import LoadDatasetRequest
 from xreport_shared.services.errors import BadRequestError, PayloadTooLargeError
-from xreport_studio.services.preparation import PreparationService, count_image_files, scan_image_folder
-from xreport_studio.repositories.serialization.dataset import DatasetIntegrityError, DatasetRepository
+from xreport_studio.services.preparation import (
+    PreparationService,
+    count_image_files,
+    scan_image_folder,
+)
+from xreport_studio.repositories.serialization.dataset import (
+    DatasetIntegrityError,
+    DatasetRepository,
+)
 
 
 ###############################################################################
@@ -325,9 +332,7 @@ def test_load_dataset_requires_the_explicit_upload_id(tmp_path: Path) -> None:
         "upload-one",
         {
             "dataset_name": "one",
-            "dataframe": pd.DataFrame(
-                {"image": ["present.jpg"], "text": ["report"]}
-            ),
+            "dataframe": pd.DataFrame({"image": ["present.jpg"], "text": ["report"]}),
         },
     )
     service = _preparation_service(upload_state, SimpleNamespace())
@@ -365,9 +370,7 @@ def test_upload_accepts_exact_payload_limit(monkeypatch: pytest.MonkeyPatch) -> 
         return pd.DataFrame({"text": ["report"]})
 
     monkeypatch.setattr(pd, "read_csv", fake_read_csv)
-    response = service.upload_dataset(
-        "at_limit.csv", b"x" * MAX_DATASET_UPLOAD_BYTES
-    )
+    response = service.upload_dataset("at_limit.csv", b"x" * MAX_DATASET_UPLOAD_BYTES)
 
     assert parser_called is True
     assert response.success is True
@@ -401,9 +404,7 @@ def test_upload_ids_keep_parsed_contents_independent() -> None:
     state = UploadState()
     service = UploadService(state)
 
-    first = service.upload_dataset(
-        "first.csv", b"image,text\nfirst.png,First report\n"
-    )
+    first = service.upload_dataset("first.csv", b"image,text\nfirst.png,First report\n")
     second = service.upload_dataset(
         "second.csv", b"image,text\nsecond.png,Second report\n"
     )

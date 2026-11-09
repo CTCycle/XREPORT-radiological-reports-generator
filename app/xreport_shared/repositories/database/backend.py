@@ -4,7 +4,10 @@ from dataclasses import dataclass
 from threading import RLock
 
 from xreport_shared.configurations import get_database_settings
-from xreport_shared.repositories.database.engine import Database, DatabaseConnectionSnapshot
+from xreport_shared.repositories.database.engine import (
+    Database,
+    DatabaseConnectionSnapshot,
+)
 
 
 ###############################################################################

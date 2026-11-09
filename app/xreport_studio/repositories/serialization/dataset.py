@@ -51,7 +51,6 @@ class DatasetIntegrityError(ValueError):
 
 ###############################################################################
 class DatasetRepository(RepositorySupport):
-
     # -------------------------------------------------------------------------
     def __init__(
         self,

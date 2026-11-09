@@ -13,7 +13,10 @@ from concurrent.futures import ThreadPoolExecutor
 from threading import Barrier, Event, Lock
 from types import SimpleNamespace
 from xreport_studio.domain.training import ProcessDatasetRequest, StartTrainingRequest
-from xreport_studio.domain.validation import CheckpointEvaluationRequest, ValidationRequest
+from xreport_studio.domain.validation import (
+    CheckpointEvaluationRequest,
+    ValidationRequest,
+)
 from xreport_shared.domain.jobs import JobStartResponse
 from xreport_studio.services.dataset_processing import DatasetProcessingService
 from xreport_shared.services.errors import ConflictError
@@ -150,10 +153,8 @@ def test_typed_job_failure_is_used_without_a_mapper() -> None:
 ###############################################################################
 def test_training_start_rejects_an_existing_checkpoint_name() -> None:
 
-
     ###############################################################################
     class CheckpointRepositoryStub:
-
         # -------------------------------------------------------------------------
         def get_checkpoint(self, name: str) -> object | None:
             return object() if name == "existing_run" else None
@@ -180,10 +181,8 @@ def test_concurrent_training_starts_are_atomically_rejected(
         checkpoint_repository=object(),  # type: ignore[arg-type]
     )
 
-
     ###############################################################################
     class DatasetRepositoryStub:
-
         # -------------------------------------------------------------------------
         def load_training_data(
             self,
@@ -348,11 +347,8 @@ def test_concurrent_feature_job_starts_are_atomically_rejected(
         return {"state": "released"}
 
     if feature == "dataset_processing":
-
-
         ###############################################################################
         class DatasetRepositoryStub:
-
             # -------------------------------------------------------------------------
             def load_source_dataset(self, **_kwargs: object) -> pd.DataFrame:
                 return pd.DataFrame([{"path": "fixture.png"}])
@@ -394,11 +390,8 @@ def test_concurrent_feature_job_starts_are_atomically_rejected(
             return asyncio.run(service.run_validation(request))
 
     else:
-
-
         ###############################################################################
         class CheckpointRepositoryStub:
-
             # -------------------------------------------------------------------------
             def get_checkpoint(self, _name: str) -> SimpleNamespace:
                 return SimpleNamespace(artifact_complete=True)
@@ -440,6 +433,7 @@ def test_concurrent_feature_job_starts_are_atomically_rejected(
     monkeypatch.setattr(manager, "is_job_running", synchronize_preflight)
     job_id: str | None = None
     try:
+
         def invoke_start() -> JobStartResponse | ConflictError:
             try:
                 return start_feature()

@@ -11,7 +11,14 @@ import tempfile
 from threading import RLock
 from typing import Any, Literal
 
-from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_validator, model_validator
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    Field,
+    ValidationError,
+    field_validator,
+    model_validator,
+)
 
 from xreport_shared.common.path import DATABASE_CONFIG_FILE_PATH, DATABASE_FILE_PATH
 from xreport_shared.configurations.settings import DatabaseSettings
@@ -92,9 +99,7 @@ class DatabaseConfiguration(BaseModel):
         }
         missing = [key for key, value in required.items() if not _clean(value)]
         if missing:
-            raise ValueError(
-                "PostgreSQL requires: " + ", ".join(missing) + "."
-            )
+            raise ValueError("PostgreSQL requires: " + ", ".join(missing) + ".")
         supported_engines = {
             None,
             "postgres",
@@ -221,7 +226,9 @@ def _protect_password(password: str) -> str:
         0x1,
         ctypes.byref(protected),
     ):
-        raise DatabaseConfigurationError("Windows could not protect the database password.")
+        raise DatabaseConfigurationError(
+            "Windows could not protect the database password."
+        )
     try:
         return base64.b64encode(
             ctypes.string_at(protected.pbData, protected.cbData)
@@ -321,22 +328,25 @@ def save_database_configuration(
     if path is None:
         path = DATABASE_CONFIG_FILE_PATH
     try:
-        payload = json.dumps(
-            _stored_payload(configuration), indent=2, sort_keys=True
-        ).encode("utf-8") + b"\n"
+        payload = (
+            json.dumps(_stored_payload(configuration), indent=2, sort_keys=True).encode(
+                "utf-8"
+            )
+            + b"\n"
+        )
     except DatabaseConfigurationError:
         raise
     except Exception as exc:  # noqa: BLE001
-        raise DatabaseConfigurationError("Could not encode database settings safely.") from exc
+        raise DatabaseConfigurationError(
+            "Could not encode database settings safely."
+        ) from exc
     with _CONFIG_LOCK:
         _atomic_write(path, payload)
         _bootstrap_state.error = None
 
 
 ###############################################################################
-def read_database_configuration(
-    *, path: Path | None = None
-) -> DatabaseConfiguration:
+def read_database_configuration(*, path: Path | None = None) -> DatabaseConfiguration:
     if path is None:
         path = DATABASE_CONFIG_FILE_PATH
     with _CONFIG_LOCK:

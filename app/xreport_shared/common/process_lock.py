@@ -21,7 +21,6 @@ class DataFolderInUseError(RuntimeError):
 
 ###############################################################################
 class DataFolderLock:
-
     # -------------------------------------------------------------------------
     def __init__(self, directory: Path) -> None:
         self.path = directory / LOCK_FILENAME

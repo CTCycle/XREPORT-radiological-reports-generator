@@ -53,7 +53,6 @@ class ApplicationSettingsResponse(_StrictSettingsModel):
 
 ###############################################################################
 class _PatchModel(_StrictSettingsModel):
-
     # -------------------------------------------------------------------------
     @model_validator(mode="after")
     def reject_explicit_nulls(self) -> _PatchModel:

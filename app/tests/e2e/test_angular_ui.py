@@ -5,7 +5,12 @@ import re
 import zipfile
 from pathlib import Path
 
-from playwright.sync_api import Page, Route, TimeoutError as PlaywrightTimeoutError, expect
+from playwright.sync_api import (
+    Page,
+    Route,
+    TimeoutError as PlaywrightTimeoutError,
+    expect,
+)
 
 
 ###############################################################################
@@ -16,7 +21,9 @@ def test_inference_route_renders_catalog_and_navigation(
     response = page.goto(f"{base_url}/inference")
 
     assert response is not None and response.ok
-    expect(page.get_by_role("heading", name="Turn a radiograph into a draft report")).to_be_visible()
+    expect(
+        page.get_by_role("heading", name="Turn a radiograph into a draft report")
+    ).to_be_visible()
     expect(page.get_by_text("Model catalogue", exact=True)).to_be_visible()
     expect(page.get_by_role("link", name="Reports")).to_be_visible()
     expect(page.get_by_role("link", name="Dataset")).to_have_count(0)
@@ -32,13 +39,17 @@ def test_model_update_check_shows_progress_then_result(
     base_url: str,
 ) -> None:
     pending: list[Route] = []
-    page.route("**/api/inference/models/check-update", lambda route: pending.append(route))
+    page.route(
+        "**/api/inference/models/check-update", lambda route: pending.append(route)
+    )
     page.goto(f"{base_url}/inference")
     page.get_by_role("button", name=re.compile("CXRMate Multi")).click()
 
     page.get_by_role("button", name="Check for updates").click()
     expect(page.get_by_role("button", name="Checking…")).to_be_disabled()
-    expect(page.get_by_text("Checking Hugging Face for a newer revision…")).to_be_visible()
+    expect(
+        page.get_by_text("Checking Hugging Face for a newer revision…")
+    ).to_be_visible()
 
     while not pending:
         page.wait_for_timeout(50)
@@ -54,7 +65,9 @@ def test_model_update_check_shows_progress_then_result(
             "error": None,
         }
     )
-    expect(page.get_by_text(f"Update available: {'a' * 12} → {'b' * 12}")).to_be_visible()
+    expect(
+        page.get_by_text(f"Update available: {'a' * 12} → {'b' * 12}")
+    ).to_be_visible()
     expect(page.get_by_role("button", name="Check for updates")).to_be_enabled()
 
 
@@ -199,7 +212,9 @@ def test_reports_detail_edit_reload_and_confirmed_delete(
     page.once("dialog", lambda dialog: dialog.accept())
     page.get_by_role("button", name="Delete session").click()
     expect(page).to_have_url(f"{base_url}/reports")
-    expect(page.locator(f'a.report-card[href="/reports/{seeded_history}"]')).to_have_count(0)
+    expect(
+        page.locator(f'a.report-card[href="/reports/{seeded_history}"]')
+    ).to_have_count(0)
 
 
 ###############################################################################
@@ -355,7 +370,9 @@ def test_desktop_catalogue_matches_details_height_and_keeps_internal_scroll(
         })
         """,
     )
-    assert abs(filtered_metrics["catalogHeight"] - filtered_metrics["detailsHeight"]) <= 1
+    assert (
+        abs(filtered_metrics["catalogHeight"] - filtered_metrics["detailsHeight"]) <= 1
+    )
 
 
 ###############################################################################
@@ -393,7 +410,9 @@ def test_startup_gate_holds_inference_until_backend_health(
 
     assert response is not None and response.ok
     expect(page.locator("#startup-title")).to_be_visible()
-    startup_progress = page.get_by_role("progressbar", name="Initializing XREPORT Inference")
+    startup_progress = page.get_by_role(
+        "progressbar", name="Initializing XREPORT Inference"
+    )
     expect(startup_progress).to_be_visible()
     expect(startup_progress).to_have_attribute("aria-valuemin", "0")
     expect(startup_progress).to_have_attribute("aria-valuemax", "100")
@@ -405,7 +424,9 @@ def test_startup_gate_holds_inference_until_backend_health(
     qa_dir = _e2e_screenshot_dir("")
     page.screenshot(path=str(qa_dir / "xreport-startup-gate.png"), full_page=False)
 
-    expect(page.get_by_text("Model catalogue", exact=True)).to_be_visible(timeout=10_000)
+    expect(page.get_by_text("Model catalogue", exact=True)).to_be_visible(
+        timeout=10_000
+    )
     assert health_calls == 3
     page.screenshot(path=str(qa_dir / "xreport-startup-ready.png"), full_page=False)
     page.unroute("**/api/health", respond_to_health)
@@ -451,7 +472,9 @@ def test_startup_timing_retry_and_post_ready_feature_error(
 
     assert response is not None and response.ok
     expect(page.locator("#startup-title")).to_be_visible()
-    startup_progress = page.get_by_role("progressbar", name="Initializing XREPORT Inference")
+    startup_progress = page.get_by_role(
+        "progressbar", name="Initializing XREPORT Inference"
+    )
     expect(startup_progress).to_be_visible()
     expect(
         page.get_by_role("heading", name="Turn a radiograph into a draft report")
@@ -495,9 +518,9 @@ def test_chexone_details_render_findings_only_catalog_contract(
     request_failures: list[str] = []
     page.on(
         "console",
-        lambda message: console_errors.append(message.text)
-        if message.type == "error"
-        else None,
+        lambda message: (
+            console_errors.append(message.text) if message.type == "error" else None
+        ),
     )
     page.on(
         "requestfailed",
@@ -512,7 +535,9 @@ def test_chexone_details_render_findings_only_catalog_contract(
     expect(details.get_by_role("heading", name="CheXOne")).to_be_visible()
     output_row = details.locator("dt").filter(has_text="Output").locator("xpath=..")
     expect(output_row.locator("dd")).to_have_text("Findings")
-    expect(details.locator(".capability-list").get_by_text("Findings", exact=True)).to_be_visible()
+    expect(
+        details.locator(".capability-list").get_by_text("Findings", exact=True)
+    ).to_be_visible()
     expect(details.get_by_text("Impression", exact=True)).to_have_count(0)
     assert not console_errors, console_errors
     assert not request_failures, request_failures
@@ -549,12 +574,16 @@ def test_settings_route_persists_and_resets_runtime_values(
         page.get_by_role("tab", name="Advanced").click()
         polling.fill("2.5")
         with page.expect_response(
-            lambda item: item.url.endswith("/api/settings") and item.request.method == "PATCH"
+            lambda item: (
+                item.url.endswith("/api/settings") and item.request.method == "PATCH"
+            )
         ) as polling_save:
             timeout.fill("901")
         assert polling_save.value.ok
         with page.expect_response(
-            lambda item: item.url.endswith("/api/settings") and item.request.method == "PATCH"
+            lambda item: (
+                item.url.endswith("/api/settings") and item.request.method == "PATCH"
+            )
         ) as timeout_save:
             timeout.blur()
         assert timeout_save.value.ok
@@ -567,7 +596,9 @@ def test_settings_route_persists_and_resets_runtime_values(
     finally:
         page.goto(f"{base_url}/settings")
         page.get_by_role("button", name="Reset to defaults").click()
-        expect(page.get_by_text("Settings reset to defaults.", exact=True)).to_be_visible()
+        expect(
+            page.get_by_text("Settings reset to defaults.", exact=True)
+        ).to_be_visible()
 
 
 ###############################################################################
@@ -604,8 +635,10 @@ def test_database_settings_are_drafts_until_confirmation_and_failed_probe_keeps_
     expect(page.locator("#database-ssl-ca")).to_have_value("C:\\candidate\\ca.pem")
     expect(database_status).to_contain_text(active_path)
     with page.expect_response(
-        lambda item: item.url.endswith("/api/settings/database/test")
-        and item.request.method == "POST"
+        lambda item: (
+            item.url.endswith("/api/settings/database/test")
+            and item.request.method == "POST"
+        )
     ) as test_response:
         page.get_by_role("button", name="Test connection").click()
     assert test_response.value.ok
@@ -657,8 +690,16 @@ def test_affected_pages_render_responsive_layouts_and_capture_qa_evidence(
     qa_dir = _e2e_screenshot_dir("")
     console_errors: list[str] = []
     request_failures: list[str] = []
-    page.on("console", lambda message: console_errors.append(message.text) if message.type == "error" else None)
-    page.on("requestfailed", lambda request: request_failures.append(f"{request.method} {request.url}"))
+    page.on(
+        "console",
+        lambda message: (
+            console_errors.append(message.text) if message.type == "error" else None
+        ),
+    )
+    page.on(
+        "requestfailed",
+        lambda request: request_failures.append(f"{request.method} {request.url}"),
+    )
 
     page.set_viewport_size({"width": 900, "height": 700})
     response = page.goto(f"{base_url}/inference")
@@ -666,7 +707,9 @@ def test_affected_pages_render_responsive_layouts_and_capture_qa_evidence(
     expect(page.get_by_text("Model catalogue", exact=True)).to_be_visible()
     banner = page.locator(".model-info-banner")
     expect(banner).to_be_visible()
-    page.screenshot(path=str(qa_dir / "xreport-inference-narrow-dark.png"), full_page=False)
+    page.screenshot(
+        path=str(qa_dir / "xreport-inference-narrow-dark.png"), full_page=False
+    )
 
     inference_metrics = page.evaluate(
         """
@@ -696,7 +739,9 @@ def test_affected_pages_render_responsive_layouts_and_capture_qa_evidence(
 
     page.goto(f"{base_url}/settings")
     expect(page.get_by_role("tab", name="General")).to_be_visible()
-    page.screenshot(path=str(qa_dir / "xreport-settings-narrow-dark.png"), full_page=False)
+    page.screenshot(
+        path=str(qa_dir / "xreport-settings-narrow-dark.png"), full_page=False
+    )
     for tab_name, heading_name in (("General", "General"), ("Advanced", "Advanced")):
         page.get_by_role("tab", name=tab_name).click()
         expect(page.get_by_role("heading", name=heading_name, level=2)).to_be_visible()
@@ -718,14 +763,28 @@ def test_affected_pages_render_responsive_layouts_and_capture_qa_evidence(
     expect(page.get_by_role("heading", name="Database", level=2)).to_be_visible()
     assert page.locator(".database-field").count() > 0
 
-    with page.expect_response(lambda item: item.url.endswith("/api/settings") and item.request.method == "PATCH"):
+    with page.expect_response(
+        lambda item: (
+            item.url.endswith("/api/settings") and item.request.method == "PATCH"
+        )
+    ):
         page.get_by_role("button", name="Use Light theme").click()
     expect(page.locator("html")).to_have_attribute("data-theme", "light")
-    page.screenshot(path=str(qa_dir / "xreport-settings-narrow-light.png"), full_page=False)
-    with page.expect_response(lambda item: item.url.endswith("/api/settings") and item.request.method == "PATCH"):
+    page.screenshot(
+        path=str(qa_dir / "xreport-settings-narrow-light.png"), full_page=False
+    )
+    with page.expect_response(
+        lambda item: (
+            item.url.endswith("/api/settings") and item.request.method == "PATCH"
+        )
+    ):
         page.get_by_role("button", name="Use Dark theme").click()
     expect(page.locator("html")).to_have_attribute("data-theme", "dark")
-    with page.expect_response(lambda item: item.url.endswith("/api/settings") and item.request.method == "PATCH"):
+    with page.expect_response(
+        lambda item: (
+            item.url.endswith("/api/settings") and item.request.method == "PATCH"
+        )
+    ):
         page.get_by_role("button", name="Use System theme").click()
     expect(page.get_by_text("Theme saved", exact=True)).to_have_count(0)
 
@@ -798,9 +857,9 @@ def test_s52_responsive_route_modal_and_reduced_motion_matrix(
     request_failures: list[str] = []
     page.on(
         "console",
-        lambda message: console_errors.append(message.text)
-        if message.type == "error"
-        else None,
+        lambda message: (
+            console_errors.append(message.text) if message.type == "error" else None
+        ),
     )
     page.on("pageerror", lambda error: page_errors.append(str(error)))
     page.on(
@@ -936,10 +995,9 @@ def test_s52_responsive_route_modal_and_reduced_motion_matrix(
         page.wait_for_timeout(180)
         scroll_calls = page.evaluate("() => window.__xreportScrollCalls")
         assert scroll_calls
-        assert all(
-            call["behavior"] in {None, "auto"}
-            for call in scroll_calls
-        ), scroll_calls
+        assert all(call["behavior"] in {None, "auto"} for call in scroll_calls), (
+            scroll_calls
+        )
 
         reduced_motion = page.evaluate(
             """() => {
@@ -986,7 +1044,9 @@ def test_s52_semantic_metadata_and_keyboard_only_smoke(
     response = page.goto(f"{base_url}/inference")
 
     assert response is not None and response.ok
-    expect(page.get_by_role("heading", name="Turn a radiograph into a draft report")).to_be_visible()
+    expect(
+        page.get_by_role("heading", name="Turn a radiograph into a draft report")
+    ).to_be_visible()
     _assert_s52_semantic_route_metadata(page, "inference")
 
     help_button = page.get_by_role("button", name="Help and tips")
@@ -1059,7 +1119,9 @@ def _assert_s52_semantic_route_metadata(page: Page, route_name: str) -> None:
           ))
         """,
     )
-    assert not broken_references, f"broken ARIA references on {route_name}: {broken_references}"
+    assert not broken_references, (
+        f"broken ARIA references on {route_name}: {broken_references}"
+    )
 
     unnamed_controls = page.evaluate(
         """
@@ -1071,17 +1133,23 @@ def _assert_s52_semantic_route_metadata(page: Page, route_name: str) -> None:
           .map((element) => element.outerHTML.slice(0, 180))
         """,
     )
-    assert not unnamed_controls, f"unnamed links or buttons on {route_name}: {unnamed_controls}"
+    assert not unnamed_controls, (
+        f"unnamed links or buttons on {route_name}: {unnamed_controls}"
+    )
 
     if route_name == "inference":
-        expect(page.locator('section[aria-label="Inference workflow"]')).to_have_count(1)
+        expect(page.locator('section[aria-label="Inference workflow"]')).to_have_count(
+            1
+        )
         expect(page.locator('aside[aria-label="Model catalog"]')).to_have_count(1)
         model_region = page.get_by_role("region", name="Scrollable model catalogue")
         expect(model_region).to_have_attribute("tabindex", "0")
         expect(page.get_by_role("textbox", name="Filter models")).to_be_visible()
     elif route_name == "reports":
         expect(page.locator('main[aria-labelledby="reports-title"]')).to_have_count(1)
-        expect(page.get_by_role("region", name="Report history filters")).to_have_count(1)
+        expect(page.get_by_role("region", name="Report history filters")).to_have_count(
+            1
+        )
         expect(page.get_by_role("textbox", name="Model reference")).to_be_visible()
         expect(page.get_by_role("combobox", name="Status")).to_be_visible()
         expect(page.get_by_role("combobox", name="Sort")).to_be_visible()
@@ -1104,21 +1172,26 @@ def _assert_s52_semantic_route_metadata(page: Page, route_name: str) -> None:
             and item["controls"]
             for item in tab_metadata
         ), tab_metadata
-        active_tab = next(
-            item for item in tab_metadata if item["selected"] == "true"
-        )
-        assert page.locator(f'#{active_tab["controls"]}').count() == 1
+        active_tab = next(item for item in tab_metadata if item["selected"] == "true")
+        assert page.locator(f"#{active_tab['controls']}").count() == 1
         panel = page.get_by_role("tabpanel")
         expect(panel).to_have_count(1)
         labelled_by = panel.get_attribute("aria-labelledby")
-        assert labelled_by and page.locator(f'#{labelled_by}').count() == 1
-        expect(page.get_by_role("spinbutton", name=re.compile("random seed|polling interval|inference timeout", re.I)).first).to_be_visible()
+        assert labelled_by and page.locator(f"#{labelled_by}").count() == 1
+        expect(
+            page.get_by_role(
+                "spinbutton",
+                name=re.compile("random seed|polling interval|inference timeout", re.I),
+            ).first
+        ).to_be_visible()
     else:
         raise AssertionError(f"Unexpected S52 route: {route_name}")
 
 
 ###############################################################################
-def _assert_s52_dialog_semantics(page: Page, dialog, *, require_description: bool) -> None:
+def _assert_s52_dialog_semantics(
+    page: Page, dialog, *, require_description: bool
+) -> None:
     expect(dialog).to_have_attribute("role", "dialog")
     expect(dialog).to_have_attribute("aria-modal", "true")
     labelled_by = dialog.get_attribute("aria-labelledby")
@@ -1146,9 +1219,9 @@ def _capture_s10_browser_errors(page: Page) -> dict[str, list[str]]:
     errors = {"console": [], "page": [], "requests": []}
     page.on(
         "console",
-        lambda message: errors["console"].append(message.text)
-        if message.type == "error"
-        else None,
+        lambda message: (
+            errors["console"].append(message.text) if message.type == "error" else None
+        ),
     )
     page.on("pageerror", lambda error: errors["page"].append(str(error)))
     page.on(
@@ -1163,7 +1236,11 @@ def _capture_s10_browser_errors(page: Page) -> dict[str, list[str]]:
 ###############################################################################
 def _e2e_screenshot_dir(default_relative: str) -> Path:
     configured = os.environ.get("XREPORT_E2E_SCREENSHOT_DIR", "").strip()
-    qa_dir = Path(configured) if configured else Path(__file__).parents[3] / "runtimes" / "cache" / "qa" / default_relative
+    qa_dir = (
+        Path(configured)
+        if configured
+        else Path(__file__).parents[3] / "runtimes" / "cache" / "qa" / default_relative
+    )
     qa_dir.mkdir(parents=True, exist_ok=True)
     return qa_dir
 
@@ -1234,7 +1311,9 @@ def test_s10_direct_routes_refresh_navigation_and_clean_browser(
         if path == "/inference":
             page.screenshot(path=str(qa_dir / "route-inference.png"), full_page=False)
         elif path.startswith("/reports/"):
-            page.screenshot(path=str(qa_dir / "route-report-detail.png"), full_page=False)
+            page.screenshot(
+                path=str(qa_dir / "route-report-detail.png"), full_page=False
+            )
 
         response = page.reload()
         assert response is not None and response.ok, f"refresh {path}"
@@ -1274,7 +1353,11 @@ def test_s10_theme_preferences_follow_system_and_persist_across_routes(
     expect(system).to_have_attribute("aria-pressed", "true")
     expect(page.locator("html")).to_have_attribute("data-theme", "light")
 
-    with page.expect_response(lambda item: item.url.endswith("/api/settings") and item.request.method == "PATCH"):
+    with page.expect_response(
+        lambda item: (
+            item.url.endswith("/api/settings") and item.request.method == "PATCH"
+        )
+    ):
         light.click()
     expect(light).to_have_attribute("aria-pressed", "true")
     expect(page.locator("html")).to_have_attribute("data-theme", "light")
@@ -1288,7 +1371,11 @@ def test_s10_theme_preferences_follow_system_and_persist_across_routes(
     page.emulate_media(color_scheme="dark")
     expect(page.locator("html")).to_have_attribute("data-theme", "light")
 
-    with page.expect_response(lambda item: item.url.endswith("/api/settings") and item.request.method == "PATCH"):
+    with page.expect_response(
+        lambda item: (
+            item.url.endswith("/api/settings") and item.request.method == "PATCH"
+        )
+    ):
         dark.click()
     expect(dark).to_have_attribute("aria-pressed", "true")
     expect(page.locator("html")).to_have_attribute("data-theme", "dark")
@@ -1301,7 +1388,11 @@ def test_s10_theme_preferences_follow_system_and_persist_across_routes(
     page.emulate_media(color_scheme="light")
     expect(page.locator("html")).to_have_attribute("data-theme", "dark")
 
-    with page.expect_response(lambda item: item.url.endswith("/api/settings") and item.request.method == "PATCH"):
+    with page.expect_response(
+        lambda item: (
+            item.url.endswith("/api/settings") and item.request.method == "PATCH"
+        )
+    ):
         system.click()
     expect(system).to_have_attribute("aria-pressed", "true")
     expect(page.locator("html")).to_have_attribute("data-theme", "light")
@@ -1314,7 +1405,9 @@ def test_s10_theme_preferences_follow_system_and_persist_across_routes(
     expect(page).to_have_url(f"{base_url}/settings")
     _expect_s10_active_navigation(page, "Settings")
     expect(page.locator("html")).to_have_attribute("data-theme", "dark")
-    page.screenshot(path=str(qa_dir / "theme-system-dark-settings.png"), full_page=False)
+    page.screenshot(
+        path=str(qa_dir / "theme-system-dark-settings.png"), full_page=False
+    )
     page.emulate_media(color_scheme="light")
     expect(page.locator("html")).to_have_attribute("data-theme", "light")
     expect(system).to_have_attribute("aria-pressed", "true")
@@ -1353,13 +1446,20 @@ def test_s10_guidance_version_dismiss_skip_completion_and_manual_replay(
 
     first_use_tip = page.locator('[data-guidance-id="inference-first-use"]')
     expect(first_use_tip).to_be_visible()
-    stored_guidance = page.evaluate("() => JSON.parse(localStorage.getItem('xreport.guidance.v1'))")
+    stored_guidance = page.evaluate(
+        "() => JSON.parse(localStorage.getItem('xreport.guidance.v1'))"
+    )
     assert stored_guidance["inference-first-use"] == {"version": 1, "status": "seen"}
     page.screenshot(path=str(qa_dir / "guidance-first-use-tip.png"), full_page=False)
     first_use_tip.get_by_role("button", name="Dismiss tip").click()
     expect(first_use_tip).to_have_count(0)
-    stored_guidance = page.evaluate("() => JSON.parse(localStorage.getItem('xreport.guidance.v1'))")
-    assert stored_guidance["inference-first-use"] == {"version": 1, "status": "dismissed"}
+    stored_guidance = page.evaluate(
+        "() => JSON.parse(localStorage.getItem('xreport.guidance.v1'))"
+    )
+    assert stored_guidance["inference-first-use"] == {
+        "version": 1,
+        "status": "dismissed",
+    }
 
     def start_inference_tour() -> None:
         page.get_by_role("button", name="Help and tips").click()
@@ -1371,7 +1471,9 @@ def test_s10_guidance_version_dismiss_skip_completion_and_manual_replay(
     tour_dialog = page.locator(".guided-tour-dialog")
     tour_dialog.get_by_role("button", name="Close walkthrough").click()
     expect(tour_dialog).to_have_count(0)
-    stored_guidance = page.evaluate("() => JSON.parse(localStorage.getItem('xreport.guidance.v1'))")
+    stored_guidance = page.evaluate(
+        "() => JSON.parse(localStorage.getItem('xreport.guidance.v1'))"
+    )
     assert stored_guidance["inference-tour"] == {"version": 1, "status": "skipped"}
 
     response = page.reload()
@@ -1386,7 +1488,9 @@ def test_s10_guidance_version_dismiss_skip_completion_and_manual_replay(
     page.screenshot(path=str(qa_dir / "guidance-tour-completion.png"), full_page=False)
     tour_dialog.get_by_role("button", name="Finish").click()
     expect(tour_dialog).to_have_count(0)
-    stored_guidance = page.evaluate("() => JSON.parse(localStorage.getItem('xreport.guidance.v1'))")
+    stored_guidance = page.evaluate(
+        "() => JSON.parse(localStorage.getItem('xreport.guidance.v1'))"
+    )
     assert stored_guidance["inference-tour"] == {"version": 1, "status": "completed"}
 
     response = page.reload()

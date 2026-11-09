@@ -11,13 +11,23 @@ import xreport_inference.app as inference_app
 import xreport_shared.app_factory as app_module
 import xreport_shared.services.startup_validation as startup_validation
 from fastapi.testclient import TestClient
-from xreport_shared.configurations.runtime_environment import get_runtime_environment_settings, CorsSettings, RuntimeEnvironmentSettings
+from xreport_shared.configurations.runtime_environment import (
+    get_runtime_environment_settings,
+    CorsSettings,
+    RuntimeEnvironmentSettings,
+)
 from pathlib import Path
 from xreport_shared.common import model_cache
 from xreport_shared.common.runtime_layout import RuntimeLayout
 from fastapi import Request
 from tests.conftest import run_async_in_thread
-from xreport_shared.configurations.settings import DatabaseSettings, GlobalSettings, InferenceSettings, JobsSettings, ServerSettings
+from xreport_shared.configurations.settings import (
+    DatabaseSettings,
+    GlobalSettings,
+    InferenceSettings,
+    JobsSettings,
+    ServerSettings,
+)
 
 
 ###############################################################################
@@ -38,8 +48,14 @@ def _configure_environment_paths(tmp_path, monkeypatch: pytest.MonkeyPatch):
     example_path = settings_dir / ".env.example"
     monkeypatch.setattr(environment, "ENV_FILE_PATH", env_path)
     monkeypatch.setattr(environment, "ENV_EXAMPLE_FILE_PATH", example_path)
-    monkeypatch.setattr(database_config, "DATABASE_CONFIG_FILE_PATH", settings_dir.parent / "database-config.json")
-    monkeypatch.setattr(database_config, "DATABASE_FILE_PATH", settings_dir.parent / "database.db")
+    monkeypatch.setattr(
+        database_config,
+        "DATABASE_CONFIG_FILE_PATH",
+        settings_dir.parent / "database-config.json",
+    )
+    monkeypatch.setattr(
+        database_config, "DATABASE_FILE_PATH", settings_dir.parent / "database.db"
+    )
     return env_path, example_path
 
 
@@ -112,7 +128,9 @@ def test_stray_database_keys_are_ignored_and_purged(tmp_path, monkeypatch) -> No
 
 
 ###############################################################################
-def test_supported_runtime_settings_are_loaded_from_dotenv(tmp_path, monkeypatch) -> None:
+def test_supported_runtime_settings_are_loaded_from_dotenv(
+    tmp_path, monkeypatch
+) -> None:
     env_path, _ = _configure_environment_paths(tmp_path, monkeypatch)
     env_path.write_text(
         "\n".join(
@@ -519,7 +537,9 @@ def test_inference_policy_is_composed_from_environment(
 
 
 ###############################################################################
-def test_cors_is_disabled_when_origins_are_empty(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_cors_is_disabled_when_origins_are_empty(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     _clear_runtime_environment(monkeypatch)
     from xreport_inference.app import create_app
 
@@ -565,9 +585,10 @@ def test_cors_preflight_allows_configured_origin_and_rejects_other_origin(
     assert allowed.headers["access-control-allow-origin"] == "https://ui.example"
     assert allowed.headers["access-control-allow-credentials"] == "true"
     assert "get" in allowed.headers["access-control-allow-methods"].lower()
-    assert "x-xreport-desktop-token" in allowed.headers[
-        "access-control-allow-headers"
-    ].lower()
+    assert (
+        "x-xreport-desktop-token"
+        in allowed.headers["access-control-allow-headers"].lower()
+    )
     assert denied.status_code == 400
     assert "access-control-allow-origin" not in denied.headers
 

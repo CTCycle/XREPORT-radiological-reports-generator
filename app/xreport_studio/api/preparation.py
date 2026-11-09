@@ -19,12 +19,14 @@ from xreport_studio.domain.training import (
 from xreport_shared.domain.jobs import (
     JobStartResponse,
 )
-from xreport_studio.services.preparation import PreparationService, get_preparation_service
+from xreport_studio.services.preparation import (
+    PreparationService,
+    get_preparation_service,
+)
 
 
 ###############################################################################
 class PreparationEndpoint:
-
     # -------------------------------------------------------------------------
     def __init__(
         self,

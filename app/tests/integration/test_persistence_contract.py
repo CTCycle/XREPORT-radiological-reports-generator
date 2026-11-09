@@ -15,7 +15,10 @@ from sqlalchemy import inspect, text
 import xreport_shared.repositories.database.initializer as initializer
 from xreport_shared.configurations import DatabaseSettings
 from xreport_shared.repositories.database.engine import Database
-from xreport_shared.repositories.database.schema import ApplicationSchema, application_schema
+from xreport_shared.repositories.database.schema import (
+    ApplicationSchema,
+    application_schema,
+)
 
 
 ###############################################################################
@@ -129,7 +132,9 @@ def test_postgresql_migrations_and_restart_persistence(
 
 
 ###############################################################################
-@pytest.mark.parametrize(("profile", "owner"), [("xreport", "studio"), ("studio", "xreport")])
+@pytest.mark.parametrize(
+    ("profile", "owner"), [("xreport", "studio"), ("studio", "xreport")]
+)
 def test_postgresql_database_of_the_other_application_is_rejected(
     postgres_settings: DatabaseSettings, profile: str, owner: str
 ) -> None:

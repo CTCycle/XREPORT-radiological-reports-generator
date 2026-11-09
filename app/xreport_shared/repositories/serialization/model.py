@@ -15,7 +15,6 @@ from xreport_shared.common.utils.logger import logger
 
 ###############################################################################
 class ModelSerializer:
-
     # -------------------------------------------------------------------------
     def __init__(self) -> None:
         self.model_name = "XREPORT"

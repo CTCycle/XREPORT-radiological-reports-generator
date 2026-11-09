@@ -72,7 +72,6 @@ def resolve_metric_fraction(
 
 ###############################################################################
 class ProgressRange:
-
     # -------------------------------------------------------------------------
     def __init__(self, job_id: str, start: float, end: float) -> None:
         self.job_id = job_id
@@ -758,7 +757,9 @@ class ValidationService:
         return ValidationReportResponse(**report)
 
     # -------------------------------------------------------------------------
-    async def list_validation_runs(self, dataset_name: str) -> ValidationRunListResponse:
+    async def list_validation_runs(
+        self, dataset_name: str
+    ) -> ValidationRunListResponse:
         runs = ValidationRepository().list_validation_runs(dataset_name)
         if runs is None:
             raise NotFoundError(detail=f"Dataset not found: {dataset_name}")

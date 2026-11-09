@@ -75,9 +75,7 @@ def get_runtime_environment_settings() -> RuntimeEnvironmentSettings:
         )
 
     return RuntimeEnvironmentSettings(
-        inference_hf_local_only=_environment_bool(
-            "INFERENCE_HF_LOCAL_ONLY", True
-        ),
+        inference_hf_local_only=_environment_bool("INFERENCE_HF_LOCAL_ONLY", True),
         inference_device=device,
         cors=CorsSettings(
             allowed_origins=allowed_origins,

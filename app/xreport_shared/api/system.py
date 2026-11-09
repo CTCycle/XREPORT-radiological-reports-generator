@@ -8,7 +8,6 @@ from xreport_shared.services.system_status import SystemStatusService
 
 ###############################################################################
 class SystemEndpoint:
-
     # -------------------------------------------------------------------------
     def __init__(
         self,
@@ -38,5 +37,6 @@ def get_router() -> APIRouter:
     router = APIRouter(prefix="/system", tags=["system"])
     SystemEndpoint(router=router).add_routes()
     return router
+
 
 router = get_router()

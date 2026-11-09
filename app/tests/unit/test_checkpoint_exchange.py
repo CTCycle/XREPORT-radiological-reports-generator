@@ -25,9 +25,13 @@ REVISION = "a" * 40
 
 
 ###############################################################################
-@pytest.mark.parametrize("first,second", [
-    ("training", "checkpoint_export"), ("checkpoint_export", "training"),
-])
+@pytest.mark.parametrize(
+    "first,second",
+    [
+        ("training", "checkpoint_export"),
+        ("checkpoint_export", "training"),
+    ],
+)
 def test_export_training_and_deletion_are_serialized(first: str, second: str) -> None:
     manager = JobManager()
     release = Event()
@@ -53,7 +57,6 @@ def test_export_training_and_deletion_are_serialized(first: str, second: str) ->
 
 ###############################################################################
 class FakeCheckpoints:
-
     # -------------------------------------------------------------------------
     def __init__(self) -> None:
         self.records: dict[str, SimpleNamespace] = {}
@@ -102,7 +105,8 @@ class Node:
             should_stop=lambda _job: False, update_progress=lambda *_: None
         )
         self.service = exchange.CheckpointExchangeService(
-            self.repository, self.jobs  # type: ignore[arg-type]
+            self.repository,
+            self.jobs,  # type: ignore[arg-type]
         )
 
     # -------------------------------------------------------------------------
@@ -131,7 +135,9 @@ class Node:
             )
         )
         (path / "configuration" / "session_history.json").write_text(
-            json.dumps({"epochs": 3, "history": {"loss": [2.0, 1.0], "val_loss": [2.5, 1.5]}})
+            json.dumps(
+                {"epochs": 3, "history": {"loss": [2.0, 1.0], "val_loss": [2.5, 1.5]}}
+            )
         )
         self.repository.register_completed_checkpoint(name, path)
         return path
@@ -146,10 +152,14 @@ def stub_ml(monkeypatch: pytest.MonkeyPatch):
         return [("tokenizer/tokenizer.json", directory / "tokenizer.json")]
 
     monkeypatch.setattr(
-        exchange.CheckpointExchangeService, "_stage_tokenizer", staticmethod(stage_tokenizer)
+        exchange.CheckpointExchangeService,
+        "_stage_tokenizer",
+        staticmethod(stage_tokenizer),
     )
     monkeypatch.setattr(
-        exchange.CheckpointExchangeService, "_smoke_test", staticmethod(lambda _dir: None)
+        exchange.CheckpointExchangeService,
+        "_smoke_test",
+        staticmethod(lambda _dir: None),
     )
 
 
@@ -188,8 +198,12 @@ def test_export_import_roundtrip_is_idempotent_and_conflict_aware(
     final = consumer.checkpoints_dir / "run1"
     assert (final / "exchange.json").is_file()
     assert "run1" in consumer.repository.records
-    assert (consumer.tokenizers_dir / "_exchange" / "org--tok" / "tokenizer.json").is_file()
-    assert not [p for p in consumer.checkpoints_dir.iterdir() if p.name.startswith(".import-")]
+    assert (
+        consumer.tokenizers_dir / "_exchange" / "org--tok" / "tokenizer.json"
+    ).is_file()
+    assert not [
+        p for p in consumer.checkpoints_dir.iterdir() if p.name.startswith(".import-")
+    ]
 
     again = _import(consumer, archive)["import"]
     assert again["status"] == "already_imported"
@@ -237,7 +251,9 @@ def test_checksum_mismatch_leaves_no_trace_and_keeps_existing_checkpoint(
     assert "run1" not in consumer.repository.records
     assert not (consumer.checkpoints_dir / "run1").exists()
     assert known_good.is_dir()
-    assert not [p for p in consumer.checkpoints_dir.iterdir() if p.name.startswith(".import-")]
+    assert not [
+        p for p in consumer.checkpoints_dir.iterdir() if p.name.startswith(".import-")
+    ]
 
 
 ###############################################################################
@@ -369,7 +385,13 @@ def test_import_rejects_metadata_without_max_report_size(
     path = producer.create_checkpoint("run1")
     (path / "configuration" / "metadata.json").write_text(
         json.dumps(
-            {"tokenizer": "org/tok", "pad_token_id": 0, "start_token_id": 1, "end_token_id": 2, "vocabulary_size": 10}
+            {
+                "tokenizer": "org/tok",
+                "pad_token_id": 0,
+                "start_token_id": 1,
+                "end_token_id": 2,
+                "vocabulary_size": 10,
+            }
         )
     )
     archive = _export(producer, "run1")
@@ -477,7 +499,9 @@ def test_duplicate_symlink_and_oversized_archives_are_rejected(
 ) -> None:
     duplicate = tmp_path / "dup.zip"
     with pytest.warns(UserWarning):
-        archive = _write_zip(duplicate, [("manifest.json", b"1"), ("manifest.json", b"2")])
+        archive = _write_zip(
+            duplicate, [("manifest.json", b"1"), ("manifest.json", b"2")]
+        )
     with pytest.raises(ArchiveError, match="duplicate"):
         inspect_archive(archive)
 

@@ -13,21 +13,36 @@ import xreport_shared.repositories.database.engine as database_engine
 import asyncio
 from xreport_shared.configurations.settings import DatabaseSettings
 from xreport_shared.domain.settings import ApplicationSettingsPatch
-from xreport_shared.repositories.application_settings import ApplicationSettingsRepository
+from xreport_shared.repositories.application_settings import (
+    ApplicationSettingsRepository,
+)
 from xreport_shared.repositories.database import Database as ApplicationDatabase
-from xreport_shared.repositories.database.schema import ALEMBIC_INI, ApplicationSchema, application_schema
+from xreport_shared.repositories.database.schema import (
+    ALEMBIC_INI,
+    ApplicationSchema,
+    application_schema,
+)
 from xreport_inference.repositories.schemas.inference import InferenceSettingsRecord
 from xreport_shared.services.errors import BadRequestError, InternalServiceError
 from xreport_shared.services.settings import SettingsService
 from types import SimpleNamespace
 from pydantic import ValidationError
-from xreport_shared.configurations.database_config import DatabaseConfiguration, DatabaseConfigurationError
+from xreport_shared.configurations.database_config import (
+    DatabaseConfiguration,
+    DatabaseConfigurationError,
+)
 from xreport_shared.repositories.database.engine import Database
-from xreport_shared.services.database_settings import DatabaseSwitchBusyError, DatabaseSettingsService
+from xreport_shared.services.database_settings import (
+    DatabaseSwitchBusyError,
+    DatabaseSettingsService,
+)
 from concurrent.futures import ThreadPoolExecutor
 from alembic import command
 from alembic.config import Config
-from xreport_inference.repositories.schemas.inference import InferenceReport, InferenceRun
+from xreport_inference.repositories.schemas.inference import (
+    InferenceReport,
+    InferenceRun,
+)
 from xreport_shared.common.database_switch import DatabaseRequestGate
 
 
@@ -75,7 +90,9 @@ def test_fresh_upgrade_uses_typed_defaults(
     monkeypatch.setenv("XREPORT_DATA_ROOT", str(data_root))
     db_path = tmp_path / "database.db"
     initializer.initialize_database(_application_sqlite_settings(db_path))
-    values = ApplicationSettingsRepository(ApplicationDatabase(_application_sqlite_settings(db_path))).get_settings()
+    values = ApplicationSettingsRepository(
+        ApplicationDatabase(_application_sqlite_settings(db_path))
+    ).get_settings()
 
     assert values.model_dump() == {
         "global_seed": 42,
@@ -86,6 +103,7 @@ def test_fresh_upgrade_uses_typed_defaults(
         "theme_preference": None,
     }
 
+
 _GENERATION_DEFAULTS = {
     "max_new_tokens_deterministic": 0,
     "max_new_tokens_concise": 0,
@@ -95,7 +113,9 @@ _GENERATION_DEFAULTS = {
 
 
 ###############################################################################
-def test_public_projection_contains_only_application_settings(tmp_path, monkeypatch) -> None:
+def test_public_projection_contains_only_application_settings(
+    tmp_path, monkeypatch
+) -> None:
     database = _database(tmp_path, monkeypatch)
     response = SettingsService(ApplicationSettingsRepository(database)).get_settings()
 
@@ -103,13 +123,21 @@ def test_public_projection_contains_only_application_settings(tmp_path, monkeypa
     assert payload["values"] == {
         "global": {"seed": 123},
         "jobs": {"polling_interval": 2.5},
-        "inference": {"model_timeout": 120, "model_idle_timeout": 300, **_GENERATION_DEFAULTS},
+        "inference": {
+            "model_timeout": 120,
+            "model_idle_timeout": 300,
+            **_GENERATION_DEFAULTS,
+        },
         "theme_preference": None,
     }
     assert payload["defaults"] == {
         "global": {"seed": 42},
         "jobs": {"polling_interval": 1.0},
-        "inference": {"model_timeout": 600, "model_idle_timeout": 300, **_GENERATION_DEFAULTS},
+        "inference": {
+            "model_timeout": 600,
+            "model_idle_timeout": 300,
+            **_GENERATION_DEFAULTS,
+        },
         "theme_preference": None,
     }
 
@@ -119,7 +147,9 @@ def test_public_projection_contains_only_application_settings(tmp_path, monkeypa
 def test_studio_settings_have_no_inference_controls(tmp_path) -> None:
     settings = _application_sqlite_settings(tmp_path / "database.db")
     initializer.initialize_database(settings)
-    service = SettingsService(ApplicationSettingsRepository(ApplicationDatabase(settings)))
+    service = SettingsService(
+        ApplicationSettingsRepository(ApplicationDatabase(settings))
+    )
 
     payload = service.update_settings(
         ApplicationSettingsPatch.model_validate({"global": {"seed": 7}})
@@ -137,8 +167,12 @@ def test_studio_settings_have_no_inference_controls(tmp_path) -> None:
 
 
 ###############################################################################
-def test_generation_limits_persist_and_reject_out_of_range(tmp_path, monkeypatch) -> None:
-    service = SettingsService(ApplicationSettingsRepository(_database(tmp_path, monkeypatch)))
+def test_generation_limits_persist_and_reject_out_of_range(
+    tmp_path, monkeypatch
+) -> None:
+    service = SettingsService(
+        ApplicationSettingsRepository(_database(tmp_path, monkeypatch))
+    )
 
     updated = service.update_settings(
         ApplicationSettingsPatch.model_validate(
@@ -160,7 +194,10 @@ def test_update_and_reset_change_application_settings(tmp_path, monkeypatch) -> 
 
     updated = service.update_settings(
         ApplicationSettingsPatch.model_validate(
-            {"global": {"seed": 987}, "inference": {"model_timeout": 901, "model_idle_timeout": 0}}
+            {
+                "global": {"seed": 987},
+                "inference": {"model_timeout": 901, "model_idle_timeout": 0},
+            }
         )
     )
     assert updated.values.global_settings.seed == 987
@@ -240,7 +277,9 @@ def test_repository_rejects_private_columns(tmp_path, monkeypatch) -> None:
 
 
 ###############################################################################
-def test_repository_validates_candidate_before_persisting(tmp_path, monkeypatch) -> None:
+def test_repository_validates_candidate_before_persisting(
+    tmp_path, monkeypatch
+) -> None:
     repository = ApplicationSettingsRepository(_database(tmp_path, monkeypatch))
     with pytest.raises(ValueError):
         repository.update_public_settings({"global_seed": -1})
@@ -258,7 +297,9 @@ def test_persistence_failure_is_translated_to_safe_service_error(
         raise RuntimeError("path and secret details must not escape")
 
     monkeypatch.setattr(service.repository, "update_public_settings", fail)
-    with pytest.raises(InternalServiceError, match="Unable to persist application settings"):
+    with pytest.raises(
+        InternalServiceError, match="Unable to persist application settings"
+    ):
         service.update_settings(
             ApplicationSettingsPatch.model_validate({"global": {"seed": 321}})
         )
@@ -311,7 +352,10 @@ def test_database_config_protects_password_and_roundtrips(tmp_path: Path) -> Non
     assert "top-secret-value" not in saved
     assert payload["password_protected"]
     assert "password" not in payload
-    assert database_config.read_database_configuration(path=path).password == "top-secret-value"
+    assert (
+        database_config.read_database_configuration(path=path).password
+        == "top-secret-value"
+    )
 
 
 ###############################################################################
@@ -385,24 +429,36 @@ def test_sqlite_switch_reloads_active_database_settings_and_can_roll_back(
         assert database_backend.get_database() is facade
         assert result.response.settings.values.global_settings.seed == 22
         assert ApplicationSettingsRepository().get_settings().global_seed == 22
-        assert database_config.read_database_configuration(path=config_path) == target_configuration
+        assert (
+            database_config.read_database_configuration(path=config_path)
+            == target_configuration
+        )
 
         def fail_save(_configuration, **_kwargs) -> None:
             raise DatabaseConfigurationError("simulated configuration write failure")
 
-        monkeypatch.setattr(database_settings_service, "save_database_configuration", fail_save)
-        with pytest.raises(DatabaseConfigurationError, match="simulated configuration write failure"):
+        monkeypatch.setattr(
+            database_settings_service, "save_database_configuration", fail_save
+        )
+        with pytest.raises(
+            DatabaseConfigurationError, match="simulated configuration write failure"
+        ):
             service.switch_database(_sqlite(tmp_path / "original.db"))
 
         assert database_backend.get_database() is facade
         assert ApplicationSettingsRepository().get_settings().global_seed == 22
-        assert database_config.read_database_configuration(path=config_path) == target_configuration
+        assert (
+            database_config.read_database_configuration(path=config_path)
+            == target_configuration
+        )
     finally:
         database_backend.reset_database()
 
 
 ###############################################################################
-def test_database_switch_is_blocked_while_a_job_runs(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_database_switch_is_blocked_while_a_job_runs(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     monkeypatch.setattr(
         database_settings_service,
         "get_job_manager",
@@ -446,6 +502,7 @@ def _postgres_settings() -> DatabaseSettings:
         connect_timeout=1,
         insert_batch_size=1000,
     )
+
 
 ###############################################################################
 APPLICATION_PROFILES = pytest.mark.parametrize("profile", ["xreport", "studio"])
@@ -547,9 +604,10 @@ def test_database_at_head_preserves_settings_and_records(tmp_path, profile) -> N
                 "SELECT global_seed, theme_preference FROM application_settings "
                 "WHERE settings_id = 1"
             ).one() == (909, None)
-            assert connection.exec_driver_sql(
-                "SELECT name FROM checkpoints"
-            ).scalar_one() == "retained"
+            assert (
+                connection.exec_driver_sql("SELECT name FROM checkpoints").scalar_one()
+                == "retained"
+            )
     finally:
         engine.dispose()
     assert _schema_revision(database_path, schema) == initializer.schema_head(schema)
@@ -836,10 +894,8 @@ def test_postgres_schema_drift_ignores_unique_constraint_backing_indexes(
         sqlalchemy.UniqueConstraint("name_key", name="uq_sample_name_key"),
     )
 
-
     ###############################################################################
     class ReflectedSchema:
-
         # -------------------------------------------------------------------------
         def get_pk_constraint(self, _table_name: str) -> dict[str, list[str]]:
             return {"constrained_columns": ["sample_id"]}

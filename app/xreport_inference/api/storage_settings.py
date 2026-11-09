@@ -14,7 +14,6 @@ from xreport_inference.services.storage_settings import StorageSettingsService
 
 ###############################################################################
 class StorageSettingsEndpoint:
-
     # -------------------------------------------------------------------------
     def __init__(self, service: StorageSettingsService | None = None) -> None:
         self._service = service

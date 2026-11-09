@@ -70,9 +70,7 @@ def test_s15_filesystem_validation(
         assert invalid_response.json()["image_count"] == 0
 
 
-_ONE_PIXEL_PNG = (
-    "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAIAAACQd1PeAAAADUlEQVR4nGP4z8AAAAMBAQDJ/pLvAAAAAElFTkSuQmCC"
-)
+_ONE_PIXEL_PNG = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAIAAACQd1PeAAAADUlEQVR4nGP4z8AAAAMBAQDJ/pLvAAAAAElFTkSuQmCC"
 
 
 ###############################################################################
@@ -96,9 +94,7 @@ def test_s15_dataset_folder_access_and_recovery(
 
     page.set_viewport_size({"width": 1440, "height": 1000})
     page.goto(f"{base_url.rstrip('/')}/dataset")
-    folder_button = page.get_by_role(
-        "button", name="Upload Image Folder", exact=False
-    )
+    folder_button = page.get_by_role("button", name="Upload Image Folder", exact=False)
     expect(folder_button).to_be_enabled()
     selected = {"path": str(empty_folder)}
     page.route(

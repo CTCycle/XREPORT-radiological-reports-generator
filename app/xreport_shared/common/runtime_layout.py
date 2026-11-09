@@ -49,7 +49,7 @@ def storage_pointer_path(bootstrap_dir: Path) -> Path:
 def read_storage_pointer(bootstrap_dir: Path) -> str | None:
     try:
         payload = json.loads(storage_pointer_path(bootstrap_dir).read_text("utf-8"))
-    except (OSError, ValueError):
+    except OSError, ValueError:
         return None
     value = payload.get("storage_root") if isinstance(payload, dict) else None
     return value.strip() if isinstance(value, str) and value.strip() else None

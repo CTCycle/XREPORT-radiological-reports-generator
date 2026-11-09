@@ -19,7 +19,9 @@ from xreport_shared.domain.settings import (
     RuntimeInferenceSettings,
     RuntimeJobSettings,
 )
-from xreport_shared.repositories.application_settings import ApplicationSettingsRepository
+from xreport_shared.repositories.application_settings import (
+    ApplicationSettingsRepository,
+)
 from xreport_shared.repositories.database.schema import application_schema
 from xreport_shared.services.errors import BadRequestError, InternalServiceError
 
@@ -36,9 +38,7 @@ class SettingsService:
     """Public projection and persistence boundary for application settings."""
 
     # -------------------------------------------------------------------------
-    def __init__(
-        self, repository: ApplicationSettingsRepository | None = None
-    ) -> None:
+    def __init__(self, repository: ApplicationSettingsRepository | None = None) -> None:
         self.repository = repository or ApplicationSettingsRepository()
 
     # -------------------------------------------------------------------------
@@ -112,7 +112,9 @@ class SettingsService:
     ) -> ApplicationSettingsResponse:
         return ApplicationSettingsResponse(
             values=cls._public_settings(values),
-            defaults=cls._public_settings(default_application_settings(application_schema().profile)),
+            defaults=cls._public_settings(
+                default_application_settings(application_schema().profile)
+            ),
         )
 
     # -------------------------------------------------------------------------
@@ -162,7 +164,9 @@ def get_inference_settings() -> InferenceSettings:
 
     inference = get_server_settings().inference
     if inference is None:
-        raise RuntimeError("Inference settings exist only in the XREPORT Inference database")
+        raise RuntimeError(
+            "Inference settings exist only in the XREPORT Inference database"
+        )
     return inference
 
 
