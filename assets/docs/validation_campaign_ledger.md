@@ -1,6 +1,53 @@
 # XREPORT Validation Campaign Ledger
 
-Last updated: 2026-11-05
+Last updated: 2026-11-11
+
+## Web application E2E follow-up (2026-11-11, `develop` at `5e2b9932`)
+
+- Scope: real-browser review of XREPORT Inference and Studio on isolated local
+  SQLite roots, plus the existing Playwright browser suites. No product code
+  changed; the temporary runtime was removed after the run.
+- Test references: [Inference UI](../../app/tests/e2e/test_angular_ui.py),
+  [Inference API/settings](../../app/tests/e2e/test_api_inference_settings.py),
+  [Studio UI](../../app/tests/e2e/test_studio_ui.py),
+  [dataset workflow](../../app/tests/e2e/test_dataset_workflow.py),
+  [folder selection](../../app/tests/e2e/test_preparation_filesystem.py),
+  [file uploads](../../app/tests/e2e/test_upload_api.py),
+  [training API](../../app/tests/e2e/test_training_api.py), and
+  [Studio-to-Inference exchange](../../app/tests/e2e/test_studio_inference_exchange.py).
+- PASSED: Inference UI/settings E2E, 25 cases, and Studio UI/dataset/filesystem/
+  upload/training E2E, 27 cases, were run with the installed Chrome channel and
+  the correct Studio profile. Manual browser checks covered model catalogue
+  filtering/selection and gated access, report empty state and filters, settings
+  persistence/reset and failed database probe, Studio architecture preset save
+  and reload, validation messages, and help/notification states. The 8-row
+  non-clinical CSV uploaded and rendered as 8 rows × 2 columns.
+- PARTIAL: In the hidden in-app browser, Studio's **Upload Image Folder** control
+  remained disabled at “Opening folder picker…” and no OS dialog surfaced. The
+  folder could not be selected, so this run did not complete load/process/train.
+  Existing Studio E2E cases route-mock `/api/preparation/folder/select`; verify
+  this path through the normal foreground launcher before treating it as a
+  product defect. The small CSV showed 0% progress for about two minutes before
+  settling; attribution to the app versus browser automation is unknown.
+- TEST DEFECT: Inference finished 25 passed / 1 failed. The responsive case at
+  `test_angular_ui.py:736` uses `.model-card` index 1; with the E2E custom model
+  listed first, that index is the already-selected default model. The test
+  failed twice expecting its dismissed notice to reappear. Manual selection of
+  the same model kept it dismissed; selecting CheXOne displayed its notice.
+  Select a known different model by accessible name or reset the fixture.
+- UNTESTED: The Studio-to-Inference exchange test skipped because the pinned
+  encoder and DistilBERT tokenizer are absent under `data/models`. No real
+  model download, generation, training, checkpoint exchange, or long-running
+  cancellation/recovery was run. The keyboard/semantic smoke and route matrix
+  passed; no screen-reader review was performed. The 280×320 and 320×640
+  captures show limited first-screen workspace despite no horizontal overflow.
+- Follow-up priority: verify the folder picker through the foreground launcher;
+  run the real-weight exchange journey when pinned assets are available; make
+  the model-notice browser assertion select a named, non-selected model; review
+  compact-height layout and small-file upload progress if the slow 0% interval
+  reproduces outside this automation session.
+- Screenshots were captured and reviewed during the audit, then removed after
+  recording these durable outcomes; no per-run image archive is retained.
 
 ## Launcher cleanup and uninstall (2026-11-04 performance follow-up, working tree)
 
