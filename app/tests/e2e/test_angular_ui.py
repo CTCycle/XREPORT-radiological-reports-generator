@@ -871,6 +871,7 @@ def test_s52_responsive_route_modal_and_reduced_motion_matrix(
     page.emulate_media(reduced_motion="reduce")
 
     viewports = [
+        (280, 320),
         (320, 640),
         (390, 844),
         (640, 800),

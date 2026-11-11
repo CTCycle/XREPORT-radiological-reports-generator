@@ -1,6 +1,8 @@
 # XREPORT Project Status Ledger
 
-Last updated: 2026-11-04
+Last updated: 2026-11-11
+
+Source change 2026-11-11: removed the Tauri window minimums, shared body minimum width, and guided-tour viewport floor; added 280×320 to the narrow viewport route matrix. Inference and Studio builds, frontend lint, and 121 Angular tests passed. The browser viewport test could not reach pytest because the sandbox denied loopback requests, so 280×320 remains unverified; the native Tauri build was not run.
 
 Release 4.0.0 (2026-10-28) is the major release for the Inference/Studio split: only XREPORT Inference is packaged and published. Its evidence, findings and unrun scopes are in the [validation campaign ledger](validation_campaign_ledger.md); open items from it: the `run_tests.bat` Studio preview race, a modified local CXRMate Multi TF snapshot that fails its integrity check until repaired, and local Pyright drift against hosted CI.
 

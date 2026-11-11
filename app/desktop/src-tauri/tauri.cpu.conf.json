@@ -14,8 +14,6 @@
       "title": "XREPORT Inference (CPU)",
       "width": 1440,
       "height": 960,
-      "minWidth": 1024,
-      "minHeight": 720,
       "visible": true,
       "resizable": true,
       "fullscreen": false

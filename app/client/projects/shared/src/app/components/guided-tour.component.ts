@@ -274,8 +274,8 @@ export class GuidedTourComponent implements AfterViewInit, OnChanges, OnDestroy 
   }
 
   private positionPanel(rect: TargetRect, placement: TourPlacement): PanelPosition {
-    const viewportWidth = Math.max(window.innerWidth, 320);
-    const viewportHeight = Math.max(window.innerHeight, 320);
+    const viewportWidth = window.innerWidth;
+    const viewportHeight = window.innerHeight;
     const panelWidth = Math.min(360, viewportWidth - 32);
     const panelHeight = 240;
     const gap = 16;

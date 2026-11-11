@@ -1,6 +1,6 @@
 # UI Experience Standards
 
-Last updated: 2026-10-26
+Last updated: 2026-11-11
 
 ## Core UX Journeys
 
@@ -111,7 +111,8 @@ Last updated: 2026-10-26
 
 - Ensure all primary flows remain usable on narrower widths.
 - Common responsive adjustments include stacking multi-column sections, reducing card widths, and avoiding horizontal overflow in controls and tables where possible.
-- Minimum supported layout assumptions stay around a `320px` body min-width baseline from current global CSS.
+- Keep the app window and viewport free of global minimum width or height constraints; let the shared layout wrap and its content areas scroll when needed.
+- Retain minimum sizes on individual controls and panels where they support usability.
 
 ## Accessibility
 
