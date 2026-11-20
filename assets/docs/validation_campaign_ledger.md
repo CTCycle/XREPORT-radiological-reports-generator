@@ -1,6 +1,64 @@
 # XREPORT Validation Campaign Ledger
 
-Last updated: 2026-11-11
+Last updated: 2026-11-18
+
+## Web application E2E audit (2026-11-18, `develop` at `f429e655`)
+
+- Verdict: **hold release for this configuration.** Research-draft generation
+  works mechanically; training does not start in the tested Studio runtime.
+  Scope: built Inference and Studio frontends on Windows (in-app browser and
+  installed Chrome via the repository's Playwright infrastructure), fresh SQLite
+  roots, CXRMate Multi TF copied from an existing cache, the checked-in S27
+  synthetic dataset. Chrome supplied the fixture path in place of the folder
+  picker; upload, matching, processing, validation, training and persistence
+  used the real services. No source changed. Existing suites: Inference and
+  Studio UI 28 passed, dataset workflow 5 passed (some use seeded or intercepted
+  data).
+- PASSED: fresh migrations and navigation in both apps; catalogue search and
+  model-constrained file admission; persisted outputs for single, independent
+  (two reports) and study (one report) modes; edit/save/reload and real TXT
+  download; 8/8 image-report matching, rejection of a CSV without `text`,
+  viewer; split `0.25` build (6 train / 2 validation) with correct statistics
+  (104 words, 32,768 pixels); custom preset duplicate/save/restart/export
+  (838-byte JSON); restart persistence of the edited report, processed dataset,
+  preset and validation report.
+- FAILED / open (tracked as `ISSUE-006` to `ISSUE-010` in the status ledger):
+  1. High: 64x64 synthetic images produced "Normal chest radiograph" and an
+     invented prior-CABG history, saved as succeeded and exported as TXT
+     without a research-only marking. The page warning exists but the export
+     carries none. Establishes a missing safeguard, not model accuracy.
+  2. High: Studio training job `ffab3c23` was admitted then failed at epoch 0
+     with `ModuleNotFoundError` for a Keras `base_image_preprocessing_layer`
+     module; no metrics or checkpoint. A standalone import in the same
+     environment failed identically (incomplete Keras install; compare the
+     2026-11-04 launcher probe-retry change). The official launcher repair
+     was not run, so this is established only for the direct browser launch.
+  3. Medium: a combined study report shows "Image 1 / first filename" in the
+     Reports card and exports as `xreport-<first image>.txt` without study
+     provenance (export uses the current viewer image).
+  4. Medium: split `0.9` was submitted despite min/max and surfaced raw HTTP
+     422 JSON in the Data Source area away from the field.
+  5. Medium: browser-mode **Upload Image Folder** opens a server-side Windows
+     Forms dialog on the backend host. In the in-app browser it showed
+     `Desktop - 27 images` and no chooser (consistent with the 2026-11-11
+     "disabled at Opening folder picker" observation). An ordinary interactive
+     Windows pick remains unverified.
+  6. Low: before the first validation run the results icon is labelled "Open
+     validation route" but opens the Validation Report dialog.
+- UNTESTED: fresh managed-model install/update, provider access, long-job
+  cancellation terminal status (cancel returned the UI to a usable state),
+  clipboard contents, checkpoint resume/evaluation/export and cross-app import
+  after a successful training, preset re-import and in-use editing, successful
+  PostgreSQL switch, screen-reader, cross-browser/device and packaged desktop.
+- Remediation order: (1) protect report output (flag or decline unsuitable
+  inputs; carry research status, source ids, view count and model revision in
+  exports and copies; keep separate/combined distinguishable in history);
+  (2) restore and gate Studio training (verify launcher repair, surface
+  readiness before admission, then require a real epoch and checkpoint and
+  re-run resume/evaluation/exchange); (3) field-level dataset errors and a
+  browser-usable folder selection flow; (4) close the untested gaps above.
+- Evidence retention: the untracked screenshots and narrative report were
+  removed after these outcomes were recorded; no per-run archive is kept.
 
 ## Web application E2E follow-up (2026-11-11, `develop` at `5e2b9932`)
 
