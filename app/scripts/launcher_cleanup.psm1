@@ -78,12 +78,11 @@ function Test-CleanupReparseChain {
     } catch { return $false }
     $withinAllowedRoot = Test-CleanupPathUnderRoot -Path $cursor -Root $root
     while (-not [string]::IsNullOrWhiteSpace($cursor)) {
-        if (Test-Path -LiteralPath $cursor) {
-            try {
-                $item = Get-Item -LiteralPath $cursor -Force -ErrorAction Stop
-                if (($item.Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0) { return $false }
-            } catch { return $false }
-        }
+        try {
+            if (([IO.File]::GetAttributes($cursor) -band [IO.FileAttributes]::ReparsePoint) -ne 0) { return $false }
+        } catch [IO.FileNotFoundException] {
+        } catch [IO.DirectoryNotFoundException] {
+        } catch { return $false }
         if ($withinAllowedRoot -and $cursor.Equals($root, [StringComparison]::OrdinalIgnoreCase)) { return $true }
         $parent = [IO.Path]::GetDirectoryName($cursor)
         if ([string]::IsNullOrWhiteSpace($parent) -or $parent -eq $cursor) { break }
@@ -151,9 +150,10 @@ function New-XReportCleanupPlan {
             [void]$items.Add([pscustomobject]@{ Path = $target; Label = $label; KeepRoot = $keepRoot; PreserveNames = $preserveNames; AllowedRoot = $allowedRoot; Status = 'Failed'; Message = $planError })
             continue
         }
-        try { $null = Get-Item -LiteralPath $target -Force -ErrorAction Stop }
+        try { $null = [IO.File]::GetAttributes($target) }
         catch {
-            if ($_.CategoryInfo.Category -eq [System.Management.Automation.ErrorCategory]::ObjectNotFound) {
+            $cause = if ($_.Exception.InnerException) { $_.Exception.InnerException } else { $_.Exception }
+            if ($cause -is [IO.FileNotFoundException] -or $cause -is [IO.DirectoryNotFoundException]) {
                 [void]$items.Add([pscustomobject]@{ Path = $target; Label = $label; KeepRoot = $keepRoot; PreserveNames = $preserveNames; AllowedRoot = $allowedRoot; Status = 'Skipped'; Message = 'Target does not exist.' })
             } else {
                 [void]$items.Add([pscustomobject]@{ Path = $target; Label = $label; KeepRoot = $keepRoot; PreserveNames = $preserveNames; AllowedRoot = $allowedRoot; Status = 'Failed'; Message = $_.Exception.Message })
@@ -181,12 +181,65 @@ function Add-CleanupFailure {
 }
 
 function Remove-CleanupFile {
-    param([Parameter(Mandatory = $true)][string]$Path)
-    $attributes = [IO.File]::GetAttributes($Path)
-    if (($attributes -band [IO.FileAttributes]::ReadOnly) -ne 0) {
-        [IO.File]::SetAttributes($Path, $attributes -band (-bnot [IO.FileAttributes]::ReadOnly))
+    param([Parameter(Mandatory = $true)][string]$Path, [IO.FileAttributes]$Attributes)
+    if (($Attributes -band [IO.FileAttributes]::ReadOnly) -ne 0) {
+        [IO.File]::SetAttributes($Path, $Attributes -band (-bnot [IO.FileAttributes]::ReadOnly))
     }
     [IO.File]::Delete($Path)
+}
+
+# Removes the contents of one directory (recursively); returns $true when anything was retained.
+# Attributes come from the enumeration itself, so each entry costs one delete call and no extra stat.
+function Invoke-CleanupDirectory {
+    param(
+        [string]$Path,
+        [pscustomobject]$Target,
+        [pscustomobject]$TargetResult,
+        [Collections.Generic.List[object]]$Errors,
+        [bool]$DryRun,
+        [bool]$Verbose
+    )
+    $retained = $false
+    try { $entries = [IO.DirectoryInfo]::new($Path).GetFileSystemInfos() }
+    catch {
+        Add-CleanupFailure -Errors $Errors -TargetResult $TargetResult -Path $Path -Message "Cannot enumerate directory: $($_.Exception.Message)" -Kind 'Enumeration'
+        return $true
+    }
+    foreach ($entry in $entries) {
+        $entryPath = $entry.FullName
+        $attributes = $entry.Attributes
+        if (($attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0) {
+            $TargetResult.SkippedCount++
+            $retained = $true
+            if ($Verbose) { Write-Verbose "[Skipped] $entryPath`: Reparse point left untouched." }
+            continue
+        }
+        if ($Target.PreserveNames -contains $entry.Name) {
+            $TargetResult.PreservedCount++
+            $retained = $true
+            if ($Verbose) { Write-Verbose "[Preserved] $entryPath`: Preserve-name rule." }
+            continue
+        }
+        $isDirectory = ($attributes -band [IO.FileAttributes]::Directory) -ne 0
+        if ($isDirectory -and (Invoke-CleanupDirectory -Path $entryPath -Target $Target -TargetResult $TargetResult -Errors $Errors -DryRun $DryRun -Verbose $Verbose)) {
+            $retained = $true
+            continue
+        }
+        $TargetResult.PlannedCount++
+        if ($DryRun) {
+            if ($Verbose) { Write-Verbose "[Planned] $entryPath" }
+            continue
+        }
+        try {
+            if ($isDirectory) { [IO.Directory]::Delete($entryPath, $false) } else { Remove-CleanupFile -Path $entryPath -Attributes $attributes }
+            $TargetResult.CleanedCount++
+            if ($Verbose) { Write-Verbose "[Cleaned] $entryPath" }
+        } catch {
+            Add-CleanupFailure -Errors $Errors -TargetResult $TargetResult -Path $entryPath -Message $_.Exception.Message
+            $retained = $true
+        }
+    }
+    return $retained
 }
 
 function Invoke-CleanupTargetWalk {
@@ -197,147 +250,32 @@ function Invoke-CleanupTargetWalk {
         [switch]$DryRun
     )
 
+    $verbose = ($VerbosePreference -eq 'Continue')
     if (-not (Test-CleanupReparseChain -Path $Target.Path -AllowedRoot $Target.AllowedRoot)) {
         $TargetResult.SkippedCount++
         $TargetResult.Message = 'A reparse point appeared in the target path after validation; it was not traversed.'
-        Write-Verbose "[Skipped] $($Target.Path): $($TargetResult.Message)"
+        if ($verbose) { Write-Verbose "[Skipped] $($Target.Path): $($TargetResult.Message)" }
         return
     }
+    try { $attributes = [IO.File]::GetAttributes($Target.Path) }
+    catch { Add-CleanupFailure -Errors $Errors -TargetResult $TargetResult -Path $Target.Path -Message $_.Exception.Message; return }
 
-    $stack = [Collections.Generic.Stack[object]]::new()
-    $stack.Push([pscustomobject]@{ Path = $Target.Path; IsRoot = $true; IsDirectory = $false; Initialized = $false; Enumerator = $null; Retained = $false; Parent = $null })
-    while ($stack.Count -gt 0) {
-        $frame = $stack.Peek()
-        if (-not $frame.Initialized) {
-            if (-not (Test-CleanupPathUnderRoot -Path $frame.Path -Root $Target.AllowedRoot)) {
-                Add-CleanupFailure -Errors $Errors -TargetResult $TargetResult -Path $frame.Path -Message 'Entry escaped its validated cleanup root.'
-                $frame.Retained = $true
-                $frame.Initialized = $true
-                $frame.IsDirectory = $false
-            } else {
-                try { $attributes = [IO.File]::GetAttributes($frame.Path) }
-                catch {
-                    Add-CleanupFailure -Errors $Errors -TargetResult $TargetResult -Path $frame.Path -Message $_.Exception.Message
-                    $frame.Retained = $true
-                    $frame.Initialized = $true
-                    $frame.IsDirectory = $false
-                    continue
-                }
-
-                if (($attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0) {
-                    $TargetResult.SkippedCount++
-                    $frame.Retained = $true
-                    Write-Verbose "[Skipped] $($frame.Path): Reparse point left untouched."
-                    $frame.Initialized = $true
-                    $frame.IsDirectory = $false
-                } elseif (-not $frame.IsRoot -and $Target.PreserveNames -contains [IO.Path]::GetFileName($frame.Path)) {
-                    $TargetResult.PreservedCount++
-                    $frame.Retained = $true
-                    Write-Verbose "[Preserved] $($frame.Path): Preserve-name rule."
-                    $frame.Initialized = $true
-                    $frame.IsDirectory = $false
-                } elseif (($attributes -band [IO.FileAttributes]::Directory) -ne 0) {
-                    if (-not (Test-CleanupAncestorReparseChain -Path $frame.Path -AllowedRoot $Target.AllowedRoot)) {
-                        $TargetResult.SkippedCount++
-                        $frame.Retained = $true
-                        Write-Verbose "[Skipped] $($frame.Path): Reparse point found in its parent chain."
-                        $frame.Initialized = $true
-                        $frame.IsDirectory = $false
-                    } else {
-                        $frame.IsDirectory = $true
-                        try {
-                            $frame.Enumerator = ([IO.DirectoryInfo]::new($frame.Path).EnumerateFileSystemInfos()).GetEnumerator()
-                            $frame.Initialized = $true
-                        } catch {
-                            Add-CleanupFailure -Errors $Errors -TargetResult $TargetResult -Path $frame.Path -Message "Cannot enumerate directory: $($_.Exception.Message)" -Kind 'Enumeration'
-                            $frame.Retained = $true
-                            $frame.Initialized = $true
-                        }
-                    }
-                } else {
-                    $TargetResult.PlannedCount++
-                    if ($DryRun) {
-                        Write-Verbose "[Planned] $($frame.Path)"
-                    } else {
-                        try {
-                            $currentAttributes = [IO.File]::GetAttributes($frame.Path)
-                            if (($currentAttributes -band [IO.FileAttributes]::ReparsePoint) -ne 0) {
-                                $TargetResult.SkippedCount++
-                                $frame.Retained = $true
-                                Write-Verbose "[Skipped] $($frame.Path): Entry became a reparse point."
-                            } else {
-                                Remove-CleanupFile -Path $frame.Path
-                                $TargetResult.CleanedCount++
-                                Write-Verbose "[Cleaned] $($frame.Path)"
-                            }
-                        } catch {
-                            Add-CleanupFailure -Errors $Errors -TargetResult $TargetResult -Path $frame.Path -Message $_.Exception.Message
-                            $frame.Retained = $true
-                        }
-                    }
-                    $frame.Initialized = $true
-                    $frame.IsDirectory = $false
-                }
-            }
-
-            if (-not $frame.IsDirectory) {
-                $parent = $frame.Parent
-                $retained = [bool]$frame.Retained
-                [void]$stack.Pop()
-                if ($retained -and $null -ne $parent) { $parent.Retained = $true }
-                continue
-            }
-        }
-
-        if ($frame.IsDirectory -and $null -ne $frame.Enumerator) {
-            try { $hasNext = $frame.Enumerator.MoveNext() }
-            catch {
-                Add-CleanupFailure -Errors $Errors -TargetResult $TargetResult -Path $frame.Path -Message "Cannot enumerate directory: $($_.Exception.Message)" -Kind 'Enumeration'
-                $frame.Retained = $true
-                $hasNext = $false
-            }
-            if ($hasNext) {
-                $entry = $frame.Enumerator.Current
-                $stack.Push([pscustomobject]@{ Path = $entry.FullName; IsRoot = $false; IsDirectory = $false; Initialized = $false; Enumerator = $null; Retained = $false; Parent = $frame })
-                continue
-            }
-            try { $frame.Enumerator.Dispose() } catch { }
-            $frame.Enumerator = $null
-        }
-
-        if ($frame.IsDirectory) {
-            if ($frame.IsRoot -and $Target.KeepRoot) {
-                $retained = $false
-            } elseif ($frame.Retained) {
-                $retained = $true
-            } else {
-                $TargetResult.PlannedCount++
-                if ($DryRun) {
-                    $retained = $false
-                    Write-Verbose "[Planned] $($frame.Path)"
-                } else {
-                    try {
-                        $currentAttributes = [IO.File]::GetAttributes($frame.Path)
-                        if (($currentAttributes -band [IO.FileAttributes]::ReparsePoint) -ne 0) {
-                            $TargetResult.SkippedCount++
-                            $retained = $true
-                            Write-Verbose "[Skipped] $($frame.Path): Entry became a reparse point."
-                        } else {
-                            [IO.Directory]::Delete($frame.Path, $false)
-                            $TargetResult.CleanedCount++
-                            $retained = $false
-                            Write-Verbose "[Cleaned] $($frame.Path)"
-                        }
-                    } catch {
-                        Add-CleanupFailure -Errors $Errors -TargetResult $TargetResult -Path $frame.Path -Message "Directory changed or could not be removed: $($_.Exception.Message)"
-                        $retained = $true
-                    }
-                }
-            }
-            $parent = $frame.Parent
-            [void]$stack.Pop()
-            if ($retained -and $null -ne $parent) { $parent.Retained = $true }
-        }
+    $isDirectory = ($attributes -band [IO.FileAttributes]::Directory) -ne 0
+    if ($isDirectory) {
+        $retained = Invoke-CleanupDirectory -Path $Target.Path -Target $Target -TargetResult $TargetResult -Errors $Errors -DryRun ([bool]$DryRun) -Verbose $verbose
+        if ($Target.KeepRoot -or $retained) { return }
+    }
+    $TargetResult.PlannedCount++
+    if ($DryRun) {
+        if ($verbose) { Write-Verbose "[Planned] $($Target.Path)" }
+        return
+    }
+    try {
+        if ($isDirectory) { [IO.Directory]::Delete($Target.Path, $false) } else { Remove-CleanupFile -Path $Target.Path -Attributes $attributes }
+        $TargetResult.CleanedCount++
+        if ($verbose) { Write-Verbose "[Cleaned] $($Target.Path)" }
+    } catch {
+        Add-CleanupFailure -Errors $Errors -TargetResult $TargetResult -Path $Target.Path -Message $_.Exception.Message
     }
 }
 
@@ -520,18 +458,18 @@ function Get-XReportCacheTargets {
         $stack.Push([IO.Path]::GetFullPath($scanRoot))
         while ($stack.Count -gt 0) {
             $directory = $stack.Pop()
-            try { $entries = @(Get-ChildItem -LiteralPath $directory -Force -ErrorAction Stop) } catch { & $add $directory 'Nested cache scan failed' -PlanError $_.Exception.Message; continue }
+            try { $entries = [IO.DirectoryInfo]::new($directory).GetFileSystemInfos() } catch { & $add $directory 'Nested cache scan failed' -PlanError $_.Exception.Message; continue }
             foreach ($entry in $entries) {
                 if (($entry.Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0) {
-                    if ($entry.PSIsContainer -and $cacheNames -contains $entry.Name) { & $add $entry.FullName 'Nested Python/tool cache reparse point' }
+                    if ($entry -is [IO.DirectoryInfo] -and $cacheNames -contains $entry.Name) { & $add $entry.FullName 'Nested Python/tool cache reparse point' }
                     continue
                 }
-                if ($entry.PSIsContainer) {
+                if ($entry -is [IO.DirectoryInfo]) {
                     if ($entry.Name -match '^pytest-cache-[A-Za-z0-9._-]+$' -and $directory.Equals($qaCacheRoot, [StringComparison]::OrdinalIgnoreCase)) { & $add $entry.FullName 'Ignored disposable pytest cache'; continue }
                     if ($cacheNames -contains $entry.Name) { & $add $entry.FullName 'Nested Python/tool cache'; continue }
                     if ($pruneNames -contains $entry.Name) { continue }
                     $stack.Push($entry.FullName)
-                } elseif ($entry.Extension -in @('.pyc', '.pyo') -or $entry.Name -eq '.coverage' -or $entry.Name -match '^\.coverage\.') {
+                } elseif ($entry.Extension -eq '.pyc' -or $entry.Extension -eq '.pyo' -or $entry.Name -eq '.coverage' -or $entry.Name.StartsWith('.coverage.', [StringComparison]::Ordinal)) {
                     & $add $entry.FullName 'Python bytecode or coverage artifact'
                 }
             }
@@ -552,16 +490,16 @@ function Get-XReportCacheTargets {
         $stack = [Collections.Generic.Stack[string]]::new(); $stack.Push([IO.Path]::GetFullPath($bytecodeRoot))
         while ($stack.Count -gt 0) {
             $directory = $stack.Pop()
-            try { $entries = @(Get-ChildItem -LiteralPath $directory -Force -ErrorAction Stop) } catch { & $add $directory 'Python environment cache scan failed' -PlanError $_.Exception.Message; continue }
+            try { $entries = [IO.DirectoryInfo]::new($directory).GetFileSystemInfos() } catch { & $add $directory 'Python environment cache scan failed' -PlanError $_.Exception.Message; continue }
             foreach ($entry in $entries) {
                 if (($entry.Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0) {
-                    if ($entry.PSIsContainer -and $entry.Name -eq '__pycache__') { & $add $entry.FullName 'Python environment bytecode reparse point' }
+                    if ($entry -is [IO.DirectoryInfo] -and $entry.Name -eq '__pycache__') { & $add $entry.FullName 'Python environment bytecode reparse point' }
                     continue
                 }
-                if ($entry.PSIsContainer) {
+                if ($entry -is [IO.DirectoryInfo]) {
                     if ($environmentCacheNames -contains $entry.Name) { & $add $entry.FullName 'Python environment cache' }
                     else { $stack.Push($entry.FullName) }
-                } elseif ($entry.Extension -in @('.pyc', '.pyo') -or $entry.Name -eq '.coverage' -or $entry.Name -match '^\.coverage\.') {
+                } elseif ($entry.Extension -eq '.pyc' -or $entry.Extension -eq '.pyo' -or $entry.Name -eq '.coverage' -or $entry.Name.StartsWith('.coverage.', [StringComparison]::Ordinal)) {
                     & $add $entry.FullName 'Python environment bytecode'
                 }
             }
