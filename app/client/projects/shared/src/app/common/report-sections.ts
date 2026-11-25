@@ -44,3 +44,30 @@ export function formatReportDraft(
     .join('\n\n')
     .trim();
 }
+
+export const RESEARCH_USE_NOTICE =
+  'RESEARCH USE ONLY - not clinically approved. Machine-generated draft: a qualified reviewer must verify every statement against the source images.';
+
+export interface ReportProvenance {
+  model: string;
+  revision: string;
+  sources: string[];
+  studyReport: boolean;
+  exportedAt: string;
+}
+
+// Prefixes copied or exported report text with its research status and provenance.
+export function formatReportExport(report: string, provenance: ReportProvenance): string {
+  const { sources } = provenance;
+  const scope = provenance.studyReport && sources.length > 1
+    ? `${sources.length} images read as one study`
+    : `${sources.length} image${sources.length === 1 ? '' : 's'}`;
+  return [
+    RESEARCH_USE_NOTICE,
+    `Model: ${provenance.model} (revision ${provenance.revision})`,
+    `Source (${scope}): ${sources.join(', ') || 'unknown'}`,
+    `Exported: ${provenance.exportedAt}`,
+    '',
+    report,
+  ].join('\n');
+}

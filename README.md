@@ -2,7 +2,7 @@
 
 <h1 align="center">XREPORT</h1>
 
-Last updated: 2026-11-05
+Last updated: 2026-11-25
 
 <p align="center">A local research suite for generating, reviewing, and training radiological report models.</p>
 
@@ -42,7 +42,7 @@ The applications have separate environments and data folders. Inference works wi
 
 ## XREPORT Inference
 
-Use Inference to select a model, add supported images, generate a draft, and review its output. The model catalogue shows each model's input requirements, output sections, installation state, and revision. You can edit, save, copy, or export a report; saved reports retain the original output and generation metadata.
+Use Inference to select a model, add supported images, generate a draft, and review its output. The model catalogue shows each model's input requirements, output sections, installation state, and revision. You can edit, save, copy, or export a report; copied and exported text starts with a research-use-only notice, the model revision and the source images, and saved reports retain the original output and generation metadata.
 
 Public model weights may require a first download, and some models require provider approval and credentials. Anatomy, image limits, hardware needs, and access terms vary; consult the catalogue and [model documentation](assets/docs/runtime/local_inference_models.md). Metrics and successful generation do not establish clinical accuracy.
 

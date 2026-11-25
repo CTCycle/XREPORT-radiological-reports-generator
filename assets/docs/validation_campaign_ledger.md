@@ -1,6 +1,37 @@
 # XREPORT Validation Campaign Ledger
 
-Last updated: 2026-11-18
+Last updated: 2026-11-25
+
+## Release 4.0.1 (2026-11-25, patch over 4.0.0)
+
+- Scope: 19 `develop` commits since `v4.0.0` (launcher/maintenance split,
+  cleanup and uninstall hardening, Keras repair retry, window minimum removal,
+  backend layering/typing refactors) plus the release fixes below. No schema
+  migration and no new feature; contents in [CHANGELOG.md](../../CHANGELOG.md).
+- Release blockers found and fixed: (1) hosted CI on `develop` had failed on
+  every push since 2026-11-09 because
+  `test_launcher_cleanup_is_allowlisted_dry_run_capable_and_appdata_aware`
+  still expected `Remove-Item`; the module deletes entries non-recursively
+  with `[IO.File]/[IO.Directory]::Delete`, which the test now asserts.
+  (2) `desktop-release.yml` invoked the renamed `start_on_windows.ps1`, so a
+  tag could not build packages; it now calls `setup_and_maintenance.ps1`, and
+  `test_desktop_release_uses_separate_build_and_approval_phases` fails if the
+  workflow names a launcher that does not exist (checked against the old
+  workflow). (3) `ISSUE-006`, chosen by the maintainer as the minimal safety fix:
+  Copy and Export prepend a research-use-only notice, model and revision,
+  source image(s) and export time; study exports list all images.
+- PASSED (Windows, source mode, isolated SQLite roots): Ruff; Pyright 0 errors
+  (local runs had scanned `.venv-studio`; now excluded); backend unit 355
+  passed, 2 skipped; Angular unit 122 (48/41/33) with the new export-header
+  case; both builds, lint and built-server test; live API E2E Inference 7/7
+  and Studio 11/11; Playwright (installed Chrome) Inference UI 19/19, including
+  a new download assertion on the exported header and filename, and Studio
+  UI/dataset/filesystem 16/16. The E2E process must share the server's
+  `XREPORT_RESOURCES_DIR`, because history and checkpoint fixtures seed the
+  database directly; with mismatched roots 3 cases fail spuriously.
+- Not run: the study-export filename in a browser (unit-tested formatting
+  only), PostgreSQL integration (CI covers it), real model generation, Studio
+  training (`ISSUE-007`).
 
 ## Web application E2E audit (2026-11-18, `develop` at `f429e655`)
 

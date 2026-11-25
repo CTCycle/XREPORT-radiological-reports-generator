@@ -84,7 +84,7 @@ jobs:
         shell: pwsh
         run: |
           $version = "$env:RELEASE_VERSION" -replace '^v', ''
-          $metadata = & .\start_on_windows.ps1 -Action BuildDesktopRelease -DesktopRuntime ${{ matrix.variant }} -DesktopTarget All -Version $version -Force 2>&1
+          $metadata = & .\setup_and_maintenance.ps1 -Action BuildDesktopRelease -DesktopRuntime ${{ matrix.variant }} -DesktopTarget All -Version $version -Force 2>&1
           if ($LASTEXITCODE -ne 0) { throw "Desktop packaging failed: $LASTEXITCODE`n$($metadata -join "`n")" }
 
       - name: Inspect release artifacts and checksums

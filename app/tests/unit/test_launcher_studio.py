@@ -170,10 +170,10 @@ def test_launcher_cleanup_is_allowlisted_dry_run_capable_and_appdata_aware() -> 
     assert "[string[]]$PortableInstallPath" in LAUNCHER
     assert "Import-Module -Name $CleanupModulePath" in LAUNCHER
     assert "Test-CleanupReparseChain" in LAUNCHER_CLEANUP
-    assert (
-        "Remove-Item -LiteralPath $item.Path -Force -ErrorAction Stop"
-        in LAUNCHER_CLEANUP
-    )
+    # Entries are deleted one at a time and never recursively, so a reparse
+    # point is unlinked rather than followed.
+    assert "[IO.Directory]::Delete($Target.Path, $false)" in LAUNCHER_CLEANUP
+    assert "[IO.File]::Delete($Path)" in _cleanup_function_body("Remove-CleanupFile")
     assert "runtimes\\cache" in LAUNCHER_CLEANUP
     assert "nltk" in LAUNCHER_CLEANUP
     assert "storage-location.json" in _function_body("Get-ConfiguredResourceRoot")

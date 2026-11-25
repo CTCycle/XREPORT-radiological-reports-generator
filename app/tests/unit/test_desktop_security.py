@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import re
 import struct
 import subprocess
 import sys
@@ -393,6 +394,10 @@ def test_desktop_release_uses_separate_build_and_approval_phases() -> None:
     )
     assert '--source-commit "$SOURCE_COMMIT"' in workflow
     assert '--target "$SOURCE_COMMIT"' in workflow
+    # The packaging step must call a launcher script that exists in the repository.
+    build_scripts = re.findall(r"& \.\\(\S+\.ps1) -Action BuildDesktopRelease", workflow)
+    assert build_scripts
+    assert all((repository_root / script).is_file() for script in build_scripts)
     assert "$NativeScenario -join ','" in native_smoke
     assert "::FocusedElement" in native_driver
     assert "StartupBackendDelaySeconds" in native_driver

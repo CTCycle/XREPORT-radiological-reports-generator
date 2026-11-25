@@ -1,6 +1,6 @@
 {
   "name": "xreport-desktop",
-  "version": "4.0.0",
+  "version": "4.0.1",
   "private": true,
   "description": "Tauri desktop shell for XREPORT Radiological Reports",
   "license": "MIT",

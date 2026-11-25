@@ -1,6 +1,6 @@
 # Commands And Locations
 
-Last updated: 2026-11-05
+Last updated: 2026-11-25
 
 ## Primary Commands
 
@@ -10,7 +10,7 @@ Last updated: 2026-11-05
 .\start_on_windows.bat
 .\setup_and_maintenance.ps1 -Action LaunchDesktopDev
 .\setup_and_maintenance.ps1 -Action KillProcesses
-.\setup_and_maintenance.ps1 -Action BuildDesktopRelease -DesktopRuntime All -DesktopTarget All -Version 4.0.0
+.\setup_and_maintenance.ps1 -Action BuildDesktopRelease -DesktopRuntime All -DesktopTarget All -Version 4.0.1
 .\setup_and_maintenance.ps1 -Action RemoveDesktopRelease
 .\setup_and_maintenance.ps1 -Action RemoveCheckpoints
 .\setup_and_maintenance.ps1 -Action RemoveAllData

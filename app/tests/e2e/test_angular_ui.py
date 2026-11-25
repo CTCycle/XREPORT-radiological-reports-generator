@@ -316,6 +316,16 @@ def test_inference_draft_edit_save_and_reports_recovery(
     page.get_by_role("button", name="Save edits").click()
     expect(page.get_by_text("Edits saved.", exact=True)).to_be_visible()
 
+    with page.expect_download() as download_info:
+        page.get_by_role("button", name="Export draft").click()
+    download = download_info.value
+    assert download.suggested_filename == "xreport-e2e-first.txt"
+    exported = Path(download.path()).read_text(encoding="utf-8").splitlines()
+    assert exported[0].startswith("RESEARCH USE ONLY")
+    assert "Model: E2E Draft Model (revision not reported)" in exported
+    assert "Source (1 image): e2e-first.png" in exported
+    assert "Clear lungs after review." in exported
+
     page.get_by_role("link", name="View in Reports").click()
     expect(page).to_have_url(f"{base_url}/reports/{seeded_history}")
     expect(page.get_by_role("textbox", name="Findings").first).to_have_value(

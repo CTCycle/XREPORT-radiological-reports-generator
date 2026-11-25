@@ -1,145 +1,36 @@
 # XREPORT Project Status Ledger
 
-Last updated: 2026-11-18
-
-Source change 2026-11-11: removed the Tauri window minimums, shared body minimum width, and guided-tour viewport floor; added 280×320 to the narrow viewport route matrix. Inference and Studio builds, frontend lint, and 121 Angular tests passed. The browser viewport test could not reach pytest because the sandbox denied loopback requests, so 280×320 remains unverified; the native Tauri build was not run.
-
-Release 4.0.0 (2026-10-28) is the major release for the Inference/Studio split: only XREPORT Inference is packaged and published. Its evidence, findings and unrun scopes are in the [validation campaign ledger](validation_campaign_ledger.md); open items from it: the `run_tests.bat` Studio preview race, a modified local CXRMate Multi TF snapshot that fails its integrity check until repaired, and local Pyright drift against hosted CI.
-
-Launcher change 2026-11-04: Studio installation now retries a failed post-sync
-runtime probe after reinstalling only locked Keras without using the local
-package cache, and only when the traceback reports a missing Keras module.
-This covers environments where `uv sync` accepts Keras metadata while package
-files listed in `RECORD` are missing. The CUDA repro showed that failure, and
-the cached Keras archive also lacked the file listed in its `RECORD`. Focused
-launcher checks and PowerShell parsing passed. A direct fresh-wheel repair
-could not be verified here because sandbox DNS blocked access to PyPI; CUDA
-hardware and Studio training were not exercised.
-
-Source change 2026-10-28, follow-up (not a release gate): closed the gaps left by the statistics, tokenizer and split work.
-
-Fixed and exercised:
-- Default-preset checkpoint save. Cause: Keras' `.keras` writer builds the weights file in an in-memory h5py file, which raises `SystemError` once the archive passes about 2 GB; a trained default preset carries about 3.3 GB of optimizer state on top of 2 GB of weights (5.3 GB). It is a size limit of this environment's h5py, not a regression. `ModelSerializer.save_pretrained_model` now stages the unzipped layout on disk and stores it as a regular `.keras` archive. Reproduced with the default preset plus optimizer state (direct save fails, serializer saves 5.27 GB and reloads with 522 optimizer variables on CPU). A full default-preset training run on the 6 GB GPU was not repeated.
-- DeBERTa v3 base is back in the catalogue (`protobuf` and `sentencepiece` were added to the `studio` extra; the check reports it compatible, start id 1, pad id 0).
-- Token statistics: the validation request takes an optional `tokenizer` (requires text statistics); the wizard and the validation route offer a tokenizer selector. A live run on the six-record fixture stored per-record token counts, a tokens-per-report aggregate and histogram, and the report shows them.
-- Studio dataset/training state and training API types moved out of `projects/shared` into `projects/studio` (`StudioStateService`); shared keeps only inference state.
-- `ISSUE-003` (validation split limited to 0.05-0.5) and `ISSUE-005` (dataset table scrolls horizontally inside its card at 320 px) fixed and checked in the browser; the three stale e2e expectations were updated.
-- Automated: 351 backend tests (6 PostgreSQL skipped), Ruff, 121 Angular tests in three projects, lint and both builds. Live (isolated resource directories on ports 5003/5013/8003/8013): Studio UI, dataset, filesystem and upload suites 23/23; XREPORT UI and inference/settings suites 26/26; training API suite 4/4.
-
-Still open: PostgreSQL migrations (deferred by the user), PyInstaller and Tauri builds (no MSVC), the full `run_tests.bat` workflow and interactive launcher menu paths (the Studio environment was not created here), CUDA runs beyond the 6 GB GPU, and the single `pyproject.toml`/`uv.lock` and `package.json` shared by both applications. Token counts do not set `truncated` or `max_report_size`.
-
-Launcher cleanup change 2026-10-29, performance follow-up 2026-11-04 (working tree, not release evidence): the shared engine validates target roots, then counts or removes contents in a streaming .NET traversal. It retains the cache, data-removal, and uninstall scopes; preserves sentinels and persistent data; leaves reparse points untouched; and continues independent targets after errors. Default output is grouped by target, with per-path details available through `-Verbose`. The focused PowerShell harness passes large nested-tree counting/deletion, dry-run immutability, preserve-name rules, strict locked-file handling, outside-root rejection, mocked MSI selection/uninstall, and launcher output checks. A 1,120-entry fixture measured 82.53 s baseline versus 1.77 s optimized for preview/counting plus deletion. The real `ClearCache -DryRun` measured 22.70 s versus the earlier 132.78 s observation; the isolated fixture is the controlled comparison. Final `ClearCache`, `RemoveAllData`, and `Uninstall` dry runs exited successfully in 22.70 s, 1.04 s, and 48.44 s. No destructive cleanup or real MSI uninstall was run; this host denied creation of the junction fixture.
-
-Source change 2026-10-28 (not a release gate): relational validation statistics, tokenizer catalogue, statistics UI and package split (commits `f881b6ac` .. `72f9dde8` and the documentation commit after them).
-
-Implemented and exercised:
-- Validation statistics live in relational tables (see [persistence](architecture/persistence.md)); the migration backfills older runs and was tested up and down on a database seeded at the previous head. A real validation of the six-record synthetic fixture dataset (full and 50% sample) produced per-record rows, aggregates and histograms that were read back over the API and shown in the browser.
-- Tokenizer catalogue: `POST /api/tokenizers/check` loaded every one of the 18 catalogue entries (BERT, DistilBERT, RoBERTa, BioBERT, Bio_ClinicalBERT, BiomedBERT, SciBERT, DeBERTa, ALBERT, XLM-R, T5): 16 are compatible, and the two T5 entries are reported incompatible (no start token) and refused at dataset processing (a T5 processing job failed with that message). Dataset processing, training (compact preset, 1 epoch), export, import into a separate Inference process and generation were run for distilbert (pad id 0) and roberta-base (pad id 1, start id 0).
-- Backend split into `xreport_shared`, `xreport_studio`, `xreport_inference` and Angular split into `projects/{shared,studio,inference}`; each application was started on its own through its own entry point and serves only its own routes. `tests/e2e/test_studio_inference_exchange.py` starts both as separate processes and passed (about 2 minutes).
-- Automated: 350 backend unit/integration tests (6 PostgreSQL tests skipped), 120 Angular unit tests in three projects, lint, and builds of both Angular applications.
-
-Not verified or known limits:
-- The launcher, `run_tests.bat`, the PyInstaller spec and the Tauri build were updated for the new entry points but only the unit assertions over them ran; no launcher menu action, desktop package or CUDA run was executed. PostgreSQL migrations, the Playwright UI end-to-end suite and the full `run_tests.bat` were not run.
-- Dependency manifests are not split: one `pyproject.toml`/`uv.lock` and one `package.json` still serve both applications.
-
-Source change 2026-10-27 (not a release gate): Studio training pipeline audit (Keras 3.13.1 on torch 2.10 cu130), commits `af724c86`, `255610e7`, `680e80a4`.
-
-Fixed defects, each reproduced first:
-- The CPU choice trained on CUDA (Keras' torch backend defaults to CUDA). The worker now builds, loads and fits inside `keras.device`.
-- Mixed precision failed at model build (fp16 input against fp32 BEiT weights). BEiT now runs under torch autocast, with `mixed_bfloat16` where supported.
-- Dataloader workers > 0 crashed on Windows: the transform lambda could not be pickled.
-- Keras' symbolic build fell back to an eager 83-image BEiT trace on the default CUDA device. The BEiT layer now declares its output shape and has a meta-device path. This was also what still broke the CPU choice.
-- The torch compile option never took effect: `fit` ignored the wrapper. It was removed, together with the tf.data-era shuffle-buffer fields.
-- Save checkpoints wrote a full ~770 MB file per epoch that nothing read. It now rewrites the checkpoint atomically each epoch. A stopped or failed run keeps its last completed epoch as a registered, resumable checkpoint; otherwise its folder is removed (unregistered `data/studio/checkpoints/XREPORT_20261027T172509` from an earlier run shows the old behaviour and was left in place).
-- A duplicate custom checkpoint name overwrote an existing checkpoint; it now returns 409.
-
-Gradient accumulation was added, using Keras' native optimizer support. The Studio source entry forces `KERAS_BACKEND=torch`.
-
-Measurements: single runs, compact preset, 64 synthetic 1024 px images, batch 8, RTX 3060 Laptop 6 GB, steady-state epoch time.
-
-| Configuration | Epoch time | Peak VRAM |
-| --- | --- | --- |
-| fp32, 0 workers (before) | 3.11 s | 3273 MB |
-| fp32, 0 workers (after) | 2.67 s / 3.00 s | 2892 MB (after the shape fix) |
-| fp32, 4 workers | 2.06 s | — |
-| bf16, 4 workers | 1.92 s | — |
-| batch 4 × accumulation 2, 4 workers | 2.92 s | 2070 MB |
-
-The 0-worker after-change runs differ by about 12% between repeats, so the `verbose=0` change is not claimed as a speed-up. Each Windows loader worker re-imports torch, so the first batch of each loader starts several seconds later.
-
-Validation:
-- 329 backend unit/integration tests passed and 6 PostgreSQL cases were skipped. `test_packaging_boundary.py::test_xreport_import_closure_never_reaches_studio_modules` failed here and identically at the pre-change commit. The Model-page change had made the shared `encoder.py` import the pinned BEiT revision from the Studio-only `models.training.architecture`. Because the PyInstaller spec excludes that module, a packaged Inference build would have failed to import the encoder when loading an XREPORT checkpoint. The pin now lives in the shared `domain/checkpoint_exchange.py` (`ENCODER_REVISION`, next to `ENCODER_REPOSITORY`); after that fix the full unit/integration suites passed (330 passed, 6 skipped). No packaged build was rebuilt to confirm this.
-- Ruff and Pyright passed on the changed modules. The Studio build and lint passed, and 113 Angular tests passed.
-
-Live, against a source Studio on CUDA with the 6-row dataset:
-- Mixed + 2 workers + accumulation 2 trained and registered a checkpoint.
-- A duplicate name was refused with 409, and resume +1 epoch reached 3 epochs.
-- A stop requested during epoch 2 registered the last completed epoch (2), and that checkpoint resumed. A stop before the first epoch left no folder.
-- An invalid GPU index failed with a typed error and no folder. The CPU choice trained.
-- VRAM returned to 0 MiB after each run.
-- In the in-app browser, the wizard showed and sent gradient accumulation and had no compile controls. A 3-epoch bf16 run tracked the job API, and Stop during epoch 7 of a 50-epoch resume left the checkpoint at epoch 6.
-- In the Inference Python environment, the mixed-precision, CPU and a pre-existing checkpoint each loaded and produced finite outputs on CPU and CUDA.
-
-Not exercised: training the default preset (496.3M parameters, 410.6M trainable). Its baseline run filled the 6 GB GPU (5977 MiB, 100% utilisation) without finishing an epoch within minutes and was stopped; a failure after a saved epoch, live (covered by unit tests); import through a running XREPORT Inference server. Temporary training probes and checkpoints were removed after validation.
-
-Source change 2026-10-27 (not a release gate): Studio has a Model page for configuring, visualizing and saving XREPORT architectures (built-in XREPORT default, compact, balanced and large presets; custom presets in the new Studio table `model_architecture_presets`, head `8071b092e5f8`). Training now takes an `architecture_preset`, and checkpoints store the resolved architecture and the measured parameter counts. The shared transformer layers gained backward-compatible `ffn_units`, `dropout` and `key_dim` arguments. BEiT stays the only image encoder. Backend unit and integration tests (323 passed, 6 PostgreSQL skips), Ruff and Pyright on the changed modules, Studio build and lint, and 113 Angular unit tests passed. Live, against a source Studio on CUDA: the migration applied to the existing database; the Model page was checked in light/dark at 1440/1024/375 (live update, split-head validation, save, update, reload, JSON import, duplicate-name refusal, delete). A 1-epoch training from a custom preset built exactly the previewed parameter counts. The saved checkpoint and a fresh build from its configuration matched in counts, weight shapes and block configs, and the Inference Python environment loaded it. Resume (+1 epoch) and export also completed. Not exercised live: a checkpoint trained before this change (covered by unit tests) and import into a running XREPORT Inference server. The Studio initial bundle budget warning (500 kB) predates this change and now reads 506 kB.
-
-Source change 2026-10-27 (not a release gate): XREPORT Inference and XREPORT Studio now have fully separate database schemas. Each has its own ORM base, Alembic stream and version table (`xreport_inference_version` head `36d142391099`, `xreport_studio_version` head `9d4d3bce4ede`). Studio stores no inference settings (`inference: null` in its Settings API), and the dataset-record link was removed from inference reports. Each application rejects the other's database and the retired shared schema without modifying them. There is no conversion from the shared schema; the local development databases were recreated. Backend unit tests (305), Pyright on the changed modules, Angular build/lint for both projects, and 101 Angular unit tests passed. Against live source servers: Studio e2e passed 26/26; Inference e2e passed 21/26; 4 failures are pre-existing stale expectations (three browser cases expect 4 Settings tabs instead of the current 5, one API case expects a removed `features` settings field) and one font-request abort passed on rerun. Live checks then passed four flows. First, SQLite switching through the Studio Settings API: a new file was initialized, each database kept its own seed, and switching to the Inference database was refused with the previous configuration kept active. Second, both Settings → Database sections in the in-app browser (schema owner and revision, ownership error on the other app's file). Third, a real 1-epoch Studio training on synthetic images, then export, import into XREPORT Inference, and one deterministic generation saved to history. Fourth, a Studio restart, after which its checkpoint, datasets and settings persisted. PostgreSQL was not exercised: the user chose to skip it. The parametrized PostgreSQL contract (both schemas, cross-app refusal) is unrun.
-
-Source change 2026-10-27 (not a release gate): the inference application is displayed as XREPORT Inference across UI, FastAPI title, desktop shell and launcher (identifiers, bundle ids and artifact names unchanged); checkpoint import now rejects a different encoder revision and inconsistent metadata, export enforces the import limits, unused dependencies were removed and Studio-only packages moved to the `studio` extra, and a Studio-side import boundary test was added. Backend unit tests (295) and Angular lint/build/unit tests passed; a live round trip then passed on isolated data roots with the pinned BEiT encoder: a small real Keras checkpoint (1 encoder/1 decoder layer, synthetic 19-token tokenizer, no training) was exported by the Studio API (199 MB), imported by XREPORT Inference through the real load and forward-pass smoke test with the tokenizer installed offline, listed as a ready custom model, and generated reports for a synthetic image in deterministic and detailed profiles. The text is untrained and proves technical interoperability only; real training, the encoder-bundled archive, conflict/cancel UI paths and packaged import remain unverified.
+Last updated: 2026-11-25
 
 This is the canonical current-status summary for XREPORT. It records scoped
 component confidence, active issues, and known limits; it is not a development
 diary, detailed test report, release approval, or clinical-quality statement.
+Run evidence lives in the [validation campaign ledger](validation_campaign_ledger.md)
+and release contents in the [changelog](../../CHANGELOG.md).
 
-Release 3.3.1 (2026-10-22) is a launcher shutdown-wait patch over 3.3.0; its package scope is recorded in the campaign ledger. Release 3.3.0 (2026-10-22) supersedes the unpublished 3.2.1 candidate; it adds the legacy-compatibility cleanup, the self-hosted FastAPI SPA launcher lifecycle, and the portable-Node recovery fix. Its source smoke is recorded in the [validation campaign ledger](validation_campaign_ledger.md); the published-package scope is recorded there after publication.
+## Current state
 
-The post-split `develop` source gate passed at `e8ad7bedd776800ee3099239d6b257ee4d5cd0c6` with hosted CI [40122131254](https://github.com/CTCycle/XREPORT-radiological-reports-generator/actions/runs/40122131254). At that SHA, XREPORT/Studio builds and lint passed, focused live browser suites passed 18/18 and 14/14, 54 checkpoint/job unit tests passed, Angular passed 79/79, and the built-server suite passed 9/9. The full Python collection contains 331 cases; only the focused suites were run locally. This source evidence does not upgrade release/package acceptance, model-dependent V05–V07, or excluded hardware scopes.
-
-The published v3.2.0 release was validated at source
-`a8d75a0c0d5f02a29c85e9ac58f4837fc3081449`. Before the post-split campaign, the
-most recent application-source Tier 0 validation targeted
-`b98a9b60492b63fb41a904e3cff4815325b8d075`. On
-2026-10-21 the application source dropped legacy compatibility layers: the
-Alembic stream was squashed to the current-schema baseline `b1e7a2c4d908`,
-database-configuration bootstrap now creates a default SQLite configuration
-instead of importing legacy `.env`/`DATABASE_*` values, the former
-settings-JSON cleanup was removed, and the client no longer migrates a
-browser-stored theme preference into the database. A later working-tree change
-adds migration `42c8e1f7b0d3` to move inference process policy to `.env` and
-adds environment-driven CORS configuration. The scoped follow-up was validated
-on `ef1ae34ad8e9dc073415e5ec1a0eaec588f81999`: rendered settings UI and
-isolated SQLite persistence, supported environment parsing/CORS, and migration
-from `b1e7a2c4d908` to `42c8e1f7b0d3` passed. Post-change Windows reruns
-passed the backend suite (excluding live-server E2E), all client unit tests,
-both lint gates, and the browser/API E2E suites except the `S23` case that
-requires the still-absent `s27` fixture pack. On 2026-10-21, the current
-working-tree launcher started on standard ports `5003`/`8003` with isolated
-resources; Inference, Reports, Dataset, Training, and Settings loaded. Settings
-seed `317` survived navigation and launcher restart; backend health reported
-version `3.2.1`. SQLite integrity passed, and Alembic reached `42c8e1f7b0d3`.
-Historically, the v3.2.1 candidate restored migration compatibility from published revisions
-`f48a7c2e91b6` and `e91a4f6c2d73`, including the prior browser theme
-preference. Sixteen focused database-initialization tests, four version/OpenAPI
-tests, 65 client unit tests, and both lint gates passed. Candidate commit
-`1a15d24cb07fecbf66601940752a164c47972fc7` passed hosted CI run
-[39667709442](https://github.com/CTCycle/XREPORT-radiological-reports-generator/actions/runs/39667709442),
-including backend unit tests, Ruff, Pyright, PostgreSQL persistence, retained API
-E2E, client build/server, lint, and unit tests. Official packages remain open;
-Tier 0 remains `PARTIAL` until that gate finishes. Follow-on cleanup removed the neutral validation
-hash field, historical cache-directory sweep, and npm peer-dependency bypass,
-and replaced the API type generator. A clean `npm ci`, dependency-tree check,
-API type generation, client build/lint, 64 client unit tests, 18 dedicated
-browser E2E tests, backend Ruff, and backend Pyright passed. The standard runner
-reported 245 passed, 3 skipped, and 4 failed; the S23 failure lacks its fixture
-pack, the upload-size case passed on retry, the S10 retry could not connect to
-the runner listener, and the request-gate test failed before its body due to
-Windows asyncio loop initialization. These end-to-end scopes remain `PARTIAL`.
-SonarCloud is excluded from project gates
-because the available plan does not support analysis for this repository's
-over-50k LOC. The
-[validation campaign ledger](validation_campaign_ledger.md) records the exact
-evidence and remaining boundaries.
+- Release line: 4.0.1 (patch over 4.0.0, the Inference/Studio split). Only
+  XREPORT Inference is packaged; Studio runs from source. The 4.0.1 gate is
+  recorded in the campaign ledger.
+- Source gate at 4.0.1: Ruff and Pyright clean; 355 backend unit tests (2 skipped); 122
+  Angular unit tests; both builds, lint and the built-server test; live API
+  E2E (Inference 7, Studio 11) and Playwright browser suites (Inference 19,
+  Studio 16) on isolated SQLite roots. Hosted CI on `develop` had been failing
+  since 2026-11-09 on one stale launcher-cleanup assertion; fixed in 4.0.1.
+- Validation debt that still applies: PostgreSQL for the separated schemas,
+  Studio training of the default preset on the 6 GB reference GPU (it filled
+  the GPU without finishing an epoch), packaged inference with a real model,
+  packaged checkpoint import, GPU-less CUDA fallback, real (non-dry-run)
+  launcher cleanup and MSI uninstall through `setup_and_maintenance.ps1`,
+  screen-reader review, and the full `run_tests.bat` workflow (its Studio
+  browser phase races the preview server).
+- Known limits: one `pyproject.toml`/`uv.lock` and one `package.json` serve
+  both applications; token statistics do not set `truncated` or
+  `max_report_size`; unknown `/api/*` paths in the packaged build return the
+  Angular index with HTTP 200; model output quality is not clinically
+  validated. A locally modified model snapshot is rejected by the integrity
+  check until it is re-downloaded (observed for CXRMate Multi TF).
 
 ## Maintenance rules
 
@@ -248,9 +139,9 @@ PR #9 review fixes passed 272 backend unit tests, Ruff and Pyright locally, and 
 
 | ID | Component | Severity | State | Current impact and next evidence |
 | --- | --- | --- | --- | --- |
-| `ISSUE-006` | `inference.export_safety` | `HIGH` | `OPEN` | 2026-11-18 audit: artificial 64x64 inputs yielded a "normal" report and an invented surgical history, exported as TXT with no research-only marking. Flag or decline unsuitable inputs and carry research status, sources, view count and model revision in exports and copies. |
+| `ISSUE-006` | `inference.export_safety` | `HIGH` | `PARTIAL` | 2026-11-18 audit: artificial 64x64 inputs yielded a "normal" report and an invented surgical history, exported as TXT with no research-only marking. 4.0.1: Copy and Export now start with a research-use-only notice, model and revision, source image(s) and export time (unit test plus a Playwright download assertion). Open: flag or decline unsuitable inputs before generation. |
 | `ISSUE-007` | `studio.training_runtime` | `HIGH` | `OPEN` | 2026-11-18: a training job was admitted then failed at epoch 0 (`ModuleNotFoundError`, missing Keras preprocessing module; no checkpoint). Verify the official launcher repair, add a readiness check before admission, then rerun training, resume, evaluation and exchange. |
-| `ISSUE-008` | `inference.study_export` | `MEDIUM` | `OPEN` | Combined study reports show only the first image in the Reports card and export as `xreport-<first image>.txt` without study provenance. |
+| `ISSUE-008` | `inference.study_export` | `MEDIUM` | `PARTIAL` | Combined study reports showed only the first image and exported as `xreport-<first image>.txt` without study provenance. 4.0.1: copy/export list every source image and a study exports as `xreport-study-<first image>-<n>-images.txt`. Open: the Reports card still shows only the first image. |
 | `ISSUE-009` | `studio.dataset_errors` | `MEDIUM` | `OPEN` | Out-of-range validation split (`0.9`) is submitted and shown as raw 422 JSON away from the field; validate before submit with a field-level message. Also relabel the validation-results icon ("Open validation route" opens a dialog). |
 | `ISSUE-010` | `studio.folder_selection` | `MEDIUM` | `OPEN` | Browser-mode folder upload opens a server-side Windows Forms dialog; in the in-app browser no chooser appeared. Verify through the foreground launcher and give browser-appropriate wording and flow. |
 | `ISSUE-002` | `inference.model.medgemma` | `MEDIUM` | `BLOCKED` | The gated model cannot be installed without authorized provider access. After access is configured, install the exact pinned revision and capture real inference before changing status. |

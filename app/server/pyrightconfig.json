@@ -1,6 +1,6 @@
 {
   "include": ["../xreport_shared", "../xreport_studio", "../xreport_inference"],
-  "exclude": [".venv"],
+  "exclude": [".venv", ".venv-studio"],
   "extraPaths": [".."],
   "venvPath": ".",
   "venv": ".venv",

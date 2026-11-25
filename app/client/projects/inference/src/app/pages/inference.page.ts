@@ -10,7 +10,7 @@ import {
   lucideRefreshCw, lucideSearch, lucideSparkles, lucideTrash2, lucideX,
 } from '@ng-icons/lucide';
 import { asRecord, readNumber, readString, readStringArray } from '@xreport/shared/app/common/parsers';
-import { SECTION_LABELS, formatReportDraft, isOutputSection, parseReportDraft } from '@xreport/shared/app/common/report-sections';
+import { SECTION_LABELS, formatReportDraft, formatReportExport, isOutputSection, parseReportDraft } from '@xreport/shared/app/common/report-sections';
 import type { DraftSections } from '@xreport/shared/app/common/report-sections';
 import { InferenceApiService } from '@xreport/shared/app/services/inference-api.service';
 import { AppStateService } from '@xreport/shared/app/services/app-state.service';
@@ -331,8 +331,11 @@ export class InferencePage implements AfterViewInit {
   confirmDiscardUnsavedChanges(): boolean { if (this.saving() || this.loadingPersistedHistory()) { this.saveError.set('Wait for the report operation to finish before leaving this page.'); return false; } return true; }
   private confirmDiscardIfDirty(): boolean { return !this.dirty() || window.confirm('You have unsaved report edits. Leave and discard them? The generated report remains available in Reports.'); }
   @HostListener('window:beforeunload', ['$event']) protectUnsavedDraft(event: BeforeUnloadEvent): void { if (!this.dirty() && !this.saving()) return; event.preventDefault(); event.returnValue = ''; }
-  async copyDraft() { if (!this.hasDraft()) return; try { await navigator.clipboard.writeText(this.formattedDraft()); this.appState.updateInference((state) => ({ ...state, isCopied: true })); setTimeout(() => this.appState.updateInference((state) => ({ ...state, isCopied: false })), 1600); } catch { this.generationError.set('Clipboard access is unavailable in this browser.'); } }
-  exportDraft() { if (!this.hasDraft()) return; const blob = new Blob([this.formattedDraft()], { type: 'text/plain;charset=utf-8' }); const url = URL.createObjectURL(blob); const anchor = document.createElement('a'); anchor.href = url; anchor.download = `xreport-${this.currentImage()?.name?.replace(/\.[^.]+$/, '') || 'draft'}.txt`; anchor.click(); URL.revokeObjectURL(url); }
+  async copyDraft() { if (!this.hasDraft()) return; try { await navigator.clipboard.writeText(this.exportText()); this.appState.updateInference((state) => ({ ...state, isCopied: true })); setTimeout(() => this.appState.updateInference((state) => ({ ...state, isCopied: false })), 1600); } catch { this.generationError.set('Clipboard access is unavailable in this browser.'); } }
+  exportDraft() { if (!this.hasDraft()) return; const blob = new Blob([this.exportText()], { type: 'text/plain;charset=utf-8' }); const url = URL.createObjectURL(blob); const anchor = document.createElement('a'); const sources = this.reportSources(); const stem = sources[0]?.replace(/\.[^.]+$/, '') || 'draft'; anchor.href = url; anchor.download = this.isStudyExport() ? `xreport-study-${stem}-${sources.length}-images.txt` : `xreport-${stem}.txt`; anchor.click(); URL.revokeObjectURL(url); }
+  private isStudyExport() { return this.studyReport() && this.runIndices().length > 1; }
+  private reportSources() { const images = this.state().images; const indices = this.isStudyExport() ? this.runIndices() : [this.state().currentIndex]; return indices.map((index) => images[index]?.name).filter((name): name is string => Boolean(name)); }
+  private exportText() { const model = this.selectedModel(); return formatReportExport(this.formattedDraft(), { model: model?.display_name ?? 'unknown', revision: model?.active_revision || model?.model_revision || 'not reported', sources: this.reportSources(), studyReport: this.isStudyExport(), exportedAt: new Date().toISOString() }); }
   private formattedDraft() { return formatReportDraft(this.outputSections(), this.drafts()[this.state().currentIndex] ?? {}, this.state().generatedReport); }
   async cancelGeneration() { const jobId = this.state().activeJobId; if (!jobId) return; const response = await this.jobsApi.cancel(jobId); if (!response.result?.success) { this.generationError.set(response.error ?? response.result?.message ?? 'Unable to cancel generation.'); return; } this.progressMessage.set('Cancellation requested…'); }
   async checkUpdate(model: ModelAvailability) {

@@ -1,5 +1,29 @@
 # Changelog
 
+## 4.0.1 (2026-11-25)
+
+Patch release. XREPORT Inference is still the only packaged application; databases, checkpoints and settings from 4.0.0 are used unchanged (no schema migration).
+
+### Fixes
+
+- **Copied and exported drafts carry their research status.** Inference's Copy and Export text now begin with a research-use-only notice, the model and revision, the source image name(s) and the export time. A combined study report lists every image read and exports as `xreport-study-<first image>-<n>-images.txt` instead of being named after the first image alone (`ISSUE-006`, part of `ISSUE-008`).
+- The tagged desktop release workflow calls `setup_and_maintenance.ps1`; it still referenced the renamed `start_on_windows.ps1` and could not build packages.
+- The desktop window no longer enforces a 1024×720 minimum size and the shared layout no longer sets a minimum body width; the guided tour follows the actual viewport.
+
+### Windows launcher and maintenance
+
+- `start_on_windows.bat` and `start_studio_on_windows.bat` only start the applications. Dependency setup, desktop builds, cleanup and uninstall moved to `setup_and_maintenance.ps1` (menu or `-Action`).
+- Cleanup and uninstall validate every target root, support `-DryRun`, preserve persistent user data and shared settings, leave reparse points untouched, continue past independent failures and uninstall the XREPORT Inference CPU/CUDA MSI products. Counting and deletion use a streaming traversal and are much faster on large caches.
+- Studio environment setup retries a failed runtime probe once by reinstalling only the locked Keras package when the probe reports a missing Keras module.
+
+### Internal
+
+- Backend layering, typing and complexity clean-up with no API or behaviour change; Pyright reports no errors (the local configuration now also excludes the Studio virtual environment).
+
+### Known limitations
+
+Open issues are tracked in the [status ledger](assets/docs/project_status_ledger.md): unsuitable inputs are not yet flagged before generation (rest of `ISSUE-006`), the Reports card of a combined study still shows only the first image (rest of `ISSUE-008`), Studio training fails in an environment with an incomplete Keras install (`ISSUE-007`), dataset split errors and browser-mode folder selection need work (`ISSUE-009`, `ISSUE-010`), and MedGemma needs gated access (`ISSUE-002`). The packages are unsigned and need WebView2.
+
 ## 4.0.0 (2026-10-28)
 
 Major release marking the split of XREPORT into two applications that are developed, configured and shipped separately. Releases up to 3.3.1 shipped one combined application.

@@ -1,6 +1,6 @@
 # Operations Workflows
 
-Last updated: 2026-10-29
+Last updated: 2026-11-25
 
 ## Prepare A Dataset
 
@@ -101,7 +101,7 @@ Expected result:
 2. Select one of the current Public Models or a locally trained Custom XReport Model. Read the anatomy scope, demand, approximate size, licence/access badge, exact revision, adapter, loader, and declared output sections. A public model can be Downloaded explicitly or submitted while `not_downloaded`; Generate will prepare it in the background.
 3. Add no more than the model-specific image limit and enter clinical context only when the selected contract supports it.
 4. Choose a generation profile (changeable at any time; regenerating after a change creates a new saved run, and XReport checkpoints decode Deterministic and Concise identically) and, with more than one image, **Run on**: the selected image only (default, one report), each image separately (one independent report and saved row per image), or (multi-view models; disabled with a reason otherwise) all images as one study (one consolidated report). Per-image results are browsed with the report selector in step 3; each report keeps its source image, edits, save and export independently. Submit and poll the background job until completion or cancellation. Use Cancel generation when an active request should stop. Navigating away does not stop the job: returning to the page resumes progress tracking or restores the finished, saved report. In per-image runs a failed image is reported while the others still complete.
-5. After completion, wait for the saved-report status, then edit the declared raw report, Findings, and/or Impression fields. Select **Save edits** to persist changes, or **View in Reports** to review the saved session. Copy or export remains available for qualified review. Changing the model or study, starting another generation, or leaving the route asks before discarding unsaved edits; browser reload/close prompts where supported.
+5. After completion, wait for the saved-report status, then edit the declared raw report, Findings, and/or Impression fields. Select **Save edits** to persist changes, or **View in Reports** to review the saved session. Copy or export remains available for qualified review; the copied or exported text starts with a research-use-only notice, the model and revision, the source image name(s) and the export time, and a combined study exports as `xreport-study-<first image>-<n>-images.txt`. Changing the model or study, starting another generation, or leaving the route asks before discarding unsaved edits; browser reload/close prompts where supported.
 
 Expected result:
 

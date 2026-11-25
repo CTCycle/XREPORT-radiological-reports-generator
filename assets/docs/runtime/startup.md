@@ -1,6 +1,6 @@
 # Runtime Startup
 
-Last updated: 2026-11-05
+Last updated: 2026-11-25
 
 ## Windows App Launch
 
@@ -168,7 +168,7 @@ not replaced by the desktop action.
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\setup_and_maintenance.ps1 `
-  -Action BuildDesktopRelease -DesktopRuntime All -DesktopTarget All -Version 4.0.0
+  -Action BuildDesktopRelease -DesktopRuntime All -DesktopTarget All -Version 4.0.1
 ```
 
 Use `-DesktopRuntime Cpu|Cuda`, `-DesktopTarget Portable|Msi`, `-Force`, and
@@ -207,7 +207,7 @@ or the all-releases switch:
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\setup_and_maintenance.ps1 `
-  -Action RemoveDesktopRelease -Version 4.0.0 -DesktopRuntime Cpu -DesktopTarget All
+  -Action RemoveDesktopRelease -Version 4.0.1 -DesktopRuntime Cpu -DesktopTarget All
 powershell -ExecutionPolicy Bypass -File .\setup_and_maintenance.ps1 `
   -Action RemoveDesktopRelease -AllDesktopReleases
 ```
@@ -317,7 +317,7 @@ storage-location pointers.
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\setup_and_maintenance.ps1 -Action Uninstall -DryRun
 powershell -ExecutionPolicy Bypass -File .\setup_and_maintenance.ps1 -Action Uninstall `
-  -PortableInstallPath 'D:\Apps\XREPORT-v4.0.0-windows-x64-cpu-portable.exe'
+  -PortableInstallPath 'D:\Apps\XREPORT-v4.0.1-windows-x64-cpu-portable.exe'
 ```
 
 **Remove all data** is the separate, per-app operation for persistent user
