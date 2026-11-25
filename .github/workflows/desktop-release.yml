@@ -113,7 +113,13 @@ jobs:
       - name: Verify packaged runtime and MSI resource
         shell: pwsh
         run: |
-          & .\app\desktop\build\verify_desktop_artifacts.ps1 -Variant '${{ matrix.artifact }}' -Version ($env:RELEASE_VERSION -replace '^v', '') -SourceCommit $env:SOURCE_COMMIT
+          $version = $env:RELEASE_VERSION -replace '^v', ''
+          $verifyArguments = @{ Variant = '${{ matrix.artifact }}'; Version = $version; SourceCommit = $env:SOURCE_COMMIT }
+          if ('${{ inputs.package_run_id }}' -ne '') {
+            # The approval checkout has no build cache; use the audit committed beside the approval manifest.
+            $verifyArguments.RuntimeAudit = "assets/docs/validation/runtime-${{ matrix.artifact }}-$version.json"
+          }
+          & .\app\desktop\build\verify_desktop_artifacts.ps1 @verifyArguments
           if ($LASTEXITCODE -ne 0) { throw "Artifact verification failed with exit code $LASTEXITCODE." }
 
       - name: Smoke-test packaged portable application

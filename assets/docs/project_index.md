@@ -1,6 +1,6 @@
 # XREPORT Project Overview
 
-Last updated: 2026-11-05
+Last updated: 2026-11-25
 
 This file is the root index for `assets/docs`. Read it first to find the narrowest topic file for the active question.
 
@@ -32,6 +32,8 @@ This file is the root index for `assets/docs`. Read it first to find the narrowe
   - Compact validation gate map, current release evidence, and campaign-wide limits.
 - `validation/approved-release-manifest.json`
   - Machine-readable approval record consumed by the desktop release verifier.
+- `validation/runtime-<variant>-<version>.json`
+  - Runtime audits of the approved packages, used by the release approval phase.
 
 ### Architecture
 

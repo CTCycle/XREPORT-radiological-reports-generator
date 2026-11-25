@@ -398,6 +398,14 @@ def test_desktop_release_uses_separate_build_and_approval_phases() -> None:
     build_scripts = re.findall(r"& \.\\(\S+\.ps1) -Action BuildDesktopRelease", workflow)
     assert build_scripts
     assert all((repository_root / script).is_file() for script in build_scripts)
+    # The approval checkout has no build cache, so it must verify against the
+    # runtime audit committed beside the approval manifest.
+    assert (
+        '$verifyArguments.RuntimeAudit = "assets/docs/validation/runtime-' in workflow
+    )
+    assert "[string]$RuntimeAudit" in (
+        repository_root / "app" / "desktop" / "build" / "verify_desktop_artifacts.ps1"
+    ).read_text(encoding="utf-8")
     assert "$NativeScenario -join ','" in native_smoke
     assert "::FocusedElement" in native_driver
     assert "StartupBackendDelaySeconds" in native_driver

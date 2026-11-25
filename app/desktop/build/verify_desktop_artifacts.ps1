@@ -4,7 +4,9 @@ param(
     [Parameter(Mandatory = $true)][string]$Variant,
     [Parameter(Mandatory = $true)][string]$Version,
     [string]$SourceCommit,
-    [string]$ReleaseRoot
+    [string]$ReleaseRoot,
+    # Approval runs pass the committed audit recovered from the CI portable.
+    [string]$RuntimeAudit
 )
 
 $ErrorActionPreference = 'Stop'
@@ -22,7 +24,8 @@ $portable = Join-Path $ReleaseRoot "$prefix-portable.exe"
 $msi = Join-Path $ReleaseRoot "$prefix.msi"
 $checksum = Join-Path $ReleaseRoot "$prefix.sha256"
 $metadataPath = Join-Path $ReleaseRoot "$prefix-build.json"
-$runtimeAudit = Join-Path $repoRoot "runtimes\cache\desktop-validation\runtime-$Variant-$Version.json"
+if (-not $RuntimeAudit) { $RuntimeAudit = Join-Path $repoRoot "runtimes\cache\desktop-validation\runtime-$Variant-$Version.json" }
+$runtimeAudit = $RuntimeAudit
 function Assert-File([string]$Path) {
     if (-not (Test-Path -LiteralPath $Path -PathType Leaf)) { throw "Expected desktop artifact is missing: $Path" }
 }

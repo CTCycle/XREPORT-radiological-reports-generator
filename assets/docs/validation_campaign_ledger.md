@@ -29,9 +29,39 @@ Last updated: 2026-11-25
   UI/dataset/filesystem 16/16. The E2E process must share the server's
   `XREPORT_RESOURCES_DIR`, because history and checkpoint fixtures seed the
   database directly; with mismatched roots 3 cases fail spuriously.
+- Hosted CI: `develop` and `main` at `db4dc4e0` passed (runs 45603183031 and
+  45603829508; first green `develop` run since 2026-11-09). Tag `v4.0.1`
+  resolves to `db4dc4e0`; package run 45604469247 built CPU and CUDA from a
+  clean tree and its in-workflow audits and portable smoke passed.
+- Packages (downloaded CI artifacts, RTX 3060 Windows host): checksums and
+  `verify_desktop_artifacts.ps1` passed for both variants, with the runtime
+  audit recovered from each portable (payload hash equals the build metadata).
+  Payloads hold only `backend`, `client`, `settings/.env.example` (empty
+  `HF_TOKEN`) and the manifest: no Studio module, `.env`, database, log, PDB
+  or checkpoint. Packaged portable smoke: CPU ready at 17.1 s, CUDA at 36.4 s;
+  health, index, close and removal of backend, listener and contract files
+  passed. CPU MSI lifecycle (elevated, maintainer-approved UAC): the published
+  4.0.0 MSI installed and ran (seed set to 4011), the 4.0.1 MSI upgraded it in
+  place (one product registered, 4.0.1; the app reported 4.0.1 with seed 4011
+  and 4 catalogue models), and uninstall removed the product and install
+  folder while keeping `%LOCALAPPDATA%\XREPORT\data`. The test data root was
+  removed afterwards.
+- Publish-phase blocker found and fixed: since `63604084` the verifier read
+  the runtime audit only from ignored `runtimes/cache`, so the approval run
+  would fail on a fresh checkout. The audits now live beside the approval
+  manifest (`validation/runtime-<variant>-4.0.1.json`) and the approval
+  phase passes them with `-RuntimeAudit`; checked locally with the cache audit
+  removed (fails without, passes with).
+- Limits observed: the per-version runtime extraction under
+  `%LOCALAPPDATA%\XREPORT\runtime\<variant>\` is not pruned on upgrade (the
+  4.0.0 CPU copy, about 0.9 GB, remained); the `.sha256` files use CRLF line
+  endings, so `sha256sum -c` needs `tr -d '\r'` (the project verifier accepts them).
 - Not run: the study-export filename in a browser (unit-tested formatting
-  only), PostgreSQL integration (CI covers it), real model generation, Studio
-  training (`ISSUE-007`).
+  only), PostgreSQL integration (CI covers it), real model generation or
+  checkpoint import in a package, CUDA MSI lifecycle, GPU-less CUDA fallback,
+  Studio training (`ISSUE-007`). Approved by the maintainer in chat on
+  2026-11-25; the [approval manifest](validation/approved-release-manifest.json)
+  binds the eight SHA-256 hashes.
 
 ## Web application E2E audit (2026-11-18, `develop` at `f429e655`)
 
@@ -294,7 +324,7 @@ there without retaining a separate capture archive.
 
 ## Desktop runtime audit receipts
 
-The recovered Windows x64 runtime audits use format 2. Payload hashes below identify the embedded runtime payload, not the full portable/MSI release artifact. The 4.0.0 approval manifest contains the published artifact hashes.
+The recovered Windows x64 runtime audits use format 2. Payload hashes below identify the embedded runtime payload, not the full portable/MSI release artifact. The current approval manifest contains the published artifact hashes; the 4.0.1 audits are tracked beside it because the approval phase verifies against them.
 
 | Version | Variant | Audited UTC | Source commit | Files | Payload bytes | Payload SHA-256 |
 | --- | --- | --- | --- | ---: | ---: | --- |
@@ -304,6 +334,8 @@ The recovered Windows x64 runtime audits use format 2. Payload hashes below iden
 | 3.3.1 | CUDA | 2026-10-22 16:09:17Z | `740261541374cec45e91e6170b9cb283331f8a8a` | 6,786 | 3,218,311,201 | `3cf34bf81f6e4174cffa561e6abf5f2492e987d452aafb7a232d69340a944b3f` |
 | 4.0.0 | CPU | 2026-10-28 18:18:53Z | `a01e7949962c4fc214b40d5178cee72470ed7673` | 5,698 | 933,729,093 | `22c551e1090ea0c377ec000defbdbfa79850402eb9912e25c2ac4100b9902bdc` |
 | 4.0.0 | CUDA | 2026-10-28 18:19:40Z | `a01e7949962c4fc214b40d5178cee72470ed7673` | 5,723 | 3,007,548,589 | `67f5a3dfc29a34628c72f601baaabc945512519d9f006d2b84e66293fe43de03` |
+| 4.0.1 | CPU | 2026-11-25 11:32:36Z | `db4dc4e08d6a729e2e8b9f61b2e62c16dd283a81` | 5,698 | 933,731,768 | `6232621937b4ec300d83926b7e7a4924ee638a11cd5a1f9f550fcb742b06feae` |
+| 4.0.1 | CUDA | 2026-11-25 11:33:46Z | `db4dc4e08d6a729e2e8b9f61b2e62c16dd283a81` | 5,723 | 3,007,551,264 | `c9945972e7bfad48a0d5e4c87f5634c64c91c30e8bdfaf4747af6e1b5f91c828` |
 
 ## Gate map
 
@@ -533,9 +565,10 @@ see [testing and quality rules](coding/testing_and_quality.md).
 - Put temporary screenshots, logs, and receipts under ignored `runtimes/cache/`
   and remove them after the run. Keep
   only artifacts required by project tooling in the tracked tree. The approved
-  release manifest is indexed under `validation/` because the release verifier
-  consumes it
-  and it binds one source commit to the published artifact hashes.
+  release manifest and the current runtime audits are indexed under
+  `validation/` because the release verifiers consume them; the manifest
+  binds one source commit to the published artifact hashes. Remove a
+  superseded version's audits when the next release replaces the manifest.
 - Keep `PASS`, `PARTIAL`, `BLOCKED`, `FAIL`, and `UNTESTED` scoped to what was
   actually exercised. A unit test does not prove a browser workflow; a
   synthetic technical run does not prove model quality; package evidence does

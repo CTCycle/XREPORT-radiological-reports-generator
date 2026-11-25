@@ -7,7 +7,7 @@ Patch release. XREPORT Inference is still the only packaged application; databas
 ### Fixes
 
 - **Copied and exported drafts carry their research status.** Inference's Copy and Export text now begin with a research-use-only notice, the model and revision, the source image name(s) and the export time. A combined study report lists every image read and exports as `xreport-study-<first image>-<n>-images.txt` instead of being named after the first image alone (`ISSUE-006`, part of `ISSUE-008`).
-- The tagged desktop release workflow calls `setup_and_maintenance.ps1`; it still referenced the renamed `start_on_windows.ps1` and could not build packages.
+- The tagged desktop release workflow calls `setup_and_maintenance.ps1`; it still referenced the renamed `start_on_windows.ps1` and could not build packages. Its approval phase now verifies against runtime audits committed beside the approval manifest, because the audit cache it expected is not present on a fresh checkout.
 - The desktop window no longer enforces a 1024×720 minimum size and the shared layout no longer sets a minimum body width; the guided tour follows the actual viewport.
 
 ### Windows launcher and maintenance

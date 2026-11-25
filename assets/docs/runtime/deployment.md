@@ -84,6 +84,12 @@ loader's effective path limit for native frozen extensions such as
 `regex._regex`, causing a test-harness startup failure even though the same
 artifact starts correctly under a normal user profile.
 
+To re-verify CI-built artifacts outside the build runner, extract the
+`runtime-manifest.json` embedded in each portable and pass it with
+`-RuntimeAudit` (and `-ReleaseRoot` for the download folder). The release
+approval phase does the same with the audits committed beside the approval
+manifest in `assets/docs/validation/runtime-<variant>-<version>.json`.
+
 The shell extracts atomically to
 `%LOCALAPPDATA%\XREPORT\runtime\<variant>\<version>\<payload-sha256>`. The
 backend executable and client are immutable there. First launch atomically
@@ -91,7 +97,8 @@ seeds `%LOCALAPPDATA%\XREPORT\data\.env` only when absent, then creates or
 upgrades `%LOCALAPPDATA%\XREPORT\data\database.db` and its
 `application_settings` row. Settings changes are persisted transactionally in
 that database; no JSON settings file is staged or recreated. Logs are bounded
-and readiness/session files are removed at shutdown.
+and readiness/session files are removed at shutdown. An upgrade extracts the
+new version beside the old one; earlier version folders are not pruned.
 
 CPU uses an isolated target overlay for the official `torch==2.10.0+cpu` and
 `torchvision==0.25.0+cpu` wheels. CUDA uses the existing locked cu130 stack;
@@ -110,5 +117,5 @@ matching GitHub Release. Signing is deliberately absent.
 Tauri MSI and portable packages contain only XREPORT Inference. `xreport_inference.desktop_entry` runs the `xreport` profile, the
 PyInstaller spec collects only `xreport_shared` and `xreport_inference` (the Studio package is
 excluded and never imported), and the runtime-bundle audit forbids `studio`
-and `studio-angular` members. XREPORT Studio has no installer, package, or release workflow. A unit test (`test_packaging_boundary.py`) keeps `xreport_inference` and `xreport_shared` free of Studio imports. The 4.0.0 CPU and CUDA packages were built and inspected: their module tables contain no Studio module and a running package exposes no Studio routes (see the campaign ledger). Models are still not
+and `studio-angular` members. XREPORT Studio has no installer, package, or release workflow. A unit test (`test_packaging_boundary.py`) keeps `xreport_inference` and `xreport_shared` free of Studio imports. The 4.0.0 and 4.0.1 CPU and CUDA packages were inspected: their payloads contain no Studio module and a running package exposes no Studio routes (see the campaign ledger). Models are still not
 bundled; imported checkpoints live under the user data folder like other models.
