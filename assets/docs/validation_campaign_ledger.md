@@ -1,6 +1,6 @@
 # XREPORT Validation Campaign Ledger
 
-Last updated: 2026-11-25
+Last updated: 2026-11-27
 
 ## Release 4.0.1 (2026-11-25, patch over 4.0.0)
 
@@ -62,6 +62,19 @@ Last updated: 2026-11-25
   Studio training (`ISSUE-007`). Approved by the maintainer in chat on
   2026-11-25; the [approval manifest](validation/approved-release-manifest.json)
   binds the eight SHA-256 hashes.
+- Publication: approval-phase run 45657287992 (dispatched from `main` at
+  `c434cf0d`) passed package re-verification against the committed audits,
+  portable smoke, asset-set validation and the manifest check, then failed
+  creating the release with HTTP 403 "Resource not accessible by integration"
+  even though its token had `contents: write` (the same settings published
+  4.0.0); re-running it failed the same way. With the maintainer's approval,
+  the release was created with the maintainer's `gh` CLI from the existing
+  tag and the eight locally re-verified files. The large uploads needed a
+  stable connection, so the release was published on 2026-11-27 as
+  [v4.0.1](https://github.com/CTCycle/XREPORT-radiological-reports-generator/releases/tag/v4.0.1)
+  (latest). All eight GitHub asset digests equal the manifest hashes, the tag
+  resolves to `db4dc4e0`, and anonymous downloads return the expected files
+  and sizes. Investigate the workflow 403 before the next release.
 
 ## Web application E2E audit (2026-11-18, `develop` at `f429e655`)
 
